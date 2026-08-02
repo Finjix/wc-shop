@@ -1,0 +1,20 @@
+# dependencies
+node_modules/
+
+# 小程序 npm 构建产物（微信开发者工具「构建 npm」生成）
+miniprogram_npm/
+
+# macOS
+.DS_Store
+
+# 微信开发者工具个人配置（机器相关，不入库）
+project.private.config.json
+
+# logs
+npm-debug.log*
+yarn-error.log*
+
+# editor
+.idea/
+.vscode/
+*.swp
