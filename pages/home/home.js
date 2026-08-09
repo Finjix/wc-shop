@@ -11,7 +11,10 @@ Page({
     duration: '500',
     interval: 3000,
     navigation: { type: 'dots' },
-    swiperImageProps: { mode: 'aspectFit' },
+    swiperImageProps: {
+      mode: 'aspectFill',
+      showMenuByLongpress: true,
+    },
     statusBarHeight: 0,
     navBarHeight: 44,
     customNavHeight: 44,

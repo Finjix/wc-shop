@@ -1,9 +1,4 @@
-<scroll-view
-  class="home-scroll"
-  scroll-y
-  enhanced
-  show-scrollbar="{{false}}"
->
+<scroll-view class="home-scroll" scroll-y enhanced show-scrollbar="{{false}}">
   <view class="home-scroll-content">
     <view style="text-align: center; color: #b9b9b9" wx:if="{{pageLoading}}">
       <t-loading theme="circular" size="40rpx" text="加载中..." inherit-color />
@@ -44,12 +39,12 @@
       </view>
     </view>
 
-    <view class="swiper-wrap">
-      <t-swiper
-        wx:if="{{imgSrcs.length > 0}}"
+  <view class="swiper-wrap">
+    <t-swiper
+      wx:if="{{imgSrcs.length > 0}}"
         t-class="home-swiper"
         t-class-image="home-swiper__image"
-        height="750rpx"
+      height="1000rpx"
         current="{{current}}"
         autoplay="{{autoplay}}"
         duration="{{duration}}"
@@ -57,11 +52,23 @@
         navigation="{{navigation}}"
         imageProps="{{swiperImageProps}}"
         list="{{imgSrcs}}"
-        bind:click="navToGoodsDetail"
-      />
-    </view>
+      bind:click="navToGoodsDetail"
+    />
+  </view>
 
-    <view wx:if="{{hotGoods.length}}" class="hot-sale-section">
+  <view class="shop-benefits-banner">
+    <image
+      class="shop-benefits-banner__image"
+      src="../../assets/shop-benefits-banner.jpg"
+      mode="widthFix"
+      lazy-load
+      show-menu-by-longpress="{{true}}"
+    />
+  </view>
+
+  <view class="age-warning">——未满18周岁禁止使用——</view>
+
+  <view wx:if="{{hotGoods.length}}" class="hot-sale-section">
       <view class="hot-sale__title">热销套装榜 明星单品</view>
       <view class="hot-sale__pink-frame">
         <view class="hot-sale__pattern" />
@@ -77,20 +84,21 @@
               <image
                 class="hot-product-card__image"
                 src="{{item.thumb}}"
-                mode="aspectFit"
+                mode="aspectFill"
                 lazy-load
               />
             </view>
-            <view class="hot-product-card__content">
-              <view class="hot-product-card__title">{{item.title}}</view>
+            <view class="hot-product-card__price-bar">
               <view class="hot-product-card__price">
                 <text class="hot-product-card__price-label">到手</text>
                 <price
                   wr-class="hot-product-card__price-number"
-                  symbol="¥"
                   price="{{item.price}}"
                 />
                 <text class="hot-product-card__price-suffix">起</text>
+              </view>
+              <view class="hot-product-card__price-action">
+                <t-icon name="chevron-right" size="26rpx" color="#fff" />
               </view>
             </view>
           </view>
