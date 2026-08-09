@@ -5,6 +5,11 @@ Page({
     imgSrcs: [],
     swiperGoods: [],
     hotGoods: [],
+    newGoods: [],
+    domesticGoods: [],
+    lubricantGoods: [],
+    toyGoods: [],
+    lastingGoods: [],
     pageLoading: false,
     current: 1,
     autoplay: true,
@@ -18,6 +23,7 @@ Page({
     statusBarHeight: 0,
     navBarHeight: 44,
     customNavHeight: 44,
+    headerHeight: 140,
   },
 
   onShow() {
@@ -36,8 +42,19 @@ Page({
       statusBarHeight,
       navBarHeight,
       customNavHeight: statusBarHeight + navBarHeight,
-    });
+    }, () => this.updateHeaderHeight());
     this.init();
+  },
+
+  updateHeaderHeight() {
+    wx.createSelectorQuery()
+      .select('.home-page-header')
+      .boundingClientRect((rect) => {
+        if (rect && rect.height && rect.height !== this.data.headerHeight) {
+          this.setData({ headerHeight: rect.height });
+        }
+      })
+      .exec();
   },
 
   onPullDownRefresh() {
@@ -56,17 +73,34 @@ Page({
       imgSrcs: [],
       swiperGoods: [],
       hotGoods: [],
+      newGoods: [],
+      domesticGoods: [],
+      lubricantGoods: [],
+      toyGoods: [],
+      lastingGoods: [],
     });
     this.loadCarouselGoods();
   },
 
   async loadCarouselGoods() {
     try {
-      const goodsList = await fetchGoodsList(0, 6);
-      const swiperGoods = goodsList.slice(0, 6);
+      const goodsList = await fetchGoodsList(0, 36);
+      const getGoodsGroup = (start) => goodsList.slice(start, start + 6);
+      const hotGoods = getGoodsGroup(0);
+      const newGoods = getGoodsGroup(6);
+      const domesticGoods = getGoodsGroup(12);
+      const lubricantGoods = getGoodsGroup(18);
+      const toyGoods = getGoodsGroup(24);
+      const lastingGoods = getGoodsGroup(30);
+      const swiperGoods = hotGoods;
       this.setData({
         swiperGoods,
-        hotGoods: swiperGoods,
+        hotGoods,
+        newGoods,
+        domesticGoods,
+        lubricantGoods,
+        toyGoods,
+        lastingGoods,
         imgSrcs: swiperGoods.map((item) => item.thumb),
         pageLoading: false,
       });

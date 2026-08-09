@@ -1,15 +1,16 @@
-<scroll-view class="home-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+<view class="home-page-header home-page-header--fixed">
+  <view
+    class="home-custom-nav"
+    style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"
+  >
+    <view class="home-custom-nav__content" style="height: {{navBarHeight}}px;">番薯小店</view>
+  </view>
+</view>
+
+<scroll-view class="home-scroll" scroll-y enhanced show-scrollbar="{{true}}">
   <view class="home-scroll-content">
-    <view style="text-align: center; color: #b9b9b9" wx:if="{{pageLoading}}">
-      <t-loading theme="circular" size="40rpx" text="加载中..." inherit-color />
-    </view>
-    <view class="home-page-header">
-      <view
-        class="home-custom-nav"
-        style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"
-      >
-        <view class="home-custom-nav__content" style="height: {{navBarHeight}}px;">番薯小店</view>
-      </view>
+    <view class="home-scroll-header-spacer" style="height: {{headerHeight}}px;" />
+    <view class="home-page-header home-page-header--scrolling">
       <view class="search" bind:tap="navToSearchPage">
         <t-search
           t-class-input="t-search__input"
@@ -23,6 +24,9 @@
           </view>
         </t-search>
       </view>
+    </view>
+    <view style="text-align: center; color: #b9b9b9" wx:if="{{pageLoading}}">
+      <t-loading theme="circular" size="40rpx" text="加载中..." inherit-color />
     </view>
 
     <view class="broadcast-bar">
@@ -59,17 +63,17 @@
   <view class="shop-benefits-banner">
     <image
       class="shop-benefits-banner__image"
-      src="../../assets/shop-benefits-banner-v2.jpg"
+      src="../../assets/ad-banner.jpg"
       mode="widthFix"
       lazy-load
       show-menu-by-longpress="{{true}}"
     />
   </view>
 
-  <view class="age-warning——— 未满18周岁禁止使用 ———</view>
+  <view class="age-warning">——— 未满18周岁禁止使用 ———</view>
 
   <view wx:if="{{hotGoods.length}}" class="hot-sale-section">
-      <view class="hot-sale__title">热销套装榜 明星单品</view>
+      <view class="hot-sale__title hot-sale__title--after-warning">热销套装榜 明星单品</view>
       <view class="hot-sale__pink-frame">
         <view class="hot-sale__pattern" />
         <view class="hot-sale__grid">
@@ -104,7 +108,202 @@
           </view>
         </view>
         <view class="hot-sale__pattern hot-sale__pattern--bottom" />
-      </view>
     </view>
+  </view>
+
+  <view wx:if="{{newGoods.length}}" class="new-sale-section">
+    <view class="hot-sale__title new-sale__title">热销新品榜</view>
+    <view class="hot-sale__pink-frame new-sale__frame">
+      <view class="hot-sale__pattern" />
+      <view class="new-sale__layout">
+        <view
+          wx:for="{{newGoods}}"
+          wx:key="index"
+          class="new-product-card new-product-card--{{index}}"
+          data-spu-id="{{item.spuId}}"
+          bind:tap="navToHotGoodsDetail"
+        >
+          <view class="new-product-card__image-wrap">
+            <image
+              class="new-product-card__image"
+              src="{{item.thumb}}"
+              mode="aspectFill"
+              lazy-load
+            />
+          </view>
+          <view class="new-product-card__price-bar">
+            <view class="new-product-card__price">
+              <text class="new-product-card__price-label">到手</text>
+              <price
+                wr-class="new-product-card__price-number"
+                price="{{item.price}}"
+              />
+              <text class="new-product-card__price-suffix">起</text>
+            </view>
+            <view class="new-product-card__price-action">
+              <t-icon name="chevron-right" size="24rpx" color="#fff" />
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="hot-sale__pattern new-sale__pattern--bottom" />
+    </view>
+  </view>
+
+  <view wx:if="{{domesticGoods.length}}" class="hot-sale-section">
+    <view class="hot-sale__title">超值国货榜 人气推荐</view>
+    <view class="hot-sale__pink-frame">
+      <view class="hot-sale__pattern" />
+      <view class="hot-sale__grid">
+        <view
+          wx:for="{{domesticGoods}}"
+          wx:key="spuId"
+          class="hot-product-card"
+          data-spu-id="{{item.spuId}}"
+          bind:tap="navToHotGoodsDetail"
+        >
+          <view class="hot-product-card__image-wrap">
+            <image
+              class="hot-product-card__image"
+              src="{{item.thumb}}"
+              mode="aspectFill"
+              lazy-load
+            />
+          </view>
+          <view class="hot-product-card__price-bar">
+            <view class="hot-product-card__price">
+              <text class="hot-product-card__price-label">到手</text>
+              <price
+                wr-class="hot-product-card__price-number"
+                price="{{item.price}}"
+              />
+              <text class="hot-product-card__price-suffix">起</text>
+            </view>
+            <view class="hot-product-card__price-action">
+              <t-icon name="chevron-right" size="26rpx" color="#fff" />
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="hot-sale__pattern hot-sale__pattern--bottom" />
+    </view>
+  </view>
+
+  <view wx:if="{{lubricantGoods.length}}" class="new-sale-section">
+    <view class="hot-sale__title new-sale__title">热销润滑剂榜 助力亲密</view>
+    <view class="hot-sale__pink-frame new-sale__frame">
+      <view class="hot-sale__pattern" />
+      <view class="new-sale__layout">
+        <view
+          wx:for="{{lubricantGoods}}"
+          wx:key="index"
+          class="new-product-card new-product-card--{{index}}"
+          data-spu-id="{{item.spuId}}"
+          bind:tap="navToHotGoodsDetail"
+        >
+          <view class="new-product-card__image-wrap">
+            <image
+              class="new-product-card__image"
+              src="{{item.thumb}}"
+              mode="aspectFill"
+              lazy-load
+            />
+          </view>
+          <view class="new-product-card__price-bar">
+            <view class="new-product-card__price">
+              <text class="new-product-card__price-label">到手</text>
+              <price
+                wr-class="new-product-card__price-number"
+                price="{{item.price}}"
+              />
+              <text class="new-product-card__price-suffix">起</text>
+            </view>
+            <view class="new-product-card__price-action">
+              <t-icon name="chevron-right" size="24rpx" color="#fff" />
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="hot-sale__pattern new-sale__pattern--bottom" />
+    </view>
+  </view>
+
+  <view wx:if="{{toyGoods.length}}" class="hot-sale-section">
+    <view class="hot-sale__title">情趣潮玩榜 枕边玩具</view>
+    <view class="hot-sale__pink-frame">
+      <view class="hot-sale__pattern" />
+      <view class="hot-sale__grid">
+        <view
+          wx:for="{{toyGoods}}"
+          wx:key="spuId"
+          class="hot-product-card"
+          data-spu-id="{{item.spuId}}"
+          bind:tap="navToHotGoodsDetail"
+        >
+          <view class="hot-product-card__image-wrap">
+            <image
+              class="hot-product-card__image"
+              src="{{item.thumb}}"
+              mode="aspectFill"
+              lazy-load
+            />
+          </view>
+          <view class="hot-product-card__price-bar">
+            <view class="hot-product-card__price">
+              <text class="hot-product-card__price-label">到手</text>
+              <price
+                wr-class="hot-product-card__price-number"
+                price="{{item.price}}"
+              />
+              <text class="hot-product-card__price-suffix">起</text>
+            </view>
+            <view class="hot-product-card__price-action">
+              <t-icon name="chevron-right" size="26rpx" color="#fff" />
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="hot-sale__pattern hot-sale__pattern--bottom" />
+    </view>
+  </view>
+
+  <view wx:if="{{lastingGoods.length}}" class="new-sale-section">
+    <view class="hot-sale__title new-sale__title">持久星品 为爱加时</view>
+    <view class="hot-sale__pink-frame new-sale__frame">
+      <view class="hot-sale__pattern" />
+      <view class="new-sale__layout">
+        <view
+          wx:for="{{lastingGoods}}"
+          wx:key="index"
+          class="new-product-card new-product-card--{{index}}"
+          data-spu-id="{{item.spuId}}"
+          bind:tap="navToHotGoodsDetail"
+        >
+          <view class="new-product-card__image-wrap">
+            <image
+              class="new-product-card__image"
+              src="{{item.thumb}}"
+              mode="aspectFill"
+              lazy-load
+            />
+          </view>
+          <view class="new-product-card__price-bar">
+            <view class="new-product-card__price">
+              <text class="new-product-card__price-label">到手</text>
+              <price
+                wr-class="new-product-card__price-number"
+                price="{{item.price}}"
+              />
+              <text class="new-product-card__price-suffix">起</text>
+            </view>
+            <view class="new-product-card__price-action">
+              <t-icon name="chevron-right" size="24rpx" color="#fff" />
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="hot-sale__pattern new-sale__pattern--bottom" />
+    </view>
+  </view>
   </view>
 </scroll-view>

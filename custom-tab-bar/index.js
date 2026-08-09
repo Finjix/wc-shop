@@ -7,11 +7,14 @@ Component({
 
   methods: {
     onChange(event) {
-      this.setData({ active: event.detail.value });
+      const selectedIndex = event.detail.value;
+      if (selectedIndex !== 0) return;
+
+      this.setData({ active: selectedIndex });
       wx.switchTab({
-        url: this.data.list[event.detail.value].url.startsWith('/')
-          ? this.data.list[event.detail.value].url
-          : `/${this.data.list[event.detail.value].url}`,
+        url: this.data.list[selectedIndex].url.startsWith('/')
+          ? this.data.list[selectedIndex].url
+          : `/${this.data.list[selectedIndex].url}`,
       });
     },
 
