@@ -1,4 +1,8 @@
 /* 主题定制 */
+page {
+  --theme-blue: #38ADEB;
+}
+
 .t-input {
   --td-input-placeholder-text-color: #bbbbbb;
   --td-input-text-color: #333333;
@@ -6,7 +10,7 @@
 
 .t-tab-bar {
   --td-tab-bar-color: #bbb;
-  --td-tab-bar-active-color: #333;
+  --td-tab-bar-active-color: var(--theme-blue, #38ADEB);
 }
 
 .t-cascader {

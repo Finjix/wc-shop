@@ -1,58 +1,101 @@
-<view style="text-align: center; color: #b9b9b9" wx:if="{{pageLoading}}">
-  <t-loading theme="circular" size="40rpx" text="加载中..." inherit-color />
-</view>
-<view class="home-page-header">
-  <view class="search" bind:tap="navToSearchPage">
-    <t-search
-      t-class-input="t-search__input"
-      t-class-input-container="t-search__input-container"
-      placeholder="iphone 13 火热发售中"
-      leftIcon=""
-      disabled
-    >
-      <t-icon slot="left-icon" prefix="wr" name="search" size="40rpx" color="#bbb" />
-    </t-search>
-  </view>
-  <view class="swiper-wrap">
-    <t-swiper
-      wx:if="{{imgSrcs.length > 0}}"
-      current="{{current}}"
-      autoplay="{{autoplay}}"
-      duration="{{duration}}"
-      interval="{{interval}}"
-      navigation="{{navigation}}"
-      imageProps="{{swiperImageProps}}"
-      list="{{imgSrcs}}"
-      bind:click="navToActivityDetail"
-    />
-  </view>
-</view>
-<view class="home-page-container">
-  <view class="home-page-tabs">
-    <t-tabs
-      t-class="t-tabs"
-      t-class-active="tabs-external__active"
-      t-class-item="tabs-external__item"
-      defaultValue="{{0}}"
-      space-evenly="{{false}}"
-      bind:change="tabChangeHandle"
-    >
-      <t-tab-panel
-        wx:for="{{tabList}}"
-        wx:for-index="index"
-        wx:key="index"
-        label="{{item.text}}"
-        value="{{item.key}}"
-      />
-    </t-tabs>
-  </view>
+<scroll-view
+  class="home-scroll"
+  scroll-y
+  enhanced
+  show-scrollbar="{{false}}"
+>
+  <view class="home-scroll-content">
+    <view style="text-align: center; color: #b9b9b9" wx:if="{{pageLoading}}">
+      <t-loading theme="circular" size="40rpx" text="加载中..." inherit-color />
+    </view>
+    <view class="home-page-header">
+      <view
+        class="home-custom-nav"
+        style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"
+      >
+        <view class="home-custom-nav__content" style="height: {{navBarHeight}}px;">番薯小店</view>
+      </view>
+      <view class="search" bind:tap="navToSearchPage">
+        <t-search
+          t-class-input="t-search__input"
+          t-class-input-container="t-search__input-container"
+          placeholder="官方正品 保密发货 售后无忧"
+          leftIcon=""
+          disabled
+        >
+          <view slot="left-icon" class="search-leading">
+            <t-icon prefix="wr" name="search" size="40rpx" color="#9d8f96" />
+          </view>
+        </t-search>
+      </view>
+    </view>
 
-  <goods-list
-    wr-class="goods-list-container"
-    goodsList="{{goodsList}}"
-    bind:click="goodListClickHandle"
-    bind:addcart="goodListAddCartHandle"
-  />
-  <load-more list-is-empty="{{!goodsList.length}}" status="{{goodsListLoadStatus}}" bind:retry="onReTry" />
-  <t-toast id="t-toast" />
-</view>
+    <view class="broadcast-bar">
+      <view class="broadcast-icon">
+        <t-icon name="sound" size="30rpx" color="#F77299" />
+      </view>
+      <view class="broadcast-viewport">
+        <view class="broadcast-track">
+          <text class="broadcast-message">邀请好友，享现金返利！</text>
+          <text class="broadcast-message">邀请好友，享现金返利！</text>
+          <text class="broadcast-message">邀请好友，享现金返利！</text>
+          <text class="broadcast-message">邀请好友，享现金返利！</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="swiper-wrap">
+      <t-swiper
+        wx:if="{{imgSrcs.length > 0}}"
+        t-class="home-swiper"
+        t-class-image="home-swiper__image"
+        height="750rpx"
+        current="{{current}}"
+        autoplay="{{autoplay}}"
+        duration="{{duration}}"
+        interval="{{interval}}"
+        navigation="{{navigation}}"
+        imageProps="{{swiperImageProps}}"
+        list="{{imgSrcs}}"
+        bind:click="navToGoodsDetail"
+      />
+    </view>
+
+    <view wx:if="{{hotGoods.length}}" class="hot-sale-section">
+      <view class="hot-sale__title">热销套装榜 明星单品</view>
+      <view class="hot-sale__pink-frame">
+        <view class="hot-sale__pattern" />
+        <view class="hot-sale__grid">
+          <view
+            wx:for="{{hotGoods}}"
+            wx:key="spuId"
+            class="hot-product-card"
+            data-spu-id="{{item.spuId}}"
+            bind:tap="navToHotGoodsDetail"
+          >
+            <view class="hot-product-card__image-wrap">
+              <image
+                class="hot-product-card__image"
+                src="{{item.thumb}}"
+                mode="aspectFit"
+                lazy-load
+              />
+            </view>
+            <view class="hot-product-card__content">
+              <view class="hot-product-card__title">{{item.title}}</view>
+              <view class="hot-product-card__price">
+                <text class="hot-product-card__price-label">到手</text>
+                <price
+                  wr-class="hot-product-card__price-number"
+                  symbol="¥"
+                  price="{{item.price}}"
+                />
+                <text class="hot-product-card__price-suffix">起</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</scroll-view>

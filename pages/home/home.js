@@ -1,29 +1,20 @@
-import { fetchHome } from '../../services/home/home';
 import { fetchGoodsList } from '../../services/good/fetchGoods';
-import Toast from 'tdesign-miniprogram/toast/index';
 
 Page({
   data: {
     imgSrcs: [],
-    tabList: [],
-    goodsList: [],
-    goodsListLoadStatus: 0,
+    swiperGoods: [],
+    hotGoods: [],
     pageLoading: false,
     current: 1,
     autoplay: true,
     duration: '500',
-    interval: 5000,
+    interval: 3000,
     navigation: { type: 'dots' },
-    swiperImageProps: { mode: 'scaleToFill' },
-  },
-
-  goodListPagination: {
-    index: 0,
-    num: 20,
-  },
-
-  privateData: {
-    tabIndex: 0,
+    swiperImageProps: { mode: 'aspectFit' },
+    statusBarHeight: 0,
+    navBarHeight: 44,
+    customNavHeight: 44,
   },
 
   onShow() {
@@ -31,13 +22,19 @@ Page({
   },
 
   onLoad() {
-    this.init();
-  },
+    const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const menuButtonInfo = wx.getMenuButtonBoundingClientRect();
+    const statusBarHeight = windowInfo.statusBarHeight || 0;
+    const navBarHeight = menuButtonInfo.height
+      ? menuButtonInfo.height + (menuButtonInfo.top - statusBarHeight) * 2
+      : 44;
 
-  onReachBottom() {
-    if (this.data.goodsListLoadStatus === 0) {
-      this.loadGoodsList();
-    }
+    this.setData({
+      statusBarHeight,
+      navBarHeight,
+      customNavHeight: statusBarHeight + navBarHeight,
+    });
+    this.init();
   },
 
   onPullDownRefresh() {
@@ -53,79 +50,48 @@ Page({
 
     this.setData({
       pageLoading: true,
+      imgSrcs: [],
+      swiperGoods: [],
+      hotGoods: [],
     });
-    fetchHome().then(({ swiper, tabList }) => {
+    this.loadCarouselGoods();
+  },
+
+  async loadCarouselGoods() {
+    try {
+      const goodsList = await fetchGoodsList(0, 6);
+      const swiperGoods = goodsList.slice(0, 6);
       this.setData({
-        tabList,
-        imgSrcs: swiper,
+        swiperGoods,
+        hotGoods: swiperGoods,
+        imgSrcs: swiperGoods.map((item) => item.thumb),
         pageLoading: false,
       });
-      this.loadGoodsList(true);
-    });
-  },
-
-  tabChangeHandle(e) {
-    this.privateData.tabIndex = e.detail;
-    this.loadGoodsList(true);
-  },
-
-  onReTry() {
-    this.loadGoodsList();
-  },
-
-  async loadGoodsList(fresh = false) {
-    if (fresh) {
-      wx.pageScrollTo({
-        scrollTop: 0,
-      });
-    }
-
-    this.setData({ goodsListLoadStatus: 1 });
-
-    const pageSize = this.goodListPagination.num;
-    let pageIndex = this.privateData.tabIndex * pageSize + this.goodListPagination.index + 1;
-    if (fresh) {
-      pageIndex = 0;
-    }
-
-    try {
-      const nextList = await fetchGoodsList(pageIndex, pageSize);
-      this.setData({
-        goodsList: fresh ? nextList : this.data.goodsList.concat(nextList),
-        goodsListLoadStatus: 0,
-      });
-
-      this.goodListPagination.index = pageIndex;
-      this.goodListPagination.num = pageSize;
     } catch (err) {
-      this.setData({ goodsListLoadStatus: 3 });
+      this.setData({ pageLoading: false });
     }
-  },
-
-  goodListClickHandle(e) {
-    const { index } = e.detail;
-    const { spuId } = this.data.goodsList[index];
-    wx.navigateTo({
-      url: `/pages/goods/details/index?spuId=${spuId}`,
-    });
-  },
-
-  goodListAddCartHandle() {
-    Toast({
-      context: this,
-      selector: '#t-toast',
-      message: '点击加入购物车',
-    });
   },
 
   navToSearchPage() {
     wx.navigateTo({ url: '/pages/goods/search/index' });
   },
 
-  navToActivityDetail({ detail }) {
-    const { index: promotionID = 0 } = detail || {};
+  navToGoodsDetail({ detail }) {
+    const { index = 0 } = detail || {};
+    const { spuId } = this.data.swiperGoods[index] || {};
+    if (!spuId) return;
+
     wx.navigateTo({
-      url: `/pages/promotion/promotion-detail/index?promotion_id=${promotionID}`,
+      url: `/pages/goods/details/index?spuId=${spuId}`,
+    });
+  },
+
+  navToHotGoodsDetail({ currentTarget }) {
+    const { spuId } = currentTarget.dataset || {};
+    if (spuId === undefined || spuId === null || spuId === '') return;
+
+    wx.navigateTo({
+      url: `/pages/goods/details/index?spuId=${spuId}`,
     });
   },
 });
