@@ -27,7 +27,7 @@
 
     <view class="broadcast-bar">
       <view class="broadcast-icon">
-        <t-icon name="sound" size="30rpx" color="#F77299" />
+        <t-icon name="sound" size="30rpx" color="#FACD1D" />
       </view>
       <view class="broadcast-viewport">
         <view class="broadcast-track">
@@ -59,14 +59,14 @@
   <view class="shop-benefits-banner">
     <image
       class="shop-benefits-banner__image"
-      src="../../assets/shop-benefits-banner.jpg"
+      src="../../assets/shop-benefits-banner-v2.jpg"
       mode="widthFix"
       lazy-load
       show-menu-by-longpress="{{true}}"
     />
   </view>
 
-  <view class="age-warning">——未满18周岁禁止使用——</view>
+  <view class="age-warning——— 未满18周岁禁止使用 ———</view>
 
   <view wx:if="{{hotGoods.length}}" class="hot-sale-section">
       <view class="hot-sale__title">热销套装榜 明星单品</view>
@@ -103,6 +103,7 @@
             </view>
           </view>
         </view>
+        <view class="hot-sale__pattern hot-sale__pattern--bottom" />
       </view>
     </view>
   </view>

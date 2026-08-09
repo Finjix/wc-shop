@@ -15,7 +15,7 @@ page {
 }
 
 .home-page-header {
-  background: #F77299;
+  background: #FACD1D;
   padding-bottom: 32rpx;
 }
 
@@ -83,7 +83,7 @@ page {
   display: block;
   flex: 0 0 auto;
   padding-right: 88rpx;
-  color: #F77299;
+  color: #FACD1D;
   font-size: 26rpx;
   line-height: 64rpx;
   white-space: nowrap;
@@ -159,9 +159,9 @@ page {
 .age-warning {
   padding: 20rpx 0;
   background: #fff;
-  color: #F77299;
-  font-size: 26rpx;
-  line-height: 40rpx;
+  color: #FACD1D;
+  font-size: 32rpx;
+  line-height: 48rpx;
   text-align: center;
 }
 
@@ -189,15 +189,47 @@ page {
   padding: 0 16rpx 28rpx;
   background: linear-gradient(
     180deg,
-    rgba(247, 114, 153, 0.5) 0%,
-    rgba(56, 173, 235, 0.5) 100%
+    #FAFA68 0%,
+    #EEFB8A 24%,
+    #E8FCAF 55%,
+    #CBFFEB 82%,
+    #AFF7ED 100%
   );
 }
 
 .hot-sale__pattern {
   height: 28rpx;
   margin: 0 -16rpx;
-  background: transparent;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent 8rpx,
+      rgba(255, 255, 255, 0.65) 8rpx,
+      rgba(255, 255, 255, 0.65) 11rpx
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 36rpx,
+      rgba(255, 255, 255, 0.45) 36rpx,
+      rgba(255, 255, 255, 0.45) 42rpx,
+      transparent 42rpx,
+      transparent 72rpx
+    );
+}
+
+.hot-sale__pattern--bottom {
+  height: 48rpx;
+  margin-top: -16rpx;
+  margin-bottom: -28rpx;
+  background: repeating-linear-gradient(
+    90deg,
+    #B3FFF1 0,
+    #B3FFF1 48rpx,
+    #CFFFF7 48rpx,
+    #CFFFF7 96rpx
+  );
 }
 
 .hot-sale__grid {
@@ -270,7 +302,7 @@ page {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #F77299;
+  background: #FACD1D;
   font-size: 28rpx;
   font-weight: 800;
   line-height: 1;
