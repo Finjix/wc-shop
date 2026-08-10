@@ -8,7 +8,7 @@ Component({
   methods: {
     onChange(event) {
       const selectedIndex = event.detail.value;
-      if (selectedIndex !== 0) return;
+      if (selectedIndex !== 0 && selectedIndex !== 1) return;
 
       this.setData({ active: selectedIndex });
       wx.switchTab({

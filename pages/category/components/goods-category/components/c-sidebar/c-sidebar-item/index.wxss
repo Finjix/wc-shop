@@ -6,6 +6,8 @@
   color: #222427;
   padding: 20rpx 0;
   font-size: 26rpx;
+  font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 400;
 }
 
 .c-sidebar-item.active {
@@ -18,7 +20,7 @@
   position: absolute;
   width: 6rpx;
   height: 48rpx;
-  background-color: #fa4126;
+  background-color: #FACD1D;
   left: 0;
   top: 50%;
   transform: translate(0, -50%);
@@ -32,13 +34,16 @@
   line-height: 36rpx;
   text-align: center;
   font-size: 28rpx;
-  color: #666666;
+  color: #222427;
+  font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 400;
 }
 
 .c-sidebar-item.active .c-sidebar-item__text {
   background-color: white;
   border-radius: 36rpx;
-  color: #fa4126;
+  color: #FACD1D;
+  font-weight: 400;
 }
 
 .text-overflow {

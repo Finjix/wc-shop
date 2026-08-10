@@ -1,4 +1,25 @@
 <view class="wrap">
+  <view class="category-header">
+    <view
+      class="category-custom-nav"
+      style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"
+    >
+      <view class="category-custom-nav__content" style="height: {{navBarHeight}}px;">分类</view>
+    </view>
+    <view class="category-search" bind:tap="navToSearchPage">
+      <t-search
+        t-class-input="t-search__input"
+        t-class-input-container="t-search__input-container"
+        placeholder="官方正品 保密发货 售后无忧"
+        leftIcon=""
+        disabled
+      >
+        <view slot="left-icon" class="search-leading">
+          <t-icon prefix="wr" name="search" size="40rpx" color="#9d8f96" />
+        </view>
+      </t-search>
+    </view>
+  </view>
   <goods-category
     level="{{3}}"
     custom-class="goods-category-class"

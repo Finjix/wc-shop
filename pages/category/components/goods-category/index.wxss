@@ -1,5 +1,6 @@
 .goods-category {
   display: flex;
+  font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
 }
 
 .custom-sidebar {
@@ -26,7 +27,9 @@
 
 .goods-category-normal-item-title {
   font-size: 28rpx;
-  font-weight: 500;
+  color: #222427;
+  font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 600;
 }
 
 .goods-category-normal-item-container {
@@ -55,8 +58,10 @@
 
 .goods-category-normal-item-container-item-title {
   justify-content: center;
-  font-size: 24rpx;
-  color: #666666;
+  font-size: 28rpx;
+  color: #222427;
+  font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 400;
   margin-top: 20rpx;
 }
 
@@ -97,6 +102,8 @@
 
 .goods-category-normal-item-second-container-item-title {
   justify-content: center;
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #222427;
+  font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 400;
 }
