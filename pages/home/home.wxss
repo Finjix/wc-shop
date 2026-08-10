@@ -214,7 +214,7 @@ page {
 
 .hot-sale__pink-frame {
   margin: 0 12rpx;
-  padding: 0 16rpx 28rpx;
+  padding: 24rpx;
   background: linear-gradient(
     180deg,
     #FAFA68 0%,
@@ -222,41 +222,6 @@ page {
     #E8FCAF 55%,
     #CBFFEB 82%,
     #AFF7ED 100%
-  );
-}
-
-.hot-sale__pattern {
-  height: 28rpx;
-  margin: 0 -16rpx;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      transparent 0,
-      transparent 8rpx,
-      rgba(255, 255, 255, 0.65) 8rpx,
-      rgba(255, 255, 255, 0.65) 11rpx
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent 36rpx,
-      rgba(255, 255, 255, 0.45) 36rpx,
-      rgba(255, 255, 255, 0.45) 42rpx,
-      transparent 42rpx,
-      transparent 72rpx
-    );
-}
-
-.hot-sale__pattern--bottom {
-  height: 48rpx;
-  margin-top: -16rpx;
-  margin-bottom: -28rpx;
-  background: repeating-linear-gradient(
-    90deg,
-    #B3FFF1 0,
-    #B3FFF1 48rpx,
-    #CFFFF7 48rpx,
-    #CFFFF7 96rpx
   );
 }
 
@@ -426,16 +391,4 @@ page {
   border-radius: 50%;
   background: #FACD1D;
   line-height: 1;
-}
-
-.new-sale__pattern--bottom {
-  height: 48rpx;
-  margin: 0 -16rpx -28rpx;
-  background: repeating-linear-gradient(
-    90deg,
-    #B3FFF1 0,
-    #B3FFF1 48rpx,
-    #CFFFF7 48rpx,
-    #CFFFF7 96rpx
-  );
 }

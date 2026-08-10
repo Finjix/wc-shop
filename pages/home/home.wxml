@@ -75,7 +75,6 @@
   <view wx:if="{{hotGoods.length}}" class="hot-sale-section">
       <view class="hot-sale__title hot-sale__title--after-warning">热销套装榜 明星单品</view>
       <view class="hot-sale__pink-frame">
-        <view class="hot-sale__pattern" />
         <view class="hot-sale__grid">
           <view
             wx:for="{{hotGoods}}"
@@ -107,14 +106,12 @@
             </view>
           </view>
         </view>
-        <view class="hot-sale__pattern hot-sale__pattern--bottom" />
     </view>
   </view>
 
   <view wx:if="{{newGoods.length}}" class="new-sale-section">
     <view class="hot-sale__title new-sale__title">热销新品榜</view>
     <view class="hot-sale__pink-frame new-sale__frame">
-      <view class="hot-sale__pattern" />
       <view class="new-sale__layout">
         <view
           wx:for="{{newGoods}}"
@@ -146,14 +143,12 @@
           </view>
         </view>
       </view>
-      <view class="hot-sale__pattern new-sale__pattern--bottom" />
     </view>
   </view>
 
   <view wx:if="{{domesticGoods.length}}" class="hot-sale-section">
     <view class="hot-sale__title">超值国货榜 人气推荐</view>
     <view class="hot-sale__pink-frame">
-      <view class="hot-sale__pattern" />
       <view class="hot-sale__grid">
         <view
           wx:for="{{domesticGoods}}"
@@ -185,14 +180,12 @@
           </view>
         </view>
       </view>
-      <view class="hot-sale__pattern hot-sale__pattern--bottom" />
     </view>
   </view>
 
   <view wx:if="{{lubricantGoods.length}}" class="new-sale-section">
     <view class="hot-sale__title new-sale__title">热销润滑剂榜 助力亲密</view>
     <view class="hot-sale__pink-frame new-sale__frame">
-      <view class="hot-sale__pattern" />
       <view class="new-sale__layout">
         <view
           wx:for="{{lubricantGoods}}"
@@ -224,14 +217,12 @@
           </view>
         </view>
       </view>
-      <view class="hot-sale__pattern new-sale__pattern--bottom" />
     </view>
   </view>
 
   <view wx:if="{{toyGoods.length}}" class="hot-sale-section">
     <view class="hot-sale__title">情趣潮玩榜 枕边玩具</view>
     <view class="hot-sale__pink-frame">
-      <view class="hot-sale__pattern" />
       <view class="hot-sale__grid">
         <view
           wx:for="{{toyGoods}}"
@@ -263,14 +254,12 @@
           </view>
         </view>
       </view>
-      <view class="hot-sale__pattern hot-sale__pattern--bottom" />
     </view>
   </view>
 
   <view wx:if="{{lastingGoods.length}}" class="new-sale-section">
     <view class="hot-sale__title new-sale__title">持久星品 为爱加时</view>
     <view class="hot-sale__pink-frame new-sale__frame">
-      <view class="hot-sale__pattern" />
       <view class="new-sale__layout">
         <view
           wx:for="{{lastingGoods}}"
@@ -302,7 +291,6 @@
           </view>
         </view>
       </view>
-      <view class="hot-sale__pattern new-sale__pattern--bottom" />
     </view>
   </view>
   </view>
