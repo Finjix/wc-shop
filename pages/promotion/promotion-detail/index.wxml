@@ -2,6 +2,7 @@
   t-class-title="app-page-navbar-title"
   title="营销详情"
   leftArrow
+  fixed="{{false}}"
   background="#fff"
 />
 <view id="js-page-wrap" class="promotion-detail-container">

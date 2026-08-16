@@ -35,10 +35,40 @@
 }
 
 .filter-left-content .filter-item .filter-price {
+  width: 16rpx;
+  height: 28rpx;
   display: flex;
   flex-direction: column;
+  align-items: center;
   margin-left: 6rpx;
-  justify-content: space-between;
+  justify-content: center;
+}
+
+.filter-left-content .filter-item .filter-price-arrow {
+  width: 0;
+  height: 0;
+  opacity: 0.45;
+  border-left: 6rpx solid transparent;
+  border-right: 6rpx solid transparent;
+}
+
+.filter-left-content .filter-item .filter-price-arrow-up {
+  margin-bottom: 2rpx;
+  border-bottom: 8rpx solid #999;
+}
+
+.filter-left-content .filter-item .filter-price-arrow-down {
+  border-top: 8rpx solid #999;
+}
+
+.filter-left-content .filter-item .filter-price-arrow-up.filter-price-arrow-active {
+  border-bottom-color: #facd1d;
+  opacity: 1;
+}
+
+.filter-left-content .filter-item .filter-price-arrow-down.filter-price-arrow-active {
+  border-top-color: #facd1d;
+  opacity: 1;
 }
 
 .filter-left-content .filter-item .wr-filter {

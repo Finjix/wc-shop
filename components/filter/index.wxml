@@ -28,18 +28,8 @@
 			<view class="filter-item" bind:tap="handlePriseSort">
 				<text style="color: {{sorts !== '' ? color : '' }}">价格</text>
 				<view class="filter-price">
-					<t-icon
-					  prefix="wr"
-					  name="arrow_drop_up"
-					  size="18rpx"
-					  style="color:{{sorts === 'asc' ? color : '#bbb'}}"
-					/>
-					<t-icon
-					  prefix="wr"
-					  name="arrow_drop_down"
-					  size="18rpx"
-					  style="color:{{sorts === 'desc' ? color : '#bbb'}}"
-					/>
+					<view class="filter-price-arrow filter-price-arrow-up {{sorts === 'asc' ? 'filter-price-arrow-active' : ''}}"></view>
+					<view class="filter-price-arrow filter-price-arrow-down {{sorts === 'desc' ? 'filter-price-arrow-active' : ''}}"></view>
 				</view>
 			</view>
 		</block>
@@ -50,18 +40,8 @@
 			<view class="filter-item" bind:tap="handlePriseSort">
 				<text style="color: {{sorts !== '' ? color : '' }}">价格</text>
 				<view class="filter-price">
-					<t-icon
-					  prefix="wr"
-					  name="arrow_drop_up"
-					  size="18rpx"
-					  style="color:{{sorts === 'asc' ? color : '#bbb'}}"
-					/>
-					<t-icon
-					  prefix="wr"
-					  name="arrow_drop_down"
-					  size="18rpx"
-					  style="color:{{sorts === 'desc' ? color : '#bbb'}}"
-					/>
+					<view class="filter-price-arrow filter-price-arrow-up {{sorts === 'asc' ? 'filter-price-arrow-active' : ''}}"></view>
+					<view class="filter-price-arrow filter-price-arrow-down {{sorts === 'desc' ? 'filter-price-arrow-active' : ''}}"></view>
 				</view>
 			</view>
 			<view class="filter-item {{prices.length ? 'filter-active-item' : ''}}" bindtap="open" data-index="5">

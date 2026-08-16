@@ -3,6 +3,7 @@
   t-class-title="app-page-navbar-title"
   title="优惠券详情"
   leftArrow
+  fixed="{{false}}"
   background="#fff"
 />
 <view class="coupon-card-wrap">

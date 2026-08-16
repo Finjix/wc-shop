@@ -146,7 +146,9 @@ Page({
   onLoad(options) {
     const { categoryName = '' } = options || {};
     const title = categoryName ? decodeURIComponent(categoryName) : '';
-    this.setData({ categoryName: title || '商品列表' }, () => {
+    this.setData({
+      categoryName: title || '商品列表',
+    }, () => {
       this.init(true);
     });
   },

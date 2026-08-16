@@ -2,6 +2,7 @@
   t-class-title="app-page-navbar-title"
   title="个人资料"
   leftArrow
+  fixed="{{false}}"
   background="#fff"
 />
 <view class="person-info">

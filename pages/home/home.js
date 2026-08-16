@@ -24,7 +24,6 @@ Page({
     statusBarHeight: 0,
     navBarHeight: 44,
     customNavHeight: 44,
-    headerHeight: 140,
   },
 
   onShow() {
@@ -43,19 +42,8 @@ Page({
       statusBarHeight,
       navBarHeight,
       customNavHeight: statusBarHeight + navBarHeight,
-    }, () => this.updateHeaderHeight());
+    });
     this.init();
-  },
-
-  updateHeaderHeight() {
-    wx.createSelectorQuery()
-      .select('.home-page-header')
-      .boundingClientRect((rect) => {
-        if (rect && rect.height && rect.height !== this.data.headerHeight) {
-          this.setData({ headerHeight: rect.height });
-        }
-      })
-      .exec();
   },
 
   onPullDownRefresh() {

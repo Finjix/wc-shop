@@ -6,16 +6,15 @@ page {
 }
 
 .home-scroll {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100vh;
 }
 
 .home-scroll-content {
   padding-bottom: calc(env(safe-area-inset-bottom) + 180rpx);
-}
-
-.home-scroll-header-spacer {
-  width: 100%;
 }
 
 .home-page-header {
@@ -51,13 +50,7 @@ page {
   padding-right: 24rpx;
 }
 
-.home-page-header--fixed {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 20;
-  width: 100%;
-  box-sizing: border-box;
+.home-page-header--nav {
   padding-bottom: 0;
 }
 

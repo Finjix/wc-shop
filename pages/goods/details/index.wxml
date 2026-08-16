@@ -2,6 +2,7 @@
   t-class-title="app-page-navbar-title"
   title="商品详情"
   leftArrow
+  fixed="{{false}}"
   background="#fff"
 />
 <view class="goods-detail-page">

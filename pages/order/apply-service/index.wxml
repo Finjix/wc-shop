@@ -2,6 +2,7 @@
   t-class-title="app-page-navbar-title"
   title="选择售后类型"
   leftArrow
+  fixed="{{false}}"
   background="#fff"
 />
 <view class="select-service">

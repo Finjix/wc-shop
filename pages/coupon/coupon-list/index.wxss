@@ -11,10 +11,7 @@ page {
 .tabs-external__inner {
   font-size: 26rpx;
   color: #333333;
-  position: sticky;
   width: 100vw;
-  top: 0;
-  left: 0;
 }
 
 .tabs-external__inner .tabs-external__track {

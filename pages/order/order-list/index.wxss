@@ -13,10 +13,7 @@
 .page-container .tab-bar__inner {
   font-size: 26rpx;
   color: #333333;
-  position: sticky;
   width: 100vw;
-  top: 0;
-  left: 0;
 }
 .page-container .tab-bar__inner.order-nav .order-nav-item .bottom-line {
   bottom: 12rpx;

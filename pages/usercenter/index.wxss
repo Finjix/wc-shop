@@ -3,7 +3,7 @@ page {
 }
 
 .content-wrapper {
-  margin-top: 340rpx;
+  margin-top: -140rpx;
   position: relative;
   padding: 0 30rpx;
 }

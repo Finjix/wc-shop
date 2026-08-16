@@ -1,76 +1,91 @@
-<view class="goods-list-container">
-  <t-navbar
-    t-class-title="goods-list-navbar__title"
-    title="{{categoryName}}"
-    leftArrow
-    background="#fff"
-  />
-  <t-search
-    t-class="t-search"
-    t-class-input-container="t-class__input-container"
-    t-class-left="t-search__left-icon"
-    t-class-input="t-search__input"
-    value="{{keywords}}"
-    leftIcon=""
-    placeholder="官方正品 保密发货 售后无忧"
-    bind:submit="handleSubmit"
-  >
-    <t-icon slot="left-icon" prefix="wr" name="search" size="40rpx" color="#bbb" />
-  </t-search>
-  <filter
-    wr-class="filter-container"
-    bind:change="handleFilterChange"
-    layout="{{layout}}"
-    sorts="{{sorts}}"
-    overall="{{overall}}"
-    sortType="{{sortType}}"
-    showMoreSorts="{{true}}"
-    color="#FACD1D"
-    bind:showFilterPopup="showFilterPopup"
-  >
-    <filter-popup
-      slot="filterPopup"
-      show="{{show}}"
-      bind:showFilterPopupClose="showFilterPopupClose"
-      bind:reset="reset"
-      bind:confirm="confirm"
+<scroll-view
+  class="goods-list-scroll"
+  scroll-y
+  enhanced
+  show-scrollbar="{{true}}"
+  bounces="{{false}}"
+  enable-back-to-top="{{true}}"
+  bindscrolltolower="onReachBottom"
+>
+  <view class="goods-list-container">
+    <view class="goods-list-header">
+      <t-navbar
+        t-class-title="goods-list-navbar__title"
+        title="{{categoryName}}"
+        leftArrow
+        fixed="{{false}}"
+        background="#fff"
+      />
+      <view class="goods-list-toolbar">
+    <t-search
+      t-class="t-search"
+      t-class-input-container="t-class__input-container"
+      t-class-left="t-search__left-icon"
+      t-class-input="t-search__input"
+      value="{{keywords}}"
+      leftIcon=""
+      placeholder="官方正品 保密发货 售后无忧"
+      bind:submit="handleSubmit"
     >
-      <view class="price-container" slot="filterSlot">
-        <view class="price-between">价格区间</view>
-        <view class="price-ipts-wrap">
-          <t-input
-            align="center"
-            type="number"
-            t-class="price-ipt"
-            placeholder="最低价"
-            value="{{minVal}}"
-            bindchange="onMinValAction"
-          />
-          <view class="price-divided">-</view>
-          <t-input
-            align="center"
-            type="number"
-            t-class="price-ipt"
-            placeholder="最高价"
-            value="{{maxVal}}"
-            bindchange="onMaxValAction"
-          />
+      <t-icon slot="left-icon" prefix="wr" name="search" size="40rpx" color="#bbb" />
+    </t-search>
+    <filter
+      wr-class="filter-container"
+      bind:change="handleFilterChange"
+      layout="{{layout}}"
+      sorts="{{sorts}}"
+      overall="{{overall}}"
+      sortType="{{sortType}}"
+      showMoreSorts="{{true}}"
+      color="#FACD1D"
+      bind:showFilterPopup="showFilterPopup"
+    >
+      <filter-popup
+        slot="filterPopup"
+        show="{{show}}"
+        bind:showFilterPopupClose="showFilterPopupClose"
+        bind:reset="reset"
+        bind:confirm="confirm"
+      >
+        <view class="price-container" slot="filterSlot">
+          <view class="price-between">价格区间</view>
+          <view class="price-ipts-wrap">
+            <t-input
+              align="center"
+              type="number"
+              t-class="price-ipt"
+              placeholder="最低价"
+              value="{{minVal}}"
+              bindchange="onMinValAction"
+            />
+            <view class="price-divided">-</view>
+            <t-input
+              align="center"
+              type="number"
+              t-class="price-ipt"
+              placeholder="最高价"
+              value="{{maxVal}}"
+              bindchange="onMaxValAction"
+            />
+          </view>
         </view>
+      </filter-popup>
+    </filter>
       </view>
-    </filter-popup>
-  </filter>
-  <view class="empty-wrap" wx:if="{{goodsList.length === 0 && hasLoaded}}">
-    <t-empty t-class="empty-tips" size="240rpx" description="暂无相关商品" />
+    </view>
+    <view class="empty-wrap" wx:if="{{goodsList.length === 0 && hasLoaded}}">
+      <t-empty t-class="empty-tips" size="240rpx" description="暂无相关商品" />
+    </view>
+    <view class="category-goods-list" wx:if="{{goodsList.length}}">
+      <goods-list
+        wr-class="wr-goods-list"
+        layout="horizontal"
+        goodsList="{{goodsList}}"
+        bind:click="gotoGoodsDetail"
+        bind:addcart="handleAddCart"
+      />
+    </view>
+    <load-more wx:if="{{goodsList.length > 0}}" status="{{loadMoreStatus}}" no-more-text="没有更多了" />
   </view>
-  <view class="category-goods-list" wx:if="{{goodsList.length}}">
-    <goods-list
-      wr-class="wr-goods-list"
-      layout="horizontal"
-      goodsList="{{goodsList}}"
-      bind:click="gotoGoodsDetail"
-      bind:addcart="handleAddCart"
-    />
-  </view>
-  <load-more wx:if="{{goodsList.length > 0}}" status="{{loadMoreStatus}}" no-more-text="没有更多了" />
-</view>
+</scroll-view>
 <t-toast id="t-toast" />

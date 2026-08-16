@@ -2,6 +2,7 @@
   t-class-title="app-page-navbar-title"
   title="昵称"
   leftArrow
+  fixed="{{false}}"
   background="#fff"
 />
 <view class="name-edit">

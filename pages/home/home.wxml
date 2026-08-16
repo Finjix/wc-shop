@@ -1,15 +1,13 @@
-<view class="home-page-header home-page-header--fixed">
-  <view
-    class="home-custom-nav"
-    style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"
-  >
-    <view class="home-custom-nav__content" style="height: {{navBarHeight}}px;">番薯小店</view>
-  </view>
-</view>
-
-<scroll-view class="home-scroll" scroll-y enhanced show-scrollbar="{{true}}">
+<scroll-view class="home-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}">
   <view class="home-scroll-content">
-    <view class="home-scroll-header-spacer" style="height: {{headerHeight}}px;" />
+    <view class="home-page-header home-page-header--nav">
+      <view
+        class="home-custom-nav"
+        style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"
+      >
+        <view class="home-custom-nav__content" style="height: {{navBarHeight}}px;">番薯小店</view>
+      </view>
+    </view>
     <view class="home-page-header home-page-header--scrolling">
       <view class="search" bind:tap="navToSearchPage">
         <t-search

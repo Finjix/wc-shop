@@ -2,6 +2,7 @@
   t-class-title="app-page-navbar-title"
   title="评价商品"
   leftArrow
+  fixed="{{false}}"
   background="#fff"
 />
 <view class="page-container">

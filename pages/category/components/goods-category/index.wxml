@@ -2,7 +2,13 @@
   <c-sidebar custom-class="custom-sidebar" bindchange="onParentChange" activeKey="{{activeKey}}">
     <c-sidebar-item wx:for="{{ category }}" wx:key="index" title="{{ item.name }}" disabled="{{ item.disabled }}" />
   </c-sidebar>
-  <scroll-view class="goods-category__right" scroll-y enhanced show-scrollbar="{{true}}">
+  <scroll-view
+    class="goods-category__right"
+    scroll-y
+    enhanced
+    show-scrollbar="{{true}}"
+    bounces="{{false}}"
+  >
     <c-tabbar wx:if="{{isSlotRight}}" activeKey="{{subActiveKey}}" bindchange="onChildChange" showMore>
       <slot />
     </c-tabbar>

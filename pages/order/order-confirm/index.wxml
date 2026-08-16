@@ -6,6 +6,7 @@
   t-class-title="app-page-navbar-title"
   title="订单确认"
   leftArrow
+  fixed="{{false}}"
   background="#fff"
 />
 <view class="order-sure" wx:if="{{!loading}}">

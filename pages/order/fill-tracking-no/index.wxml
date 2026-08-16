@@ -2,6 +2,7 @@
   t-class-title="app-page-navbar-title"
   title="填写运单号"
   leftArrow
+  fixed="{{false}}"
   background="#fff"
 />
 <view class="fill-tracking-no">

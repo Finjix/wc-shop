@@ -2,6 +2,7 @@
   t-class-title="app-page-navbar-title"
   title="收货地址"
   leftArrow
+  fixed="{{false}}"
   background="#fff"
 />
 <view class="address-container">

@@ -1,4 +1,4 @@
-<t-navbar t-class-title="cart-navbar__title" title="购物车" background="#fff" />
+<t-navbar t-class-title="cart-navbar__title" title="购物车" fixed="{{false}}" background="#fff" />
 <!-- 分层购物车 -->
 <block wx:if="{{cartGroupData.isNotEmpty}}">
   <cart-group
