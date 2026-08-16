@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="收货地址"
+  leftArrow
+  background="#fff"
+/>
 <view class="address-container">
   <view class="address-list" wx:if="{{addressList.length > 0}}">
     <block wx:for="{{addressList}}" wx:for-index="index" wx:for-item="address" wx:key="addressId">

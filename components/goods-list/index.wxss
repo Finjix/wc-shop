@@ -5,3 +5,8 @@
   padding: 0;
   background: #fff;
 }
+
+.goods-list-wrap--horizontal {
+  display: block;
+  background: #f2f2f2;
+}

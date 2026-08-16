@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "选择售后类型",
+  "navigationStyle": "custom",
   "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "wr-price": "/components/price/index",
     "wr-order-goods-card": "../components/order-goods-card/index",
     "wr-reason-sheet": "../components/reason-sheet/index",

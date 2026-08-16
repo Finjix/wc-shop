@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="填写运单号"
+  leftArrow
+  background="#fff"
+/>
 <view class="fill-tracking-no">
   <view class="notice-bar">请填写正确的退货包裹运单信息，以免影响退款进度</view>
   <view class="fill-tracking-no__form">

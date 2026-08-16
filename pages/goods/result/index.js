@@ -1,17 +1,22 @@
 /* eslint-disable no-param-reassign */
 import { getSearchResult } from '../../../services/good/fetchSearchResult';
 import Toast from 'tdesign-miniprogram/toast/index';
+import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 
 const initFilters = {
   overall: 1,
   sorts: '',
+  layout: 0,
+  sortType: '',
 };
 
 Page({
   data: {
     goodsList: [],
+    layout: 0,
     sorts: '',
     overall: 1,
+    sortType: '',
     show: false,
     minVal: '',
     maxVal: '',
@@ -20,6 +25,8 @@ Page({
     filter: initFilters,
     hasLoaded: false,
     keywords: '',
+    searchInput: '',
+    searchTitle: '',
     loadMoreStatus: 0,
     loading: true,
   },
@@ -30,9 +37,12 @@ Page({
 
   onLoad(options) {
     const { searchValue = '' } = options || {};
+    const keyword = decodeURIComponent(searchValue);
     this.setData(
       {
-        keywords: searchValue,
+        keywords: keyword,
+        searchInput: '',
+        searchTitle: keyword || '搜索',
       },
       () => {
         this.init(true);
@@ -43,7 +53,7 @@ Page({
   generalQueryData(reset = false) {
     const { filter, keywords, minVal, maxVal } = this.data;
     const { pageNum, pageSize } = this;
-    const { sorts, overall } = filter;
+    const { sorts, overall, sortType } = filter;
     const params = {
       sort: 0, // 0 综合，1 价格
       pageNum: 1,
@@ -55,9 +65,15 @@ Page({
       params.sort = 1;
       params.sortType = sorts === 'desc' ? 1 : 0;
     }
-    if (overall) {
+    if (sortType === 'sales') {
+      params.sort = 2;
+    } else if (sortType === 'new') {
+      params.sort = 3;
+    }
+
+    if (overall && !sortType) {
       params.sort = 0;
-    } else {
+    } else if (!sortType && !sorts) {
       params.sort = 1;
     }
     params.minPrice = minVal ? minVal * 100 : 0;
@@ -99,10 +115,6 @@ Page({
         }
 
         const _goodsList = reset ? spuList : goodsList.concat(spuList);
-        _goodsList.forEach((v) => {
-          v.tags = v.spuTagList.map((u) => u.title);
-          v.hideKey = { desc: true };
-        });
         const _loadMoreStatus = _goodsList.length === totalCount ? 2 : 0;
         this.pageNum = params.pageNum || 1;
         this.total = totalCount;
@@ -135,9 +147,16 @@ Page({
     });
   },
 
-  handleSubmit() {
+  handleSubmit(e) {
+    const { value = '' } = e.detail || {};
+    const keyword = value.trim();
+    if (!keyword) return;
+    this.pageNum = 1;
     this.setData(
       {
+        keywords: keyword,
+        searchTitle: keyword,
+        searchInput: '',
         goodsList: [],
         loadMoreStatus: 0,
       },
@@ -170,33 +189,28 @@ Page({
   gotoGoodsDetail(e) {
     const { index } = e.detail;
     const { spuId } = this.data.goodsList[index];
-    wx.navigateTo({
-      url: `/pages/goods/details/index?spuId=${spuId}`,
-    });
+    navigateToGoodsDetail(`/pages/goods/details/index?spuId=${spuId}`);
   },
 
   handleFilterChange(e) {
-    const { overall, sorts } = e.detail;
-    const { total } = this;
-    const _filter = {
-      sorts,
-      overall,
-    };
-    this.setData({
-      filter: _filter,
-      sorts,
-      overall,
-    });
-
+    const { layout, overall, sorts, sortType = '' } = e.detail;
     this.pageNum = 1;
     this.setData(
       {
+        layout,
+        sorts,
+        overall,
+        sortType,
+        filter: {
+          layout,
+          overall,
+          sorts,
+          sortType,
+        },
         goodsList: [],
         loadMoreStatus: 0,
       },
-      () => {
-        total && this.init(true);
-      },
+      () => this.init(true),
     );
   },
 

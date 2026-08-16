@@ -21,6 +21,7 @@
     </view>
   </view>
   <goods-category
+    style="height: {{categoryHeight}}px;"
     level="{{3}}"
     custom-class="goods-category-class"
     category="{{list}}"

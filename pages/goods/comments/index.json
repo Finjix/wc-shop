@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "全部评价",
+  "navigationStyle": "custom",
   "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-tag": "tdesign-miniprogram/tag/tag",
     "comments-card": "./components/comments-card/index",
     "t-load-more": "/components/load-more/index"

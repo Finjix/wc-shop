@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "收货地址",
+  "navigationStyle": "custom",
   "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-image": "/components/webp-image/index",
     "t-toast": "tdesign-miniprogram/toast/toast",

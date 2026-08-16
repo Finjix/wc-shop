@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="评价商品"
+  leftArrow
+  background="#fff"
+/>
 <view class="page-container">
   <view class="comment-card">
     <view class="goods-info-container">

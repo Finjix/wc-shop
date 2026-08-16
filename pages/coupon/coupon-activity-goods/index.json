@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "活动商品",
+  "navigationStyle": "custom",
   "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-popup": "tdesign-miniprogram/popup/popup",
     "t-toast": "tdesign-miniprogram/toast/toast",

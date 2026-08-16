@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="发票"
+  leftArrow
+  background="#fff"
+/>
 <view class="receipt">
   <view class="title">
     <t-cell class="receipt-cell" title="发票" bordered="{{false}}" t-class-left="cell-left">

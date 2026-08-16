@@ -1,6 +1,6 @@
 <view
   id="{{independentID}}"
-  class="goods-card"
+  class="goods-card {{layout === 'horizontal' ? 'goods-card--horizontal' : ''}}"
   bind:tap="clickHandle"
   data-goods="{{ goods }}"
 >
@@ -19,17 +19,6 @@
 				<view wx:if="{{ goods.title }}" class="goods-card__title">
 					{{ goods.title }}
 				</view>
-				<view wx:if="{{ goods.tags && !!goods.tags.length }}" class="goods-card__tags">
-					<view
-					  wx:for="{{ goods.tags }}"
-					  wx:key="index"
-					  wx:for-item="tag"
-					  class="goods-card__tag"
-					  data-index="{{index}}"
-					>
-						{{tag}}
-					</view>
-				</view>
 			</view>
 			<view class="goods-card__down">
 				<price
@@ -39,13 +28,6 @@
 				  symbol="{{currency}}"
 				  price="{{goods.price}}"
 				/>
-				<price
-				  wx:if="{{ goods.originPrice && isValidityLinePrice }}"
-				  wr-class="goods-card__origin-price"
-				  symbol="{{currency}}"
-				  price="{{goods.originPrice}}"
-				  type="delthrough"
-				/>
 				<t-icon
 				  class="goods-card__add-cart"
 				  prefix="wr"
@@ -54,10 +36,9 @@
 				  data-id="{{independentID}}"
 				  catchtap="addCartHandle"
 				  size="48rpx"
-				  color="#FA550F"
+				  color="#FACD1D"
 				/>
 			</view>
 		</view>
 	</view>
 </view>
-

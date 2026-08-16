@@ -33,6 +33,19 @@ Component({
         });
       },
     },
+    sortType: {
+      type: String,
+      value: '',
+      observer(sortType) {
+        this.setData({
+          sortType,
+        });
+      },
+    },
+    showMoreSorts: {
+      type: Boolean,
+      value: false,
+    },
     color: {
       type: String,
       value: '#FA550F',
@@ -43,6 +56,7 @@ Component({
     layout: 1,
     overall: 1,
     sorts: '',
+    sortType: '',
   },
 
   methods: {
@@ -58,6 +72,17 @@ Component({
         ...this.properties,
         overall: 0,
         sorts: sorts === 'desc' ? 'asc' : 'desc',
+        sortType: '',
+      });
+    },
+
+    handleSortType(e) {
+      const { sortType } = e.currentTarget.dataset;
+      this.triggerEvent('change', {
+        ...this.properties,
+        overall: 0,
+        sorts: '',
+        sortType,
       });
     },
 
@@ -69,6 +94,15 @@ Component({
 
     onOverallAction() {
       const { overall } = this.data;
+      if (this.properties.showMoreSorts) {
+        this.triggerEvent('change', {
+          ...this.properties,
+          overall: 1,
+          sorts: '',
+          sortType: '',
+        });
+        return;
+      }
       const nextOverall = overall === 1 ? 0 : 1;
       const nextData = {
         sorts: '',

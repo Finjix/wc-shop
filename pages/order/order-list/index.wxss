@@ -7,10 +7,13 @@
   line-height: 88rpx;
   background: #fff;
 }
+.page-container .tab-bar__placeholder {
+  display: none;
+}
 .page-container .tab-bar__inner {
   font-size: 26rpx;
   color: #333333;
-  position: fixed;
+  position: sticky;
   width: 100vw;
   top: 0;
   left: 0;

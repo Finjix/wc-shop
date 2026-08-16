@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="退款/售后"
+  leftArrow
+  background="#fff"
+/>
 <view class="page-container">
   <t-pull-down-refresh
     id="t-pull-down-refresh"

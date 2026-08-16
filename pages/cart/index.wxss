@@ -2,6 +2,11 @@
   padding-bottom: 100rpx;
 }
 
+.cart-navbar__title {
+  font-size: var(--app-page-title-font-size, 34rpx) !important;
+  font-weight: var(--app-page-title-font-weight, 500) !important;
+}
+
 .gap {
   height: 100rpx;
   width: 100%;

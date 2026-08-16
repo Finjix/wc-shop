@@ -3,6 +3,7 @@ import { OrderStatus, LogisticsIconMap } from '../config';
 import { fetchBusinessTime, fetchOrderDetail } from '../../../services/order/orderDetail';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { getAddressPromise } from '../../../services/address/list';
+import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 
 Page({
   data: {
@@ -200,7 +201,7 @@ Page({
   onGoodsCardTap(e) {
     const { index } = e.currentTarget.dataset;
     const goods = this.data.order.orderItemVOs[index];
-    wx.navigateTo({ url: `/pages/goods/details/index?spuId=${goods.spuId}` });
+    navigateToGoodsDetail(`/pages/goods/details/index?spuId=${goods.spuId}`);
   },
 
   onEditAddressTap() {

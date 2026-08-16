@@ -1,10 +1,31 @@
 <view class="goods-list-container">
+  <t-navbar
+    t-class-title="goods-list-navbar__title"
+    title="{{categoryName}}"
+    leftArrow
+    background="#fff"
+  />
+  <t-search
+    t-class="t-search"
+    t-class-input-container="t-class__input-container"
+    t-class-left="t-search__left-icon"
+    t-class-input="t-search__input"
+    value="{{keywords}}"
+    leftIcon=""
+    placeholder="官方正品 保密发货 售后无忧"
+    bind:submit="handleSubmit"
+  >
+    <t-icon slot="left-icon" prefix="wr" name="search" size="40rpx" color="#bbb" />
+  </t-search>
   <filter
     wr-class="filter-container"
     bind:change="handleFilterChange"
     layout="{{layout}}"
     sorts="{{sorts}}"
     overall="{{overall}}"
+    sortType="{{sortType}}"
+    showMoreSorts="{{true}}"
+    color="#FACD1D"
     bind:showFilterPopup="showFilterPopup"
   >
     <filter-popup
@@ -44,6 +65,7 @@
   <view class="category-goods-list" wx:if="{{goodsList.length}}">
     <goods-list
       wr-class="wr-goods-list"
+      layout="horizontal"
       goodsList="{{goodsList}}"
       bind:click="gotoGoodsDetail"
       bind:addcart="handleAddCart"

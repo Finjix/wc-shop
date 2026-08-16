@@ -2,6 +2,18 @@
 
 @import 'style/theme.wxss';
 
+page {
+  --app-page-title-font-size: 34rpx;
+  --app-page-title-font-weight: 500;
+  --td-navbar-title-font-size: var(--app-page-title-font-size);
+  --td-navbar-title-font-weight: var(--app-page-title-font-weight);
+}
+
+.app-page-navbar-title {
+  font-size: var(--app-page-title-font-size, 34rpx) !important;
+  font-weight: var(--app-page-title-font-weight, 500) !important;
+}
+
 .cell--noborder .t-cell::after {
   border-bottom: none !important;
 }

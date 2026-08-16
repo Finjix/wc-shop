@@ -1,4 +1,9 @@
-<t-navbar background="#ffffff" left-icon="slot" />
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="支付结果"
+  leftArrow
+  background="#fff"
+/>
 <view class="pay-result">
 	<view class="pay-status">
 		<t-icon name="check-circle-filled" size="60rpx" color="#47D368" />
@@ -19,4 +24,3 @@
 		<view class="status-btn" data-type="home" bindtap="onTapReturn">返回首页</view>
 	</view>
 </view>
-

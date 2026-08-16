@@ -1,3 +1,10 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="我的订单"
+  leftArrow
+  fixed="{{false}}"
+  background="#fff"
+/>
 <view class="page-container">
   <view class="tab-bar">
     <view class="tab-bar__placeholder" />
@@ -7,7 +14,7 @@
       t-class-track="t-tabs-track"
       bind:change="onTabChange"
       value="{{status}}"
-      style="position: fixed; top: 0; left: 0; z-index: 100"
+      style="position: sticky; top: 0; left: 0; z-index: 100"
     >
       <t-tab-panel
         wx:for="{{tabs}}"

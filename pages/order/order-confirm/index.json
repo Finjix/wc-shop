@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "订单确认",
+  "navigationStyle": "custom",
   "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-popup": "tdesign-miniprogram/popup/popup",
     "t-toast": "tdesign-miniprogram/toast/toast",
     "t-icon": "tdesign-miniprogram/icon/icon",

@@ -2,6 +2,12 @@
 
 <wxs module="handleInvoice" src="./handleInvoice.wxs" />
 <wxs module="getNotes" src="./getNotes.wxs" />
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="订单确认"
+  leftArrow
+  background="#fff"
+/>
 <view class="order-sure" wx:if="{{!loading}}">
   <address-card addressData="{{userAddress}}" bind:addclick="onGotoAddress" bind:addressclick="onGotoAddress" />
   <view

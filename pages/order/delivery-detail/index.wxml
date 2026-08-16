@@ -7,6 +7,12 @@
 	}
 </wxs>
 
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="物流信息"
+  leftArrow
+  background="#fff"
+/>
 <view class="page-section cells" wx:if="{{logisticsData.logisticsNo || logisticsData.company}}">
 	<t-cell-group>
 		<t-cell
@@ -88,4 +94,3 @@
 		</t-step>
 	</t-steps>
 </view>
-

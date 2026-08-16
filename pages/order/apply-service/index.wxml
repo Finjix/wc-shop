@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="选择售后类型"
+  leftArrow
+  background="#fff"
+/>
 <view class="select-service">
   <view class="order-goods-card">
     <wr-order-goods-card goods="{{goodsInfo}}" no-top-line thumb-class="order-goods-card-title-class">

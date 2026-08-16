@@ -11,7 +11,7 @@ page {
 .tabs-external__inner {
   font-size: 26rpx;
   color: #333333;
-  position: fixed;
+  position: sticky;
   width: 100vw;
   top: 0;
   left: 0;

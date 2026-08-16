@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="营销详情"
+  leftArrow
+  background="#fff"
+/>
 <view id="js-page-wrap" class="promotion-detail-container">
   <view wx:if="{{banner}}" class="wrap" id="{{independentID}}">
     <view class="banner-wrap">

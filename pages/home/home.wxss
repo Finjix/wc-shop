@@ -37,8 +37,8 @@ page {
   align-items: center;
   justify-content: center;
   padding-bottom: 2rpx;
-  font-size: 34rpx;
-  font-weight: 500;
+  font-size: var(--app-page-title-font-size, 34rpx);
+  font-weight: var(--app-page-title-font-weight, 500);
 }
 
 .home-page-header .search {

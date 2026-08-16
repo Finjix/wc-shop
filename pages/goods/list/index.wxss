@@ -4,6 +4,14 @@ page {
 
 .goods-list-container {
   display: block;
+  min-height: 100vh;
+  background-color: #f2f2f2;
+}
+
+.goods-list-navbar__title {
+  color: #111 !important;
+  font-size: var(--app-page-title-font-size, 34rpx) !important;
+  font-weight: var(--app-page-title-font-weight, 500) !important;
 }
 
 .goods-list-container .t-search {
@@ -24,6 +32,10 @@ page {
 .goods-list-container .t-search__input {
   font-size: 28rpx !important;
   color: rgb(116, 116, 116) !important;
+}
+
+.goods-list-container .filter-container {
+  border-bottom: 1rpx solid #f2f2f2;
 }
 
 .goods-list-container .category-goods-list {

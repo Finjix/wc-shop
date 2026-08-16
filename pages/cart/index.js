@@ -1,6 +1,7 @@
 import Dialog from 'tdesign-miniprogram/dialog/index';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchCartGroupData } from '../../services/cart/cart';
+import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 
 Page({
   data: {
@@ -238,9 +239,7 @@ Page({
 
   goGoodsDetail(e) {
     const { spuId, storeId } = e.detail.goods;
-    wx.navigateTo({
-      url: `/pages/goods/details/index?spuId=${spuId}&storeId=${storeId}`,
-    });
+    navigateToGoodsDetail(`/pages/goods/details/index?spuId=${spuId}&storeId=${storeId}`);
   },
 
   clearInvalidGoods() {

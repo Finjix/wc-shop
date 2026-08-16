@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="商品详情"
+  leftArrow
+  background="#fff"
+/>
 <view class="goods-detail-page">
   <view class="goods-head">
     <t-swiper

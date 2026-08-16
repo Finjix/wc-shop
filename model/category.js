@@ -2,7 +2,7 @@ export function getCategoryList() {
   return [
     {
       groupId: '24948',
-      name: '女装',
+      name: '服装',
       thumbnail: 'https://tdesign.gtimg.com/miniprogram/template/retail/category/category-default.png',
       children: [
         {
@@ -67,13 +67,6 @@ export function getCategoryList() {
             },
           ],
         },
-      ],
-    },
-    {
-      groupId: '24948',
-      name: '男装',
-      thumbnail: 'https://tdesign.gtimg.com/miniprogram/template/retail/category/category-default.png',
-      children: [
         {
           groupId: '249481',
           name: '男装',
@@ -106,13 +99,6 @@ export function getCategoryList() {
             },
           ],
         },
-      ],
-    },
-    {
-      groupId: '24948',
-      name: '儿童装',
-      thumbnail: 'https://tdesign.gtimg.com/miniprogram/template/retail/category/category-default.png',
-      children: [
         {
           groupId: '249481',
           name: '儿童装',

@@ -1,9 +1,13 @@
-<view class="goods-list-wrap wr-class" id="{{independentID}}">
+<view
+  class="goods-list-wrap wr-class {{layout === 'horizontal' ? 'goods-list-wrap--horizontal' : ''}}"
+  id="{{independentID}}"
+>
 	<block wx:for="{{goodsList}}" wx:for-item="item" wx:key="index">
 		<goods-card
 		  id="{{independentID}}-gd-{{index}}"
 		  data="{{item}}"
 		  currency="{{item.currency || '¥'}}"
+		  layout="{{layout}}"
 		  thresholds="{{thresholds}}"
 		  class="goods-card-inside"
 		  data-index="{{index}}"
@@ -13,4 +17,3 @@
 		/>
 	</block>
 </view>
-

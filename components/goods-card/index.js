@@ -20,16 +20,17 @@ Component({
         if (!data) {
           return;
         }
-        let isValidityLinePrice = true;
-        if (data.originPrice && data.price && data.originPrice < data.price) {
-          isValidityLinePrice = false;
-        }
-        this.setData({ goods: data, isValidityLinePrice });
+        this.setData({ goods: data });
       },
     },
     currency: {
       type: String,
       value: '¥',
+    },
+
+    layout: {
+      type: String,
+      value: 'grid',
     },
 
     thresholds: {
@@ -48,7 +49,6 @@ Component({
   data: {
     independentID: '',
     goods: { id: '' },
-    isValidityLinePrice: false,
   },
 
   lifetimes: {

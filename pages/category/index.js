@@ -5,6 +5,7 @@ Page({
     statusBarHeight: 0,
     navBarHeight: 44,
     customNavHeight: 44,
+    categoryHeight: 0,
   },
   async init() {
     try {
@@ -20,13 +21,34 @@ Page({
   onShow() {
     this.getTabBar().init();
   },
-  onChange() {
+  onChange(event) {
+    const item = event && event.detail ? event.detail.item : null;
+    const categoryName = item && item.name ? encodeURIComponent(item.name) : '';
     wx.navigateTo({
-      url: '/pages/goods/list/index',
+      url: categoryName
+        ? '/pages/goods/list/index?categoryName=' + categoryName
+        : '/pages/goods/list/index',
     });
   },
   navToSearchPage() {
     wx.navigateTo({ url: '/pages/goods/search/index' });
+  },
+  updateCategoryHeight() {
+    const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const tabBarHeight = (96 * (windowInfo.windowWidth || 375)) / 750;
+    wx.createSelectorQuery()
+      .select('.category-header')
+      .boundingClientRect((rect) => {
+        if (!rect || !rect.height) return;
+        const categoryHeight = Math.max(windowInfo.windowHeight - rect.height - tabBarHeight, 0);
+        if (categoryHeight !== this.data.categoryHeight) {
+          this.setData({ categoryHeight });
+        }
+      })
+      .exec();
+  },
+  onReady() {
+    this.updateCategoryHeight();
   },
   onLoad() {
     const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
@@ -40,7 +62,14 @@ Page({
       statusBarHeight,
       navBarHeight,
       customNavHeight: statusBarHeight + navBarHeight,
-    });
+      categoryHeight: Math.max(
+        windowInfo.windowHeight -
+          statusBarHeight -
+          navBarHeight -
+          (96 * (windowInfo.windowWidth || 375) * 2) / 750,
+        0,
+      ),
+    }, () => this.updateCategoryHeight());
     this.init(true);
   },
 });

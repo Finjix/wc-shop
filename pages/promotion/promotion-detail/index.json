@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "营销详情",
+  "navigationStyle": "custom",
   "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-toast": "tdesign-miniprogram/toast/toast",
     "t-image": "/components/webp-image/index",
     "t-icon": "tdesign-miniprogram/icon/icon",

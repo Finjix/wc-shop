@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "发票",
+  "navigationStyle": "custom",
   "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-cell": "tdesign-miniprogram/cell/cell",
     "t-dialog": "tdesign-miniprogram/dialog/dialog",
     "t-toast": "tdesign-miniprogram/toast/toast",

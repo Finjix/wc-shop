@@ -1,4 +1,5 @@
 import { fetchGoodsList } from '../../services/good/fetchGoods';
+import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 
 Page({
   data: {
@@ -118,17 +119,13 @@ Page({
     const { spuId } = this.data.swiperGoods[index] || {};
     if (!spuId) return;
 
-    wx.navigateTo({
-      url: `/pages/goods/details/index?spuId=${spuId}`,
-    });
+    navigateToGoodsDetail(`/pages/goods/details/index?spuId=${spuId}`);
   },
 
   navToHotGoodsDetail({ currentTarget }) {
     const { spuId } = currentTarget.dataset || {};
     if (spuId === undefined || spuId === null || spuId === '') return;
 
-    wx.navigateTo({
-      url: `/pages/goods/details/index?spuId=${spuId}`,
-    });
+    navigateToGoodsDetail(`/pages/goods/details/index?spuId=${spuId}`);
   },
 });

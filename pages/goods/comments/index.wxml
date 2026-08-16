@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="全部评价"
+  leftArrow
+  background="#fff"
+/>
 <view class="comments-header">
 	<t-tag t-class="comments-header-tag {{commentType === '' ? 'comments-header-active' : ''}}" data-commentType="" bindtap="changeTag">
 		全部({{countObj.commentCount}})
@@ -47,4 +53,3 @@
 	  failedColor="#FA550F"
 	/>
 </view>
-

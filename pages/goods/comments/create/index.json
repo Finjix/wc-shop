@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "评价商品",
+  "navigationStyle": "custom",
   "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-image": "/components/webp-image/index",
     "t-rate": "tdesign-miniprogram/rate/rate",
     "t-textarea": "tdesign-miniprogram/textarea/textarea",

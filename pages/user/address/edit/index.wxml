@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="添加新地址"
+  leftArrow
+  background="#fff"
+/>
 <view class="address-detail">
   <view class="divider-line" />
   <t-location

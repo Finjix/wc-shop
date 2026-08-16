@@ -1,3 +1,10 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="优惠券"
+  leftArrow
+  fixed="{{false}}"
+  background="#fff"
+/>
 <t-tabs
   defaultValue="{{status}}"
   bind:change="tabChange"

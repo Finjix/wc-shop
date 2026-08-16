@@ -1,12 +1,8 @@
-import {
-  getSearchHistory,
-  getSearchPopular,
-} from '../../../services/good/fetchSearchHistory';
+import { getSearchHistory } from '../../../services/good/fetchSearchHistory';
 
 Page({
   data: {
     historyWords: [],
-    popularWords: [],
     searchValue: '',
     dialog: {
       title: '确认删除当前历史记录',
@@ -21,7 +17,6 @@ Page({
 
   onShow() {
     this.queryHistory();
-    this.queryPopular();
   },
 
   async queryHistory() {
@@ -32,21 +27,6 @@ Page({
         const { historyWords = [] } = data;
         this.setData({
           historyWords,
-        });
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  },
-
-  async queryPopular() {
-    try {
-      const data = await getSearchPopular();
-      const code = 'Success';
-      if (String(code).toUpperCase() === 'SUCCESS') {
-        const { popularWords = [] } = data;
-        this.setData({
-          popularWords,
         });
       }
     } catch (error) {
@@ -104,7 +84,7 @@ Page({
     const _searchValue = historyWords[dataset.index || 0] || '';
     if (_searchValue) {
       wx.navigateTo({
-        url: `/pages/goods/result/index?searchValue=${_searchValue}`,
+        url: `/pages/goods/result/index?searchValue=${encodeURIComponent(_searchValue)}`,
       });
     }
   },
@@ -113,7 +93,7 @@ Page({
     const { value } = e.detail.value;
     if (value.length === 0) return;
     wx.navigateTo({
-      url: `/pages/goods/result/index?searchValue=${value}`,
+      url: `/pages/goods/result/index?searchValue=${encodeURIComponent(value)}`,
     });
   },
 });

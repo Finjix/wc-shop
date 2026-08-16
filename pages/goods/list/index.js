@@ -1,10 +1,12 @@
 import { fetchGoodsList } from '../../../services/good/fetchGoodsList';
 import Toast from 'tdesign-miniprogram/toast/index';
+import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 
 const initFilters = {
   overall: 1,
   sorts: '',
   layout: 0,
+  sortType: '',
 };
 
 Page({
@@ -13,11 +15,14 @@ Page({
     layout: 0,
     sorts: '',
     overall: 1,
+    sortType: '',
     show: false,
     minVal: '',
     maxVal: '',
     filter: initFilters,
     hasLoaded: false,
+    categoryName: '商品列表',
+    keywords: '',
     loadMoreStatus: 0,
     loading: true,
   },
@@ -27,21 +32,30 @@ Page({
   total: 0,
 
   handleFilterChange(e) {
-    const { layout, overall, sorts } = e.detail;
+    const { layout, overall, sorts, sortType = '' } = e.detail;
     this.pageNum = 1;
-    this.setData({
-      layout,
-      sorts,
-      overall,
-      loadMoreStatus: 0,
-    });
-    this.init(true);
+    this.setData(
+      {
+        layout,
+        sorts,
+        overall,
+        sortType,
+        filter: {
+          layout,
+          overall,
+          sorts,
+          sortType,
+        },
+        loadMoreStatus: 0,
+      },
+      () => this.init(true),
+    );
   },
 
   generalQueryData(reset = false) {
     const { filter, keywords, minVal, maxVal } = this.data;
     const { pageNum, pageSize } = this;
-    const { sorts, overall } = filter;
+    const { sorts, overall, sortType } = filter;
     const params = {
       sort: 0, // 0 综合，1 价格
       pageNum: 1,
@@ -53,10 +67,15 @@ Page({
       params.sort = 1;
       params.sortType = sorts === 'desc' ? 1 : 0;
     }
+    if (sortType === 'sales') {
+      params.sort = 2;
+    } else if (sortType === 'new') {
+      params.sort = 3;
+    }
 
-    if (overall) {
+    if (overall && !sortType) {
       params.sort = 0;
-    } else {
+    } else if (!sortType && !sorts) {
       params.sort = 1;
     }
     params.minPrice = minVal ? minVal * 100 : 0;
@@ -124,8 +143,27 @@ Page({
     });
   },
 
-  onLoad() {
-    this.init(true);
+  onLoad(options) {
+    const { categoryName = '' } = options || {};
+    const title = categoryName ? decodeURIComponent(categoryName) : '';
+    this.setData({ categoryName: title || '商品列表' }, () => {
+      this.init(true);
+    });
+  },
+
+  handleSubmit(e) {
+    const { value = '' } = e.detail || {};
+    this.pageNum = 1;
+    this.setData(
+      {
+        keywords: value,
+        goodsList: [],
+        loadMoreStatus: 0,
+      },
+      () => {
+        this.init(true);
+      },
+    );
   },
 
   onReachBottom() {
@@ -159,9 +197,7 @@ Page({
   gotoGoodsDetail(e) {
     const { index } = e.detail;
     const { spuId } = this.data.goodsList[index];
-    wx.navigateTo({
-      url: `/pages/goods/details/index?spuId=${spuId}`,
-    });
+    navigateToGoodsDetail(`/pages/goods/details/index?spuId=${spuId}`);
   },
 
   showFilterPopup() {

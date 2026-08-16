@@ -17,6 +17,10 @@ Component({
       type: Array,
       value: [],
     },
+    layout: {
+      type: String,
+      value: 'grid',
+    },
   },
 
   data: {

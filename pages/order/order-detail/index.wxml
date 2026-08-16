@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="订单详情"
+  leftArrow
+  background="#fff"
+/>
 <t-pull-down-refresh
   id="t-pull-down-refresh"
   value="{{pullDownRefreshing}}"

@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "购物车",
+  "navigationStyle": "custom",
   "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "cart-group": "./components/cart-group/index",
     "cart-empty": "./components/cart-empty/index",
     "cart-bar": "./components/cart-bar/index",

@@ -1,6 +1,7 @@
 import { fetchCouponDetail } from '../../../services/coupon/index';
 import { fetchGoodsList } from '../../../services/good/fetchGoods';
 import Toast from 'tdesign-miniprogram/toast/index';
+import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 
 Page({
   data: {
@@ -65,7 +66,7 @@ Page({
   goodClickHandle(e) {
     const { index } = e.detail;
     const { spuId } = this.data.goods[index];
-    wx.navigateTo({ url: `/pages/goods/details/index?spuId=${spuId}` });
+    navigateToGoodsDetail(`/pages/goods/details/index?spuId=${spuId}`);
   },
 
   cartClickHandle() {

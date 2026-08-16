@@ -1,3 +1,9 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="活动商品"
+  leftArrow
+  background="#fff"
+/>
 <view class="coupon-page-container">
   <view class="notice-bar-content">
     <view class="notice-bar-text">

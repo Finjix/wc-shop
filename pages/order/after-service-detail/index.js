@@ -1,6 +1,7 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import { ServiceType, ServiceTypeDesc, ServiceStatus } from '../config';
 import { formatTime, getRightsDetail } from './api';
+import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 
 const TitleConfig = {
   [ServiceType.ORDER_CANCEL]: '退款详情',
@@ -171,7 +172,7 @@ Page({
   onGoodsCardTap(e) {
     const { index } = e.currentTarget.dataset;
     const goods = this.data.serviceRaw.rightsItem[index];
-    wx.navigateTo({ url: `/pages/goods/details/index?skuId=${goods.skuId}` });
+    navigateToGoodsDetail(`/pages/goods/details/index?skuId=${goods.skuId}`);
   },
 
   onServiceNoCopy() {
