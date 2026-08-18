@@ -1,14 +1,38 @@
-<t-popup visible="{{show}}" placement="bottom" z-index="{{zIndex}}" bind:visible-change="onClose">
+<t-popup visible="{{show}}" placement="bottom" z-index="{{zIndex}}" bind:visible-change="handleVisibleChange">
   <view class="specs-popup">
-    <view>
-      <goods-card data="{{goods}}" layout="horizontal-wrap" thumb-mode="{{thumbMode}}" />
-      <view class="section">
-        <view class="title">已选规格</view>
-        <view class="options">
-          <view wx:for="{{specs}}" wx:for-item="spec" wx:key="spec" class="option">{{spec}} </view>
-        </view>
+    <view class="specs-popup__header">
+      <image class="specs-popup__thumb" src="{{thumb}}" mode="aspectFit" />
+      <view class="specs-popup__info">
+        <view class="specs-popup__title">{{title}}</view>
+        <price class="specs-popup__price" price="{{currentPrice || price}}" fill />
       </view>
     </view>
-    <view class="bottom-btn" hover-class="bottom-btn--active" bindtap="onClose">我知道了</view>
+    <scroll-view class="specs-popup__body" scroll-y>
+      <view wx:for="{{optionGroups}}" wx:for-item="group" wx:key="specId" class="specs-popup__group">
+        <view class="specs-popup__group-title">{{group.title}}</view>
+        <view class="specs-popup__options">
+          <view
+            wx:for="{{group.specValueList}}"
+            wx:for-item="option"
+            wx:key="specValueId"
+            class="specs-popup__option {{option.isSelected ? 'specs-popup__option--active' : ''}} {{!option.hasStock ? 'specs-popup__option--disabled' : ''}}"
+            data-spec-id="{{group.specId}}"
+            data-value-id="{{option.specValueId}}"
+            data-has-stock="{{option.hasStock}}"
+            bindtap="selectOption"
+          >
+            {{option.specValue}}
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+    <view
+      class="specs-popup__confirm {{!isComplete ? 'specs-popup__confirm--disabled' : ''}}"
+      hover-class="specs-popup__confirm--active"
+      bindtap="confirmSelection"
+    >
+      确定
+    </view>
   </view>
 </t-popup>
+<t-toast id="t-toast" />

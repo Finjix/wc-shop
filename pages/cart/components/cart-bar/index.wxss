@@ -1,5 +1,5 @@
 .cart-bar__placeholder {
-  height: 100rpx;
+  height: 112rpx;
 }
 .flex {
   display: flex;
@@ -18,7 +18,7 @@
   left: 0;
   right: 0;
   z-index: 99;
-  bottom: calc(100rpx + env(safe-area-inset-bottom));
+  bottom: calc(112rpx + env(safe-area-inset-bottom));
 }
 
 .cart-bar {
@@ -41,18 +41,19 @@
 }
 
 .cart-bar .account-btn {
-  width: 192rpx;
+  width: 216rpx;
   height: 80rpx;
   border-radius: 40rpx;
-  background-color: #fa4126;
+  background-color: var(--app-theme-color, #F5CE2B);
   font-size: 28rpx;
   font-weight: bold;
   line-height: 80rpx;
-  color: #ffffff;
+  color: var(--app-theme-text-color, #8A6800);
   text-align: center;
 }
 .cart-bar .disabled-btn {
   background-color: #cccccc !important;
+  color: #000000 !important;
 }
 .cart-bar .hover-btn {
   opacity: 0.5;
@@ -71,7 +72,7 @@
 }
 
 .cart-bar__total .cart-bar__total--price {
-  color: #fa4126;
+  color: var(--app-theme-text-color, #8A6800);
   font-weight: bold;
 }
 

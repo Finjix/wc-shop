@@ -1,4 +1,10 @@
 /* 主题定制 */
+page {
+  --app-theme-color: #F5CE2B;
+  --app-theme-color-soft: #FFF7CC;
+  --app-theme-text-color: #8A6800;
+}
+
 .t-input {
   --td-input-placeholder-text-color: #bbbbbb;
   --td-input-text-color: #333333;

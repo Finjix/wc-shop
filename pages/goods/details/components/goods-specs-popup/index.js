@@ -334,6 +334,9 @@ Component({
       this.setData({
         buyNum: value,
       });
+      this.triggerEvent('changeNum', {
+        buyNum: value,
+      });
     },
   },
 });

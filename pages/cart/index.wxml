@@ -4,22 +4,85 @@
   <cart-group
     store-goods="{{ cartGroupData.storeGoods }}"
     invalid-good-items="{{ cartGroupData.invalidGoodItems }}"
+    theme-color="{{themeColor}}"
     bindselectgoods="onGoodsSelect"
     bindselectstore="onStoreSelect"
     bindchangequantity="onQuantityChange"
-    bindgocollect="goCollect"
     bindgoodsclick="goGoodsDetail"
+    bindspecschange="onGoodsSpecsChange"
     bindclearinvalidgoods="clearInvalidGoods"
     binddelete="onGoodsDelete"
   />
 
-  <view class="gap" />
+  <view wx:if="{{recommendedLeft.length || recommendedRight.length}}" class="cart-recommend-section">
+    <view class="cart-recommend-title">
+      <view class="cart-recommend-title__line" />
+      <text>推荐商品</text>
+      <view class="cart-recommend-title__line" />
+    </view>
+    <view class="cart-recommend-frame">
+      <view class="cart-recommend-column">
+        <view
+          wx:for="{{recommendedLeft}}"
+          wx:key="spuId"
+          class="hot-product-card cart-recommend-card"
+          data-spu-id="{{item.spuId}}"
+          bindtap="goRecommendedGoodsDetail"
+        >
+          <view class="hot-product-card__image-wrap cart-recommend-card__image-wrap">
+            <image class="hot-product-card__image" src="{{item.thumb}}" mode="widthFix" lazy-load />
+          </view>
+          <view class="hot-product-card__price-bar">
+            <view class="hot-product-card__price">
+              <text class="hot-product-card__price-label">到手</text>
+              <price wr-class="hot-product-card__price-number" price="{{item.price}}" />
+              <text class="hot-product-card__price-suffix">起</text>
+            </view>
+            <view class="hot-product-card__price-action">
+              <t-icon name="chevron-right" size="21rpx" color="#fff" />
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="cart-recommend-column">
+        <view
+          wx:for="{{recommendedRight}}"
+          wx:key="spuId"
+          class="hot-product-card cart-recommend-card"
+          data-spu-id="{{item.spuId}}"
+          bindtap="goRecommendedGoodsDetail"
+        >
+          <view class="hot-product-card__image-wrap cart-recommend-card__image-wrap">
+            <image class="hot-product-card__image" src="{{item.thumb}}" mode="widthFix" lazy-load />
+          </view>
+          <view class="hot-product-card__price-bar">
+            <view class="hot-product-card__price">
+              <text class="hot-product-card__price-label">到手</text>
+              <price wr-class="hot-product-card__price-number" price="{{item.price}}" />
+              <text class="hot-product-card__price-suffix">起</text>
+            </view>
+            <view class="hot-product-card__price-action">
+              <t-icon name="chevron-right" size="21rpx" color="#fff" />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{recommendedLoading}}" class="cart-recommend-status">加载更多商品...</view>
+    <view wx:if="{{!recommendedHasMore && !recommendedLoading}}" class="cart-recommend-status">没有更多商品了</view>
+  </view>
+
+  <view wx:if="{{!recommendedLeft.length && !recommendedRight.length && recommendedLoading}}" class="cart-recommend-loading">
+    推荐商品加载中...
+  </view>
+
   <!-- 商品小计以及结算按钮 -->
   <cart-bar
     is-all-selected="{{cartGroupData.isAllSelected}}"
     total-amount="{{cartGroupData.totalAmount}}"
     total-goods-num="{{cartGroupData.selectedGoodsCount}}"
-    total-discount-amount="{{cartGroupData.totalDiscountAmount}}"
+    theme-color="{{themeColor}}"
+    disabled="{{!checkoutEnabled}}"
     fixed="{{true}}"
     bottomHeight="{{110}}"
     bindhandleSelectAll="onSelectAll"

@@ -30,7 +30,6 @@
 					<view class="wr-goods-card__specs__desc-text">{{ goods.specs }}</view>
 					<t-icon name="chevron-down" size="32rpx" color="#999999" />
 				</view>
-				<view class="goods_tips" wx:if="{{goods.stockQuantity !== 0 && goods.quantity >= goods.stockQuantity}}">库存不足</view>
 			</view>
 			<view class="wr-goods-card__short_content">
 				<block wx:if="{{goods.stockQuantity !== 0}}">
@@ -62,7 +61,6 @@
 				<block wx:else>
 					<view class="no_storage">
 						<view>请重新选择商品规格</view>
-						<view class="no_storage__right">重选</view>
 					</view>
 				</block>
 			</view>
@@ -72,4 +70,3 @@
 	</view>
 	<slot name="append-card" />
 </view>
-

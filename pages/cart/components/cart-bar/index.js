@@ -26,9 +26,17 @@ Component({
         });
       },
     },
+    disabled: {
+      type: Boolean,
+      value: false,
+    },
     totalDiscountAmount: {
       type: Number,
       value: 0,
+    },
+    themeColor: {
+      type: String,
+      value: '#F5CE2B',
     },
     bottomHeight: {
       type: Number,
@@ -42,17 +50,15 @@ Component({
 
   methods: {
     handleSelectAll() {
-      const { isAllSelected } = this.data;
-      this.setData({
-        isAllSelected: !isAllSelected,
-      });
+      const { isAllSelected } = this.properties;
+      const nextIsAllSelected = !isAllSelected;
       this.triggerEvent('handleSelectAll', {
-        isAllSelected: isAllSelected,
+        isAllSelected: nextIsAllSelected,
       });
     },
 
     handleToSettle() {
-      if (this.data.isDisabled) return;
+      if (this.data.isDisabled || this.properties.disabled) return;
       this.triggerEvent('handleToSettle');
     },
   },

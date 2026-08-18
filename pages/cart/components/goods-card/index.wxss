@@ -47,15 +47,6 @@
   overflow: hidden;
   flex: 1 1 auto;
 }
-.wr-goods-card__long_content .goods_tips {
-  width: 100%;
-  margin-top: 16rpx;
-  text-align: right;
-  color: #fa4126;
-  font-size: 24rpx;
-  line-height: 32rpx;
-  font-weight: bold;
-}
 .wr-goods-card__title {
   flex-shrink: 0;
   font-size: 28rpx;
@@ -128,10 +119,10 @@
   margin: 16rpx 0 0 0;
 }
 .wr-goods-card__tag {
-  color: #fa550f;
+  color: var(--app-theme-text-color, #8A6800);
   background: transparent;
   font-size: 20rpx;
-  border: 1rpx solid #fa550f;
+  border: 1rpx solid var(--app-theme-color, #F5CE2B);
   padding: 0 8rpx;
   height: 30rpx;
   line-height: 30rpx;
@@ -158,7 +149,7 @@
   white-space: nowrap;
   font-weight: bold;
   order: 1;
-  color: #fa4126;
+  color: #222427;
   font-size: 36rpx;
   margin: 0;
   line-height: 48rpx;
@@ -226,7 +217,7 @@
 }
 .wr-goods-card.vertical .wr-goods-card__price {
   order: 2;
-  color: #fa4126;
+  color: #222427;
   margin: 20rpx 0 0 0;
 }
 .wr-goods-card.vertical .wr-goods-card__origin-price {
@@ -241,20 +232,10 @@
 .wr-goods-card__short_content .no_storage {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   height: 40rpx;
   color: #333;
   font-size: 24rpx;
   line-height: 32rpx;
   width: 100%;
-}
-
-.no_storage .no_storage__right {
-  width: 80rpx;
-  height: 40rpx;
-  border-radius: 20rpx;
-  border: 2rpx solid #fa4126;
-  line-height: 40rpx;
-  text-align: center;
-  color: #fa4126;
 }

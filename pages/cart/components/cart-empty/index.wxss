@@ -25,8 +25,8 @@
   border-radius: 36rpx;
   text-align: center;
   line-height: 72rpx;
-  border: 2rpx solid #fa4126;
-  color: #fa4126;
+  border: 2rpx solid var(--app-theme-color, #F5CE2B);
+  color: var(--app-theme-text-color, #8A6800);
   background-color: transparent;
   font-size: 28rpx;
   font-weight: bold;
