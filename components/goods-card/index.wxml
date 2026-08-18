@@ -36,7 +36,7 @@
 				  data-id="{{independentID}}"
 				  catchtap="addCartHandle"
 				  size="48rpx"
-				  color="#FACD1D"
+				  color="#F5CE2B"
 				/>
 			</view>
 		</view>

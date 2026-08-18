@@ -10,14 +10,17 @@ import { cdnBase } from '../../../config/index';
 
 const imgPrefix = `${cdnBase}/`;
 
-const recLeftImg = `${imgPrefix}common/rec-left.png`;
-const recRightImg = `${imgPrefix}common/rec-right.png`;
 const obj2Params = (obj = {}, encode = false) => {
   const result = [];
   Object.keys(obj).forEach((key) => result.push(`${key}=${encode ? encodeURIComponent(obj[key]) : obj[key]}`));
 
   return result.join('&');
 };
+
+// 商品详情页暂时禁用购物车和立即购买跳转，恢复时将开关改为 true。
+const GOODS_PURCHASE_NAVIGATION_ENABLED = false;
+// 促销说明暂时不跳转，恢复时将开关改为 true。
+const PROMOTION_NAVIGATION_ENABLED = false;
 
 Page({
   data: {
@@ -32,8 +35,6 @@ Page({
     },
     isShowPromotionPop: false,
     activityList: [],
-    recLeftImg,
-    recRightImg,
     details: {},
     goodsTabArray: [
       {
@@ -49,9 +50,9 @@ Page({
     storeName: '云mall标准版旗舰店',
     jumpArray: [
       {
-        title: '首页',
-        url: '/pages/home/home',
-        iconName: 'home',
+        title: '客服',
+        iconName: 'service',
+        isContact: true,
       },
       {
         title: '购物车',
@@ -103,6 +104,7 @@ Page({
   },
 
   buyItNow() {
+    if (!GOODS_PURCHASE_NAVIGATION_ENABLED) return;
     this.showSkuSelectPopup(1);
   },
 
@@ -112,6 +114,7 @@ Page({
 
   toNav(e) {
     const { url } = e.detail;
+    if (url === '/pages/cart/index' && !GOODS_PURCHASE_NAVIGATION_ENABLED) return;
     wx.switchTab({
       url: url,
     });
@@ -227,6 +230,7 @@ Page({
   },
 
   gotoBuy(type) {
+    if (!GOODS_PURCHASE_NAVIGATION_ENABLED) return;
     const { isAllSelectedSku, buyNum } = this.data;
     if (!isAllSelectedSku) {
       Toast({
@@ -289,6 +293,7 @@ Page({
   },
 
   promotionChange(e) {
+    if (!PROMOTION_NAVIGATION_ENABLED) return;
     const { index } = e.detail;
     wx.navigateTo({
       url: `/pages/promotion/promotion-detail/index?promotion_id=${index}`,

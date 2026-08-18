@@ -20,7 +20,7 @@
   position: absolute;
   width: 6rpx;
   height: 48rpx;
-  background-color: #FACD1D;
+  background-color: #F5CE2B;
   left: 0;
   top: 50%;
   transform: translate(0, -50%);
@@ -42,7 +42,7 @@
 .c-sidebar-item.active .c-sidebar-item__text {
   background-color: white;
   border-radius: 36rpx;
-  color: #FACD1D;
+  color: #F5CE2B;
   font-weight: 400;
 }
 

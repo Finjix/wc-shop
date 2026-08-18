@@ -6,7 +6,7 @@
 
 .t-tab-bar {
   --td-tab-bar-color: #bbb;
-  --td-tab-bar-active-color: #FACD1D;
+  --td-tab-bar-active-color: #F5CE2B;
 }
 
 .t-cascader {

@@ -1,7 +1,7 @@
 {
   "navigationBarTitleText": "番薯小店",
-  "navigationBarBackgroundColor": "#FACD1D",
-  "navigationBarTextStyle": "white",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
   "navigationStyle": "custom",
   "disableScroll": true,
   "backgroundTextStyle": "light",

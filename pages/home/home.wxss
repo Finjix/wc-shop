@@ -18,16 +18,17 @@ page {
 }
 
 .home-page-header {
-  background: #FACD1D;
+  background: #fff;
   padding-bottom: 32rpx;
 }
 
 .home-custom-nav {
   display: flex;
   box-sizing: border-box;
+  align-items: center;
   justify-content: center;
   margin: 0 -24rpx;
-  color: #fff;
+  color: #111;
 }
 
 .home-custom-nav__content {
@@ -70,7 +71,7 @@ page {
   align-items: center;
   padding: 0 24rpx;
   overflow: hidden;
-  background: #F7F7F7;
+  background: #FFF7CC;
 }
 
 .broadcast-icon {
@@ -100,7 +101,7 @@ page {
   display: block;
   flex: 0 0 auto;
   padding-right: 88rpx;
-  color: #FACD1D;
+  color: #8A6800;
   font-size: 26rpx;
   line-height: 64rpx;
   white-space: nowrap;
@@ -119,7 +120,7 @@ page {
 .home-page-header .t-search__input-container {
   border-radius: 32rpx !important;
   height: 64rpx !important;
-  background-color: #fff !important;
+  background-color: #f5f5f5 !important;
   border: none !important;
   padding: 0 24rpx !important;
 }
@@ -176,7 +177,7 @@ page {
 .age-warning {
   padding: 32rpx 0 0;
   background: #fff;
-  color: #FACD1D;
+  color: #F5CE2B;
   font-size: 32rpx;
   line-height: 48rpx;
   text-align: center;
@@ -208,14 +209,7 @@ page {
 .hot-sale__pink-frame {
   margin: 0 12rpx;
   padding: 24rpx;
-  background: linear-gradient(
-    180deg,
-    #FAFA68 0%,
-    #EEFB8A 24%,
-    #E8FCAF 55%,
-    #CBFFEB 82%,
-    #AFF7ED 100%
-  );
+  background: transparent;
 }
 
 .hot-sale__grid {
@@ -232,6 +226,7 @@ page {
   margin-bottom: 16rpx;
   overflow: hidden;
   background: #fff;
+  box-shadow: 0 6rpx 16rpx rgba(0, 0, 0, 0.08);
 }
 
 .hot-product-card__image-wrap {
@@ -282,14 +277,14 @@ page {
 
 .hot-product-card__price-action {
   display: flex;
-  width: 34rpx;
-  height: 34rpx;
-  margin-left: 10rpx;
+  width: 28rpx;
+  height: 28rpx;
+  margin-left: 8rpx;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #FACD1D;
-  font-size: 28rpx;
+  background: #F5CE2B;
+  font-size: 22rpx;
   font-weight: 800;
   line-height: 1;
 }
@@ -321,6 +316,7 @@ page {
   overflow: hidden;
   flex-direction: column;
   background: #fff;
+  box-shadow: 0 6rpx 16rpx rgba(0, 0, 0, 0.08);
 }
 
 .new-product-card--0 {
@@ -376,12 +372,12 @@ page {
 
 .new-product-card__price-action {
   display: flex;
-  width: 28rpx;
-  height: 28rpx;
-  margin-left: 6rpx;
+  width: 22rpx;
+  height: 22rpx;
+  margin-left: 5rpx;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #FACD1D;
+  background: #F5CE2B;
   line-height: 1;
 }

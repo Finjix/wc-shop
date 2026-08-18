@@ -24,7 +24,7 @@
           bind:change="onRateChange"
           size="26"
           gap="6"
-          color="{{['#ffc51c', '#ddd']}}"
+          color="{{['#F5CE2B', '#ddd']}}"
           data-item="goodRateValue"
         />
       </view>
@@ -66,7 +66,7 @@
         variant="filled"
         size="26"
         gap="6"
-        color="{{['#ffc51c', '#ddd']}}"
+        color="{{['#F5CE2B', '#ddd']}}"
         data-item="conveyRateValue"
       />
     </view>
@@ -79,7 +79,7 @@
         bind:change="onRateChange"
         size="26"
         gap="6"
-        color="{{['#ffc51c', '#ddd']}}"
+        color="{{['#F5CE2B', '#ddd']}}"
         data-item="serviceRateValue"
       />
     </view>

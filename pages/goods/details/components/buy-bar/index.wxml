@@ -7,12 +7,18 @@
 		  wx:for="{{jumpArray}}"
 		  wx:key="index"
 		  class="icon-warp operate-wrap"
-		  bindtap="toNav"
-		  data-ele="foot_navigation"
-		  data-index="{{index}}"
-		  data-url="{{item.url}}"
 		>
-			<view>
+			<button wx:if="{{item.isContact}}" class="customer-service-button" open-type="contact">
+				<t-icon prefix="wr" name="{{item.iconName}}" size="40rpx" />
+				<view class="operate-text">{{item.title}}</view>
+			</button>
+			<view
+				wx:else
+				bindtap="toNav"
+				data-ele="foot_navigation"
+				data-index="{{index}}"
+				data-url="{{item.url}}"
+			>
 				<text wx:if="{{shopCartNum > 0 && item.showCartNum}}" class="tag-cart-num">
 					{{shopCartNum > 99 ? '99+' : shopCartNum}}
 				</text>
@@ -35,4 +41,3 @@
 		<slot name="buyButton" />
 	</block>
 </view>
-

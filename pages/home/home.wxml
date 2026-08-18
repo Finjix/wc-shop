@@ -29,7 +29,7 @@
 
     <view class="broadcast-bar">
       <view class="broadcast-icon">
-        <t-icon name="sound" size="30rpx" color="#FACD1D" />
+        <t-icon name="sound" size="30rpx" color="#8A6800" />
       </view>
       <view class="broadcast-viewport">
         <view class="broadcast-track">
@@ -99,7 +99,7 @@
                 <text class="hot-product-card__price-suffix">起</text>
               </view>
               <view class="hot-product-card__price-action">
-                <t-icon name="chevron-right" size="26rpx" color="#fff" />
+                <t-icon name="chevron-right" size="21rpx" color="#fff" />
               </view>
             </view>
           </view>
@@ -136,7 +136,7 @@
               <text class="new-product-card__price-suffix">起</text>
             </view>
             <view class="new-product-card__price-action">
-              <t-icon name="chevron-right" size="24rpx" color="#fff" />
+              <t-icon name="chevron-right" size="19rpx" color="#fff" />
             </view>
           </view>
         </view>
@@ -173,7 +173,7 @@
               <text class="hot-product-card__price-suffix">起</text>
             </view>
             <view class="hot-product-card__price-action">
-              <t-icon name="chevron-right" size="26rpx" color="#fff" />
+                <t-icon name="chevron-right" size="21rpx" color="#fff" />
             </view>
           </view>
         </view>
@@ -210,7 +210,7 @@
               <text class="new-product-card__price-suffix">起</text>
             </view>
             <view class="new-product-card__price-action">
-              <t-icon name="chevron-right" size="24rpx" color="#fff" />
+              <t-icon name="chevron-right" size="19rpx" color="#fff" />
             </view>
           </view>
         </view>
@@ -247,7 +247,7 @@
               <text class="hot-product-card__price-suffix">起</text>
             </view>
             <view class="hot-product-card__price-action">
-              <t-icon name="chevron-right" size="26rpx" color="#fff" />
+                <t-icon name="chevron-right" size="21rpx" color="#fff" />
             </view>
           </view>
         </view>
@@ -284,7 +284,7 @@
               <text class="new-product-card__price-suffix">起</text>
             </view>
             <view class="new-product-card__price-action">
-              <t-icon name="chevron-right" size="24rpx" color="#fff" />
+              <t-icon name="chevron-right" size="19rpx" color="#fff" />
             </view>
           </view>
         </view>

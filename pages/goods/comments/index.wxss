@@ -38,9 +38,9 @@ page {
 }
 
 .comments-header-active {
-  background-color: #FFECE9 !important;
-  color: #FA4126 !important;
-  border: 1px solid #FA4126 !important;
+  background-color: #FFF7CC !important;
+  color: #F5CE2B !important;
+  border: 1px solid #F5CE2B !important;
 }
 
 .no-more {

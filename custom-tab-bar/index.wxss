@@ -1,6 +1,6 @@
 .custom-tab-bar {
   --td-tab-bar-color: #111111;
-  --td-tab-bar-active-color: #FACD1D;
+  --td-tab-bar-active-color: #F5CE2B;
   --td-tab-bar-height: 96rpx;
 }
 
