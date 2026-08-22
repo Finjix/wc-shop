@@ -20,7 +20,7 @@
 			<text class="cart-bar__total--normal">（不含运费）</text>
 		</view>
 	</view>
-	<view catchtap="handleToSettle" class="{{!isDisabled && !disabled ? '' : 'disabled-btn'}} account-btn" hover-class="{{!isDisabled && !disabled ? '' : 'hover-btn'}}">
+	<view catchtap="handleToSettle" class="{{isDisabled ? 'disabled-btn' : ''}} account-btn" hover-class="{{isDisabled ? 'hover-btn' : ''}}">
 		结算
 	</view>
 </view>

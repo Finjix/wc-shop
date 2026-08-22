@@ -23,21 +23,6 @@ export function getGoodsAllComments(params) {
               src: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/nz-08b.png',
               type: 'image',
             },
-            {
-              src: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/comment-video.mp4',
-              type: 'video',
-              coverSrc: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/nz-08b.png',
-            },
-            {
-              src: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/comment-video.mp4',
-              type: 'video',
-              coverSrc: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/nz-08b.png',
-            },
-            {
-              src: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/comment-video.mp4',
-              type: 'video',
-              coverSrc: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/nz-08b.png',
-            },
           ],
           commentScore: 4,
           uid: '88881048075',
@@ -80,11 +65,6 @@ export function getGoodsAllComments(params) {
               src: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/nz-08b.png',
               type: 'image',
             },
-            {
-              src: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/comment-video.mp4',
-              type: 'video',
-              coverSrc: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/nz-08b.png',
-            },
           ],
           commentScore: 4,
           uid: '88881048075',
@@ -105,16 +85,6 @@ export function getGoodsAllComments(params) {
             {
               src: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/nz-08b.png',
               type: 'image',
-            },
-            {
-              src: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/comment-video.mp4',
-              type: 'video',
-              coverSrc: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/nz-08b.png',
-            },
-            {
-              src: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/comment-video.mp4',
-              type: 'video',
-              coverSrc: 'https://tdesign.gtimg.com/miniprogram/template/retail/goods/nz-08b.png',
             },
           ],
           commentScore: 4,

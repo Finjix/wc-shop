@@ -1,9 +1,0 @@
-.coupon-btn-default {
-  display: none;
-}
-
-.coupon-btn-primary {
-  --td-button-extra-small-padding-horizontal: 26rpx;
-  --td-button-primary-outline-color: #8A6800;
-  --td-button-primary-outline-border-color: #F5CE2B;
-}

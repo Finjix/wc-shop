@@ -34,16 +34,6 @@
         "delivery-detail/index",
         "invoice/index"
       ]
-    },
-    {
-      "root": "pages/coupon",
-      "name": "coupon",
-      "pages": ["coupon-list/index", "coupon-detail/index", "coupon-activity-goods/index"]
-    },
-    {
-      "root": "pages/promotion",
-      "name": "promotion",
-      "pages": ["promotion-detail/index"]
     }
   ],
   "tabBar": {
@@ -73,7 +63,6 @@
   },
   "requiredPrivateInfos": ["chooseAddress"],
   "lazyCodeLoading": "requiredComponents",
-  "usingComponents": {},
   "window": {
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#fff",

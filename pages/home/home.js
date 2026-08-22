@@ -4,8 +4,6 @@ import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 Page({
   data: {
     imgSrcs: [],
-    // 后台运营位图片：宽度上限 1080px，高度不限；空值表示当前不展示图片。
-    shopBenefitsImage: '',
     swiperGoods: [],
     hotGoods: [],
     newGoods: [],

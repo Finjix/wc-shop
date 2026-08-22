@@ -3,15 +3,9 @@ import { fetchCartGroupData, persistMockCartGroupData } from '../../services/car
 import { fetchGoodsList } from '../../services/good/fetchGoods';
 import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 
-// 购物车结算入口已恢复。
-const CART_CHECKOUT_ENABLED = true;
-// 购物车结算页跳转已恢复。
-const CART_CHECKOUT_NAVIGATION_ENABLED = true;
-
 Page({
   data: {
     cartGroupData: null,
-    checkoutEnabled: CART_CHECKOUT_ENABLED,
     recommendedLeft: [],
     recommendedRight: [],
     recommendedOffset: 0,
@@ -478,7 +472,6 @@ Page({
   },
 
   onToSettle() {
-    if (!CART_CHECKOUT_NAVIGATION_ENABLED) return;
     const goodsRequestList = [];
     this.data.cartGroupData.storeGoods.forEach((store) => {
       store.promotionGoodsList.forEach((promotion) => {

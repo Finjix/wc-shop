@@ -88,7 +88,6 @@
     total-amount="{{cartGroupData.totalAmount}}"
     total-goods-num="{{cartGroupData.selectedGoodsCount}}"
     theme-color="{{themeColor}}"
-    disabled="{{!checkoutEnabled}}"
     fixed="{{true}}"
     bottomHeight="{{110}}"
     bindhandleSelectAll="onSelectAll"

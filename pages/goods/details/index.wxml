@@ -31,17 +31,6 @@
         </view>
         <view class="sold-num">已售{{soldNum}}</view>
       </view>
-      <view wx:if="{{showPromotionEntry && activityList.length > 0}}" class="goods-activity" bindtap="showPromotionPopup">
-        <view class="tags-container">
-          <view wx:for="{{activityList}}" data-promotionId="{{item.promotionId}}" wx:key="index" wx:if="{{index<4}}">
-            <view class="goods-activity-tag">{{item.tag}}</view>
-          </view>
-        </view>
-        <view class="activity-show">
-          <view class="activity-show-text">领券</view>
-          <t-icon name="chevron-right" size="42rpx" color="#F5CE2B" />
-        </view>
-      </view>
       <view class="goods-title">
         <view class="goods-name">{{details.title}}</view>
         <view class="goods-tag">
@@ -122,7 +111,7 @@
     <view slot="goods-price">
       <view class="popup-sku__price">
         <price
-          wx:if="{{!isAllSelectedSku || (!promotionSubCode && isAllSelectedSku)}}"
+          wx:if="{{!isAllSelectedSku}}"
           price="{{selectSkuSellsPrice ? selectSkuSellsPrice : minSalePrice }}"
           wr-class="popup-sku__price-num"
           symbol-class="popup-sku__price-symbol"
@@ -130,11 +119,5 @@
       </view>
     </view>
   </goods-specs-popup>
-  <promotion-popup
-    list="{{list}}"
-    bind:closePromotionPopup="closePromotionPopup"
-    show="{{isShowPromotionPop}}"
-    bind:promotionChange="promotionChange"
-  />
 </view>
 <t-toast id="t-toast" />

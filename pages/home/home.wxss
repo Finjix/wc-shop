@@ -164,17 +164,6 @@ page {
   border-radius: 0 !important;
 }
 
-.shop-benefits-banner {
-  width: 100%;
-}
-
-.shop-benefits-banner__image {
-  display: block;
-  width: 100%;
-  max-width: 1080px;
-  margin: 0 auto;
-}
-
 .age-warning {
   padding: 32rpx 0 0;
   background: #fff;

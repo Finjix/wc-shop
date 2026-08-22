@@ -15,8 +15,6 @@ Page({
     backRefresh: false, // 用于接收其他页面back时的状态
     formatCreateTime: '', //格式化订单创建时间
     logisticsNodes: [],
-    /** 订单评论状态 */
-    orderHasCommented: true,
   },
 
   onLoad(query) {
@@ -35,12 +33,6 @@ Page({
 
   onPageScroll(e) {
     this.pullDownRefresh && this.pullDownRefresh.onPageScroll(e);
-  },
-
-  onImgError(e) {
-    if (e.detail) {
-      console.error('img 加载失败');
-    }
   },
 
   // 页面初始化，会展示pageLoading
@@ -177,7 +169,6 @@ Page({
     fetchBusinessTime().then((res) => {
       const storeDetail = {
         storeTel: res.data.telphone,
-        storeBusiness: res.data.businessTime.join('\n'),
       };
       this.setData({ storeDetail });
     });
@@ -211,18 +202,6 @@ Page({
     });
   },
 
-  onDeliveryNumCopy() {
-    wx.setClipboardData({
-      data: this.data.order.logisticsVO.logisticsNo,
-    });
-  },
-
-  onToInvoice() {
-    wx.navigateTo({
-      url: `/pages/order/invoice/index?orderNo=${this.data._order.orderNo}`,
-    });
-  },
-
   onDeliveryClick() {
     const logisticsData = {
       nodes: this.data.logisticsNodes,
@@ -233,18 +212,6 @@ Page({
     wx.navigateTo({
       url: `/pages/order/delivery-detail/index?data=${encodeURIComponent(JSON.stringify(logisticsData))}`,
     });
-  },
-
-  /** 跳转订单评价 */
-  navToCommentCreate() {
-    wx.navigateTo({
-      url: `/pages/order/createComment/index?orderNo=${this.orderNo}`,
-    });
-  },
-
-  /** 跳转拼团详情/分享页*/
-  toGrouponDetail() {
-    wx.showToast({ title: '点击了拼团' });
   },
 
 });

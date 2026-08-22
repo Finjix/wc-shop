@@ -2,11 +2,6 @@ import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
 import Toast from 'tdesign-miniprogram/toast/index';
 const COMPLETE_ORDER_STATUS = 50;
 
-const ORDER_PAGE_NAVIGATION_ENABLED = true;
-// 我的页优惠券入口暂时隐藏，恢复时改为 true。
-const COUPON_DISPLAY_ENABLED = false;
-const SUPPORT_PAGE_NAVIGATION_ENABLED = true;
-
 const toolData = [
   {
     title: '收货地址',
@@ -19,11 +14,6 @@ const toolData = [
     type: 'about',
   },
   {
-    title: '优惠券',
-    icon: 'ticket',
-    type: 'coupon',
-  },
-  {
     title: '帮助',
     icon: 'help-circle',
     type: 'help-center',
@@ -34,8 +24,6 @@ const toolData = [
     type: 'distribution-center',
   },
 ];
-
-const visibleToolData = COUPON_DISPLAY_ENABLED ? toolData : toolData.filter(({ type }) => type !== 'coupon');
 
 const orderTagInfos = [
   {
@@ -77,10 +65,9 @@ const getDefaultData = () => ({
     nickName: '用户_1A4B',
     phoneNumber: '',
   },
-  toolData: visibleToolData,
+  toolData,
   orderTagInfos,
   currAuthStep: 1,
-  versionNo: '',
 });
 
 Page({
@@ -162,22 +149,6 @@ Page({
         });
         break;
       }
-      case 'point': {
-        Toast({
-          context: this,
-          selector: '#t-toast',
-          message: '你点击了积分菜单',
-          icon: '',
-          duration: 1000,
-        });
-        break;
-      }
-      case 'coupon': {
-        if (!COUPON_DISPLAY_ENABLED) return;
-
-        wx.navigateTo({ url: '/pages/coupon/coupon-list/index' });
-        break;
-      }
       default: {
         Toast({
           context: this,
@@ -192,8 +163,6 @@ Page({
   },
 
   jumpNav(e) {
-    if (!ORDER_PAGE_NAVIGATION_ENABLED) return;
-
     const status = e.detail.tabType;
 
     if (status === 0) {
@@ -208,8 +177,6 @@ Page({
   },
 
   jumpAllOrder() {
-    if (!ORDER_PAGE_NAVIGATION_ENABLED) return;
-
     wx.navigateTo({ url: '/pages/order/order-list/index' });
   },
 
@@ -222,8 +189,6 @@ Page({
     }
   },
   onSupportTap() {
-    if (!SUPPORT_PAGE_NAVIGATION_ENABLED) return;
-
     wx.navigateTo({ url: '/pages/user/support/index' });
   },
 });

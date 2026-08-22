@@ -79,38 +79,6 @@ page {
   margin-right: 32rpx;
 }
 
-.goods-detail-page .goods-info .goods-activity {
-  display: flex;
-  margin-top: 16rpx;
-  justify-content: space-between;
-}
-
-.goods-detail-page .goods-info .goods-activity .tags-container {
-  display: flex;
-}
-
-.goods-detail-page .goods-info .goods-activity .tags-container .goods-activity-tag {
-  background: #F5CE2B;
-  color: #222427;
-  font-size: 24rpx;
-  margin-right: 16rpx;
-  padding: 4rpx 8rpx;
-  border-radius: 4rpx;
-}
-
-.goods-detail-page .goods-info .goods-activity .activity-show {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #F5CE2B;
-  font-size: 24rpx;
-  padding-right: 32rpx;
-}
-
-.goods-detail-page .goods-info .goods-activity .activity-show-text {
-  line-height: 42rpx;
-}
-
 .goods-detail-page .goods-info .goods-title {
   display: flex;
   justify-content: space-between;

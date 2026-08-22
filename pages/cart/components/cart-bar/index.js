@@ -26,10 +26,6 @@ Component({
         });
       },
     },
-    disabled: {
-      type: Boolean,
-      value: false,
-    },
     totalDiscountAmount: {
       type: Number,
       value: 0,
@@ -58,7 +54,7 @@ Component({
     },
 
     handleToSettle() {
-      if (this.data.isDisabled || this.properties.disabled) return;
+      if (this.data.isDisabled) return;
       this.triggerEvent('handleToSettle');
     },
   },

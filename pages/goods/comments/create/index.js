@@ -1,4 +1,3 @@
-// import { getCommentDetail } from '../../../../services/good/comments/fetchCommentDetail';
 import Toast from 'tdesign-miniprogram/toast/index';
 Page({
   data: {

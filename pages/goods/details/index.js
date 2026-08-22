@@ -1,6 +1,5 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchGood } from '../../../services/good/fetchGood';
-import { fetchActivityList } from '../../../services/activity/fetchActivityList';
 import { addGoodsToCart } from '../../../services/cart/cart';
 import {
   getGoodsDetailsCommentList,
@@ -18,13 +17,6 @@ const obj2Params = (obj = {}, encode = false) => {
   return result.join('&');
 };
 
-// 商品详情页立即购买跳转结算页已恢复。
-const ORDER_CONFIRM_NAVIGATION_ENABLED = true;
-// 商品详情页满减标签和领券入口暂时隐藏，恢复时改为 true。
-const PROMOTION_DISPLAY_ENABLED = false;
-// 促销说明跳转已启用。
-const PROMOTION_NAVIGATION_ENABLED = true;
-
 Page({
   data: {
     commentsList: [],
@@ -36,9 +28,6 @@ Page({
       hasImageCount: 0,
       middleCount: 0,
     },
-    isShowPromotionPop: false,
-    showPromotionEntry: PROMOTION_DISPLAY_ENABLED,
-    activityList: [],
     details: {},
     goodsTabArray: [
       {
@@ -81,7 +70,6 @@ Page({
     maxLinePrice: 0,
     minSalePrice: 0,
     maxSalePrice: 0,
-    list: [],
     spuId: '',
     navigation: { type: 'fraction' },
     current: 0,
@@ -106,7 +94,6 @@ Page({
   },
 
   buyItNow() {
-    if (!ORDER_CONFIRM_NAVIGATION_ENABLED) return;
     this.showSkuSelectPopup(1);
   },
 
@@ -318,7 +305,6 @@ Page({
   },
 
   gotoBuy(type) {
-    if (!ORDER_CONFIRM_NAVIGATION_ENABLED) return;
     const { isAllSelectedSku, buyNum } = this.data;
     if (!isAllSelectedSku) {
       Toast({
@@ -373,29 +359,8 @@ Page({
     });
   },
 
-  closePromotionPopup() {
-    this.setData({
-      isShowPromotionPop: false,
-    });
-  },
-
-  promotionChange(e) {
-    if (!PROMOTION_NAVIGATION_ENABLED) return;
-    const { index } = e.detail;
-    wx.navigateTo({
-      url: `/pages/promotion/promotion-detail/index?promotion_id=${index}`,
-    });
-  },
-
-  showPromotionPopup() {
-    this.setData({
-      isShowPromotionPop: true,
-    });
-  },
-
   getDetail(spuId) {
-    Promise.all([fetchGood(spuId), fetchActivityList()]).then((res) => {
-      const [details, activityList] = res;
+    fetchGood(spuId).then((details) => {
       const skuArray = [];
       const { skuList, primaryImage, isPutOnSale, minSalePrice, maxSalePrice, maxLinePrice, soldNum } = details;
       skuList.forEach((item) => {
@@ -408,21 +373,12 @@ Page({
           specInfo: item.specInfo,
         });
       });
-      const promotionArray = [];
-      activityList.forEach((item) => {
-        promotionArray.push({
-          tag: item.promotionSubCode === 'MYJ' ? '满减' : '满折',
-          label: '满100元减99.9元',
-        });
-      });
       this.setData({
         details,
-        activityList,
         isStock: details.spuStockQuantity > 0,
         maxSalePrice: maxSalePrice ? parseInt(maxSalePrice) : 0,
         maxLinePrice: maxLinePrice ? parseInt(maxLinePrice) : 0,
         minSalePrice: minSalePrice ? parseInt(minSalePrice) : 0,
-        list: promotionArray,
         skuArray: skuArray,
         primaryImage,
         soldout: isPutOnSale === 0,
