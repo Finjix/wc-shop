@@ -1,14 +1,22 @@
 import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
 import Toast from 'tdesign-miniprogram/toast/index';
 
-// 订单页跳转暂时禁用，恢复时改为 true。
-const ORDER_PAGE_NAVIGATION_ENABLED = false;
+const ORDER_PAGE_NAVIGATION_ENABLED = true;
+// 我的页优惠券入口暂时隐藏，恢复时改为 true。
+const COUPON_DISPLAY_ENABLED = false;
+// 技术支持页跳转暂时禁用，恢复时改为 true。
+const SUPPORT_PAGE_NAVIGATION_ENABLED = false;
 
 const toolData = [
   {
     title: '收货地址',
     icon: 'location',
     type: 'address',
+  },
+  {
+    title: '关于',
+    icon: 'info-circle',
+    type: 'about',
   },
   {
     title: '优惠券',
@@ -27,14 +35,9 @@ const toolData = [
   },
 ];
 
+const visibleToolData = COUPON_DISPLAY_ENABLED ? toolData : toolData.filter(({ type }) => type !== 'coupon');
+
 const orderTagInfos = [
-  {
-    title: '待付款',
-    iconName: 'wallet',
-    orderNum: 0,
-    tabType: 5,
-    status: 1,
-  },
   {
     title: '待发货',
     iconName: 'deliver',
@@ -66,7 +69,6 @@ const orderTagInfos = [
 ];
 
 const getDefaultData = () => ({
-  showMakePhone: false,
   statusBarHeight: 0,
   navBarHeight: 44,
   customNavHeight: 44,
@@ -75,11 +77,9 @@ const getDefaultData = () => ({
     nickName: '用户_1A4B',
     phoneNumber: '',
   },
-  toolData,
+  toolData: visibleToolData,
   orderTagInfos,
-  customerServiceInfo: {},
   currAuthStep: 1,
-  showKefu: true,
   versionNo: '',
 });
 
@@ -88,7 +88,6 @@ Page({
 
   onLoad() {
     this.initCustomNav();
-    this.getVersionInfo();
   },
 
   onShow() {
@@ -119,15 +118,14 @@ Page({
   },
 
   fetUseriInfoHandle() {
-    fetchUserCenter().then(({ userInfo, orderTagInfos: orderInfo, customerServiceInfo }) => {
-      const info = orderTagInfos.map((v, index) => ({
+    fetchUserCenter().then(({ userInfo, orderTagInfos: orderInfo }) => {
+      const info = orderTagInfos.map((v) => ({
         ...v,
-        ...(orderInfo || [])[index],
+        ...((orderInfo || []).find((item) => item.tabType === v.tabType) || {}),
       }));
       this.setData({
         userInfo,
         orderTagInfos: info,
-        customerServiceInfo,
         currAuthStep: 2,
       });
       wx.stopPullDownRefresh();
@@ -146,18 +144,14 @@ Page({
         wx.navigateTo({ url: '/pages/user/address/list/index' });
         break;
       }
-      case 'service': {
-        this.openMakePhone();
+      case 'about': {
+        if (!SUPPORT_PAGE_NAVIGATION_ENABLED) return;
+
+        wx.navigateTo({ url: '/pages/user/support/index' });
         break;
       }
       case 'help-center': {
-        Toast({
-          context: this,
-          selector: '#t-toast',
-          message: '你点击了帮助菜单',
-          icon: '',
-          duration: 1000,
-        });
+        wx.navigateTo({ url: '/pages/user/help/index' });
         break;
       }
       case 'distribution-center': {
@@ -181,6 +175,8 @@ Page({
         break;
       }
       case 'coupon': {
+        if (!COUPON_DISPLAY_ENABLED) return;
+
         wx.navigateTo({ url: '/pages/coupon/coupon-list/index' });
         break;
       }
@@ -215,20 +211,6 @@ Page({
     wx.navigateTo({ url: '/pages/order/order-list/index' });
   },
 
-  openMakePhone() {
-    this.setData({ showMakePhone: true });
-  },
-
-  closeMakePhone() {
-    this.setData({ showMakePhone: false });
-  },
-
-  call() {
-    wx.makePhoneCall({
-      phoneNumber: this.data.customerServiceInfo.servicePhone,
-    });
-  },
-
   gotoUserEditPage() {
     const { currAuthStep } = this.data;
     if (currAuthStep === 2) {
@@ -237,12 +219,9 @@ Page({
       this.fetUseriInfoHandle();
     }
   },
+  onSupportTap() {
+    if (!SUPPORT_PAGE_NAVIGATION_ENABLED) return;
 
-  getVersionInfo() {
-    const versionInfo = wx.getAccountInfoSync();
-    const { version, envVersion = __wxConfig } = versionInfo.miniProgram;
-    this.setData({
-      versionNo: envVersion === 'release' ? version : envVersion,
-    });
+    wx.navigateTo({ url: '/pages/user/support/index' });
   },
 });

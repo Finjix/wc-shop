@@ -1,7 +1,6 @@
 import { formatTime } from '../../../utils/util';
-import { OrderStatus, LogisticsIconMap } from '../config';
+import { OrderButtonTypes, OrderStatus, LogisticsIconMap } from '../config';
 import { fetchBusinessTime, fetchOrderDetail } from '../../../services/order/orderDetail';
-import Toast from 'tdesign-miniprogram/toast/index';
 import { getAddressPromise } from '../../../services/address/list';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 
@@ -12,7 +11,6 @@ Page({
     order: {}, // 后台返回的原始数据
     _order: {}, // 内部使用和提供给 order-card 的数据
     storeDetail: {},
-    countDownTime: null,
     addressEditable: false,
     backRefresh: false, // 用于接收其他页面back时的状态
     formatCreateTime: '', //格式化订单创建时间
@@ -90,6 +88,21 @@ Page({
     };
     return fetchOrderDetail(params).then((res) => {
       const order = res.data;
+      const orderButtons = [...(order.buttonVOs || [])];
+      const hasOrderRefundButton = (order.orderItemVOs || []).some((goods) =>
+        (goods.buttonVOs || []).some((button) => button.type === OrderButtonTypes.APPLY_REFUND),
+      );
+      if (
+        hasOrderRefundButton &&
+        !orderButtons.some((button) => button.type === OrderButtonTypes.APPLY_REFUND)
+      ) {
+        const confirmIndex = orderButtons.findIndex((button) => button.type === OrderButtonTypes.CONFIRM);
+        orderButtons.splice(
+          confirmIndex === -1 ? orderButtons.length : confirmIndex,
+          0,
+          { primary: false, type: OrderButtonTypes.APPLY_REFUND, name: '申请售后' },
+        );
+      }
       const _order = {
         id: order.orderId,
         orderNo: order.orderNo,
@@ -112,10 +125,9 @@ Page({
             price: goods.tagPrice ? goods.tagPrice : goods.actualPrice, // 商品销售单价, 优先取限时活动价
             num: goods.buyQuantity,
             titlePrefixTags: goods.tagText ? [{ text: goods.tagText }] : [],
-            buttons: goods.buttonVOs || [],
           }),
         ),
-        buttons: order.buttonVOs || [],
+        buttons: orderButtons,
         createTime: order.createTime,
         receiverAddress: this.composeAddress(order),
         groupInfoVo: order.groupInfoVo,
@@ -124,14 +136,10 @@ Page({
         order,
         _order,
         formatCreateTime: formatTime(parseFloat(`${order.createTime}`), 'YYYY-MM-DD HH:mm'), // 格式化订单创建时间
-        countDownTime: this.computeCountDownTime(order),
         addressEditable:
           [OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_DELIVERY].includes(order.orderStatus) &&
           order.orderSubStatus !== -1, // 订单正在取消审核时不允许修改地址（但是返回的状态码与待发货一致）
         isPaid: !!order.paymentVO.paySuccessTime,
-        invoiceStatus: this.datermineInvoiceStatus(order),
-        invoiceDesc: order.invoiceDesc,
-        invoiceType: order.invoiceVO?.invoiceType === 5 ? '电子普通发票' : '不开发票', //是否开票 0-不开 5-电子发票
         logisticsNodes: this.flattenNodes(order.trajectoryVos || []),
       });
     });
@@ -150,14 +158,6 @@ Page({
         return res1;
       }, res);
     }, []);
-  },
-
-  datermineInvoiceStatus(order) {
-    // 1-已开票
-    // 2-未开票（可补开）
-    // 3-未开票
-    // 4-门店不支持开票
-    return order.invoiceStatus;
   },
 
   // 拼接省市区
@@ -181,21 +181,6 @@ Page({
       };
       this.setData({ storeDetail });
     });
-  },
-
-  // 仅对待支付状态计算付款倒计时
-  // 返回时间若是大于2020.01.01，说明返回的是关闭时间，否则说明返回的直接就是剩余时间
-  computeCountDownTime(order) {
-    if (order.orderStatus !== OrderStatus.PENDING_PAYMENT) return null;
-    return order.autoCancelTime > 1577808000000 ? order.autoCancelTime - Date.now() : order.autoCancelTime;
-  },
-
-  onCountDownFinish() {
-    //this.setData({ countDownTime: -1 });
-    const { countDownTime, order } = this.data;
-    if (countDownTime > 0 || (order && order.groupInfoVo && order.groupInfoVo.residueTime > 0)) {
-      this.onRefresh();
-    }
   },
 
   onGoodsCardTap(e) {
@@ -238,12 +223,6 @@ Page({
     });
   },
 
-  onSuppleMentInvoice() {
-    wx.navigateTo({
-      url: `/pages/order/receipt/index?orderNo=${this.data._order.orderNo}`,
-    });
-  },
-
   onDeliveryClick() {
     const logisticsData = {
       nodes: this.data.logisticsNodes,
@@ -268,17 +247,4 @@ Page({
     wx.showToast({ title: '点击了拼团' });
   },
 
-  clickService() {
-    Toast({
-      context: this,
-      selector: '#t-toast',
-      message: '您点击了联系客服',
-    });
-  },
-
-  onOrderInvoiceView() {
-    wx.navigateTo({
-      url: `/pages/order/invoice/index?orderNo=${this.orderNo}`,
-    });
-  },
 });

@@ -48,7 +48,7 @@
   width: 100%;
   margin-top: 16rpx;
   text-align: right;
-  color: #fa4126;
+  color: var(--app-theme-text-color, #8A6800);
   font-size: 24rpx;
   line-height: 32rpx;
   font-weight: bold;
@@ -122,10 +122,10 @@
   margin: 16rpx 0 0 0;
 }
 .wr-goods-card__tag {
-  color: #fa550f;
+  color: var(--app-theme-text-color, #8A6800);
   background: transparent;
   font-size: 20rpx;
-  border: 1rpx solid #fa550f;
+  border: 1rpx solid var(--app-theme-color, #F5CE2B);
   padding: 0 8rpx;
   height: 30rpx;
   line-height: 30rpx;
@@ -152,7 +152,7 @@
   white-space: nowrap;
   font-weight: bold;
   order: 1;
-  color: #fa4126;
+  color: #000000;
   font-size: 36rpx;
   margin: 0;
   line-height: 48rpx;
@@ -220,7 +220,7 @@
 }
 .wr-goods-card.vertical .wr-goods-card__price {
   order: 2;
-  color: #fa4126;
+  color: #000000;
   margin: 20rpx 0 0 0;
 }
 .wr-goods-card.vertical .wr-goods-card__origin-price {
@@ -247,8 +247,8 @@
   width: 80rpx;
   height: 40rpx;
   border-radius: 20rpx;
-  border: 2rpx solid #fa4126;
+  border: 2rpx solid var(--app-theme-color, #F5CE2B);
   line-height: 40rpx;
   text-align: center;
-  color: #fa4126;
+  color: var(--app-theme-text-color, #8A6800);
 }

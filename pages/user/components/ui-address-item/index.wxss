@@ -76,25 +76,21 @@
   -webkit-line-clamp: 2;
   color: #999999;
 }
-.address-item-wrapper .address .address-content .label-adds .tag {
+.address-item-wrapper .address .address-content .tag {
   display: inline-block;
-  padding: 0rpx 8rpx;
-  min-width: 40rpx;
-  height: 32rpx;
-  border-radius: 18rpx;
-  font-size: 20rpx;
-  line-height: 32rpx;
+  padding: 0rpx 12rpx;
+  min-width: 48rpx;
+  height: 40rpx;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  line-height: 40rpx;
   text-align: center;
-  margin-right: 8rpx;
-  vertical-align: text-top;
+  margin-left: 12rpx;
 }
-.address-item-wrapper .address .address-content .label-adds .tag-default {
-  background: #ffece9;
-  color: #fa4126;
-}
-.address-item-wrapper .address .address-content .label-adds .tag-primary {
-  background: #f0f1ff;
-  color: #5a66ff;
+.address-item-wrapper .address .address-content .tag-default {
+  background: var(--app-theme-color-soft, #FFF7CC);
+  color: var(--app-theme-text-color, #8A6800);
+  border: 1rpx solid var(--app-theme-color, #F5CE2B);
 }
 .address-item-wrapper .address .address-content .label-adds .address-text {
   font-size: 28rpx;

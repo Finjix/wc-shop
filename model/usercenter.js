@@ -21,10 +21,6 @@ const countsData = [
 const orderTagInfos = [
   {
     orderNum: 1,
-    tabType: 5,
-  },
-  {
-    orderNum: 1,
     tabType: 10,
   },
   {

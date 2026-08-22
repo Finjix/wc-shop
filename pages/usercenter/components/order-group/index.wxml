@@ -22,7 +22,7 @@
       bindtap="onClickItem"
     >
       <view class="order-group__item__icon icon-class">
-        <t-badge count="{{item.orderNum}}" max-count="{{99}}" color="#FF4646">
+        <t-badge count="{{item.orderNum}}" max-count="{{99}}" color="#F5CE2B">
           <t-icon
             prefix="{{classPrefix}}"
             name="{{item.iconName}}"

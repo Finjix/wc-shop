@@ -7,11 +7,8 @@
       <view class="userName">{{userName}}</view>
       <text class="commentTime">{{commentTime}}</text>
     </view>
-    <view class="comments-info">
-      <view class="rate">
-        <t-rate value="{{commentScore}}" size="14" gap="2" color="{{['#F5CE2B', '#ddd']}}" />
-      </view>
-      <view class="goods-info-text" wx:if="{{goodsDetailInfo}}">{{goodsDetailInfo}}</view>
+    <view class="comments-info" wx:if="{{goodsDetailInfo}}">
+      <view class="goods-info-text">{{goodsDetailInfo}}</view>
     </view>
     <view class="comments-card-item-container-content">
       <view class="content-text" hidden="{{showContent}}"> {{commentContent}} </view>

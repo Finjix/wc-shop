@@ -5,7 +5,7 @@ export function genOrders(params) {
     data: {
       pageNum: 1,
       pageSize: 10,
-      totalCount: 7,
+      totalCount: 6,
       orders: [
         {
           saasId: '88888888',
@@ -1003,6 +1003,7 @@ export function genOrders(params) {
     success: true,
   };
   const { pageNum, pageSize, orderStatus } = params.parameter;
+  resp.data.orders = resp.data.orders.filter((order) => order.orderStatus !== 5);
   // 实现筛选
   if (orderStatus > -1) {
     resp.data.orders = resp.data.orders.filter((order) => order.orderStatus === orderStatus);
@@ -1017,7 +1018,6 @@ export function genOrders(params) {
 export function genOrdersCount() {
   const resp = {
     data: [
-      { tabType: 5, orderNum: 1 },
       { tabType: 10, orderNum: 1 },
       { tabType: 40, orderNum: 1 },
       { tabType: 50, orderNum: 2 },

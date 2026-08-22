@@ -19,27 +19,24 @@
   bottom: 12rpx;
 }
 .tab-bar__inner .t-tabs-is-active {
-  color: #fa4126 !important;
+  color: var(--app-theme-color, #F5CE2B) !important;
 }
 
 .tab-bar__inner .t-tabs-track {
-  background: #fa4126 !important;
+  background: var(--app-theme-color, #F5CE2B) !important;
 }
 
 .page-container .tab-bar__active {
   font-size: 28rpx;
 }
 .page-container .specs-popup .bottom-btn {
-  color: #fa4126;
-  color: var(--color-primary, #fa4126);
+  color: var(--app-theme-text-color, #8A6800);
 }
 .page-container .specs-popup .bottom-btn::after {
-  border-color: #fa4126;
-  border-color: var(--color-primary, #fa4126);
+  border-color: var(--app-theme-color, #F5CE2B);
 }
 .dialog .dialog__button-confirm {
-  color: #fa4126;
-  color: var(--color-primary, #fa4126);
+  color: var(--app-theme-text-color, #8A6800);
 }
 .list-loading {
   height: 100rpx;
@@ -76,7 +73,7 @@ wr-order-goods-card:not(:first-child) .wr-goods-card {
 .price-total .real-pay {
   font-size: 36rpx;
   line-height: 48rpx;
-  color: #fa4126;
+  color: #000000;
   font-weight: bold;
 }
 
@@ -96,14 +93,14 @@ wr-order-goods-card:not(:first-child) .wr-goods-card {
   color: #b9b9b9 !important;
 }
 .tab-bar .tab-bar__active {
-  color: #333333 !important;
+  color: var(--app-theme-color, #F5CE2B) !important;
 }
 
 .tab-bar .t-tabs-track {
-  background: #333333 !important;
+  background: var(--app-theme-color, #F5CE2B) !important;
 }
 
 .t-button {
   --td-button-default-color: #000;
-  --td-button-primary-text-color: #fa4126;
+  --td-button-primary-text-color: var(--app-theme-text-color, #8A6800);
 }

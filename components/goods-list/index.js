@@ -21,6 +21,10 @@ Component({
       type: String,
       value: 'grid',
     },
+    showAddCart: {
+      type: Boolean,
+      value: true,
+    },
   },
 
   data: {

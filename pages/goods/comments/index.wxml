@@ -20,14 +20,12 @@
 	<t-tag t-class="comments-header-tag {{commentType === '4' ? 'comments-header-active' : ''}}" data-commentType="4" bindtap="changeTag">
 		带图({{countObj.hasImageCount}})
 	</t-tag>
-	<t-tag t-class="comments-header-tag {{commentType === '3' ? 'comments-header-active' : ''}}" data-commentType="3" bindtap="changeTag">
-		好评({{countObj.goodCount}})
-	</t-tag>
-	<t-tag t-class="comments-header-tag {{commentType === '2' ? 'comments-header-active' : ''}}" data-commentType="2" bindtap="changeTag">
-		中评({{countObj.middleCount}})
-	</t-tag>
-	<t-tag t-class="comments-header-tag {{commentType === '1' ? 'comments-header-active' : ''}}" data-commentType="1" bindtap="changeTag">
-		差评({{countObj.badCount}})
+	<t-tag
+	  t-class="comments-header-tag {{commentType === 'latest' ? 'comments-header-active' : ''}}"
+	  data-commentType="latest"
+	  bindtap="changeTag"
+	>
+		最新
 	</t-tag>
 </view>
 <view class="comments-card-list">

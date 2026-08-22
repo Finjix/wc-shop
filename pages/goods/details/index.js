@@ -18,10 +18,10 @@ const obj2Params = (obj = {}, encode = false) => {
   return result.join('&');
 };
 
-// 订单确认页跳转暂时禁用，恢复时将开关改为 true。
-const ORDER_CONFIRM_NAVIGATION_ENABLED = false;
-// 商品详情页满减标签和领券入口已启用。
-const PROMOTION_DISPLAY_ENABLED = true;
+// 商品详情页立即购买跳转结算页已恢复。
+const ORDER_CONFIRM_NAVIGATION_ENABLED = true;
+// 商品详情页满减标签和领券入口暂时隐藏，恢复时改为 true。
+const PROMOTION_DISPLAY_ENABLED = false;
 // 促销说明跳转已启用。
 const PROMOTION_NAVIGATION_ENABLED = true;
 

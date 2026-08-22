@@ -178,14 +178,6 @@ Page({
     this.init(false);
   },
 
-  handleAddCart() {
-    Toast({
-      context: this,
-      selector: '#t-toast',
-      message: '点击加购',
-    });
-  },
-
   gotoGoodsDetail(e) {
     const { index } = e.detail;
     const { spuId } = this.data.goodsList[index];

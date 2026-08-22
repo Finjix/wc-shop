@@ -16,11 +16,11 @@ page {
 }
 
 .t-cascader {
-  --td-cascader-active-color: #fa4126;
+  --td-cascader-active-color: var(--app-theme-color, #F5CE2B);
 }
 
 .t-switch {
-  --td-switch-checked-color: #34c759;
+  --td-switch-checked-color: var(--app-theme-color, #F5CE2B);
 }
 
 .t-button {

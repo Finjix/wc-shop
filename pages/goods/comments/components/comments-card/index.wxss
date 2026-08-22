@@ -144,10 +144,6 @@
   margin-top: 18rpx;
 }
 
-.comments-info .rate {
-  margin-right: 24rpx;
-}
-
 .comments-info .goods-info-text {
   font-size: 24rpx;
 

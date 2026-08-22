@@ -43,7 +43,7 @@ export function genSettleDetail(params) {
     data: {
       settleType: 0,
       userAddress: null,
-      totalGoodsCount: 3,
+      totalGoodsCount: 0,
       packageCount: 1,
       totalAmount: '289997',
       totalPayAmount: '',
@@ -117,6 +117,10 @@ export function genSettleDetail(params) {
     return pre + cur.quantity * Number(cur.settlePrice);
   }, 0);
 
+  const totalGoodsCount = list.reduce((pre, cur) => {
+    return pre + (Number(cur.quantity) || 0);
+  }, 0);
+
   // 计算折扣
   const totalDiscountPrice =
     discountPrice.length > 0
@@ -133,6 +137,8 @@ export function genSettleDetail(params) {
       : 0;
 
   resp.data.totalSalePrice = totalPrice;
+
+  resp.data.totalGoodsCount = totalGoodsCount;
 
   resp.data.totalCouponAmount = totalDiscountPrice;
 

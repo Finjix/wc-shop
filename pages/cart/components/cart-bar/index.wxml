@@ -21,6 +21,6 @@
 		</view>
 	</view>
 	<view catchtap="handleToSettle" class="{{!isDisabled && !disabled ? '' : 'disabled-btn'}} account-btn" hover-class="{{!isDisabled && !disabled ? '' : 'hover-btn'}}">
-		去结算
+		结算
 	</view>
 </view>

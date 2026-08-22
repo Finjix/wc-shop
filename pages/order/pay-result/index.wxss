@@ -29,7 +29,7 @@
 .pay-result .pay-money .pay-money__price {
   font-size: 36rpx;
   line-height: 48rpx;
-  color: #fa4126;
+  color: #333333;
 }
 .pay-result .btn-wrapper {
   margin-top: 48rpx;
@@ -45,8 +45,8 @@
   height: 88rpx;
   width: 334rpx;
   border-radius: 44rpx;
-  border: 2rpx solid #fa4126;
-  color: #fa4126;
+  border: 2rpx solid var(--app-theme-color, #F5CE2B);
+  color: #333333;
   font-size: 28rpx;
   font-weight: bold;
   line-height: 88rpx;

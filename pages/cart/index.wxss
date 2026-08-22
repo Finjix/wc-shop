@@ -14,6 +14,10 @@ page {
   font-weight: var(--app-page-title-font-weight, 500) !important;
 }
 
+.cart-navbar__content {
+  position: static !important;
+}
+
 .cart-recommend-section {
   overflow: hidden;
   background: #fff;

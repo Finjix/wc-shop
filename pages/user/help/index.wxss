@@ -1,0 +1,12 @@
+page {
+  background: #ffffff;
+}
+
+.help-page {
+  display: flex;
+  min-height: calc(100vh - 88rpx);
+  align-items: center;
+  justify-content: center;
+  color: #999999;
+  font-size: 32rpx;
+}

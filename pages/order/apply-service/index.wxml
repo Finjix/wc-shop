@@ -1,22 +1,29 @@
 <t-navbar
   t-class-title="app-page-navbar-title"
-  title="选择售后类型"
+  title="售后申请"
   leftArrow
   fixed="{{false}}"
   background="#fff"
 />
 <view class="select-service">
   <view class="order-goods-card">
-    <wr-order-goods-card goods="{{goodsInfo}}" no-top-line thumb-class="order-goods-card-title-class">
+    <wr-order-goods-card
+      wx:for="{{goodsInfoList}}"
+      wx:for-item="goods"
+      wx:key="skuId"
+      goods="{{goods}}"
+      no-top-line="{{index === 0}}"
+      thumb-class="order-goods-card-title-class"
+    >
       <view slot="footer" class="order-goods-card-footer">
         <wr-price
-          price="{{goodsInfo.paidAmountEach}}"
+          price="{{goods.paidAmountEach}}"
           fill
           wr-class="order-goods-card-footer-price-class"
           symbol-class="order-goods-card-footer-price-symbol"
           decimal-class="order-goods-card-footer-price-decimal"
         />
-        <view class="order-goods-card-footer-num">x {{goodsInfo.boughtQuantity}}</view>
+        <view class="order-goods-card-footer-num">x {{goods.boughtQuantity}}</view>
       </view>
     </wr-order-goods-card>
   </view>
@@ -34,7 +41,7 @@
           class="t-cell__left__icon"
           name="goods_refund"
           size="48rpx"
-          color="#fa4126"
+          color="#F5CE2B"
         />
       </t-cell>
       <t-cell
@@ -50,7 +57,7 @@
           class="t-cell__left__icon"
           name="goods_return"
           size="48rpx"
-          color="#fa4126"
+          color="#F5CE2B"
         />
       </t-cell>
       <t-cell wx:else class="non-returnable" title="退货退款" description="该商品不支持退货">
@@ -60,7 +67,7 @@
           class="t-cell__left__icon"
           name="goods_return"
           size="48rpx"
-          color="#fa4126"
+          color="#F5CE2B"
         />
       </t-cell>
     </t-cell-group>
@@ -82,7 +89,7 @@
     </view>
     <view class="service-from-group">
       <t-cell-group>
-        <t-cell title="退款商品数量">
+        <t-cell wx:if="{{!orderLevel}}" title="退款商品数量">
           <t-stepper
             slot="note"
             theme="filled"
@@ -96,7 +103,6 @@
           title="退款金额"
           t-class-description="refund-money__description"
           description="{{amountTip}}"
-          bind:tap="onAmountTap"
         >
           <view class="service-from-group__wrapper" slot="note">
             <wr-price
@@ -106,10 +112,6 @@
               symbol-class="refund-money-price-symbol"
               decimal-class="refund-money-price-decimal"
             />
-            <view class="service-from-group__price">
-              修改
-              <t-icon color="#bbb" name="chevron-right" size="30rpx" slot="left-icon" />
-            </view>
           </view>
         </t-cell>
       </t-cell-group>
@@ -148,7 +150,7 @@
     </view>
     <view class="bottom-bar">
       <t-button
-        t-class="bottom-bar__btn {{validateRes.valid && !uploading ? '' : 'disabled'}}"
+        t-class="bottom-bar__btn"
         bindtap="onSubmit"
         loading="{{submitting}}"
       >
@@ -177,29 +179,5 @@
 </t-popup>
 <!-- 理由选择 -->
 <wr-reason-sheet id="wr-reason-sheet" />
-<!-- 金额填写 -->
-<t-dialog
-  id="input-dialog"
-  visible="{{inputDialogVisible}}"
-  class="{{serviceFrom.amount.focus ? 'amount-dialog--focus' : ''}}"
->
-  <view class="input-dialog__title" slot="title">退款金额</view>
-  <view class="input-dialog__content" slot="content">
-    <t-input
-      t-class="input"
-      t-class-input="input-dialog__input"
-      t-class-label="input-dialog__label"
-      placeholder=""
-      value="{{serviceFrom.amount.temp}}"
-      type="digit"
-      focus="{{serviceFrom.amount.focus}}"
-      bindinput="onAmountInput"
-      bindfocus="onAmountFocus"
-      bindblur="onAmountBlur"
-      label="¥"
-    ></t-input>
-    <view class="tips">{{amountTip}}</view>
-  </view>
-</t-dialog>
 <t-dialog id="t-dialog" />
 <t-toast id="t-toast" />

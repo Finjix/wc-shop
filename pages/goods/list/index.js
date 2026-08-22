@@ -180,14 +180,6 @@ Page({
     this.init(false);
   },
 
-  handleAddCart() {
-    Toast({
-      context: this,
-      selector: '#t-toast',
-      message: '点击加购',
-    });
-  },
-
   tagClickHandle() {
     Toast({
       context: this,

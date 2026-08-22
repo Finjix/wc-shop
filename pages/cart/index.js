@@ -1,4 +1,3 @@
-import Dialog from 'tdesign-miniprogram/dialog/index';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchCartGroupData, persistMockCartGroupData } from '../../services/cart/cart';
 import { fetchGoodsList } from '../../services/good/fetchGoods';
@@ -6,8 +5,8 @@ import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 
 // 购物车结算入口已恢复。
 const CART_CHECKOUT_ENABLED = true;
-// 结算按钮暂不跳转结算页，恢复时改为 true。
-const CART_CHECKOUT_NAVIGATION_ENABLED = false;
+// 购物车结算页跳转已恢复。
+const CART_CHECKOUT_NAVIGATION_ENABLED = true;
 
 Page({
   data: {
@@ -44,6 +43,7 @@ Page({
       let hasSelectableGoods = false;
       let isAllSelected = true;
       let selectedGoodsCount = 0;
+      let selectedGoodsAmount = 0;
       const cartGroupData = res.data;
       // 一些组件中需要的字段可能接口并没有返回，或者返回的数据结构与预期不一致，需要在此先对数据做一些处理
       // 统计门店下加购的商品是否全选、是否存在缺货/无货
@@ -72,7 +72,9 @@ Page({
                 isAllSelected = false;
               }
               if (goods.isSelected) {
-                selectedGoodsCount += Number(goods.quantity) || 0;
+                const quantity = Number(goods.quantity) || 0;
+                selectedGoodsCount += quantity;
+                selectedGoodsAmount += quantity * (Number(goods.price) || 0);
               }
               return true;
             }
@@ -95,6 +97,7 @@ Page({
       cartGroupData.isNotEmpty = !isEmpty;
       cartGroupData.isAllSelected = hasSelectableGoods && isAllSelected;
       cartGroupData.selectedGoodsCount = selectedGoodsCount;
+      cartGroupData.totalAmount = String(selectedGoodsAmount);
       const cartGoodsSignature = this.getCartGoodsSignature(cartGroupData);
       const shouldRefreshRecommendations = this.recommendedCartGoodsSignature !== cartGoodsSignature;
       this.recommendedCartGoodsSignature = cartGoodsSignature;
@@ -442,15 +445,9 @@ Page({
     const {
       goods: { spuId, skuId },
     } = e.detail;
-    Dialog.confirm({
-      content: '确认删除该商品吗?',
-      confirmBtn: '确定',
-      cancelBtn: '取消',
-    }).then(() => {
-      this.deleteGoodsService({ spuId, skuId }).then(() => {
-        Toast({ context: this, selector: '#t-toast', message: '商品删除成功' });
-        this.refreshData();
-      });
+    this.deleteGoodsService({ spuId, skuId }).then(() => {
+      Toast({ context: this, selector: '#t-toast', message: '商品删除成功' });
+      this.refreshData();
     });
   },
 
@@ -459,19 +456,23 @@ Page({
     if (typeof isAllSelected !== 'boolean') return;
     const { cartGroupData } = this.data;
     let selectedGoodsCount = 0;
+    let selectedGoodsAmount = 0;
     for (const store of cartGroupData.storeGoods) {
       store.isSelected = isAllSelected;
       for (const activity of store.promotionGoodsList) {
         for (const goods of activity.goodsPromotionList) {
           goods.isSelected = isAllSelected;
           if (isAllSelected) {
-            selectedGoodsCount += Number(goods.quantity) || 0;
+            const quantity = Number(goods.quantity) || 0;
+            selectedGoodsCount += quantity;
+            selectedGoodsAmount += quantity * (Number(goods.price) || 0);
           }
         }
       }
     }
     cartGroupData.isAllSelected = isAllSelected;
     cartGroupData.selectedGoodsCount = selectedGoodsCount;
+    cartGroupData.totalAmount = String(selectedGoodsAmount);
     this.persistCartData();
     this.setData({ cartGroupData: { ...cartGroupData } });
   },

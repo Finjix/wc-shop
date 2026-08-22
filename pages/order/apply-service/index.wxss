@@ -58,24 +58,24 @@
 
 .select-service .special-cell .special-cell-note-price-class {
   font-size: 36rpx;
-  color: #fa4126;
+  color: var(--app-theme-color, #F5CE2B);
   font-family: DIN Alternate;
 }
 .select-service .special-cell .special-cell-note-price-decimal {
   font-size: 28rpx;
-  color: #fa4126;
+  color: var(--app-theme-color, #F5CE2B);
   font-family: DIN Alternate;
 }
 .select-service .special-cell .special-cell-note-price-symbol {
-  color: #fa4126;
+  color: var(--app-theme-color, #F5CE2B);
   font-size: 24rpx;
   font-family: DIN Alternate;
 }
 
 .select-service .bottom-bar__btn {
   width: 686rpx;
-  background-color: #fa4126;
-  color: white;
+  background-color: var(--app-theme-color, #F5CE2B);
+  color: var(--app-theme-text-color, #8A6800);
   font-size: 32rpx;
   border-radius: 48rpx;
   position: absolute;
@@ -178,7 +178,7 @@
   opacity: 0.5;
 }
 .dialog--service-status .options .option.main {
-  color: #fa4126;
+  color: var(--app-theme-color, #F5CE2B);
 }
 .dialog--service-status .cancel {
   color: #333333;
@@ -198,8 +198,7 @@
   transform: translate(-50%, 0);
 }
 .dialog .dialog__button-confirm {
-  color: #fa4126;
-  color: var(--color-primary, #fa4126);
+  color: var(--app-theme-text-color, #8A6800);
 }
 .select-service .bottom-bar {
   background-color: #fff;
@@ -222,15 +221,7 @@
   font-weight: bold;
   font-size: 36rpx;
   text-align: right;
-  color: #fa4126;
-}
-.service-from-group__price {
-  display: flex;
-  align-items: center;
-  color: #bbb;
-  font-size: 24rpx;
-  position: relative;
-  left: 30rpx;
+  color: var(--app-theme-color, #F5CE2B);
 }
 .textarea--label {
 }
@@ -303,6 +294,9 @@
 }
 
 .t-button {
-  --td-button-default-color: #000;
-  --td-button-primary-text-color: #fa4126;
+  --td-button-default-color: var(--app-theme-text-color, #8A6800);
+  --td-button-default-bg-color: var(--app-theme-color, #F5CE2B);
+  --td-button-default-border-color: var(--app-theme-color, #F5CE2B);
+  --td-button-default-active-bg-color: var(--app-theme-color, #F5CE2B);
+  --td-button-default-active-border-color: var(--app-theme-color, #F5CE2B);
 }

@@ -99,13 +99,11 @@ const rpx2px = (rpx, round = false) => {
 };
 
 /**
- * 手机号码*加密函数
- * @param {string} phone 电话号
- * @returns
+ * 获取完整手机号。保留原方法名，兼容已有调用方。
+ * @param {string|number} phone 电话号
+ * @returns {string}
  */
-const phoneEncryption = (phone) => {
-  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
-};
+const phoneEncryption = (phone) => String(phone ?? '');
 
 // 内置手机号正则字符串
 const innerPhoneReg =

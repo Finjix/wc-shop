@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "技术支持",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar"
+  }
+}

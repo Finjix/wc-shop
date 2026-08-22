@@ -63,6 +63,7 @@ Component({
       type: Boolean,
       value: false,
     },
+    hideStoreName: Boolean,
   },
 
   data: {

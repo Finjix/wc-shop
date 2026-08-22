@@ -4,6 +4,10 @@ import dayjs from 'dayjs';
 const layoutMap = {
   0: 'vertical',
 };
+
+const sortCommentsByLatest = (comments = []) =>
+  [...comments].sort((a, b) => Number(b.commentTime) - Number(a.commentTime));
+
 Page({
   data: {
     pageLoading: false,
@@ -110,8 +114,10 @@ Page({
       });
       const code = 'SUCCESS';
       if (code.toUpperCase() === 'SUCCESS') {
-        const { pageList, totalCount = 0 } = data;
-        pageList.forEach((item) => {
+        const { pageList = [], totalCount = 0 } = data;
+        const displayPageList =
+          this.data.commentType === 'latest' ? sortCommentsByLatest(pageList) : pageList;
+        displayPageList.forEach((item) => {
           // eslint-disable-next-line no-param-reassign
           item.commentTime = dayjs(Number(item.commentTime)).format(
             'YYYY/MM/DD HH:mm',
@@ -127,7 +133,7 @@ Page({
           });
           return;
         }
-        const _commentList = reset ? pageList : commentList.concat(pageList);
+        const _commentList = reset ? displayPageList : commentList.concat(displayPageList);
         const _loadMoreStatus =
           _commentList.length === Number(totalCount) ? 2 : 0;
         this.setData({
@@ -183,7 +189,7 @@ Page({
       myPageNum: 1,
       pageNum: 1,
     });
-    if (commenttype === '' || commenttype === '5') {
+    if (commenttype === '' || commenttype === '5' || commenttype === 'latest') {
       this.setData({
         hasImage: '',
         commentLevel: '',

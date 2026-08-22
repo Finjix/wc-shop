@@ -123,7 +123,7 @@ Component({
     },
     cartColor: {
       type: String,
-      value: '#FA550F',
+      value: '#F5CE2B',
     },
     /** 元素可见监控阈值, 数组长度大于0就创建 */
     thresholds: {

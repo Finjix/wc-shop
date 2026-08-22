@@ -1,7 +1,4 @@
 <wxs module="order" src="./order.wxs" />
-
-<wxs module="handleInvoice" src="./handleInvoice.wxs" />
-<wxs module="getNotes" src="./getNotes.wxs" />
 <t-navbar
   t-class-title="app-page-navbar-title"
   title="订单确认"
@@ -18,10 +15,6 @@
     wx:for-index="storeIndex"
     wx:key="storeIndex"
   >
-    <view class="store-wrapper">
-      <t-icon prefix="wr" size="40rpx" color="#333333" name="store" class="store-logo" />
-      {{stores.storeName}}
-    </view>
     <view
       wx:if="{{orderCardList[storeIndex].goodsList.length > 0}}"
       wx:for="{{orderCardList[storeIndex].goodsList}}"
@@ -61,46 +54,6 @@
         <text wx:else>免运费</text>
       </view>
     </view>
-    <view class="pay-item">
-      <text>活动优惠</text>
-      <view class="pay-item__right primary font-bold">
-        -
-        <price fill price="{{settleDetailData.totalPromotionAmount || 0}}" />
-      </view>
-    </view>
-    <view class="pay-item">
-      <text>优惠券</text>
-      <view
-        class="pay-item__right"
-        data-storeid="{{settleDetailData.storeGoodsList[0].storeId}}"
-        catchtap="onOpenCoupons"
-      >
-        <block wx:if="{{submitCouponList.length}}">
-          <block wx:if="{{settleDetailData.totalCouponAmount && settleDetailData.totalCouponAmount !== '0'}}">
-            -<price fill decimalSmaller price="{{settleDetailData.totalCouponAmount}}" />
-          </block>
-          <block wx:else>选择优惠券</block>
-        </block>
-        <text wx:else>无可用</text>
-        <t-icon name="chevron-right" size="32rpx" color="#BBBBBB" />
-      </view>
-    </view>
-    <view class="pay-item" wx:if="{{settleDetailData.invoiceSupport}}">
-      <text>发票</text>
-      <view class="pay-item__right" catchtap="onReceipt">
-        <text>{{handleInvoice(invoiceData)}}</text>
-        <t-icon name="chevron-right" size="32rpx" color="#BBBBBB" />
-      </view>
-    </view>
-    <view class="pay-item">
-      <text>订单备注</text>
-      <view class="pay-item__right" data-storenoteindex="{{0}}" catchtap="onNotes">
-        <text class="pay-remark"
-          >{{getNotes(storeInfoList, 0) ? getNotes(storeInfoList, 0) :'选填，建议先和商家沟通确认'}}</text
-        >
-        <t-icon name="chevron-right" size="32rpx" color="#BBBBBB" />
-      </view>
-    </view>
   </view>
   <view class="amount-wrapper">
     <view class="pay-amount">
@@ -112,37 +65,11 @@
   <view class="wx-pay-cover">
     <view class="wx-pay">
       <price decimalSmaller fill class="price" price="{{settleDetailData.totalPayAmount || '0'}}" />
-      <view class="submit-btn {{ settleDetailData.settleType === 1 ? '':'btn-gray'}}" bindtap="submitOrder">
+      <view class="submit-btn" bindtap="submitOrder">
         提交订单
       </view>
     </view>
   </view>
-  <t-dialog
-    t-class="add-notes"
-    title="填写备注信息"
-    visible="{{dialogShow}}"
-    confirm-btn="确认"
-    cancel-btn="取消"
-    t-class-content="add-notes__content"
-    t-class-confirm="dialog__button-confirm"
-    t-class-cancel="dialog__button-cancel"
-    bindconfirm="onNoteConfirm"
-    bindcancel="onNoteCancel"
-  >
-    <t-textarea
-      slot="content"
-      focus="{{dialogShow}}"
-      class="notes"
-      t-class="add-notes__textarea"
-      value="{{storeInfoList[storeNoteIndex] && storeInfoList[storeNoteIndex].remark}}"
-      placeholder="备注信息"
-      t-class-textarea="add-notes__textarea__font"
-      bindfocus="onFocus"
-      bindblur="onBlur"
-      bindchange="onInput"
-      maxlength="{{50}}"
-    />
-  </t-dialog>
   <t-popup visible="{{popupShow}}" placement="bottom" bind:visible-change="onPopupChange">
     <no-goods slot="content" bind:change="onSureCommit" settleDetailData="{{settleDetailData}}" />
   </t-popup>

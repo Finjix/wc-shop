@@ -29,6 +29,7 @@
 				  price="{{goods.price}}"
 				/>
 				<t-icon
+				  wx:if="{{showAddCart}}"
 				  class="goods-card__add-cart"
 				  prefix="wr"
 				  name="cartAdd"

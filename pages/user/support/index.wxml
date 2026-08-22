@@ -1,0 +1,16 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="技术支持"
+  leftArrow
+  fixed="{{false}}"
+  background="#fff"
+/>
+<view class="support-page">
+  <text class="support-page__tip">长按添加微信定制小程序</text>
+  <image
+    class="support-page__qr"
+    src="/pages/user/support/finjix-wechat-qr.jpg"
+    mode="widthFix"
+    show-menu-by-longpress="{{true}}"
+  />
+</view>

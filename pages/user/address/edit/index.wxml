@@ -1,20 +1,11 @@
 <t-navbar
   t-class-title="app-page-navbar-title"
-  title="添加新地址"
+  title="设置地址"
   leftArrow
   fixed="{{false}}"
   background="#fff"
 />
 <view class="address-detail">
-  <view class="divider-line" />
-  <t-location
-    title="获取微信收获地址"
-    isCustomStyle
-    t-class="address-detail-wx-location"
-    bind:change="getWeixinAddress"
-  >
-    <t-icon class="address-detail-wx-arrow" name="arrow_forward" prefix="wr" color="#bbb" size="32rpx" />
-  </t-location>
   <view class="divider-line" />
   <view class="form-address">
     <form class="form-content">
@@ -74,38 +65,12 @@
             />
           </view>
         </t-cell>
-
-        <view class="divider-line" />
-        <t-cell
-          class="form-cell"
-          t-class-note="t-cell-note address__tag"
-          t-class-title="t-cell-title"
-          title="标签"
-          bordered="{{false}}"
-        >
-          <view class="t-input address-flex-box" slot="note">
-            <t-button
-              wx:for="{{labels}}"
-              wx:for-item="label"
-              wx:key="index"
-              size="extra-small"
-              t-class="label-list {{locationState.labelIndex === index ? 'active-btn':''}}"
-              bindtap="onPickLabels"
-              data-item="{{index}}"
-            >
-              {{label.name}}
-            </t-button>
-            <t-button size="extra-small" t-class="label-list" bindtap="addLabels">
-              <t-icon name="add" size="40rpx" color="#bbb" />
-            </t-button>
-          </view>
-        </t-cell>
         <view class="divider-line" />
         <t-cell title="设置为默认收货地址" bordered="{{false}}">
           <t-switch
             value="{{locationState.isDefault}}"
             slot="note"
-            colors="{{['#0ABF5B', '#c6c6c6']}}"
+            colors="{{['#F5CE2B', '#c6c6c6']}}"
             bind:change="onCheckDefaultAddress"
           />
         </t-cell>
@@ -115,7 +80,6 @@
           t-class="btn-submit-address"
           shape="round"
           block
-          disabled="{{!submitActive}}"
           bind:tap="formSubmit"
         >
           保存
@@ -134,16 +98,4 @@
     bind:change="onInputValue"
   ></t-cascader>
 </view>
-<t-dialog
-  visible="{{visible}}"
-  t-class-confirm="dialog__button-confirm"
-  t-class-cancel="dialog__button-cancel"
-  title="填写标签名称"
-  confirm-btn="确定"
-  cancel-btn="取消"
-  bind:confirm="confirmHandle"
-  bind:cancel="cancelHandle"
->
-  <t-input slot="content" class="dialog__input" model:value="{{labelValue}}" placeholder="请输入标签名称" borderless />
-</t-dialog>
 <t-toast id="t-toast" />

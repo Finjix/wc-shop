@@ -6,7 +6,7 @@
 </view>
 <t-user-center-card
   userInfo="{{userInfo}}"
-  isPhoneHide="{{true}}"
+  isPhoneHide="{{false}}"
   name-class="custom-name-class"
   phone-class="custom-phone-class"
   avatar-class="customer-avatar-class"
@@ -35,23 +35,13 @@
       </view>
     </view>
   </view>
-  <view class="service-card" data-type="service" bind:tap="onClickCell">
+  <button class="service-card" open-type="contact">
     <view class="service-card__icon">
       <t-icon name="service" size="48rpx" color="#666666" />
     </view>
-    <view class="service-card__title">客服热线</view>
+    <view class="service-card__title">在线客服</view>
     <t-icon name="chevron-right" size="40rpx" color="#999999" />
-  </view>
+  </button>
 </view>
-<view class="footer__version" wx:if="{{versionNo !== ''}}">当前版本 {{versionNo}}</view>
-<t-popup visible="{{showMakePhone}}" placement="bottom" bind:visible-change="closeMakePhone" data-index="2">
-  <view class="popup-content">
-    <view class="popup-title border-bottom-1px" wx:if="{{customerServiceInfo.serviceTimeDuration}}">
-      服务时间: {{customerServiceInfo.serviceTimeDuration}}
-    </view>
-    <view class="popup-phone {{showKefu ? 'border-bottom-1px' : ''}}" bind:tap="call">电话客服</view>
-    <button class="popup-phone border-bottom-1px online" open-type="contact" wx:if="{{showKefu}}">在线客服</button>
-    <view class="popup-close" bind:tap="closeMakePhone">取消</view>
-  </view>
-</t-popup>
+<view class="footer__version" bindtap="onSupportTap">Finjix 提供技术支持 版本 v0.01a</view>
 <t-toast id="t-toast" />

@@ -1,5 +1,5 @@
 /* eslint-disable no-param-reassign */
-import { fetchDeliveryAddressList } from '../../../../services/address/fetchAddress';
+import { fetchDeliveryAddressList, persistMockAddressList } from '../../../../services/address/fetchAddress';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { resolveAddress, rejectAddress } from '../../../../services/address/list';
 import { getAddressPromise } from '../../../../services/address/edit';
@@ -14,6 +14,7 @@ Page({
 
   /** 选择模式 */
   selectMode: false,
+  hasLoaded: false,
   /** 是否已经选择地址，不置为true的话页面离开时会触发取消选择行为 */
   hasSelect: false,
 
@@ -25,6 +26,12 @@ Page({
     });
     this.selectMode = !!selectMode;
     this.init();
+  },
+
+  onShow() {
+    if (this.hasLoaded) {
+      this.getAddressList();
+    }
   },
 
   init() {
@@ -43,6 +50,7 @@ Page({
           address.checked = true;
         }
       });
+      this.hasLoaded = true;
       this.setData({ addressList });
     });
   },
@@ -80,10 +88,22 @@ Page({
       },
     });
   },
-  confirmDeleteHandle({ detail }) {
-    const { id } = detail || {};
-    if (id !== undefined) {
-      this.setData({ deleteID: id, showDeleteConfirm: true });
+  getAddressId(event) {
+    const address = event?.detail && typeof event.detail === 'object' ? event.detail : event?.currentTarget?.dataset?.item;
+    return address?.id ?? address?.addressId ?? event?.currentTarget?.dataset?.id;
+  },
+  deleteAddressById(id) {
+    if (id === undefined || id === null) return;
+
+    const addressList = this.data.addressList.filter(
+      (address) => String(address.id ?? address.addressId) !== String(id),
+    );
+    persistMockAddressList(addressList).then(() => {
+      this.setData({
+        addressList,
+        deleteID: '',
+        showDeleteConfirm: false,
+      });
       Toast({
         context: this,
         selector: '#t-toast',
@@ -91,22 +111,23 @@ Page({
         theme: 'success',
         duration: 1000,
       });
-    } else {
-      Toast({
-        context: this,
-        selector: '#t-toast',
-        message: '需要组件库发新版才能拿到地址ID',
-        icon: '',
-        duration: 1000,
-      });
-    }
+    });
   },
   deleteAddressHandle(e) {
-    const { id } = e.currentTarget.dataset;
-    this.setData({
-      addressList: this.data.addressList.filter((address) => address.id !== id),
-      deleteID: '',
-      showDeleteConfirm: false,
+    this.deleteAddressById(this.getAddressId(e));
+  },
+  onAddressLongPress(e) {
+    const id = this.getAddressId(e);
+    if (id === undefined || id === null) return;
+
+    wx.showModal({
+      title: '删除收货地址',
+      content: '确定删除这个收货地址吗？',
+      confirmText: '删除',
+      confirmColor: '#F5CE2B',
+      success: (result) => {
+        if (result.confirm) this.deleteAddressById(id);
+      },
     });
   },
   editAddressHandle({ detail }) {
@@ -154,6 +175,13 @@ Page({
 
           addressList.push(newAddress);
         } else {
+          if (Number(newAddress.isDefault) === 1) {
+            addressList = addressList.map((address) => {
+              address.isDefault = 0;
+
+              return address;
+            });
+          }
           addressList = addressList.map((address) => {
             if (address.addressId === newAddress.addressId) {
               return newAddress;
@@ -175,6 +203,7 @@ Page({
         this.setData({
           addressList: addressList,
         });
+        persistMockAddressList(addressList);
       })
       .catch((e) => {
         if (e.message !== 'cancel') {

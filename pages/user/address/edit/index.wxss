@@ -6,22 +6,8 @@ page .divider-line {
   height: 20rpx;
   background-color: #f5f5f5;
 }
-.address-flex-box {
-  display: flex;
-  flex-wrap: wrap;
-}
 .address-detail {
   font-size: 30rpx;
-}
-.address-detail-wx-location {
-  background: #fff;
-  padding: 24rpx 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.address-detail-wx-arrow {
-  align-items: flex-end;
 }
 
 .form-cell .t-cell__title {
@@ -44,52 +30,22 @@ page .divider-line {
   color: #9d9d9f;
 }
 
-.address__tag {
-  justify-content: flex-start !important;
-}
-
-.form-address .label-list {
-  background: #f5f5f5;
-  color: #333;
-  min-width: 100rpx;
-  margin-right: 32rpx;
-  font-size: 26rpx;
-  border: 2rpx solid transparent;
-  width: auto;
-}
-.form-address .label-list::after {
-  content: none;
-}
-.form-address .active-btn {
-  color: #fa4126;
-  border: 2rpx solid #fa4126;
-  background: rgba(255, 95, 21, 0.04);
-}
-.form-address .active-btn::after {
-  border: 4rpx solid #ff5f15;
-}
-
 .submit {
   box-sizing: border-box;
   padding: 64rpx 30rpx 88rpx 30rpx;
 }
 .submit .btn-submit-address {
+  --td-button-font-weight: 700;
+  --td-button-default-color: #8A6800;
+  --td-button-default-bg-color: #F5CE2B;
+  --td-button-default-border-color: #F5CE2B;
+  --td-button-default-active-bg-color: #F5CE2B;
+  --td-button-default-active-border-color: #F5CE2B;
   background: #F5CE2B !important;
   color: #8A6800 !important;
-}
-
-.dialog__button-confirm {
-  color: #fa4126 !important;
+  font-weight: 700;
 }
 
 .form-address .form-content {
   --td-input-vertical-padding: 0;
-}
-
-.dialog__input {
-  margin-top: 32rpx;
-  border-radius: 8rpx;
-  box-sizing: border-box;
-  --td-input-vertical-padding: 12px;
-  --td-input-bg-color: #f3f3f3;
 }

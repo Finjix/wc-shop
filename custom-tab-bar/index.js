@@ -9,7 +9,14 @@ Component({
     onChange(event) {
       const selectedIndex = event.detail.value;
       const selectedItem = this.data.list[selectedIndex];
-      if (selectedItem && selectedItem.special) return;
+      if (selectedItem && selectedItem.special) {
+        wx.showToast({
+          title: '分销中心功能开发中',
+          icon: 'none',
+          duration: 1000,
+        });
+        return;
+      }
 
       this.setData({ active: selectedIndex });
       wx.switchTab({

@@ -1,4 +1,4 @@
-// 商品详情页暂时关闭，恢复时将开关改为 true。
+// 商品详情页跳转保持开启。
 export const GOODS_DETAIL_NAVIGATION_ENABLED = true;
 
 export function navigateToGoodsDetail(url) {

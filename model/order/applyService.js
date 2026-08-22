@@ -6,6 +6,7 @@ const orderResps = [
       saasId: '88888888',
       uid: '88888888205468',
       storeId: '1000',
+      spuId: '5',
       skuId: '135691625',
       numOfSku: 1,
       numOfSkuAvailable: 1,
@@ -44,6 +45,7 @@ const orderResps = [
       saasId: '88888888',
       uid: '88888888205468',
       storeId: '1000',
+      spuId: '0',
       skuId: '135676631',
       numOfSku: 1,
       numOfSkuAvailable: 1,
@@ -82,6 +84,7 @@ const orderResps = [
       saasId: '88888888',
       uid: '88888888205468',
       storeId: '1000',
+      spuId: '3',
       skuId: '135691622',
       numOfSku: 1,
       numOfSkuAvailable: 1,
@@ -120,6 +123,7 @@ const orderResps = [
       saasId: '88888888',
       uid: '88888888205468',
       storeId: '1000',
+      spuId: '135681628',
       skuId: '135676629',
       numOfSku: 1,
       numOfSkuAvailable: 1,
@@ -158,6 +162,7 @@ const orderResps = [
       saasId: '88888888',
       uid: '88888888205468',
       storeId: '1000',
+      spuId: '2',
       skuId: '135686631',
       numOfSku: 1,
       numOfSkuAvailable: 1,
@@ -270,9 +275,28 @@ const orderResps = [
 ];
 
 export function genRightsPreview(params) {
-  const { orderNo, skuId } = params;
-  const resp = orderResps.find((r) => r.data.orderNo === orderNo && r.data.skuId === skuId);
-  return resp;
+  const { orderNo, skuId, orderLevel } = params;
+  const matched = orderResps.filter(
+    (r) => r.data.orderNo === orderNo && (orderLevel || r.data.skuId === skuId),
+  );
+  if (!orderLevel) return matched[0];
+
+  const first = matched[0];
+  if (!first) return undefined;
+  const sum = (key) => matched.reduce((total, item) => total + Number(item.data[key] || 0), 0);
+  return {
+    ...first,
+    data: {
+      ...first.data,
+      skuId: '',
+      numOfSku: sum('numOfSku'),
+      numOfSkuAvailable: sum('numOfSkuAvailable'),
+      refundableAmount: `${sum('refundableAmount')}`,
+      shippingFeeIncluded: `${sum('shippingFeeIncluded')}`,
+      boughtQuantity: sum('boughtQuantity'),
+      goodsList: matched.map((item) => item.data),
+    },
+  };
 }
 
 export function genApplyReasonList(params) {

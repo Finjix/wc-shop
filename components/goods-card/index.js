@@ -33,6 +33,11 @@ Component({
       value: 'grid',
     },
 
+    showAddCart: {
+      type: Boolean,
+      value: true,
+    },
+
     thresholds: {
       type: Array,
       value: [],

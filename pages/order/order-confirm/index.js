@@ -1,5 +1,6 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchSettleDetail } from '../../../services/order/orderConfirm';
+import { fetchDeliveryAddress } from '../../../services/address/fetchAddress';
 import { commitPay, wechatPayOrder } from './pay';
 import { getAddressPromise } from '../../../services/address/list';
 
@@ -74,6 +75,20 @@ Page({
   handleOptionsParams(options, couponList) {
     let { goodsRequestList } = this; // 商品列表
     let { userAddressReq } = this; // 收货地址
+
+    // 首次进入结算页时自动使用默认收货地址，用户刚选择的地址优先。
+    if (!userAddressReq && !options.userAddressReq && !options.skipDefaultAddress) {
+      fetchDeliveryAddress(0)
+        .then((defaultAddress) => {
+          const userAddress =
+            defaultAddress && typeof defaultAddress === 'object' ? { ...defaultAddress, checked: true } : null;
+          this.handleOptionsParams({ ...options, userAddressReq: userAddress, skipDefaultAddress: true }, couponList);
+        })
+        .catch(() => {
+          this.handleOptionsParams({ ...options, skipDefaultAddress: true }, couponList);
+        });
+      return;
+    }
 
     const storeInfoList = []; // 门店列表
     // 如果是从地址选择页面返回，则使用地址显选择页面新选择的地址去获取结算数据

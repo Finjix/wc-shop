@@ -38,6 +38,10 @@ Component({
       const { item } = e.currentTarget.dataset;
       this.triggerEvent('onSelect', item);
     },
+    onLongPress(e) {
+      const { item } = e.currentTarget.dataset;
+      this.triggerEvent('onLongPress', item);
+    },
     onEdit(e) {
       const { item } = e.currentTarget.dataset;
       this.triggerEvent('onEdit', item);

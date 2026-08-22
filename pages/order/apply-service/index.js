@@ -16,15 +16,17 @@ Page({
     uploading: false, // 凭证上传状态
     canApplyReturn: true, // 是否可退货
     goodsInfo: {},
+    goodsInfoList: [],
+    orderLevel: false,
     receiptStatusList: [
       { desc: '未收到货', status: ServiceReceiptStatus.NOT_RECEIPTED },
       { desc: '已收到货', status: ServiceReceiptStatus.RECEIPTED },
     ],
     applyReasons: [],
-    serviceType: null, // 20-仅退款，10-退货退款
+    serviceType: ServiceType.RETURN_GOODS, // 20-仅退款，10-退货退款
     serviceFrom: {
       returnNum: 1,
-      receiptStatus: { desc: '请选择', status: null },
+      receiptStatus: { desc: '已收到货', status: ServiceReceiptStatus.RECEIPTED },
       applyReason: { desc: '请选择', type: null },
       // max-填写上限(单位分)，current-当前值(单位分)，temp输入框中的值(单位元)
       amount: { max: 0, current: 0, temp: 0, focus: false },
@@ -45,7 +47,7 @@ Page({
       width: 212,
       height: 212,
     },
-    serviceRequireType: '',
+    serviceRequireType: 'REFUND_GOODS',
   },
 
   setWatcher(key, callback) {
@@ -93,12 +95,13 @@ Page({
 
   onLoad(query) {
     this.query = query;
+    this.isOrderLevel = query.orderLevel === 'true';
     if (!this.checkQuery()) return;
     this.setData({
       canApplyReturn: query.canApplyReturn === 'true',
+      orderLevel: this.isOrderLevel,
     });
     this.init();
-    this.inputDialog = this.selectComponent('#input-dialog');
     this.setWatcher('serviceFrom.returnNum', this.validate.bind(this));
     this.setWatcher('serviceFrom.applyReason', this.validate.bind(this));
     this.setWatcher('serviceFrom.amount', this.validate.bind(this));
@@ -108,6 +111,8 @@ Page({
   async init() {
     try {
       await this.refresh();
+      const applyReasons = await this.getApplyReasons(ServiceReceiptStatus.RECEIPTED);
+      this.setData({ applyReasons });
     } catch (e) {}
   },
 
@@ -121,7 +126,7 @@ Page({
       });
       return false;
     }
-    if (!skuId) {
+    if (!this.isOrderLevel && !skuId) {
       Dialog.alert({
         content: '请先选择商品',
       }).then(() => {
@@ -137,18 +142,20 @@ Page({
     try {
       const res = await this.getRightsPreview();
       wx.hideLoading();
-      const goodsInfo = {
-        id: res.data.skuId,
-        thumb: res.data.goodsInfo && res.data.goodsInfo.skuImage,
-        title: res.data.goodsInfo && res.data.goodsInfo.goodsName,
-        spuId: res.data.spuId,
-        skuId: res.data.skuId,
-        specs: ((res.data.goodsInfo && res.data.goodsInfo.specInfo) || []).map((s) => s.specValue),
-        paidAmountEach: res.data.paidAmountEach,
-        boughtQuantity: res.data.boughtQuantity,
-      };
+      const previewGoods = this.isOrderLevel ? res.data.goodsList || [] : [res.data];
+      const goodsInfoList = previewGoods.map((goods) => ({
+        id: goods.skuId,
+        thumb: goods.goodsInfo && goods.goodsInfo.skuImage,
+        title: goods.goodsInfo && goods.goodsInfo.goodsName,
+        spuId: goods.spuId,
+        skuId: goods.skuId,
+        specs: ((goods.goodsInfo && goods.goodsInfo.specInfo) || []).map((s) => s.specValue),
+        paidAmountEach: goods.paidAmountEach,
+        boughtQuantity: goods.boughtQuantity,
+      }));
       this.setData({
-        goodsInfo,
+        goodsInfo: goodsInfoList[0] || {},
+        goodsInfoList,
         'serviceFrom.amount': {
           max: res.data.refundableAmount,
           current: res.data.refundableAmount,
@@ -168,6 +175,9 @@ Page({
 
   async getRightsPreview() {
     const { orderNo, skuId, spuId } = this.query;
+    if (this.isOrderLevel) {
+      return fetchRightsPreview({ orderNo, orderLevel: true });
+    }
     const params = {
       orderNo,
       skuId,
@@ -179,13 +189,13 @@ Page({
   },
 
   onApplyOnlyRefund() {
-    wx.setNavigationBarTitle({ title: '申请退款' });
+    wx.setNavigationBarTitle({ title: '售后申请' });
     this.setData({ serviceRequireType: 'REFUND_MONEY' });
     this.switchReceiptStatus(0);
   },
 
   onApplyReturnGoods() {
-    wx.setNavigationBarTitle({ title: '申请退货退款' });
+    wx.setNavigationBarTitle({ title: '售后申请' });
     this.setData({ serviceRequireType: 'REFUND_GOODS' });
     const orderStatus = parseInt(this.query.orderStatus);
     Promise.resolve()
@@ -299,51 +309,6 @@ Page({
     this.switchReceiptStatus(index);
   },
 
-  onAmountTap() {
-    this.setData({
-      'serviceFrom.amount.temp': priceFormat(this.data.serviceFrom.amount.current),
-      'serviceFrom.amount.focus': true,
-      inputDialogVisible: true,
-    });
-    this.inputDialog.setData({
-      cancelBtn: '取消',
-      confirmBtn: '确定',
-    });
-    this.inputDialog._onConfirm = () => {
-      this.setData({
-        'serviceFrom.amount.current': this.data.serviceFrom.amount.temp * 100,
-      });
-    };
-    this.inputDialog._onCancel = () => {};
-  },
-
-  // 对输入的值进行过滤
-  onAmountInput(e) {
-    let { value } = e.detail;
-    const regRes = value.match(/\d+(\.?\d*)?/); // 输入中，允许末尾为小数点
-    value = regRes ? regRes[0] : '';
-    this.setData({ 'serviceFrom.amount.temp': value });
-  },
-
-  // 失去焦点时，更严格的过滤并转化为float
-  onAmountBlur(e) {
-    let { value } = e.detail;
-    const regRes = value.match(/\d+(\.?\d+)?/); // 失去焦点时，不允许末尾为小数点
-    value = regRes ? regRes[0] : '0';
-    value = parseFloat(value) * 100;
-    if (value > this.data.serviceFrom.amount.max) {
-      value = this.data.serviceFrom.amount.max;
-    }
-    this.setData({
-      'serviceFrom.amount.temp': priceFormat(value),
-      'serviceFrom.amount.focus': false,
-    });
-  },
-
-  onAmountFocus() {
-    this.setData({ 'serviceFrom.amount.focus': true });
-  },
-
   onRemarkChange(e) {
     const { value } = e.detail;
     this.setData({
@@ -354,6 +319,22 @@ Page({
   // 发起申请售后请求
   onSubmit() {
     this.submitCheck().then(() => {
+      const rightsItem = this.data.orderLevel
+        ? this.data.goodsInfoList.map((goods) => ({
+            itemTotalAmount: Number(goods.paidAmountEach || 0) * Number(goods.boughtQuantity || 0),
+            rightsQuantity: goods.boughtQuantity,
+            skuId: goods.skuId,
+            spuId: goods.spuId,
+          }))
+        : [
+            {
+              itemTotalAmount:
+                Number(this.data.goodsInfo.paidAmountEach || 0) * Number(this.data.serviceFrom.returnNum || 0),
+              rightsQuantity: this.data.serviceFrom.returnNum,
+              skuId: this.query.skuId,
+              spuId: this.query.spuId,
+            },
+          ];
       const params = {
         rights: {
           orderNo: this.query.orderNo,
@@ -363,14 +344,7 @@ Page({
           rightsReasonType: this.data.serviceFrom.receiptStatus.status,
           rightsType: this.data.serviceType,
         },
-        rightsItem: [
-          {
-            itemTotalAmount: this.data.goodsInfo.price * this.data.serviceFrom.returnNum,
-            rightsQuantity: this.data.serviceFrom.returnNum,
-            skuId: this.query.skuId,
-            spuId: this.query.spuId,
-          },
-        ],
+        rightsItem,
         refundMemo: this.data.serviceFrom.remark.current,
       };
       this.setData({ submitting: true });

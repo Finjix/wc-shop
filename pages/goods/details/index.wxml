@@ -79,13 +79,6 @@
           <t-image src="{{commentItem.userHeadUrl}}" t-class="comment-item-avatar" />
           <view class="comment-head-right">
             <view class="comment-username">{{commentItem.userName}}</view>
-            <t-rate
-              value="{{ commentItem.commentScore }}"
-              count="{{5}}"
-              size="12"
-              gap="2"
-              color="{{['#999999', '#ddd']}}"
-            />
           </view>
         </view>
         <view class="comment-item-content"> {{commentItem.commentContent}} </view>

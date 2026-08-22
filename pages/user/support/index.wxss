@@ -1,0 +1,26 @@
+page {
+  background: #ffffff;
+}
+
+.support-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 48rpx 32rpx 80rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #ffffff;
+}
+
+.support-page__tip {
+  color: #333333;
+  font-size: 34rpx;
+  font-weight: 600;
+  line-height: 48rpx;
+  text-align: center;
+}
+
+.support-page__qr {
+  width: 686rpx;
+  margin-top: 28rpx;
+}

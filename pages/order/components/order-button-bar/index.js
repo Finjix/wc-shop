@@ -10,20 +10,7 @@ Component({
     order: {
       type: Object,
       observer(order) {
-        // 判定有传goodsIndex ，则认为是商品button bar, 仅显示申请售后按钮
-        if (this.properties?.goodsIndex !== null) {
-          const goods = order.goodsList[Number(this.properties.goodsIndex)];
-          this.setData({
-            buttons: {
-              left: [],
-              right: (goods.buttons || []).filter((b) => b.type == OrderButtonTypes.APPLY_REFUND),
-            },
-          });
-          return;
-        }
-        // 订单的button bar 不显示申请售后按钮
         const buttonsRight = (order.buttons || [])
-          // .filter((b) => b.type !== OrderButtonTypes.APPLY_REFUND)
           .map((button) => {
             //邀请好友拼团按钮
             if (button.type === OrderButtonTypes.INVITE_GROUPON && order.groupInfoVo) {
@@ -62,10 +49,6 @@ Component({
           },
         });
       },
-    },
-    goodsIndex: {
-      type: Number,
-      value: null,
     },
     isBtnMax: {
       type: Boolean,
@@ -168,19 +151,15 @@ Component({
     },
 
     onApplyRefund(order) {
-      const goods = order.goodsList[this.properties.goodsIndex];
       const params = {
         orderNo: order.orderNo,
-        skuId: goods?.skuId ?? '19384938948343',
-        spuId: goods?.spuId ?? '28373847384343',
         orderStatus: order.status,
         logisticsNo: order.logisticsNo,
-        price: goods?.price ?? 89,
-        num: goods?.num ?? 89,
         createTime: order.createTime,
         orderAmt: order.totalAmount,
         payAmt: order.amount,
         canApplyReturn: true,
+        orderLevel: true,
       };
       const paramsStr = Object.keys(params)
         .map((k) => `${k}=${params[k]}`)

@@ -24,7 +24,7 @@
   padding: 0 20rpx;
 }
 .select-coupons .info .price {
-  color: #fa4126;
+  color: var(--app-theme-text-color, #8A6800);
 }
 .select-coupons .coupons-list {
   max-height: 500rpx;
@@ -34,7 +34,7 @@
 }
 .select-coupons .coupons-list .disable {
   font-size: 24rpx;
-  color: #ff2525;
+  color: var(--app-theme-text-color, #8A6800);
   padding-top: 20rpx;
 }
 .select-coupons .coupons-list .slot-radio {
@@ -51,7 +51,7 @@
   width: 36rpx;
 }
 .select-coupons .coupons-list .slot-radio .text-primary {
-  color: #fa4126;
+  color: var(--app-theme-text-color, #8A6800);
 }
 .select-coupons .coupons-list .slot-radio .wr-check {
   font-size: 36rpx;
@@ -98,7 +98,7 @@
   color: #333333;
 }
 .select-coupons .coupons-cover .red {
-  border-color: #fa4126;
-  background-color: #fa4126;
-  color: #ffffff;
+  border-color: var(--app-theme-color, #F5CE2B);
+  background-color: var(--app-theme-color, #F5CE2B);
+  color: var(--app-theme-text-color, #8A6800);
 }

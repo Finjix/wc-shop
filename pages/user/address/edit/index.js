@@ -1,13 +1,13 @@
 import Toast from 'tdesign-miniprogram/toast/index';
-import { fetchDeliveryAddress } from '../../../../services/address/fetchAddress';
+import { fetchDeliveryAddress, persistMockAddress } from '../../../../services/address/fetchAddress';
 import { areaData } from '../../../../config/index';
 import { resolveAddress, rejectAddress } from '../../../../services/address/list';
 
 const innerPhoneReg = '^1(?:3\\d|4[4-9]|5[0-35-9]|6[67]|7[0-8]|8\\d|9\\d)\\d{8}$';
 const innerNameReg = '^[a-zA-Z\\d\\u4e00-\\u9fa5]+$';
-const labelsOptions = [
-  { id: 0, name: '家' },
-  { id: 1, name: '公司' },
+const areaDataWithGuangdongFirst = [
+  ...areaData.filter((item) => item.value === '440000'),
+  ...areaData.filter((item) => item.value !== '440000'),
 ];
 
 Page({
@@ -17,7 +17,6 @@ Page({
   externalClasses: ['theme-wrapper-class'],
   data: {
     locationState: {
-      labelIndex: null,
       addressId: '',
       addressTag: '',
       cityCode: '',
@@ -36,12 +35,9 @@ Page({
       isOrderDetail: false,
       isOrderSure: false,
     },
-    areaData: areaData,
-    labels: labelsOptions,
+    areaData: areaDataWithGuangdongFirst,
     areaPickerVisible: false,
     submitActive: false,
-    visible: false,
-    labelValue: '',
     columns: 3,
   },
   privateData: {
@@ -116,43 +112,6 @@ Page({
   },
   onPickArea() {
     this.setData({ areaPickerVisible: true });
-  },
-  onPickLabels(e) {
-    const { item } = e.currentTarget.dataset;
-    const {
-      locationState: { labelIndex = undefined },
-      labels = [],
-    } = this.data;
-    let payload = {
-      labelIndex: item,
-      addressTag: labels[item].name,
-    };
-    if (item === labelIndex) {
-      payload = { labelIndex: null, addressTag: '' };
-    }
-    this.setData({
-      'locationState.labelIndex': payload.labelIndex,
-    });
-    this.triggerEvent('triggerUpdateValue', payload);
-  },
-  addLabels() {
-    this.setData({
-      visible: true,
-    });
-  },
-  confirmHandle() {
-    const { labels, labelValue } = this.data;
-    this.setData({
-      visible: false,
-      labels: [...labels, { id: labels[labels.length - 1].id + 1, name: labelValue }],
-      labelValue: '',
-    });
-  },
-  cancelHandle() {
-    this.setData({
-      visible: false,
-      labelValue: '',
-    });
   },
   onCheckDefaultAddress({ detail }) {
     const { value } = detail;
@@ -295,12 +254,13 @@ Page({
     });
   },
   formSubmit() {
-    const { submitActive } = this.data;
-    if (!submitActive) {
+    const { isLegal, tips } = this.onVerifyInputLegal();
+    this.privateData.verifyTips = tips;
+    if (!isLegal) {
       Toast({
         context: this,
         selector: '#t-toast',
-        message: this.privateData.verifyTips,
+        message: tips,
         icon: '',
         duration: 1000,
       });
@@ -310,7 +270,7 @@ Page({
 
     this.hasSava = true;
 
-    resolveAddress({
+    const address = {
       saasId: '88888888',
       uid: `88888888205500`,
       authToken: null,
@@ -327,30 +287,17 @@ Page({
       districtName: locationState.districtName,
       districtCode: locationState.districtCode,
       detailAddress: locationState.detailAddress,
-      isDefault: locationState.isDefault === 1 ? 1 : 0,
+      isDefault: locationState.isDefault ? 1 : 0,
       addressTag: locationState.addressTag,
       latitude: locationState.latitude,
       longitude: locationState.longitude,
       storeId: null,
+    };
+
+    persistMockAddress(address).then(() => {
+      resolveAddress(address);
+      wx.navigateBack({ delta: 1 });
     });
-
-    wx.navigateBack({ delta: 1 });
   },
 
-  getWeixinAddress(e) {
-    const { locationState } = this.data;
-    const weixinAddress = e.detail;
-    this.setData(
-      {
-        locationState: { ...locationState, ...weixinAddress },
-      },
-      () => {
-        const { isLegal, tips } = this.onVerifyInputLegal();
-        this.setData({
-          submitActive: isLegal,
-        });
-        this.privateData.verifyTips = tips;
-      },
-    );
-  },
 });

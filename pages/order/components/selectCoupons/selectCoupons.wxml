@@ -25,7 +25,7 @@
 						 timeLimit="{{coupon.timeLimit}}"
 						>
 							<view class="slot-radio" slot="operator">
-                <t-icon bindtap="selectCoupon" data-key="{{coupon.key}}" name="{{coupon.isSelected ? 'check-circle-filled' : 'circle'}}" color="#fa4126" size="40rpx"/>
+                <t-icon bindtap="selectCoupon" data-key="{{coupon.key}}" name="{{coupon.isSelected ? 'check-circle-filled' : 'circle'}}" color="#F5CE2B" size="40rpx"/>
 							</view>
 						</coupon-card>
 						<view class="disable" wx:if="{{coupon.status == 'useless'}}">此优惠券不能和已勾选的优惠券叠加使用</view>
@@ -40,4 +40,3 @@
 		<view class="coupons-cover" />
 	</view>
 </t-popup>
-

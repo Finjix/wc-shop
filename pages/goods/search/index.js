@@ -90,10 +90,12 @@ Page({
   },
 
   handleSubmit(e) {
-    const { value } = e.detail.value;
-    if (value.length === 0) return;
+    const { value = '' } = e.detail || {};
+    const keyword = String(value).trim();
+    if (!keyword) return;
+
     wx.navigateTo({
-      url: `/pages/goods/result/index?searchValue=${encodeURIComponent(value)}`,
+      url: `/pages/goods/result/index?searchValue=${encodeURIComponent(keyword)}`,
     });
   },
 });
