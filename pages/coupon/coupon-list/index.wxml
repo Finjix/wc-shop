@@ -35,10 +35,4 @@
       <coupon-card couponDTO="{{item}}" />
     </view>
   </t-pull-down-refresh>
-  <view class="center-entry">
-    <view class="center-entry-btn" bind:tap="goCouponCenterHandle">
-      <view>领券中心</view>
-      <t-icon name="chevron-right" color="#fa4126" size="40rpx" style="line-height: 28rpx" />
-    </view>
-  </view>
 </view>

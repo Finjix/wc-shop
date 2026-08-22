@@ -6,17 +6,22 @@
 >
 	<t-tab-bar-item
 	 wx:for="{{list}}"
-	 wx:for-item="item"
+		 wx:for-item="item"
 	 wx:for-index="index"
 	 wx:key="index"
 	>
 		<view class="custom-tab-bar-wrapper">
-			<t-icon
-				prefix="wr"
-				name="{{item.icon}}"
-				size="44rpx"
-			/>
-			<view class="text">{{ item.text }}</view>
+			<view wx:if="{{item.special}}" class="distribution-rebate-circle">
+				<view class="distribution-rebate-title">分销</view>
+			</view>
+			<block wx:else>
+				<t-icon
+					prefix="wr"
+					name="{{item.icon}}"
+					size="44rpx"
+				/>
+				<view class="text">{{ item.text }}</view>
+			</block>
 		</view>
 	</t-tab-bar-item>
 </t-tab-bar>

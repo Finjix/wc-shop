@@ -10,6 +10,12 @@ export default [
     url: 'pages/category/index',
   },
   {
+    icon: '',
+    text: '分销',
+    url: '',
+    special: true,
+  },
+  {
     icon: 'cart',
     text: '购物车',
     url: 'pages/cart/index',

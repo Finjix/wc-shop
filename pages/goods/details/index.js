@@ -20,10 +20,10 @@ const obj2Params = (obj = {}, encode = false) => {
 
 // 订单确认页跳转暂时禁用，恢复时将开关改为 true。
 const ORDER_CONFIRM_NAVIGATION_ENABLED = false;
-// 商品详情页满减标签和领券入口暂时隐藏，恢复时将开关改为 true。
-const PROMOTION_DISPLAY_ENABLED = false;
-// 促销说明暂时不跳转，恢复时将开关改为 true。
-const PROMOTION_NAVIGATION_ENABLED = false;
+// 商品详情页满减标签和领券入口已启用。
+const PROMOTION_DISPLAY_ENABLED = true;
+// 促销说明跳转已启用。
+const PROMOTION_NAVIGATION_ENABLED = true;
 
 Page({
   data: {

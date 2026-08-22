@@ -82,9 +82,9 @@ page {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #fa4126;
+  background-color: #F5CE2B;
   border-radius: 44rpx;
-  color: #fff;
+  color: #8A6800;
 }
 .address-container .btn-wrap .btn-default {
   background: #c6c6c6;

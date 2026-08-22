@@ -55,6 +55,10 @@ Component({
       type: String,
       value: '',
     },
+    couponTheme: {
+      type: String,
+      value: '',
+    },
   },
 
   data: {

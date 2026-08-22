@@ -20,11 +20,11 @@
   right: 0rpx;
   top: 0rpx;
   height: 28rpx;
-  background: #fa4126;
+  background: #F5CE2B;
   border-radius: 64rpx;
   font-weight: bold;
   font-size: 22rpx;
   line-height: 28rpx;
-  color: #fff;
+  color: #8A6800;
   padding: 0 8rpx;
 }

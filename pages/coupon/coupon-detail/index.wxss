@@ -13,6 +13,12 @@ page {
   margin: 50rpx 32rpx 0;
 }
 
+.coupon-detail-action {
+  background: #F5CE2B !important;
+  border-color: #F5CE2B !important;
+  color: #8A6800 !important;
+}
+
 .desc-group-wrap .t-class-cell {
   align-items: flex-start;
 }

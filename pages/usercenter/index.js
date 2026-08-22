@@ -1,42 +1,30 @@
 import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
 import Toast from 'tdesign-miniprogram/toast/index';
 
-const menuData = [
-  [
-    {
-      title: '收货地址',
-      tit: '',
-      url: '',
-      type: 'address',
-    },
-    {
-      title: '优惠券',
-      tit: '',
-      url: '',
-      type: 'coupon',
-    },
-    {
-      title: '积分',
-      tit: '',
-      url: '',
-      type: 'point',
-    },
-  ],
-  [
-    {
-      title: '帮助中心',
-      tit: '',
-      url: '',
-      type: 'help-center',
-    },
-    {
-      title: '客服热线',
-      tit: '',
-      url: '',
-      type: 'service',
-      icon: 'service',
-    },
-  ],
+// 订单页跳转暂时禁用，恢复时改为 true。
+const ORDER_PAGE_NAVIGATION_ENABLED = false;
+
+const toolData = [
+  {
+    title: '收货地址',
+    icon: 'location',
+    type: 'address',
+  },
+  {
+    title: '优惠券',
+    icon: 'ticket',
+    type: 'coupon',
+  },
+  {
+    title: '帮助',
+    icon: 'help-circle',
+    type: 'help-center',
+  },
+  {
+    title: '分销中心',
+    icon: 'usergroup',
+    type: 'distribution-center',
+  },
 ];
 
 const orderTagInfos = [
@@ -79,12 +67,15 @@ const orderTagInfos = [
 
 const getDefaultData = () => ({
   showMakePhone: false,
+  statusBarHeight: 0,
+  navBarHeight: 44,
+  customNavHeight: 44,
   userInfo: {
     avatarUrl: '',
-    nickName: '正在登录...',
+    nickName: '用户_1A4B',
     phoneNumber: '',
   },
-  menuData,
+  toolData,
   orderTagInfos,
   customerServiceInfo: {},
   currAuthStep: 1,
@@ -96,6 +87,7 @@ Page({
   data: getDefaultData(),
 
   onLoad() {
+    this.initCustomNav();
     this.getVersionInfo();
   },
 
@@ -111,24 +103,29 @@ Page({
     this.fetUseriInfoHandle();
   },
 
+  initCustomNav() {
+    const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const menuButtonInfo = wx.getMenuButtonBoundingClientRect();
+    const statusBarHeight = windowInfo.statusBarHeight || 0;
+    const navBarHeight = menuButtonInfo.height
+      ? menuButtonInfo.height + (menuButtonInfo.top - statusBarHeight) * 2
+      : 44;
+
+    this.setData({
+      statusBarHeight,
+      navBarHeight,
+      customNavHeight: statusBarHeight + navBarHeight,
+    });
+  },
+
   fetUseriInfoHandle() {
-    fetchUserCenter().then(({ userInfo, countsData, orderTagInfos: orderInfo, customerServiceInfo }) => {
-      // eslint-disable-next-line no-unused-expressions
-      menuData?.[0].forEach((v) => {
-        countsData.forEach((counts) => {
-          if (counts.type === v.type) {
-            // eslint-disable-next-line no-param-reassign
-            v.tit = counts.num;
-          }
-        });
-      });
+    fetchUserCenter().then(({ userInfo, orderTagInfos: orderInfo, customerServiceInfo }) => {
       const info = orderTagInfos.map((v, index) => ({
         ...v,
-        ...orderInfo[index],
+        ...(orderInfo || [])[index],
       }));
       this.setData({
         userInfo,
-        menuData,
         orderTagInfos: info,
         customerServiceInfo,
         currAuthStep: 2,
@@ -141,6 +138,10 @@ Page({
     const { type } = currentTarget.dataset;
 
     switch (type) {
+      case 'person-info': {
+        wx.navigateTo({ url: '/pages/user/person-info/index' });
+        break;
+      }
       case 'address': {
         wx.navigateTo({ url: '/pages/user/address/list/index' });
         break;
@@ -153,7 +154,17 @@ Page({
         Toast({
           context: this,
           selector: '#t-toast',
-          message: '你点击了帮助中心',
+          message: '你点击了帮助菜单',
+          icon: '',
+          duration: 1000,
+        });
+        break;
+      }
+      case 'distribution-center': {
+        Toast({
+          context: this,
+          selector: '#t-toast',
+          message: '分销中心功能开发中',
           icon: '',
           duration: 1000,
         });
@@ -187,6 +198,8 @@ Page({
   },
 
   jumpNav(e) {
+    if (!ORDER_PAGE_NAVIGATION_ENABLED) return;
+
     const status = e.detail.tabType;
 
     if (status === 0) {
@@ -197,6 +210,8 @@ Page({
   },
 
   jumpAllOrder() {
+    if (!ORDER_PAGE_NAVIGATION_ENABLED) return;
+
     wx.navigateTo({ url: '/pages/order/order-list/index' });
   },
 

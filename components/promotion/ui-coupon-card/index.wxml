@@ -3,7 +3,7 @@
   true; } else {return false;} } function getBigValues(value) { return value.split('.'); } module.exports = {
   isBigValue:isBigValue, getBigValues: getBigValues };
 </wxs>
-<view class="wr-coupon coupon-class theme-{{theme}}">
+<view class="wr-coupon coupon-class theme-{{theme}} coupon-theme-{{couponTheme}}">
   <view class="wr-coupon__left">
     <view wx:if="{{type == CouponType.ZK_COUPON || type === CouponType.MERCHANT_ZK_COUPON}}">
       <text class="wr-coupon__left--value">{{value}}</text>

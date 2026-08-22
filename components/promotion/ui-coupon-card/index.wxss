@@ -145,3 +145,42 @@
 .wr-coupon__seal.seal-disabled {
   background-image: url('https://tdesign.gtimg.com/miniprogram/template/retail/coupon/coupon-expired.png');
 }
+
+.coupon-theme-yellow.wr-coupon {
+  background: #ffffff;
+  border: 2rpx solid #F5CE2B;
+  border-radius: 16rpx;
+}
+
+.coupon-theme-yellow .wr-coupon__left {
+  background: #FFF7CC;
+  color: #8A6800;
+}
+
+.coupon-theme-yellow .wr-coupon__left--desc {
+  color: #8A6800;
+}
+
+.coupon-theme-yellow .wr-coupon__tag {
+  color: #8A6800;
+  border-color: #F5CE2B;
+}
+
+.coupon-theme-yellow.theme-weak.wr-coupon {
+  background: #f5f5f5;
+  border-color: #dddddd;
+}
+
+.coupon-theme-yellow.theme-weak .wr-coupon__left {
+  background: #f5f5f5;
+}
+
+.coupon-theme-yellow.theme-weak .wr-coupon__left,
+.coupon-theme-yellow.theme-weak .wr-coupon__left--desc {
+  color: #333333;
+}
+
+.coupon-theme-yellow.theme-weak .wr-coupon__tag {
+  color: #666666;
+  border-color: #dddddd;
+}

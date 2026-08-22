@@ -1,47 +1,62 @@
 .user-center-card {
   position: relative;
-  left: 0;
   width: 100%;
-  height: 480rpx;
-  background-image: url('https://tdesign.gtimg.com/miniprogram/template/retail/template/user-center-bg-v1.png');
-  background-size: cover;
-  background-repeat: no-repeat;
-  padding: 0 24rpx;
+  min-height: 176rpx;
+  box-sizing: border-box;
+  padding: 40rpx 32rpx 32rpx;
+  background: transparent;
+  color: #333333;
 }
+
 .user-center-card__header {
-  margin-top: 192rpx;
-  margin-bottom: 48rpx;
-  height: 96rpx;
-  line-height: 48rpx;
+  height: 104rpx;
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  color: #333;
+  color: #333333;
   position: relative;
 }
+
 .user-center-card__header__avatar {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 48rpx;
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 52rpx;
   overflow: hidden;
+  border: 4rpx solid rgba(255, 255, 255, 0.8);
+}
+
+.user-center-card__identity {
+  flex: 1;
+  min-width: 0;
+  margin-left: 24rpx;
 }
 
 .user-center-card__header__name {
+  overflow: hidden;
   font-size: 36rpx;
   line-height: 48rpx;
-  color: #333;
+  color: #333333;
   font-weight: bold;
-  margin-left: 24rpx;
-  margin-right: 16rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+.user-center-card__header__badge {
+  display: inline-flex;
+  margin-top: 8rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  background: rgba(245, 245, 245, 0.9);
+  color: #666666;
+  font-size: 22rpx;
+  line-height: 28rpx;
+}
+
 .user-center-card__header__transparent {
   position: absolute;
   left: 0;
   top: 0;
-  background-color: transparent;
-  height: 100%;
   width: 100%;
-}
-.user-center-card__icon {
-  line-height: 96rpx;
+  height: 100%;
+  background-color: transparent;
 }

@@ -1,5 +1,4 @@
 import { fetchPerson } from '../../../services/usercenter/fetchPerson';
-import { phoneEncryption } from '../../../utils/util';
 import Toast from 'tdesign-miniprogram/toast/index';
 
 Page({
@@ -7,22 +6,9 @@ Page({
     personInfo: {
       avatarUrl: '',
       nickName: '',
-      gender: 0,
-      phoneNumber: '',
     },
-    showUnbindConfirm: false,
-    pickerOptions: [
-      {
-        name: '男',
-        code: '1',
-      },
-      {
-        name: '女',
-        code: '2',
-      },
-    ],
-    typeVisible: false,
-    genderMap: ['', '男', '女'],
+    editingNickname: false,
+    nicknameDraft: '',
   },
   onLoad() {
     this.init();
@@ -34,23 +20,17 @@ Page({
     fetchPerson().then((personInfo) => {
       this.setData({
         personInfo,
-        'personInfo.phoneNumber': phoneEncryption(personInfo.phoneNumber),
       });
     });
   },
   onClickCell({ currentTarget }) {
     const { dataset } = currentTarget;
-    const { nickName } = this.data.personInfo;
 
     switch (dataset.type) {
-      case 'gender':
-        this.setData({
-          typeVisible: true,
-        });
-        break;
       case 'name':
-        wx.navigateTo({
-          url: `/pages/user/name-edit/index?name=${nickName}`,
+        this.setData({
+          editingNickname: true,
+          nicknameDraft: this.data.personInfo.nickName || '',
         });
         break;
       case 'avatarUrl':
@@ -61,27 +41,27 @@ Page({
       }
     }
   },
-  onClose() {
+  saveNickname() {
+    const nickname = this.data.nicknameDraft.trim();
+    if (!nickname) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '昵称不能为空',
+        theme: 'error',
+      });
+      return;
+    }
     this.setData({
-      typeVisible: false,
+      'personInfo.nickName': nickname,
+      editingNickname: false,
     });
   },
-  onConfirm(e) {
-    const { value } = e.detail;
-    this.setData(
-      {
-        typeVisible: false,
-        'personInfo.gender': value,
-      },
-      () => {
-        Toast({
-          context: this,
-          selector: '#t-toast',
-          message: '设置成功',
-          theme: 'success',
-        });
-      },
-    );
+  cancelNickname() {
+    this.setData({
+      editingNickname: false,
+      nicknameDraft: this.data.personInfo.nickName || '',
+    });
   },
   async toModifyAvatar() {
     try {

@@ -19,7 +19,7 @@ page {
 }
 
 .coupon-page-container .notice-bar-text .height-light {
-  color: #fa550f;
+  color: #8A6800;
 }
 
 .coupon-page-container .popup-content-wrap {

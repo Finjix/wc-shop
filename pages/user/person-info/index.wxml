@@ -18,6 +18,7 @@
       <t-image slot="note" src="{{personInfo.avatarUrl}}" t-class="avatarUrl" mode="aspectFill" />
     </t-cell>
     <t-cell
+      wx:if="{{!editingNickname}}"
       title="昵称"
       arrow
       note="{{personInfo.nickName}}"
@@ -26,36 +27,20 @@
       t-class="t-cell-class"
       t-class-left="order-group__left"
     />
-    <t-cell
-      title="性别"
-      arrow
-      note="{{genderMap[personInfo.gender]}}"
-      data-type="gender"
-      bind:click="onClickCell"
-      t-class="t-cell-class"
-      t-class-left="order-group__left"
-    />
-    <t-cell
-      bordered="{{false}}"
-      title="手机号"
-      arrow
-      note="{{personInfo.phoneNumber ? personInfo.phoneNumber : '去绑定手机号'}}"
-      data-type="phoneNumber"
-      bind:click="onClickCell"
-      t-class="t-cell-class"
-      t-class-left="order-group__left"
-    />
+    <view wx:else class="nickname-edit">
+      <t-input
+        borderless
+        focus="{{true}}"
+        maxlength="15"
+        model:value="{{nicknameDraft}}"
+        placeholder="请输入昵称"
+      />
+      <view class="nickname-edit__hint">最多可输入15个字</view>
+      <view class="nickname-edit__actions">
+        <button class="nickname-edit__cancel" bind:tap="cancelNickname">取消</button>
+        <button class="nickname-edit__save" bind:tap="saveNickname">保存</button>
+      </view>
+    </view>
   </t-cell-group>
 </view>
-<view class="person-info__wrapper">
-  <view class="person-info__btn" bind:tap="openUnbindConfirm"> 切换账号登录 </view>
-</view>
-<t-select-picker
-  show="{{typeVisible}}"
-  picker-options="{{pickerOptions}}"
-  title="选择性别"
-  value="{{personInfo.gender}}"
-  bind:confirm="onConfirm"
-  bind:close="onClose"
-/>
 <t-toast id="t-toast" />

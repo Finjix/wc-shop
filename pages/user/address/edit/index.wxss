@@ -74,8 +74,8 @@ page .divider-line {
   padding: 64rpx 30rpx 88rpx 30rpx;
 }
 .submit .btn-submit-address {
-  background: #fa4126 !important;
-  color: #fff !important;
+  background: #F5CE2B !important;
+  color: #8A6800 !important;
 }
 
 .dialog__button-confirm {

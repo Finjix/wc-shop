@@ -24,6 +24,10 @@ Component({
   },
   data: {
     defaultAvatarUrl: 'https://tdesign.gtimg.com/miniprogram/template/retail/usercenter/icon-user-center-avatar@2x.png',
+    avatarImageProps: {
+      mode: 'aspectFill',
+      shape: 'round',
+    },
     AuthStepType,
   },
   methods: {
