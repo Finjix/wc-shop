@@ -43,6 +43,7 @@ export const OrderButtonTypes = {
   DELETE: 7, // 删除订单
   DELIVERY: 8, // 查看物流
   REBUY: 9, // 再次购买
+  VIEW_COMMENT: 10, // 查看评价
   INVITE_GROUPON: 11, //邀请好友拼团
 };
 

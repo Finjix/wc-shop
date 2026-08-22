@@ -2,10 +2,7 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 Page({
   data: {
-    serviceRateValue: 1,
-    goodRateValue: 1,
-    conveyRateValue: 1,
-    isAnonymous: false,
+    goodRateValue: 4,
     uploadFiles: [],
     gridConfig: {
       width: 218,
@@ -37,11 +34,6 @@ Page({
     });
   },
 
-  onAnonymousChange(e) {
-    const status = !!e?.detail?.checked;
-    this.setData({ isAnonymous: status });
-  },
-
   handleSuccess(e) {
     const { files } = e.detail;
 
@@ -66,9 +58,9 @@ Page({
   },
 
   updateButtonStatus() {
-    const { serviceRateValue, goodRateValue, conveyRateValue, isAllowedSubmit } = this.data;
+    const { goodRateValue, isAllowedSubmit } = this.data;
     const { textAreaValue } = this;
-    const temp = serviceRateValue && goodRateValue && conveyRateValue && textAreaValue;
+    const temp = goodRateValue && textAreaValue;
     if (temp !== isAllowedSubmit) this.setData({ isAllowedSubmit: temp });
   },
 

@@ -42,6 +42,7 @@
       <t-upload
         media-type="{{['image','video']}}"
         files="{{uploadFiles}}"
+        max="3"
         bind:remove="handleRemove"
         bind:success="handleSuccess"
         gridConfig="{{gridConfig}}"
@@ -49,40 +50,6 @@
       />
     </view>
 
-    <view class="anonymous-box">
-      <t-checkbox bind:change="onAnonymousChange" checked="{{isAnonymous}}" color="#FA4126" />
-      <view class="name">匿名评价</view>
-    </view>
-  </view>
-</view>
-<view class="comment-card convey-card">
-  <view class="convey-comment-title">物流服务评价</view>
-  <view class="rate-container">
-    <text class="rate-title">物流评价</text>
-    <view class="rate">
-      <t-rate
-        value="{{conveyRateValue}}"
-        bind:change="onRateChange"
-        variant="filled"
-        size="26"
-        gap="6"
-        color="{{['#F5CE2B', '#ddd']}}"
-        data-item="conveyRateValue"
-      />
-    </view>
-  </view>
-  <view class="rate-container">
-    <text class="rate-title">服务评价</text>
-    <view class="rate">
-      <t-rate
-        value="{{serviceRateValue}}"
-        bind:change="onRateChange"
-        size="26"
-        gap="6"
-        color="{{['#F5CE2B', '#ddd']}}"
-        data-item="serviceRateValue"
-      />
-    </view>
   </view>
 </view>
 <view class="submit-button-container">

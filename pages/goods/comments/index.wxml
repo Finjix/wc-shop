@@ -1,10 +1,29 @@
 <t-navbar
   t-class-title="app-page-navbar-title"
-  title="全部评价"
+  title="{{mineOnly ? '我的评价' : '全部评价'}}"
   leftArrow
   fixed="{{false}}"
   background="#fff"
 />
+<block wx:if="{{mineOnly}}">
+  <view class="comments-card-list own-comment-list" wx:if="{{ownComment}}">
+    <comments-card
+      commentScore="{{ownComment.commentScore}}"
+      userName="{{ownComment.userName}}"
+      commentResources="{{ownComment.commentResources || []}}"
+      commentContent="{{ownComment.commentContent}}"
+      isAnonymity="{{ownComment.isAnonymity}}"
+      commentTime="{{ownComment.commentTime}}"
+      isAutoComment="{{ownComment.isAutoComment}}"
+      userHeadUrl="{{ownComment.userHeadUrl}}"
+      specInfo="{{ownComment.specInfo}}"
+      sellerReply="{{ownComment.sellerReply || ''}}"
+      goodsDetailInfo="{{ownComment.goodsDetailInfo || ''}}"
+    />
+  </view>
+  <view class="own-comment-empty" wx:else>暂无评价</view>
+</block>
+<block wx:else>
 <view class="comments-header">
 	<t-tag t-class="comments-header-tag {{commentType === '' ? 'comments-header-active' : ''}}" data-commentType="" bindtap="changeTag">
 		全部({{countObj.commentCount}})
@@ -26,7 +45,7 @@
 	  bindtap="changeTag"
 	>
 		最新
-	</t-tag>
+</t-tag>
 </view>
 <view class="comments-card-list">
 	<block wx:for="{{commentList}}" wx:key="index">
@@ -52,3 +71,4 @@
 	  failedColor="#FA550F"
 	/>
 </view>
+</block>

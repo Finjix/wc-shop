@@ -71,7 +71,7 @@ Component({
     onLoad(e) {
       this.triggerEvent('load', e.detail);
     },
-    onError(e) {
+    onImageError(e) {
       this.triggerEvent('error', e.detail);
     },
   },

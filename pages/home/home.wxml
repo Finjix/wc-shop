@@ -58,10 +58,12 @@
     />
   </view>
 
+  <!-- 后台运营位：上传图片宽度不超过 1080px，高度不限；未配置图片时容器不占高度。 -->
   <view class="shop-benefits-banner">
     <image
+      wx:if="{{shopBenefitsImage}}"
       class="shop-benefits-banner__image"
-      src="../../assets/ad-banner.jpg"
+      src="{{shopBenefitsImage}}"
       mode="widthFix"
       lazy-load
       show-menu-by-longpress="{{true}}"

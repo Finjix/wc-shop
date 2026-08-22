@@ -8,8 +8,8 @@
   padding: 24rpx 30rpx;
   text-align: center;
   font-size: 26rpx;
-  color: #e17349;
-  background: #fefcef;
+  color: #8a6800;
+  background: #fff7cc;
 }
 
 .fill-tracking-no__form {

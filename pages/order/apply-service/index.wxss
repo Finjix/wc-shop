@@ -77,6 +77,8 @@
   background-color: var(--app-theme-color, #F5CE2B);
   color: var(--app-theme-text-color, #8A6800);
   font-size: 32rpx;
+  font-weight: 700;
+  --td-button-font-weight: 700;
   border-radius: 48rpx;
   position: absolute;
   left: 50%;
@@ -221,7 +223,13 @@
   font-weight: bold;
   font-size: 36rpx;
   text-align: right;
-  color: var(--app-theme-color, #F5CE2B);
+  color: #333;
+}
+.refund-money-price {
+  color: #333;
+  font-size: 36rpx;
+  font-family: DIN Alternate;
+  font-weight: bold;
 }
 .textarea--label {
 }

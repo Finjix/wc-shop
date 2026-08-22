@@ -3,9 +3,16 @@
 }
 .btn-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   line-height: 1;
+}
+.btn-bar .right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 20rpx;
 }
 .btn-bar .order-btn {
   background-color: inherit;
@@ -16,12 +23,12 @@
   min-width: 160rpx;
   border-radius: 32rpx;
   height: 60rpx;
-  margin-right: 10rpx;
+  margin: 0;
 }
 
 .btn-bar .left .order-btn:not(:first-child),
 .btn-bar .right .order-btn:not(:first-child) {
-  margin-left: 20rpx;
+  margin-left: 0;
 }
 .btn-bar .left .delete-btn {
   font-size: 22rpx;

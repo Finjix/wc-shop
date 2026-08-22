@@ -11,10 +11,11 @@ const TitleConfig = {
 
 Page({
   data: {
+    pageTitle: '退款详情',
     pullDownRefreshing: false,
     pageLoading: true,
     serviceRaw: {},
-    service: {},
+    service: { buttons: [] },
     deliveryButton: {},
     gallery: {
       current: 0,
@@ -64,6 +65,13 @@ Page({
     const params = { rightsNo: this.rightsNo };
     return getRightsDetail(params).then((res) => {
       const serviceRaw = res.data[0];
+      if (!serviceRaw) {
+        wx.showToast({
+          title: '售后记录不存在',
+          icon: 'none',
+        });
+        return;
+      }
       // 滤掉填写运单号、修改运单号按钮，这两个按钮特殊处理，不在底部按钮栏展示
       if (!serviceRaw.buttonVOs) serviceRaw.buttonVOs = [];
       const deliveryButton = {};
@@ -101,6 +109,11 @@ Page({
         logisticsCompanyName: serviceRaw.logisticsVO.logisticsCompanyName, // 退货物流公司
         logisticsCompanyCode: serviceRaw.logisticsVO.logisticsCompanyCode, // 退货物流公司
         remark: serviceRaw.logisticsVO.remark, // 退货备注
+        logisticsDescription:
+          serviceRaw.rights.rightsType === ServiceType.RETURN_GOODS &&
+          Number(serviceRaw.rights.receiptStatus) === 2
+            ? '商家已发货'
+            : '买家已寄出',
         receiverName: serviceRaw.logisticsVO.receiverName, // 收货人
         receiverPhone: serviceRaw.logisticsVO.receiverPhone, // 收货人电话
         receiverAddress: this.composeAddress(serviceRaw), // 收货人地址
@@ -113,13 +126,11 @@ Page({
         serviceRaw,
         service,
         deliveryButton,
+        pageTitle: TitleConfig[service.type] || '退款详情',
         'gallery.proofs': proofs,
         showProofs:
           serviceRaw.rights.userRightsStatus === ServiceStatus.PENDING_VERIFY &&
           (service.applyRemark || proofs.length > 0),
-      });
-      wx.setNavigationBarTitle({
-        title: TitleConfig[service.type],
       });
     });
   },
@@ -138,6 +149,17 @@ Page({
 
   onRefresh() {
     this.init();
+  },
+
+  onLogisticsTap() {
+    const logistics = this.data.service.logistics || {};
+    if (!logistics.logisticsNo) return;
+
+    wx.navigateTo({
+      url: `/pages/order/delivery-detail/index?data=${encodeURIComponent(
+        JSON.stringify(logistics),
+      )}&source=2`,
+    });
   },
 
   editLogistices() {

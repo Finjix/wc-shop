@@ -43,6 +43,18 @@ page {
   border: 1px solid #F5CE2B !important;
 }
 
+.own-comment-list {
+  min-height: calc(100vh - 88rpx);
+  background-color: #fff;
+}
+
+.own-comment-empty {
+  padding-top: 160rpx;
+  text-align: center;
+  color: #999;
+  font-size: 28rpx;
+}
+
 .no-more {
   padding-left: 20rpx;
   padding-right: 20rpx;

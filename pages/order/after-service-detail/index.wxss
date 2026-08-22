@@ -166,7 +166,7 @@
 }
 .service-detail .right {
   font-size: 36rpx;
-  color: #fa550f;
+  color: #333;
   font-weight: bold;
 }
 
@@ -394,6 +394,11 @@
   padding-top: 0;
   padding-bottom: 0;
   padding-right: 0;
+}
+
+.service-detail__button-bar {
+  box-sizing: border-box;
+  padding: 24rpx 32rpx;
 }
 
 .service-section__title__header {

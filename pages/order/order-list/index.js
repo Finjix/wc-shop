@@ -1,4 +1,4 @@
-import { OrderStatus } from '../config';
+import { OrderButtonTypes, OrderStatus } from '../config';
 import { fetchOrders, fetchOrdersCount } from '../../../services/order/orderList';
 import { cosThumb } from '../../../utils/util';
 
@@ -13,6 +13,7 @@ Page({
       { key: -1, text: '全部' },
       { key: OrderStatus.PENDING_DELIVERY, text: '待发货', info: '' },
       { key: OrderStatus.PENDING_RECEIPT, text: '待收货', info: '' },
+      { key: OrderStatus.COMPLETE, text: '待评价', info: '' },
     ],
     curTab: -1,
     orderList: [],
@@ -21,12 +22,21 @@ Page({
     emptyImg: 'https://tdesign.gtimg.com/miniprogram/template/retail/order/empty-order-list.png',
     backRefresh: false,
     status: -1,
+    pendingCommentOnly: false,
   },
 
   onLoad(query) {
-    let status = parseInt(query.status);
+    const requestedStatus = parseInt(query.status);
+    const pendingCommentOnly =
+      query.pendingComment === 'true' || requestedStatus === OrderStatus.COMPLETE;
+    let status = requestedStatus;
     status = this.data.tabs.map((t) => t.key).includes(status) ? status : -1;
-    this.init(status);
+    this.setData(
+      {
+        pendingCommentOnly,
+      },
+      () => this.init(status),
+    );
     this.pullDownRefresh = this.selectComponent('#wr-pull-down-refresh');
   },
 
@@ -67,20 +77,27 @@ Page({
   },
 
   getOrderList(statusCode = -1, reset = false) {
+    const requestStatus = this.data.pendingCommentOnly ? OrderStatus.COMPLETE : statusCode;
     const params = {
       parameter: {
         pageSize: this.page.size,
         pageNum: this.page.num,
       },
     };
-    if (statusCode !== -1) params.parameter.orderStatus = statusCode;
+    if (requestStatus !== -1) params.parameter.orderStatus = requestStatus;
     this.setData({ listLoading: 1 });
     return fetchOrders(params)
       .then((res) => {
         this.page.num++;
         let orderList = [];
         if (res && res.data && res.data.orders) {
-          orderList = (res.data.orders || []).map((order) => {
+          const sourceOrders = (res.data.orders || []).filter((order) => {
+            if (!this.data.pendingCommentOnly) return true;
+            return (order.buttonVOs || []).some(
+              (button) => button.type === OrderButtonTypes.COMMENT,
+            );
+          });
+          orderList = sourceOrders.map((order) => {
             return {
               id: order.orderId,
               orderNo: order.orderNo,
@@ -88,6 +105,9 @@ Page({
               storeId: order.storeId,
               storeName: order.storeName,
               status: order.orderStatus,
+              hideApplyRefund: [OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(
+                order.orderStatus,
+              ),
               statusDesc: order.orderStatusName,
               amount: order.paymentAmount,
               totalAmount: order.totalAmount,
@@ -133,10 +153,13 @@ Page({
 
   onTabChange(e) {
     const { value } = e.detail;
-    this.setData({
-      status: value,
-    });
-    this.refreshList(value);
+    this.setData(
+      {
+        status: value,
+        pendingCommentOnly: value === OrderStatus.COMPLETE,
+      },
+      () => this.refreshList(value),
+    );
   },
 
   getOrdersCount() {

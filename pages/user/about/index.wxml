@@ -1,0 +1,10 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="关于"
+  leftArrow
+  fixed="{{false}}"
+  background="#fff"
+/>
+<view class="about-page">
+  <text>暂无内容</text>
+</view>

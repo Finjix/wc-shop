@@ -1,5 +1,6 @@
 import { fetchComments } from '../../../services/comments/fetchComments';
 import { fetchCommentsCount } from '../../../services/comments/fetchCommentsCount';
+import { fetchOrderComment } from '../../../services/comments/fetchOrderComment';
 import dayjs from 'dayjs';
 const layoutMap = {
   0: 'vertical',
@@ -34,10 +35,21 @@ Page({
       hasImageCount: '0',
       uidCount: '0',
     },
+    mineOnly: false,
+    ownComment: null,
   },
   onLoad(options) {
+    if (options.orderNo) {
+      this.setData({ mineOnly: true });
+      this.getOwnComment(options.orderNo);
+      return;
+    }
     this.getCount(options);
     this.getComments(options);
+  },
+  async getOwnComment(orderNo) {
+    const ownComment = await fetchOrderComment(orderNo);
+    this.setData({ ownComment });
   },
   async getCount(options) {
     try {

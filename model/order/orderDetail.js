@@ -1167,6 +1167,23 @@ const orderResps = [
   },
 ];
 
+const completedOrderMock = orderResps.find(
+  (order) => order.data.orderNo === '130150835531421259',
+);
+if (completedOrderMock) {
+  const additionalCompletedOrder = JSON.parse(JSON.stringify(completedOrderMock));
+  additionalCompletedOrder.data.parentOrderNo = '130150835531421260';
+  additionalCompletedOrder.data.orderId = '130150836385879809';
+  additionalCompletedOrder.data.orderNo = '130150835531421260';
+  additionalCompletedOrder.data.createTime = '1587007084842';
+  additionalCompletedOrder.data.buttonVOs = [
+    { primary: false, type: 4, name: '申请售后' },
+    { primary: false, type: 10, name: '查看评价' },
+  ];
+  additionalCompletedOrder.data.orderItemVOs[0].id = '130150836520098049';
+  orderResps.push(additionalCompletedOrder);
+}
+
 export function genOrderDetail(params) {
   const { parameter } = params;
   const resp = orderResps.find((r) => r.data.orderNo === parameter);

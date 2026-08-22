@@ -77,19 +77,6 @@
   margin-bottom: 20rpx;
 }
 
-.page-container .header__right {
-  font-size: 24rpx;
-  color: #fa4126;
-  display: flex;
-  align-items: center;
-}
-
-.page-container .header__right__icon {
-  color: #d05b27;
-  font-size: 16px !important;
-  margin-right: 10rpx;
-}
-
 .t-class-indicator {
   color: #b9b9b9 !important;
 }

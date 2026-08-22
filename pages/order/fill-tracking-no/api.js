@@ -1,6 +1,8 @@
 import { mockIp, mockReqId } from '../../../utils/mock';
+import { updateMockAfterServiceLogistics } from '../../../model/order/afterService';
 
-export function create() {
+export function create(params = {}) {
+  updateMockAfterServiceLogistics(params);
   const _resq = {
     data: null,
     code: 'Success',
@@ -13,7 +15,8 @@ export function create() {
   return Promise.resolve(_resq);
 }
 
-export function update() {
+export function update(params = {}) {
+  updateMockAfterServiceLogistics(params);
   const _resq = {
     data: null,
     code: 'Success',

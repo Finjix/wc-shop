@@ -28,6 +28,10 @@ const orderTagInfos = [
     tabType: 40,
   },
   {
+    orderNum: 2,
+    tabType: 50,
+  },
+  {
     orderNum: 0,
     tabType: 0,
   },

@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "",
+  "navigationStyle": "custom",
   "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "wr-loading-content": "/components/loading-content/index",
     "wr-price": "/components/price/index",
     "wr-service-goods-card": "../components/order-goods-card/index",

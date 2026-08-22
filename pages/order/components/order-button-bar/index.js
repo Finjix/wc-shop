@@ -35,7 +35,24 @@ Component({
               };
             }
             return button;
+          })
+          .filter(
+            (button) =>
+              !(order.hideApplyRefund && button.type === OrderButtonTypes.APPLY_REFUND),
+          );
+        const hasApplyRefundButton = buttonsRight.some(
+          (button) => button.type === OrderButtonTypes.APPLY_REFUND,
+        );
+        const confirmButtonIndex = buttonsRight.findIndex(
+          (button) => button.type === OrderButtonTypes.CONFIRM,
+        );
+        if (confirmButtonIndex > -1 && !hasApplyRefundButton && !order.hideApplyRefund) {
+          buttonsRight.splice(confirmButtonIndex, 0, {
+            primary: false,
+            type: OrderButtonTypes.APPLY_REFUND,
+            name: '申请售后',
           });
+        }
         // 删除订单按钮单独挪到左侧
         const deleteBtnIndex = buttonsRight.findIndex((b) => b.type === OrderButtonTypes.DELETE);
         let buttonsLeft = [];
@@ -89,6 +106,9 @@ Component({
           break;
         case OrderButtonTypes.COMMENT:
           this.onAddComment(this.data.order);
+          break;
+        case OrderButtonTypes.VIEW_COMMENT:
+          this.onViewComment(this.data.order);
           break;
         case OrderButtonTypes.INVITE_GROUPON:
           //分享邀请好友拼团
@@ -151,13 +171,19 @@ Component({
     },
 
     onApplyRefund(order) {
+      const goodsAmount = (order.goodsList || []).reduce(
+        (total, goods) => total + Number(goods.price || 0) * Number(goods.num || 1),
+        0,
+      );
+      const orderAmt = Number(order.totalAmount || 0) || goodsAmount;
+      const payAmt = Number(order.amount || 0) || orderAmt;
       const params = {
         orderNo: order.orderNo,
         orderStatus: order.status,
         logisticsNo: order.logisticsNo,
         createTime: order.createTime,
-        orderAmt: order.totalAmount,
-        payAmt: order.amount,
+        orderAmt,
+        payAmt,
         canApplyReturn: true,
         orderLevel: true,
       };
@@ -183,6 +209,14 @@ Component({
       const specs = order?.goodsList?.[0]?.specs;
       wx.navigateTo({
         url: `/pages/goods/comments/create/index?specs=${specs}&title=${title}&orderNo=${order?.orderNo}&imgUrl=${imgUrl}`,
+      });
+    },
+
+    onViewComment(order) {
+      const spuId = order?.goodsList?.[0]?.spuId;
+      if (spuId === undefined || spuId === null || spuId === '') return;
+      wx.navigateTo({
+        url: `/pages/goods/comments/index?spuId=${spuId}&orderNo=${order.orderNo}`,
       });
     },
   },

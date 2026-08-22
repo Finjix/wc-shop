@@ -130,7 +130,10 @@ Page({
               storeName: _data.rights.storeName,
               type: _data.rights.rightsType,
               typeDesc: ServiceTypeDesc[_data.rights.rightsType],
-              typeDescIcon: _data.rightsType === ServiceType.ONLY_REFUND ? 'money-circle' : 'return-goods-1',
+              typeDescIcon:
+                _data.rights.rightsType === ServiceType.ONLY_REFUND
+                  ? 'money-circle'
+                  : 'return-goods-1',
               status: _data.rights.rightsStatus,
               statusName: _data.rights.userRightsStatusName,
               statusDesc: _data.rights.userRightsStatusDesc,
@@ -141,7 +144,7 @@ Page({
                 title: item.goodsName,
                 specs: (item.specInfo || []).map((s) => s.specValues || ''),
                 itemRefundAmount: item.itemRefundAmount,
-                rightsQuantity: item.itemRefundAmount,
+                rightsQuantity: item.rightsQuantity,
               })),
               storeId: _data.storeId,
               buttons: _data.buttonVOs || [],

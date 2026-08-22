@@ -1,11 +1,11 @@
 import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
 import Toast from 'tdesign-miniprogram/toast/index';
+const COMPLETE_ORDER_STATUS = 50;
 
 const ORDER_PAGE_NAVIGATION_ENABLED = true;
 // 我的页优惠券入口暂时隐藏，恢复时改为 true。
 const COUPON_DISPLAY_ENABLED = false;
-// 技术支持页跳转暂时禁用，恢复时改为 true。
-const SUPPORT_PAGE_NAVIGATION_ENABLED = false;
+const SUPPORT_PAGE_NAVIGATION_ENABLED = true;
 
 const toolData = [
   {
@@ -56,7 +56,7 @@ const orderTagInfos = [
     title: '待评价',
     iconName: 'comment',
     orderNum: 0,
-    tabType: 60,
+    tabType: COMPLETE_ORDER_STATUS,
     status: 1,
   },
   {
@@ -145,9 +145,7 @@ Page({
         break;
       }
       case 'about': {
-        if (!SUPPORT_PAGE_NAVIGATION_ENABLED) return;
-
-        wx.navigateTo({ url: '/pages/user/support/index' });
+        wx.navigateTo({ url: '/pages/user/about/index' });
         break;
       }
       case 'help-center': {
@@ -200,6 +198,10 @@ Page({
 
     if (status === 0) {
       wx.navigateTo({ url: '/pages/order/after-service-list/index' });
+    } else if (status === COMPLETE_ORDER_STATUS) {
+      wx.navigateTo({
+        url: `/pages/order/order-list/index?status=${status}&pendingComment=true`,
+      });
     } else {
       wx.navigateTo({ url: `/pages/order/order-list/index?status=${status}` });
     }

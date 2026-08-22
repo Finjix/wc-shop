@@ -9,6 +9,7 @@ import {
   fetchApplyReasonList,
   dispatchApplyService,
 } from '../../../services/order/applyService';
+import { fetchOrderDetail } from '../../../services/order/orderDetail';
 
 Page({
   query: {},
@@ -26,7 +27,7 @@ Page({
     serviceType: ServiceType.RETURN_GOODS, // 20-仅退款，10-退货退款
     serviceFrom: {
       returnNum: 1,
-      receiptStatus: { desc: '已收到货', status: ServiceReceiptStatus.RECEIPTED },
+      receiptStatus: { desc: '请选择', status: null },
       applyReason: { desc: '请选择', type: null },
       // max-填写上限(单位分)，current-当前值(单位分)，temp输入框中的值(单位元)
       amount: { max: 0, current: 0, temp: 0, focus: false },
@@ -35,6 +36,7 @@ Page({
     },
     maxApplyNum: 2, // 最大可申请售后的商品数
     amountTip: '',
+    refundAmountText: '0.00',
     showReceiptStatusDialog: false,
     validateRes: {
       valid: false,
@@ -111,6 +113,7 @@ Page({
   async init() {
     try {
       await this.refresh();
+      // 收货状态仍保持“请选择”，但退款原因可以直接打开查看
       const applyReasons = await this.getApplyReasons(ServiceReceiptStatus.RECEIPTED);
       this.setData({ applyReasons });
     } catch (e) {}
@@ -142,7 +145,11 @@ Page({
     try {
       const res = await this.getRightsPreview();
       wx.hideLoading();
-      const previewGoods = this.isOrderLevel ? res.data.goodsList || [] : [res.data];
+      const preview = (res && res.data) || {};
+      const previewAmount = Number(preview.refundableAmount || 0);
+      const orderAmount = Number(this.query.payAmt || this.query.orderAmt || 0);
+      const refundableAmount = previewAmount > 0 ? previewAmount : orderAmount;
+      const previewGoods = this.isOrderLevel ? preview.goodsList || [] : [preview];
       const goodsInfoList = previewGoods.map((goods) => ({
         id: goods.skuId,
         thumb: goods.goodsInfo && goods.goodsInfo.skuImage,
@@ -156,16 +163,17 @@ Page({
       this.setData({
         goodsInfo: goodsInfoList[0] || {},
         goodsInfoList,
+        refundAmountText: priceFormat(refundableAmount, 2),
         'serviceFrom.amount': {
-          max: res.data.refundableAmount,
-          current: res.data.refundableAmount,
+          max: refundableAmount,
+          current: refundableAmount,
         },
-        'serviceFrom.returnNum': res.data.numOfSku,
-        amountTip: `最多可申请退款¥ ${priceFormat(res.data.refundableAmount, 2)}，含发货运费¥ ${priceFormat(
-          res.data.shippingFeeIncluded,
+        'serviceFrom.returnNum': preview.numOfSku || 1,
+        amountTip: `最多可申请退款¥ ${priceFormat(refundableAmount, 2)}，含发货运费¥ ${priceFormat(
+          preview.shippingFeeIncluded || 0,
           2,
         )}`,
-        maxApplyNum: res.data.numOfSkuAvailable,
+        maxApplyNum: preview.numOfSkuAvailable || preview.numOfSku || 1,
       });
     } catch (err) {
       wx.hideLoading();
@@ -176,7 +184,16 @@ Page({
   async getRightsPreview() {
     const { orderNo, skuId, spuId } = this.query;
     if (this.isOrderLevel) {
-      return fetchRightsPreview({ orderNo, orderLevel: true });
+      // 订单级售后金额以订单详情的实付金额为准，避免沿用按商品聚合的旧预览 mock。
+      const orderPreview = await this.getOrderPreview(orderNo);
+      if (Number(orderPreview && orderPreview.data && orderPreview.data.refundableAmount) > 0) {
+        return orderPreview;
+      }
+      try {
+        const preview = await fetchRightsPreview({ orderNo, orderLevel: true });
+        if (preview && preview.data) return preview;
+      } catch (e) {}
+      return this.getOrderPreview(orderNo);
     }
     const params = {
       orderNo,
@@ -188,9 +205,65 @@ Page({
     return res;
   },
 
+  async getOrderPreview(orderNo) {
+    try {
+      const res = await fetchOrderDetail({ parameter: orderNo });
+      const order = res && res.data;
+      const orderItems = (order && order.orderItemVOs) || [];
+      const goodsList = orderItems.map((goods) => {
+        const quantity = Number(goods.buyQuantity || 0);
+        const paidAmountEach =
+          Number(goods.goodsPaymentPrice || 0) ||
+          (quantity ? Number(goods.itemPaymentAmount || 0) / quantity : 0);
+        return {
+          spuId: goods.spuId,
+          skuId: goods.skuId,
+          numOfSku: quantity,
+          numOfSkuAvailable: quantity,
+          refundableAmount: `${goods.itemPaymentAmount || 0}`,
+          paidAmountEach: `${paidAmountEach}`,
+          boughtQuantity: quantity,
+          goodsInfo: {
+            goodsName: goods.goodsName,
+            skuImage: goods.goodsPictureUrl,
+            specInfo: goods.specifications || [],
+          },
+        };
+      });
+      const quantity = goodsList.reduce((sum, goods) => sum + goods.boughtQuantity, 0);
+      const orderAmount =
+        Number(order && order.paymentAmount) ||
+        Number(order && order.goodsAmountApp) ||
+        Number(order && order.totalAmount) ||
+        Number(this.query.payAmt || this.query.orderAmt || 0);
+      return {
+        data: {
+          refundableAmount: `${orderAmount}`,
+          shippingFeeIncluded: `${(order && order.freightFee) || 0}`,
+          numOfSku: quantity,
+          numOfSkuAvailable: quantity,
+          goodsList,
+        },
+      };
+    } catch (e) {
+      return {
+        data: {
+          refundableAmount: `${Number(this.query.payAmt || this.query.orderAmt || 0)}`,
+          shippingFeeIncluded: '0',
+          numOfSku: 1,
+          numOfSkuAvailable: 1,
+          goodsList: [],
+        },
+      };
+    }
+  },
+
   onApplyOnlyRefund() {
     wx.setNavigationBarTitle({ title: '售后申请' });
-    this.setData({ serviceRequireType: 'REFUND_MONEY' });
+    this.setData({
+      serviceRequireType: 'REFUND_MONEY',
+      serviceType: ServiceType.ONLY_REFUND,
+    });
     this.switchReceiptStatus(0);
   },
 
@@ -212,14 +285,16 @@ Page({
                 logisticsNo: this.query.logisticsNo,
                 orderNo: this.query.orderNo,
               },
-            });
-          });
+            }).then(() => ServiceReceiptStatus.RECEIPTED);
+          }).catch(() => ServiceReceiptStatus.NOT_RECEIPTED);
         }
-        return;
+        return ServiceReceiptStatus.RECEIPTED;
       })
-      .then(() => {
+      .then((receiptStatus) => {
         this.setData({ serviceType: ServiceType.RETURN_GOODS });
-        this.switchReceiptStatus(1);
+        this.switchReceiptStatus(
+          receiptStatus === ServiceReceiptStatus.NOT_RECEIPTED ? 0 : 1,
+        );
       });
   },
 
@@ -229,6 +304,7 @@ Page({
       title: '选择退款原因',
       options: this.data.applyReasons.map((r) => ({
         title: r.desc,
+        checked: r.type === this.data.serviceFrom.applyReason.type,
       })),
       showConfirmButton: true,
       showCancelButton: true,
@@ -253,6 +329,7 @@ Page({
       title: '请选择收货状态',
       options: this.data.receiptStatusList.map((r) => ({
         title: r.desc,
+        checked: r.status === this.data.serviceFrom.receiptStatus.status,
       })),
       showConfirmButton: true,
       emptyTip: '请选择收货状态',
@@ -339,13 +416,14 @@ Page({
         rights: {
           orderNo: this.query.orderNo,
           refundRequestAmount: this.data.serviceFrom.amount.current,
+          receiptStatus: this.data.serviceFrom.receiptStatus.status,
           rightsImageUrls: this.data.serviceFrom.rightsImageUrls,
           rightsReasonDesc: this.data.serviceFrom.applyReason.desc,
-          rightsReasonType: this.data.serviceFrom.receiptStatus.status,
+          rightsReasonType: this.data.serviceFrom.applyReason.type,
           rightsType: this.data.serviceType,
         },
         rightsItem,
-        refundMemo: this.data.serviceFrom.remark.current,
+        refundMemo: this.data.serviceFrom.remark,
       };
       this.setData({ submitting: true });
       // 发起申请售后请求
@@ -386,18 +464,18 @@ Page({
   handleSuccess(e) {
     const { files } = e.detail;
     this.setData({
-      'sessionFrom.rightsImageUrls': files,
+      'serviceFrom.rightsImageUrls': files,
     });
   },
 
   handleRemove(e) {
     const { index } = e.detail;
     const {
-      sessionFrom: { rightsImageUrls },
+      serviceFrom: { rightsImageUrls },
     } = this.data;
     rightsImageUrls.splice(index, 1);
     this.setData({
-      'sessionFrom.rightsImageUrls': rightsImageUrls,
+      'serviceFrom.rightsImageUrls': rightsImageUrls,
     });
   },
 

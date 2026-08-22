@@ -1,3 +1,10 @@
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="{{pageTitle}}"
+  leftArrow
+  fixed="{{false}}"
+  background="#fff"
+/>
 <wr-loading-content position="fixed" type="spinner" wx:if="{{pageLoading}}" />
 <view class="page-container">
   <t-pull-down-refresh
@@ -50,20 +57,24 @@
         </block>
       </view>
       <!-- 物流 -->
-      <view class="service-section logistics" wx:if="{{service.logisticsNo}}">
-        <view class="service-section__title">
+      <view
+        class="service-section logistics"
+        wx:if="{{service.logisticsNo || service.buttons.length}}"
+      >
+        <view wx:if="{{service.logisticsNo}}" class="service-section__title">
           <t-cell
             align="top"
             title="{{service.logisticsCompanyName + ' ' + service.logisticsNo}}"
             bordered="{{false}}"
-            description="买家已寄出"
+            description="{{service.logisticsDescription}}"
             arrow
+            bindtap="onLogisticsTap"
           >
             <t-icon prefix="wr" color="#333333" name="deliver" size="40rpx" slot="left-icon" />
           </t-cell>
-          <view style="padding: 0 32rpx">
-            <wr-after-service-button-bar service="{{service}}" />
-          </view>
+        </view>
+        <view wx:if="{{service.buttons.length}}" class="service-detail__button-bar">
+          <wr-after-service-button-bar service="{{service}}" />
         </view>
       </view>
       <!-- 收货地址 -->

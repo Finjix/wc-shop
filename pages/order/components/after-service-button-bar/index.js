@@ -9,7 +9,9 @@ Component({
     service: {
       type: Object,
       observer(service) {
-        const buttonsRight = service.buttons || service.buttonVOs || [];
+        const buttonsRight = (service.buttons || service.buttonVOs || []).filter(
+          (button) => button.type !== ServiceButtonTypes.VIEW_DELIVERY,
+        );
         this.setData({
           buttons: {
             left: [],
@@ -78,18 +80,29 @@ Component({
       Dialog.confirm({
         title: '是否撤销退货申请？',
         content: '',
-        confirmBtn: '撤销申请',
-        cancelBtn: '不撤销',
-      }).then(() => {
-        const params = { rightsNo: this.data.service.id };
-        return cancelRights(params).then(() => {
-          Toast({
-            context: this,
-            selector: '#t-toast',
-            message: '你确认撤销申请',
+        // Dialog 默认右侧为确认、左侧为取消；调整文案后保持两侧实际逻辑一致。
+        confirmBtn: {
+          content: '不撤销',
+          variant: 'text',
+          theme: 'default',
+        },
+        cancelBtn: {
+          content: '撤销申请',
+          variant: 'text',
+          theme: 'default',
+        },
+      })
+        .then(() => {})
+        .catch(() => {
+          const params = { rightsNo: this.data.service.id };
+          return cancelRights(params).then(() => {
+            Toast({
+              context: this,
+              selector: '#t-toast',
+              message: '你确认撤销申请',
+            });
           });
         });
-      });
     },
   },
 });

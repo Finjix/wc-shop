@@ -296,3 +296,26 @@ export function getGoodsCommentsCount() {
     uidCount: '0',
   };
 }
+
+const orderCommentMocks = {
+  '130150835531421260': {
+    spuId: '0',
+    skuId: '135681631',
+    specInfo: '颜色:米色荷叶边 尺码:M',
+    commentContent: '收到商品了，面料柔软，穿起来很舒服，整体很满意。',
+    commentResources: [],
+    commentScore: 5,
+    uid: '88888888205468',
+    userName: '测试用户',
+    userHeadUrl: 'https://tdesign.gtimg.com/miniprogram/template/retail/avatar/avatar1.png',
+    isAnonymity: false,
+    commentTime: '1588291200508',
+    isAutoComment: false,
+    sellerReply: '',
+    goodsDetailInfo: '颜色:米色荷叶边 尺码:M',
+  },
+};
+
+export function getOrderComment(orderNo) {
+  return orderCommentMocks[orderNo] || null;
+}

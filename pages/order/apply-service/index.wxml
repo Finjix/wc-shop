@@ -6,7 +6,7 @@
   background="#fff"
 />
 <view class="select-service">
-  <view class="order-goods-card">
+  <view wx:if="{{!orderLevel}}" class="order-goods-card">
     <wr-order-goods-card
       wx:for="{{goodsInfoList}}"
       wx:for-item="goods"
@@ -105,13 +105,7 @@
           description="{{amountTip}}"
         >
           <view class="service-from-group__wrapper" slot="note">
-            <wr-price
-              price="{{serviceFrom.amount.current}}"
-              fill
-              wr-class="refund-money-price-class"
-              symbol-class="refund-money-price-symbol"
-              decimal-class="refund-money-price-decimal"
-            />
+            <text class="refund-money-price">¥{{refundAmountText}}</text>
           </view>
         </t-cell>
       </t-cell-group>
@@ -131,7 +125,7 @@
     <view class="service-from-group__grid">
       <t-upload
         media-type="{{['image','video']}}"
-        files="{{sessionFrom.rightsImageUrls}}"
+        files="{{serviceFrom.rightsImageUrls}}"
         bind:remove="handleRemove"
         bind:success="handleSuccess"
         bind:complete="handleComplete"

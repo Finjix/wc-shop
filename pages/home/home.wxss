@@ -166,12 +166,13 @@ page {
 
 .shop-benefits-banner {
   width: 100%;
-  background: #f5f5f5;
 }
 
 .shop-benefits-banner__image {
   display: block;
   width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
 }
 
 .age-warning {

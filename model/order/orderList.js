@@ -5,7 +5,7 @@ export function genOrders(params) {
     data: {
       pageNum: 1,
       pageSize: 10,
-      totalCount: 6,
+      totalCount: 8,
       orders: [
         {
           saasId: '88888888',
@@ -1003,7 +1003,21 @@ export function genOrders(params) {
     success: true,
   };
   const { pageNum, pageSize, orderStatus } = params.parameter;
-  resp.data.orders = resp.data.orders.filter((order) => order.orderStatus !== 5);
+  const completedOrderMock = resp.data.orders.find(
+    (order) => order.orderNo === '130150835531421259',
+  );
+  if (completedOrderMock) {
+    const additionalCompletedOrder = JSON.parse(JSON.stringify(completedOrderMock));
+    additionalCompletedOrder.parentOrderNo = '130150835531421260';
+    additionalCompletedOrder.orderId = '130150836385879809';
+    additionalCompletedOrder.orderNo = '130150835531421260';
+    additionalCompletedOrder.createTime = '1587007084842';
+    additionalCompletedOrder.buttonVOs = [{ primary: false, type: 10, name: '查看评价' }];
+    additionalCompletedOrder.orderItemVOs[0].id = '130150836520098049';
+    resp.data.orders.push(additionalCompletedOrder);
+  }
+  // 已取消和待付款订单不在订单列表中展示
+  resp.data.orders = resp.data.orders.filter((order) => ![5, 80].includes(order.orderStatus));
   // 实现筛选
   if (orderStatus > -1) {
     resp.data.orders = resp.data.orders.filter((order) => order.orderStatus === orderStatus);

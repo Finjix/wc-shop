@@ -26,7 +26,6 @@
       <view class="border-bottom" wx:if="{{logisticsNodes[0]}}" />
       <!-- 收货地址 -->
       <view class="order-logistics">
-        <t-icon name="location" size="40rpx" class="logistics-icon" prefix="wr" />
         <view class="logistics-content">
           <view>{{order.logisticsVO.receiverName + ' '}}{{order.logisticsVO.receiverPhone}}</view>
           <view class="logistics-time">{{_order.receiverAddress}}</view>

@@ -1,4 +1,4 @@
-page view {
+:host {
   box-sizing: border-box;
 }
 .popup-content {
@@ -29,6 +29,7 @@ page view {
 }
 .popup-content .button-bar {
   width: 100%;
+  box-sizing: border-box;
   padding: 20rpx 30rpx;
   display: flex;
   flex-wrap: nowrap;
@@ -37,8 +38,9 @@ page view {
 }
 .popup-content .button-bar .btn {
   width: 100%;
-  background: #fa4126;
-  color: #fff;
+  background: var(--app-theme-color, #F5CE2B);
+  color: var(--app-theme-text-color, #8A6800);
+  font-weight: 700;
   border-radius: 48rpx;
 }
 .button-bar .btnWrapper {
