@@ -8,16 +8,6 @@
 <view class="person-info">
   <t-cell-group>
     <t-cell
-      title="头像"
-      center="{{true}}"
-      data-type="avatarUrl"
-      bind:click="onClickCell"
-      arrow
-      t-class-left="order-group__left"
-    >
-      <t-image slot="note" src="{{personInfo.avatarUrl}}" t-class="avatarUrl" mode="aspectFill" />
-    </t-cell>
-    <t-cell
       wx:if="{{!editingNickname}}"
       title="昵称"
       arrow

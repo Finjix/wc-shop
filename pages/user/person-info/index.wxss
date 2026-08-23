@@ -50,13 +50,6 @@ page view {
   border: 0;
 }
 
-.avatarUrl {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50% !important;
-  overflow: hidden;
-}
-
 .person-info .order-group__left {
   margin-right: 0;
 }

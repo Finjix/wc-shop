@@ -1,10 +1,7 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchGood } from '../../../services/good/fetchGood';
 import { addGoodsToCart } from '../../../services/cart/cart';
-import {
-  getGoodsDetailsCommentList,
-  getGoodsDetailsCommentsCount,
-} from '../../../services/good/fetchGoodsDetailsComments';
+import { getGoodsDetailsCommentsCount } from '../../../services/good/fetchGoodsDetailsComments';
 
 import { cdnBase } from '../../../config/index';
 
@@ -19,7 +16,6 @@ const obj2Params = (obj = {}, encode = false) => {
 
 Page({
   data: {
-    commentsList: [],
     commentsStatistics: {
       badCount: 0,
       commentCount: 0,
@@ -71,7 +67,6 @@ Page({
     minSalePrice: 0,
     maxSalePrice: 0,
     spuId: '',
-    navigation: { type: 'fraction' },
     current: 0,
     autoplay: true,
     duration: 500,
@@ -387,30 +382,6 @@ Page({
     });
   },
 
-  async getCommentsList() {
-    try {
-      const code = 'Success';
-      const data = await getGoodsDetailsCommentList();
-      const { homePageComments } = data;
-      if (code.toUpperCase() === 'SUCCESS') {
-        const nextState = {
-          commentsList: homePageComments.map((item) => {
-            return {
-              goodsSpu: item.spuId,
-              userName: item.userName || '',
-              commentScore: item.commentScore,
-              commentContent: item.commentContent || '用户未填写评价',
-              userHeadUrl: item.isAnonymity ? this.anonymityAvatar : item.userHeadUrl || this.anonymityAvatar,
-            };
-          }),
-        };
-        this.setData(nextState);
-      }
-    } catch (error) {
-      console.error('comments error:', error);
-    }
-  },
-
   onShareAppMessage() {
     // 自定义的返回信息
     const { selectedAttrStr } = this.data;
@@ -465,7 +436,6 @@ Page({
       spuId: spuId,
     });
     this.getDetail(spuId);
-    this.getCommentsList(spuId);
     this.getCommentsStatistics(spuId);
   },
 });

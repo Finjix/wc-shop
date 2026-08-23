@@ -15,7 +15,7 @@
       autoplay="{{autoplay}}"
       duration="{{duration}}"
       interval="{{interval}}"
-      navigation="{{navigation}}"
+      navigation="{{false}}"
       list="{{details.images}}"
     ></t-swiper>
     <view class="goods-info">
@@ -33,14 +33,6 @@
       </view>
       <view class="goods-title">
         <view class="goods-name">{{details.title}}</view>
-        <view class="goods-tag">
-          <t-button open-type="share" t-class="shareBtn" variant="text">
-            <view class="btn-icon">
-              <t-icon name="share" size="40rpx" color="#222427" />
-              <view class="share-text">分享</view>
-            </view>
-          </t-button>
-        </view>
       </view>
       <view class="goods-intro">{{intro}}</view>
     </view>
@@ -62,15 +54,6 @@
         <view class="comments-rate-wrap">
           <t-icon name="chevron-right" size="40rpx" color="#BBBBBB" />
         </view>
-      </view>
-      <view class="comment-item-wrap" wx:for="{{ commentsList }}" wx:for-item="commentItem" wx:key="goodsSpu">
-        <view class="comment-item-head">
-          <t-image src="{{commentItem.userHeadUrl}}" t-class="comment-item-avatar" />
-          <view class="comment-head-right">
-            <view class="comment-username">{{commentItem.userName}}</view>
-          </view>
-        </view>
-        <view class="comment-item-content"> {{commentItem.commentContent}} </view>
       </view>
     </view>
   </view>
@@ -98,7 +81,6 @@
     src="{{specImg ? specImg : primaryImage}}"
     specList="{{details.specList || []}}"
     skuList="{{skuArray}}"
-    limitBuyInfo="{{details.limitInfo[0].text || ''}}"
     bind:closeSpecsPopup="handlePopupHide"
     bind:change="chooseSpecItem"
     bind:changeNum="changeNum"
@@ -109,14 +91,7 @@
     outOperateStatus="{{outOperateStatus}}"
   >
     <view slot="goods-price">
-      <view class="popup-sku__price">
-        <price
-          wx:if="{{!isAllSelectedSku}}"
-          price="{{selectSkuSellsPrice ? selectSkuSellsPrice : minSalePrice }}"
-          wr-class="popup-sku__price-num"
-          symbol-class="popup-sku__price-symbol"
-        />
-      </view>
+      <view class="popup-sku__price" />
     </view>
   </goods-specs-popup>
 </view>

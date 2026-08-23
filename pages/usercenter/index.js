@@ -61,7 +61,6 @@ const getDefaultData = () => ({
   navBarHeight: 44,
   customNavHeight: 44,
   userInfo: {
-    avatarUrl: '',
     nickName: '用户_1A4B',
     phoneNumber: '',
   },

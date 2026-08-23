@@ -1,7 +1,6 @@
 {
   "component": true,
   "usingComponents": {
-    "images-videos": "./components/images-videos",
-    "t-image": "/components/webp-image/index"
+    "images-videos": "./components/images-videos"
   }
 }

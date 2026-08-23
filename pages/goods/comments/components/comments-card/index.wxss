@@ -16,16 +16,6 @@
   background-color: #f5f5f5;
 }
 
-.comments-card-item-userImg {
-  display: flex;
-}
-
-.comments-card-item-userImg .userImg {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-}
-
 .comments-card-item-container {
   width: 100%;
 }
@@ -128,7 +118,6 @@
 .comments-title .userName {
   font-size: 26rpx;
   color: #333333;
-  margin-left: 24rpx;
 }
 
 .comments-title .commentTime {

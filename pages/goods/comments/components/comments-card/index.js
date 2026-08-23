@@ -12,10 +12,6 @@ Component({
       type: String,
       value: '',
     },
-    userHeadUrl: {
-      type: String,
-      value: '',
-    },
     userName: {
       type: String,
       default: '',

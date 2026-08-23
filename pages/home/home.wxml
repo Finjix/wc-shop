@@ -27,7 +27,7 @@
       <t-loading theme="circular" size="40rpx" text="加载中..." inherit-color />
     </view>
 
-    <view class="broadcast-bar">
+    <view class="broadcast-bar" bind:tap="onDistributionBannerTap">
       <view class="broadcast-icon">
         <t-icon name="sound" size="30rpx" color="#8A6800" />
       </view>
@@ -51,7 +51,7 @@
         autoplay="{{autoplay}}"
         duration="{{duration}}"
         interval="{{interval}}"
-        navigation="{{navigation}}"
+        navigation="{{false}}"
         imageProps="{{swiperImageProps}}"
         list="{{imgSrcs}}"
       bind:click="navToGoodsDetail"
@@ -88,9 +88,6 @@
                 />
                 <text class="hot-product-card__price-suffix">起</text>
               </view>
-              <view class="hot-product-card__price-action">
-                <t-icon name="chevron-right" size="21rpx" color="#fff" />
-              </view>
             </view>
           </view>
         </view>
@@ -124,9 +121,6 @@
                 price="{{item.price}}"
               />
               <text class="new-product-card__price-suffix">起</text>
-            </view>
-            <view class="new-product-card__price-action">
-              <t-icon name="chevron-right" size="19rpx" color="#fff" />
             </view>
           </view>
         </view>
@@ -162,9 +156,6 @@
               />
               <text class="hot-product-card__price-suffix">起</text>
             </view>
-            <view class="hot-product-card__price-action">
-                <t-icon name="chevron-right" size="21rpx" color="#fff" />
-            </view>
           </view>
         </view>
       </view>
@@ -198,9 +189,6 @@
                 price="{{item.price}}"
               />
               <text class="new-product-card__price-suffix">起</text>
-            </view>
-            <view class="new-product-card__price-action">
-              <t-icon name="chevron-right" size="19rpx" color="#fff" />
             </view>
           </view>
         </view>
@@ -236,9 +224,6 @@
               />
               <text class="hot-product-card__price-suffix">起</text>
             </view>
-            <view class="hot-product-card__price-action">
-                <t-icon name="chevron-right" size="21rpx" color="#fff" />
-            </view>
           </view>
         </view>
       </view>
@@ -272,9 +257,6 @@
                 price="{{item.price}}"
               />
               <text class="new-product-card__price-suffix">起</text>
-            </view>
-            <view class="new-product-card__price-action">
-              <t-icon name="chevron-right" size="19rpx" color="#fff" />
             </view>
           </view>
         </view>

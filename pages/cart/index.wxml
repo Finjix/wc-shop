@@ -1,26 +1,26 @@
-<t-navbar
-  t-class-title="cart-navbar__title"
-  t-class-content="cart-navbar__content"
-  title="购物车"
-  fixed="{{false}}"
-  background="#fff"
-/>
+<view
+  class="cart-custom-nav"
+  style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"
+>
+  <view class="cart-custom-nav__content" style="height: {{navBarHeight}}px;">购物车</view>
+</view>
 <!-- 分层购物车 -->
-<block wx:if="{{cartGroupData.isNotEmpty}}">
-  <cart-group
-    store-goods="{{ cartGroupData.storeGoods }}"
-    invalid-good-items="{{ cartGroupData.invalidGoodItems }}"
-    theme-color="{{themeColor}}"
-    bindselectgoods="onGoodsSelect"
-    bindselectstore="onStoreSelect"
-    bindchangequantity="onQuantityChange"
-    bindgoodsclick="goGoodsDetail"
-    bindspecschange="onGoodsSpecsChange"
-    bindclearinvalidgoods="clearInvalidGoods"
-    binddelete="onGoodsDelete"
-  />
+<cart-group
+  wx:if="{{cartGroupData.isNotEmpty}}"
+  store-goods="{{ cartGroupData.storeGoods }}"
+  invalid-good-items="{{ cartGroupData.invalidGoodItems }}"
+  theme-color="{{themeColor}}"
+  bindselectgoods="onGoodsSelect"
+  bindselectstore="onStoreSelect"
+  bindchangequantity="onQuantityChange"
+  bindgoodsclick="goGoodsDetail"
+  bindconfirmdelete="onConfirmDeleteRequest"
+  bindspecschange="onGoodsSpecsChange"
+  bindclearinvalidgoods="clearInvalidGoods"
+  binddelete="onGoodsDelete"
+/>
 
-  <view wx:if="{{recommendedLeft.length || recommendedRight.length}}" class="cart-recommend-section">
+<view wx:if="{{recommendedLeft.length || recommendedRight.length}}" class="cart-recommend-section">
     <view class="cart-recommend-title">
       <view class="cart-recommend-title__line" />
       <text>推荐商品</text>
@@ -44,9 +44,6 @@
               <price wr-class="hot-product-card__price-number" price="{{item.price}}" />
               <text class="hot-product-card__price-suffix">起</text>
             </view>
-            <view class="hot-product-card__price-action">
-              <t-icon name="chevron-right" size="21rpx" color="#fff" />
-            </view>
           </view>
         </view>
       </view>
@@ -67,34 +64,38 @@
               <price wr-class="hot-product-card__price-number" price="{{item.price}}" />
               <text class="hot-product-card__price-suffix">起</text>
             </view>
-            <view class="hot-product-card__price-action">
-              <t-icon name="chevron-right" size="21rpx" color="#fff" />
-            </view>
           </view>
         </view>
       </view>
     </view>
     <view wx:if="{{recommendedLoading}}" class="cart-recommend-status">加载更多商品...</view>
     <view wx:if="{{!recommendedHasMore && !recommendedLoading}}" class="cart-recommend-status">没有更多商品了</view>
-  </view>
+</view>
 
-  <view wx:if="{{!recommendedLeft.length && !recommendedRight.length && recommendedLoading}}" class="cart-recommend-loading">
-    推荐商品加载中...
-  </view>
+<view wx:if="{{!recommendedLeft.length && !recommendedRight.length && recommendedLoading}}" class="cart-recommend-loading">
+  推荐商品加载中...
+</view>
 
-  <!-- 商品小计以及结算按钮 -->
-  <cart-bar
-    is-all-selected="{{cartGroupData.isAllSelected}}"
-    total-amount="{{cartGroupData.totalAmount}}"
-    total-goods-num="{{cartGroupData.selectedGoodsCount}}"
-    theme-color="{{themeColor}}"
-    fixed="{{true}}"
-    bottomHeight="{{110}}"
-    bindhandleSelectAll="onSelectAll"
-    bindhandleToSettle="onToSettle"
-  />
-</block>
-<!-- 购物车空态 -->
-<cart-empty wx:else bind:handleClick="onGotoHome" />
+<!-- 商品小计以及结算按钮 -->
+<cart-bar
+  wx:if="{{cartGroupData.isNotEmpty}}"
+  is-all-selected="{{cartGroupData.isAllSelected}}"
+  total-amount="{{cartGroupData.totalAmount}}"
+  total-goods-num="{{cartGroupData.selectedGoodsCount}}"
+  theme-color="{{themeColor}}"
+  fixed="{{true}}"
+  bottomHeight="{{110}}"
+  bindhandleSelectAll="onSelectAll"
+  bindhandleToSettle="onToSettle"
+/>
 <t-toast id="t-toast" />
-<t-dialog id="t-dialog" />
+<t-dialog
+  id="t-dialog"
+  visible="{{deleteDialogVisible}}"
+  title="确认移出购物车"
+  content="确定要将该商品移出购物车吗？"
+  bindconfirm="confirmDeleteGoods"
+  bind:close="closeDeleteDialog"
+  confirm-btn="确定"
+  cancel-btn="取消"
+/>

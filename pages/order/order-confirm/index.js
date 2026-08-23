@@ -16,7 +16,6 @@ Page({
       outOfStockGoodsList: [], //库存不足商品
       abnormalDeliveryGoodsList: [], // 不能正常配送商品
       inValidGoodsList: [], // 失效或者库存不足
-      limitGoodsList: [], //限购商品
       couponList: [], //门店优惠券信息
     }, // 获取结算页详情 data
     orderCardList: [], // 仅用于商品卡片展示
@@ -147,9 +146,8 @@ Page({
   },
 
   isInvalidOrder(data) {
-    // 失效 不在配送范围 限购的商品 提示弹窗
+    // 失效、不在配送范围的商品提示弹窗
     if (
-      (data.limitGoodsList && data.limitGoodsList.length > 0) ||
       (data.abnormalDeliveryGoodsList && data.abnormalDeliveryGoodsList.length > 0) ||
       (data.inValidGoodsList && data.inValidGoodsList.length > 0)
     ) {
@@ -386,7 +384,7 @@ Page({
       (res) => {
         this.payLock = false;
         const { data } = res;
-        // 提交出现 失效 不在配送范围 限购的商品 提示弹窗
+        // 提交出现失效、不在配送范围的商品提示弹窗
         if (this.isInvalidOrder(data)) {
           return;
         }

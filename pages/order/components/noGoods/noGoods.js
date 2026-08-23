@@ -8,11 +8,9 @@ Component({
           outOfStockGoodsList,
           abnormalDeliveryGoodsList,
           inValidGoodsList,
-          limitGoodsList,
         } = settleDetailData;
-        // 弹窗逻辑   限购  超出配送范围   失效    库存不足;
+        // 弹窗逻辑   超出配送范围   失效    库存不足;
         const tempList =
-          limitGoodsList ||
           abnormalDeliveryGoodsList ||
           inValidGoodsList ||
           outOfStockGoodsList ||

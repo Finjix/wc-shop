@@ -23,7 +23,6 @@ function mockDispatchCommitPay() {
       msg: null,
       interactId: '15145',
       channel: 'wechat',
-      limitGoodsList: null,
     },
     code: 'Success',
     msg: null,

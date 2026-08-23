@@ -10,7 +10,7 @@ export default [
     url: 'pages/category/index',
   },
   {
-    icon: '',
+    icon: 'wallet',
     text: '分销',
     url: '',
     special: true,

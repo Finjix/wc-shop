@@ -7,7 +7,7 @@
         wx:for-item="goods"
         wx:for-index="gi"
         wx:key="extKey"
-        catchlongpress="deleteGoods"
+        catchlongpress="confirmDeleteGoods"
         data-goods="{{goods}}"
       >
         <swipeout right-width="{{ 72 }}">
@@ -30,6 +30,7 @@
                 data-goods="{{goods}}"
                 catchspecs="specsTap"
                 catchthumb="goGoodsDetail"
+                catchtitle="goGoodsDetail"
               >
                 <view slot="thumb-cover" class="stock-mask" wx:if="{{goods.shortageStock || goods.stockQuantity <= 3}}">
                   仅剩{{goods.stockQuantity}}件
@@ -66,7 +67,7 @@
         wx:for-item="goods"
         wx:for-index="gi"
         wx:key="extKey"
-        catchlongpress="deleteGoods"
+        catchlongpress="confirmDeleteGoods"
         data-goods="{{goods}}"
       >
         <swipeout right-width="{{ 72 }}">
@@ -84,6 +85,7 @@
                 data-goods="{{goods}}"
                 catchspecs="specsTap"
                 catchthumb="goGoodsDetail"
+                catchtitle="goGoodsDetail"
               >
                 <view slot="thumb-cover" class="no-storage-mask" wx:if="{{goods.stockQuantity <=0}}">
                   <view class="no-storage-content">无货</view>

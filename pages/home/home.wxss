@@ -265,20 +265,6 @@ page {
   line-height: 1;
 }
 
-.hot-product-card__price-action {
-  display: flex;
-  width: 28rpx;
-  height: 28rpx;
-  margin-left: 8rpx;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #F5CE2B;
-  font-size: 22rpx;
-  font-weight: 800;
-  line-height: 1;
-}
-
 .new-sale-section {
   width: auto;
   margin: 0;
@@ -357,17 +343,5 @@ page {
   color: #111;
   font-size: 36rpx;
   font-weight: 800;
-  line-height: 1;
-}
-
-.new-product-card__price-action {
-  display: flex;
-  width: 22rpx;
-  height: 22rpx;
-  margin-left: 5rpx;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #F5CE2B;
   line-height: 1;
 }

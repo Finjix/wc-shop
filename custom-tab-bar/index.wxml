@@ -11,17 +11,12 @@
 	 wx:key="index"
 	>
 		<view class="custom-tab-bar-wrapper">
-			<view wx:if="{{item.special}}" class="distribution-rebate-circle">
-				<view class="distribution-rebate-title">分销</view>
-			</view>
-			<block wx:else>
-				<t-icon
-					prefix="wr"
-					name="{{item.icon}}"
-					size="44rpx"
-				/>
-				<view class="text">{{ item.text }}</view>
-			</block>
+			<t-icon
+				prefix="wr"
+				name="{{item.icon}}"
+				size="44rpx"
+			/>
+			<view class="text">{{ item.text }}</view>
 		</view>
 	</t-tab-bar-item>
 </t-tab-bar>

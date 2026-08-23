@@ -17,21 +17,9 @@ Component({
       type: Boolean,
       value: false,
     },
-    limitBuyInfo: {
-      type: String,
-      value: '',
-    },
     isStock: {
       type: Boolean,
       value: true,
-    },
-    limitMaxCount: {
-      type: Number,
-      value: 999,
-    },
-    limitMinCount: {
-      type: Number,
-      value: 1,
     },
     skuList: {
       type: Array,
@@ -79,6 +67,7 @@ Component({
   data: {
     buyNum: 1,
     isAllSelectedSku: false,
+    stockQuantity: 0,
   },
 
   methods: {
@@ -99,6 +88,7 @@ Component({
       });
       this.setData({
         specList,
+        stockQuantity: this.getCompatibleStockQuantity(selectedSku),
       });
       this.selectSpecObj = {};
       this.selectedSku = {};
@@ -238,6 +228,27 @@ Component({
       return array.filter((item) => nextArray.includes(item));
     },
 
+    getStockQuantity(sku) {
+      if (!sku) return 0;
+      if (sku.quantity !== undefined) return Math.max(0, Number(sku.quantity) || 0);
+      if (sku.stockQuantity !== undefined) return Math.max(0, Number(sku.stockQuantity) || 0);
+      return Math.max(0, Number(sku.stockInfo?.stockQuantity) || 0);
+    },
+
+    getCompatibleStockQuantity(selectedSku) {
+      const { skuList } = this.properties;
+      const selectedEntries = Object.entries(selectedSku || {}).filter(([, value]) => value !== '');
+      return skuList
+        .filter((sku) =>
+          selectedEntries.every(([specId, valueId]) =>
+            (sku.specInfo || []).some(
+              (item) => String(item.specId) === String(specId) && String(item.specValueId) === String(valueId),
+            ),
+          ),
+        )
+        .reduce((total, sku) => total + this.getStockQuantity(sku), 0);
+    },
+
     toChooseItem(e) {
       const { isStock } = this.properties;
       if (!isStock) return;
@@ -277,6 +288,7 @@ Component({
       this.setData({
         specList,
         isAllSelectedSku,
+        stockQuantity: this.getCompatibleStockQuantity(selectedSku),
       });
       this.selectedSku = selectedSku;
       this.triggerEvent('change', {

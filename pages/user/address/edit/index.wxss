@@ -24,12 +24,6 @@ page .divider-line {
   padding: 0 !important;
 }
 
-.form-address .map {
-  font-size: 48rpx !important;
-  margin-left: 20rpx;
-  color: #9d9d9f;
-}
-
 .submit {
   box-sizing: border-box;
   padding: 64rpx 30rpx 88rpx 30rpx;

@@ -159,11 +159,6 @@ const allGoods = [
       },
     ],
     spuTagList: [{ id: '13001', title: '限时抢购', image: null }],
-    limitInfo: [
-      {
-        text: '限购5件',
-      },
-    ],
     desc: [
       'https://tdesign.gtimg.com/miniprogram/template/retail/goods/nz-09c.png',
       'https://tdesign.gtimg.com/miniprogram/template/retail/goods/nz-09d.png',

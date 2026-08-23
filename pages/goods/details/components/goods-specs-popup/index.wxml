@@ -54,9 +54,9 @@
         <view class="popup-sku-stepper-container">
           <view class="popup-sku__stepper-title">
             购买数量
-            <view class="limit-text" wx:if="{{limitBuyInfo}}"> ({{limitBuyInfo}}) </view>
+            <text class="popup-sku__stock">（库存数量：{{stockQuantity}}）</text>
           </view>
-          <t-stepper value="{{buyNum}}" min="{{1}}" max="{{2}}" theme="filled" bind:change="handleBuyNumChange" />
+          <t-stepper value="{{buyNum}}" min="{{1}}" max="{{999}}" theme="filled" bind:change="handleBuyNumChange" />
         </view>
       </view>
     </view>

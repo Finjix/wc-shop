@@ -15,18 +15,6 @@
   background: white;
 }
 
-.c-sidebar-item.active::before {
-  content: '';
-  position: absolute;
-  width: 6rpx;
-  height: 48rpx;
-  background-color: #F5CE2B;
-  left: 0;
-  top: 50%;
-  transform: translate(0, -50%);
-  border-radius: 64rpx;
-}
-
 .c-sidebar-item__text {
   width: 136rpx;
   height: 36rpx;

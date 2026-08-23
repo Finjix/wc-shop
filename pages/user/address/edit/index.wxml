@@ -50,7 +50,6 @@
             catch:tap="onPickArea"
             disabled
           />
-          <t-icon slot="right-icon" t-class="map" prefix="wr" name="location" catch:tap="onSearchAddress" />
         </t-cell>
         <t-cell class="form-cell" t-class-title="t-cell-title" title="详细地址" bordered="{{false}}">
           <view slot="note" class="textarea__wrapper">

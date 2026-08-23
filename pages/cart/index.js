@@ -6,11 +6,16 @@ import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 Page({
   data: {
     cartGroupData: null,
+    statusBarHeight: 0,
+    navBarHeight: 44,
+    customNavHeight: 44,
     recommendedLeft: [],
     recommendedRight: [],
     recommendedOffset: 0,
     recommendedLoading: false,
     recommendedHasMore: true,
+    deleteDialogVisible: false,
+    pendingDeleteGoods: null,
     themeColor: '#F5CE2B',
   },
 
@@ -24,6 +29,18 @@ Page({
 
   onLoad() {
     this.recommendedSpuIds = new Set();
+    const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const menuButtonInfo = wx.getMenuButtonBoundingClientRect();
+    const statusBarHeight = windowInfo.statusBarHeight || 0;
+    const navBarHeight = menuButtonInfo.height
+      ? menuButtonInfo.height + (menuButtonInfo.top - statusBarHeight) * 2
+      : 44;
+
+    this.setData({
+      statusBarHeight,
+      navBarHeight,
+      customNavHeight: statusBarHeight + navBarHeight,
+    });
     this.refreshData();
   },
 
@@ -97,17 +114,7 @@ Page({
       this.recommendedCartGoodsSignature = cartGoodsSignature;
       this.setData({ cartGroupData });
       if (shouldRefreshRecommendations) {
-        if (cartGroupData.isNotEmpty) {
-          this.loadRecommendedGoods(cartGroupData);
-        } else {
-          this.setData({
-            recommendedLeft: [],
-            recommendedRight: [],
-            recommendedOffset: 0,
-            recommendedLoading: false,
-            recommendedHasMore: true,
-          });
-        }
+        this.loadRecommendedGoods(cartGroupData);
       }
     });
   },
@@ -442,6 +449,31 @@ Page({
     this.deleteGoodsService({ spuId, skuId }).then(() => {
       Toast({ context: this, selector: '#t-toast', message: '商品删除成功' });
       this.refreshData();
+    });
+  },
+
+  onConfirmDeleteRequest(e) {
+    this.setData({
+      deleteDialogVisible: true,
+      pendingDeleteGoods: e.detail.goods,
+    });
+  },
+
+  confirmDeleteGoods() {
+    const { pendingDeleteGoods } = this.data;
+    this.setData({
+      deleteDialogVisible: false,
+      pendingDeleteGoods: null,
+    });
+    if (!pendingDeleteGoods) return;
+
+    this.onGoodsDelete({ detail: { goods: pendingDeleteGoods } });
+  },
+
+  closeDeleteDialog() {
+    this.setData({
+      deleteDialogVisible: false,
+      pendingDeleteGoods: null,
     });
   },
 

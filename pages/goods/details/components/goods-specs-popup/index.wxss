@@ -130,11 +130,16 @@
   .popup-sku-stepper-stock
   .popup-sku-stepper-container
   .popup-sku__stepper-title
-  .limit-text {
+  .popup-sku__stock {
   margin-left: 10rpx;
   color: #999999;
+  font-size: 24rpx;
 }
 
+.popup-sku-body
+  .popup-sku-stepper-stock
+  .popup-sku-stepper-container
+  .popup-sku__stepper-title
 .popup-sku-body
   .popup-sku-stepper-stock
   .popup-sku-stepper-container

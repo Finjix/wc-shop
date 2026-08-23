@@ -16,7 +16,6 @@ Page({
     autoplay: true,
     duration: '500',
     interval: 3000,
-    navigation: { type: 'dots' },
     swiperImageProps: {
       mode: 'aspectFill',
       showMenuByLongpress: true,
@@ -100,6 +99,14 @@ Page({
 
   navToSearchPage() {
     wx.navigateTo({ url: '/pages/goods/search/index' });
+  },
+
+  onDistributionBannerTap() {
+    wx.showToast({
+      title: '分销中心功能开发中',
+      icon: 'none',
+      duration: 1000,
+    });
   },
 
   navToGoodsDetail({ detail }) {

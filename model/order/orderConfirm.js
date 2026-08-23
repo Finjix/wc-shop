@@ -79,7 +79,6 @@ export function genSettleDetail(params) {
       ],
       inValidGoodsList: null,
       outOfStockGoodsList: null,
-      limitGoodsList: null,
       abnormalDeliveryGoodsList: null,
       invoiceSupport: 1,
     },

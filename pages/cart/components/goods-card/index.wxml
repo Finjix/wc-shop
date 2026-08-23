@@ -19,7 +19,7 @@
 		</view>
 		<view class="wr-goods-card__body">
 			<view class="wr-goods-card__long_content">
-				<view wx:if="{{ goods.title && !goods.hideKey.title }}" class="wr-goods-card__title title-class" style="-webkit-line-clamp: {{ goods.lineClamp }};">
+				<view wx:if="{{ goods.title && !goods.hideKey.title }}" class="wr-goods-card__title title-class" style="-webkit-line-clamp: {{ goods.lineClamp }};" catchtap="clickTitleHandle">
 					<slot name="before-title" />
 					{{ goods.title }}
 				</view>

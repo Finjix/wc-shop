@@ -156,6 +156,9 @@ Component({
     clickThumbHandle() {
       this.triggerEvent('thumb', { goods: this.data.goods });
     },
+    clickTitleHandle() {
+      this.triggerEvent('title', { goods: this.data.goods });
+    },
     clickSpecsHandle() {
       this.triggerEvent('specs', { goods: this.data.goods });
     },

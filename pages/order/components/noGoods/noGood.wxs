@@ -1,5 +1,5 @@
 var isOnlyBack = function (data) {
-  return data.limitGoodsList || (data.inValidGoodsList && !data.storeGoodsList);
+  return data.inValidGoodsList && !data.storeGoodsList;
 };
 
 var isShowChangeAddress = function (data) {

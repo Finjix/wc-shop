@@ -65,6 +65,12 @@ Component({
       this.triggerEvent('delete', { goods });
     },
 
+    // 长按删除需要二次确认
+    confirmDeleteGoods(e) {
+      const { goods } = e.currentTarget.dataset;
+      this.triggerEvent('confirmdelete', { goods });
+    },
+
     // 清空失效商品
     clearInvalidGoods() {
       this.triggerEvent('clearinvalidgoods');
