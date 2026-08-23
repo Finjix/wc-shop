@@ -36,6 +36,7 @@ function priceFormat(price, fill = 0) {
  * @param {number} [height] 可选，高度，不填时与width同值
  */
 const cosThumb = (url, width, height = width) => {
+  if (!url) return '';
   if (url.indexOf('?') > -1) {
     return url;
   }
@@ -70,7 +71,8 @@ export const loadSystemWidth = () => {
   }
 
   try {
-    ({ screenWidth: systemWidth, pixelRatio } = wx.getSystemInfoSync());
+    const systemInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    ({ screenWidth: systemWidth } = systemInfo);
   } catch (e) {
     systemWidth = 0;
   }
@@ -103,7 +105,11 @@ const rpx2px = (rpx, round = false) => {
  * @param {string|number} phone 电话号
  * @returns {string}
  */
-const phoneEncryption = (phone) => String(phone ?? '');
+const phoneEncryption = (phone) => {
+  const value = String(phone ?? '');
+  if (value.length < 7) return value;
+  return `${value.slice(0, 3)}****${value.slice(-4)}`;
+};
 
 // 内置手机号正则字符串
 const innerPhoneReg =

@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 /** 获取商品列表 */
 function mockFetchGood(ID = 0) {
@@ -12,7 +13,5 @@ export function fetchGood(ID = 0) {
   if (config.useMock) {
     return mockFetchGood(ID);
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchGood');
 }

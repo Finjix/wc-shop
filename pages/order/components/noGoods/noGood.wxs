@@ -1,13 +1,16 @@
 var isOnlyBack = function (data) {
-  return data.inValidGoodsList && !data.storeGoodsList;
+  return data && data.inValidGoodsList && data.inValidGoodsList.length > 0 &&
+    (!data.storeGoodsList || data.storeGoodsList.length === 0);
 };
 
 var isShowChangeAddress = function (data) {
-  return data.abnormalDeliveryGoodsList;
+  return data && data.abnormalDeliveryGoodsList && data.abnormalDeliveryGoodsList.length > 0;
 };
 
 var isShowKeepPay = function (data) {
-  return data.outOfStockGoodsList || (data.storeGoodsList && data.inValidGoodsList);
+  return data && data.outOfStockGoodsList && data.outOfStockGoodsList.length > 0 ||
+    (data && data.storeGoodsList && data.storeGoodsList.length > 0 &&
+      data.inValidGoodsList && data.inValidGoodsList.length > 0);
 };
 
 module.exports = {

@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 /** 获取搜索历史 */
 function mockSearchResult(params) {
@@ -32,7 +33,5 @@ export function getSearchResult(params) {
   if (config.useMock) {
     return mockSearchResult(params);
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('getSearchResult');
 }

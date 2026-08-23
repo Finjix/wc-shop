@@ -6,7 +6,7 @@
 </view>
 <!-- 分层购物车 -->
 <cart-group
-  wx:if="{{cartGroupData.isNotEmpty}}"
+  wx:if="{{cartGroupData && cartGroupData.isNotEmpty && !cartLoadError}}"
   store-goods="{{ cartGroupData.storeGoods }}"
   invalid-good-items="{{ cartGroupData.invalidGoodItems }}"
   theme-color="{{themeColor}}"
@@ -19,6 +19,15 @@
   bindclearinvalidgoods="clearInvalidGoods"
   binddelete="onGoodsDelete"
 />
+
+<cart-empty
+  wx:if="{{cartGroupData && !cartGroupData.isNotEmpty && !cartLoadError}}"
+  bind:handleClick="onGotoHome"
+/>
+<view wx:if="{{cartLoadError}}" class="cart-load-error">
+  <text>购物车加载失败，请重试</text>
+  <view class="cart-load-error__retry" bindtap="onRetryCart">重试</view>
+</view>
 
 <view wx:if="{{recommendedLeft.length || recommendedRight.length}}" class="cart-recommend-section">
     <view class="cart-recommend-title">
@@ -78,7 +87,7 @@
 
 <!-- 商品小计以及结算按钮 -->
 <cart-bar
-  wx:if="{{cartGroupData.isNotEmpty}}"
+  wx:if="{{cartGroupData && cartGroupData.isNotEmpty && !cartLoadError}}"
   is-all-selected="{{cartGroupData.isAllSelected}}"
   total-amount="{{cartGroupData.totalAmount}}"
   total-goods-num="{{cartGroupData.selectedGoodsCount}}"

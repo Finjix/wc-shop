@@ -43,7 +43,7 @@ Component({
       // `goods-card-88888888`
       // 不能在这里写生成逻辑，如果在这里写，那么假设有多个goods-list时，他们将共享这个值
       value: '',
-      observer: (id) => {
+      observer(id) {
         this.genIndependentID(id);
         if (this.properties.thresholds?.length) {
           this.createIntersectionObserverHandle();

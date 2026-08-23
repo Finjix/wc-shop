@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 /** 获取订单详情mock数据 */
 function mockFetchOrderDetail(params) {
@@ -14,9 +15,7 @@ export function fetchOrderDetail(params) {
     return mockFetchOrderDetail(params);
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchOrderDetail');
 }
 
 /** 获取客服mock数据 */
@@ -33,7 +32,5 @@ export function fetchBusinessTime(params) {
     return mockFetchBusinessTime(params);
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchBusinessTime');
 }

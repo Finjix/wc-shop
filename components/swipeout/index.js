@@ -30,7 +30,6 @@ Component({
    */
   data: {
     wrapperStyle: '',
-    asyncClose: false,
     closed: true,
   },
 
@@ -66,7 +65,7 @@ Component({
         return;
       }
 
-      if (this.data.asyncClose) {
+      if (this.properties.asyncClose) {
         this.triggerEvent('close', {
           position,
           instance: this,

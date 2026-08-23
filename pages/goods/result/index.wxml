@@ -85,7 +85,12 @@
         bind:click="gotoGoodsDetail"
       />
     </view>
-    <load-more wx:if="{{goodsList.length > 0}}" status="{{loadMoreStatus}}" no-more-text="没有更多了" />
+    <load-more
+      wx:if="{{goodsList.length > 0 || loadMoreStatus === 3}}"
+      status="{{loadMoreStatus}}"
+      no-more-text="没有更多了"
+      bind:retry="onRetryLoad"
+    />
   </view>
 </scroll-view>
 <t-toast id="t-toast" />

@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 const MOCK_ADDRESS_LIST_KEY = 'wc-shop.mock-address-list';
 let memoryMockAddressList = null;
@@ -66,9 +67,7 @@ export function fetchDeliveryAddress(id = 0) {
     return mockFetchDeliveryAddress(id);
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchDeliveryAddress');
 }
 
 /** 获取收货地址列表 */
@@ -84,9 +83,7 @@ export function fetchDeliveryAddressList(len = 10) {
     return mockFetchDeliveryAddressList(len);
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchDeliveryAddressList');
 }
 
 /** 保存 mock 收货地址列表，供地址新增、编辑和删除后复用。 */

@@ -1,4 +1,8 @@
+let initialized = false;
+
 export default () => {
+  if (initialized) return;
+  initialized = true;
   if (!wx.canIUse('getUpdateManager')) {
     return;
   }

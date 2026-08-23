@@ -64,7 +64,7 @@ Page({
       })
       .catch((err) => {
         this.setData({ pullDownRefreshing: false });
-        Promise.reject(err);
+        console.error('refresh orders error:', err);
       });
   },
 
@@ -111,7 +111,7 @@ Page({
               statusDesc: order.orderStatusName,
               amount: order.paymentAmount,
               totalAmount: order.totalAmount,
-              logisticsNo: order.logisticsVO.logisticsNo,
+              logisticsNo: order.logisticsVO?.logisticsNo,
               createTime: order.createTime,
               goodsList: (order.orderItemVOs || []).map((goods) => ({
                 id: goods.id,
@@ -143,7 +143,8 @@ Page({
       })
       .catch((err) => {
         this.setData({ listLoading: 3 });
-        return Promise.reject(err);
+        console.error('load order list error:', err);
+        return null;
       });
   },
 

@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 /** 获取商品列表 */
 function mockFetchGoodsList(pageIndex = 1, pageSize = 20) {
@@ -23,7 +24,5 @@ export function fetchGoodsList(pageIndex = 1, pageSize = 20) {
   if (config.useMock) {
     return mockFetchGoodsList(pageIndex, pageSize);
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchGoodsList');
 }

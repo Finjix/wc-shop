@@ -58,6 +58,10 @@ Page({
     this.setData({ pageLoading: true });
     this.getService().then(() => {
       this.setData({ pageLoading: false });
+    }).catch((error) => {
+      console.error('load after-service detail error:', error);
+      this.setData({ pageLoading: false });
+      Toast({ context: this, selector: '#t-toast', message: '售后详情加载失败，请稍后重试', icon: '' });
     });
   },
 
@@ -103,21 +107,21 @@ Page({
           amount: m.refundMethodAmount,
         })), // 退款明细
         refundRequestAmount: serviceRaw.rights.refundRequestAmount, // 申请退款金额
-        payTraceNo: serviceRaw.rightsRefund.traceNo, // 交易流水号
+        payTraceNo: serviceRaw.rightsRefund?.traceNo, // 交易流水号
         createTime: formatTime(parseFloat(`${serviceRaw.rights.createTime}`), 'YYYY-MM-DD HH:mm'), // 申请时间
-        logisticsNo: serviceRaw.logisticsVO.logisticsNo, // 退货物流单号
-        logisticsCompanyName: serviceRaw.logisticsVO.logisticsCompanyName, // 退货物流公司
-        logisticsCompanyCode: serviceRaw.logisticsVO.logisticsCompanyCode, // 退货物流公司
-        remark: serviceRaw.logisticsVO.remark, // 退货备注
+        logisticsNo: serviceRaw.logisticsVO?.logisticsNo, // 退货物流单号
+        logisticsCompanyName: serviceRaw.logisticsVO?.logisticsCompanyName, // 退货物流公司
+        logisticsCompanyCode: serviceRaw.logisticsVO?.logisticsCompanyCode, // 退货物流公司
+        remark: serviceRaw.logisticsVO?.remark, // 退货备注
         logisticsDescription:
           serviceRaw.rights.rightsType === ServiceType.RETURN_GOODS &&
           Number(serviceRaw.rights.receiptStatus) === 2
             ? '商家已发货'
             : '买家已寄出',
-        receiverName: serviceRaw.logisticsVO.receiverName, // 收货人
-        receiverPhone: serviceRaw.logisticsVO.receiverPhone, // 收货人电话
+        receiverName: serviceRaw.logisticsVO?.receiverName, // 收货人
+        receiverPhone: serviceRaw.logisticsVO?.receiverPhone, // 收货人电话
         receiverAddress: this.composeAddress(serviceRaw), // 收货人地址
-        applyRemark: serviceRaw.rightsRefund.refundDesc, // 申请退款时的填写的说明
+        applyRemark: serviceRaw.rightsRefund?.refundDesc, // 申请退款时的填写的说明
         buttons: serviceRaw.buttonVOs || [],
         logistics: serviceRaw.logisticsVO,
       };
@@ -136,6 +140,7 @@ Page({
   },
 
   composeAddress(service) {
+    if (!service.logisticsVO) return '';
     return [
       service.logisticsVO.receiverProvince,
       service.logisticsVO.receiverCity,

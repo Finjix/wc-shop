@@ -22,6 +22,7 @@ Page({
     filter: initFilters,
     hasLoaded: false,
     categoryName: '商品列表',
+    categoryId: '',
     keywords: '',
     loadMoreStatus: 0,
     loading: true,
@@ -53,7 +54,7 @@ Page({
   },
 
   generalQueryData(reset = false) {
-    const { filter, keywords, minVal, maxVal } = this.data;
+    const { filter, keywords, minVal, maxVal, categoryName } = this.data;
     const { pageNum, pageSize } = this;
     const { sorts, overall, sortType } = filter;
     const params = {
@@ -61,6 +62,8 @@ Page({
       pageNum: 1,
       pageSize: 30,
       keyword: keywords,
+      categoryName: categoryName === '商品列表' ? '' : categoryName,
+      categoryId: this.data.categoryId,
     };
 
     if (sorts) {
@@ -78,8 +81,8 @@ Page({
     } else if (!sortType && !sorts) {
       params.sort = 1;
     }
-    params.minPrice = minVal ? minVal * 100 : 0;
-    params.maxPrice = maxVal ? maxVal * 100 : undefined;
+    params.minPrice = minVal ? Number(minVal) * 100 : 0;
+    params.maxPrice = maxVal ? Number(maxVal) * 100 : undefined;
     if (reset) return params;
     return {
       ...params,
@@ -135,6 +138,8 @@ Page({
     } catch (error) {
       this.setData({
         loading: false,
+        hasLoaded: true,
+        loadMoreStatus: 3,
       });
     }
     this.setData({
@@ -144,10 +149,22 @@ Page({
   },
 
   onLoad(options) {
-    const { categoryName = '' } = options || {};
-    const title = categoryName ? decodeURIComponent(categoryName) : '';
+    const { categoryName = '', categoryId = '' } = options || {};
+    let title = '';
+    try {
+      title = categoryName ? decodeURIComponent(categoryName) : '';
+    } catch (error) {
+      title = categoryName;
+    }
+    let decodedCategoryId = categoryId;
+    try {
+      decodedCategoryId = categoryId ? decodeURIComponent(categoryId) : '';
+    } catch (error) {
+      decodedCategoryId = categoryId;
+    }
     this.setData({
       categoryName: title || '商品列表',
+      categoryId: decodedCategoryId,
     }, () => {
       this.init(true);
     });
@@ -223,14 +240,24 @@ Page({
   confirm() {
     const { minVal, maxVal } = this.data;
     let message = '';
-    if (minVal && !maxVal) {
+    if (!minVal && !maxVal) {
+      message = '';
+    } else if (minVal && !maxVal) {
       message = `价格最小是${minVal}`;
     } else if (!minVal && maxVal) {
-      message = `价格范围是0-${minVal}`;
-    } else if (minVal && maxVal && minVal <= maxVal) {
-      message = `价格范围${minVal}-${this.data.maxVal}`;
+      message = `价格范围是0-${maxVal}`;
+    } else if (Number(minVal) <= Number(maxVal)) {
+      message = `价格范围${minVal}-${maxVal}`;
     } else {
       message = '请输入正确范围';
+    }
+    if (minVal && maxVal && Number(minVal) > Number(maxVal)) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message,
+      });
+      return;
     }
     if (message) {
       Toast({
@@ -243,14 +270,17 @@ Page({
     this.setData(
       {
         show: false,
-        minVal: '',
         goodsList: [],
         loadMoreStatus: 0,
-        maxVal: '',
       },
       () => {
         this.init();
       },
     );
+  },
+
+  onRetryLoad() {
+    this.pageNum = 1;
+    this.setData({ goodsList: [], loadMoreStatus: 0 }, () => this.init(true));
   },
 });

@@ -223,13 +223,24 @@ Page({
       });
       return;
     }
+    if (goods.quantity > goods.stockQuantity || !goods.stockStatus) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '当前商品库存不足',
+        icon: '',
+        duration: 1000,
+      });
+      return;
+    }
 
     addGoodsToCart(goods)
       .then(() => {
         const currentPages = getCurrentPages();
         const cartPage = currentPages.find((page) => page.route === 'pages/cart/index');
-        if (cartPage && typeof cartPage.onGoodsAdded === 'function') {
-          cartPage.onGoodsAdded(goods);
+        if (cartPage && typeof cartPage.refreshData === 'function') {
+          // 服务层已经持久化了 Mock 购物车，这里只刷新页面，避免同一商品被追加两次。
+          cartPage.refreshData(true);
         }
         this.setData(
           {
@@ -300,7 +311,7 @@ Page({
   },
 
   gotoBuy(type) {
-    const { isAllSelectedSku, buyNum } = this.data;
+    const { isAllSelectedSku } = this.data;
     if (!isAllSelectedSku) {
       Toast({
         context: this,
@@ -311,27 +322,35 @@ Page({
       });
       return;
     }
+    const goods = this.buildCartGoods();
+    if (!goods) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '请选择规格',
+        icon: '',
+        duration: 1000,
+      });
+      return;
+    }
+    if (goods.quantity > goods.stockQuantity || !goods.stockStatus) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '当前商品库存不足',
+        icon: '',
+        duration: 1000,
+      });
+      return;
+    }
     this.handlePopupHide();
     const query = {
-      quantity: buyNum,
-      storeId: '1',
-      spuId: this.data.spuId,
-      goodsName: this.data.details.title,
-      skuId: type === 1 ? this.data.skuList[0].skuId : this.data.selectItem.skuId,
-      available: this.data.details.available,
-      price: this.data.details.minSalePrice,
-      specInfo: this.data.details.specList?.map((item) => ({
-        specTitle: item.title,
-        specValue: item.specValueList[0].specValue,
-      })),
-      primaryImage: this.data.details.primaryImage,
-      spuId: this.data.details.spuId,
-      thumb: this.data.details.primaryImage,
-      title: this.data.details.title,
+      ...goods,
+      goodsName: goods.title,
     };
     let urlQueryStr = obj2Params({
       goodsRequestList: JSON.stringify([query]),
-    });
+    }, true);
     urlQueryStr = urlQueryStr ? `?${urlQueryStr}` : '';
     const path = `/pages/order/order-confirm/index${urlQueryStr}`;
     wx.navigateTo({
@@ -357,7 +376,15 @@ Page({
   getDetail(spuId) {
     fetchGood(spuId).then((details) => {
       const skuArray = [];
-      const { skuList, primaryImage, isPutOnSale, minSalePrice, maxSalePrice, maxLinePrice, soldNum } = details;
+      const {
+        skuList = [],
+        primaryImage,
+        isPutOnSale,
+        minSalePrice,
+        maxSalePrice,
+        maxLinePrice,
+        soldNum,
+      } = details;
       skuList.forEach((item) => {
         const salePrice = (item.priceInfo || []).find((price) => price.priceType === 1);
         skuArray.push({
@@ -378,6 +405,13 @@ Page({
         primaryImage,
         soldout: isPutOnSale === 0,
         soldNum,
+      });
+    }).catch(() => {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '商品详情加载失败，请稍后重试',
+        icon: '',
       });
     });
   },
@@ -402,7 +436,7 @@ Page({
   async getCommentsStatistics() {
     try {
       const code = 'Success';
-      const data = await getGoodsDetailsCommentsCount();
+      const data = await getGoodsDetailsCommentsCount(this.data.spuId);
       if (code.toUpperCase() === 'SUCCESS') {
         const { badCount, commentCount, goodCount, goodRate, hasImageCount, middleCount } = data;
         const nextState = {
@@ -432,6 +466,15 @@ Page({
 
   onLoad(query) {
     const { spuId } = query;
+    if (spuId === undefined || spuId === null || spuId === '') {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '商品信息不存在',
+        icon: '',
+      });
+      return;
+    }
     this.setData({
       spuId: spuId,
     });

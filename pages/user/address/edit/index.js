@@ -45,16 +45,22 @@ Page({
   },
   onLoad(options) {
     const { id } = options;
+    const eventChannel = this.getOpenerEventChannel && this.getOpenerEventChannel();
+    if (eventChannel && eventChannel.on) {
+      eventChannel.on('onWeixinAddressPassed', (params) => {
+        this.applyLocationState(params);
+      });
+    }
     this.init(id);
   },
 
   onUnload() {
-    if (!this.hasSava) {
+    if (!this.hasSaved) {
       rejectAddress();
     }
   },
 
-  hasSava: false,
+  hasSaved: false,
 
   init(id) {
     if (id) {
@@ -63,6 +69,10 @@ Page({
   },
   getAddressDetail(id) {
     fetchDeliveryAddress(id).then((detail) => {
+      if (!detail) {
+        Toast({ context: this, selector: '#t-toast', message: '地址不存在，请重新添加', icon: '' });
+        return;
+      }
       this.setData({ locationState: detail }, () => {
         const { isLegal, tips } = this.onVerifyInputLegal();
         this.setData({
@@ -70,6 +80,20 @@ Page({
         });
         this.privateData.verifyTips = tips;
       });
+    });
+  },
+  applyLocationState(params = {}) {
+    const locationState = {
+      ...this.data.locationState,
+      ...params,
+      addressId: params.addressId || params.id || '',
+      isDefault: params.isDefault === true || Number(params.isDefault) === 1,
+      isEdit: Boolean(params.addressId || params.id),
+    };
+    this.setData({ locationState }, () => {
+      const { isLegal, tips } = this.onVerifyInputLegal();
+      this.setData({ submitActive: isLegal });
+      this.privateData.verifyTips = tips;
     });
   },
   onInputValue(e) {
@@ -268,7 +292,7 @@ Page({
     }
     const { locationState } = this.data;
 
-    this.hasSava = true;
+    this.hasSaved = true;
 
     const address = {
       saasId: '88888888',

@@ -54,9 +54,15 @@
         <view class="popup-sku-stepper-container">
           <view class="popup-sku__stepper-title">
             购买数量
-            <text class="popup-sku__stock">（库存数量：{{stockQuantity}}）</text>
+            <text class="popup-sku__stock">（库存：{{stockQuantity}}）</text>
           </view>
-          <t-stepper value="{{buyNum}}" min="{{1}}" max="{{999}}" theme="filled" bind:change="handleBuyNumChange" />
+          <t-stepper
+            value="{{buyNum}}"
+            min="{{1}}"
+            max="{{stockQuantity > 0 ? stockQuantity : 1}}"
+            theme="filled"
+            bind:change="handleBuyNumChange"
+          />
         </view>
       </view>
     </view>

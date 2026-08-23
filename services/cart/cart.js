@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 const MOCK_CART_ADDITIONS_KEY = 'wc-shop.mock-cart-additions';
 const MOCK_CART_DATA_KEY = 'wc-shop.mock-cart-data';
@@ -60,11 +61,15 @@ function mergeMockCartAdditions(resp) {
   const additions = getMockCartAdditions();
   if (!additions.length || !resp?.data?.storeGoods?.length) return resp;
 
-  const store = resp.data.storeGoods[0];
-  const targetActivity = store.promotionGoodsList.find((activity) => Array.isArray(activity.goodsPromotionList));
-  if (!targetActivity) return resp;
-
   additions.forEach((addition) => {
+    const store = resp.data.storeGoods.find(
+      (item) => String(item.storeId) === String(addition.storeId),
+    );
+    const targetActivity = store?.promotionGoodsList?.find((activity) =>
+      Array.isArray(activity.goodsPromotionList),
+    );
+    if (!targetActivity) return;
+
     const additionQuantity = Number(addition.quantity) || 1;
     const existingGoods = targetActivity.goodsPromotionList.find(
       (goods) => goods.spuId === addition.spuId && goods.skuId === addition.skuId,
@@ -103,9 +108,7 @@ export function fetchCartGroupData(params) {
     });
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchCartGroupData');
 }
 
 /** 保存购物车 mock 快照，供页面切换和重新加载时复用。 */
@@ -115,9 +118,11 @@ export function persistMockCartGroupData(cartData) {
 }
 
 function appendGoodsToMockCart(cartData, goods) {
-  const store = cartData.storeGoods?.[0];
+  const store = (cartData.storeGoods || []).find(
+    (item) => String(item.storeId) === String(goods.storeId),
+  );
   const targetActivity = store?.promotionGoodsList?.find((activity) => Array.isArray(activity.goodsPromotionList));
-  if (!targetActivity) return;
+  if (!targetActivity) return false;
 
   const quantity = Number(goods.quantity) || 1;
   const existingGoods = targetActivity.goodsPromotionList.find(
@@ -130,6 +135,7 @@ function appendGoodsToMockCart(cartData, goods) {
   }
   cartData.totalAmount = String((Number(cartData.totalAmount) || 0) + (Number(goods.price) || 0) * quantity);
   cartData.isNotEmpty = true;
+  return true;
 }
 
 /** 将详情页选中的 SKU 加入 mock 购物车。真实环境由后端购物车接口替换。 */
@@ -140,7 +146,9 @@ export function addGoodsToCart(goods) {
 
   const savedCartData = getSavedMockCartGroupData();
   if (savedCartData) {
-    appendGoodsToMockCart(savedCartData, goods);
+    if (!appendGoodsToMockCart(savedCartData, goods)) {
+      return Promise.reject(new Error('购物车门店不存在'));
+    }
     saveMockCartGroupData(savedCartData);
     return Promise.resolve();
   }

@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 /** 获取商品详情页评论数 */
 function mockFetchGoodDetailsCommentsCount(spuId = 0) {
@@ -14,9 +15,7 @@ export function getGoodsDetailsCommentsCount(spuId = 0) {
   if (config.useMock) {
     return mockFetchGoodDetailsCommentsCount(spuId);
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('getGoodsDetailsCommentsCount');
 }
 
 /** 获取商品详情页评论 */
@@ -31,7 +30,5 @@ export function getGoodsDetailsCommentList(spuId = 0) {
   if (config.useMock) {
     return mockFetchGoodDetailsCommentList(spuId);
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('getGoodsDetailsCommentList');
 }

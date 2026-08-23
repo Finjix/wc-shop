@@ -4,30 +4,31 @@ Component({
       type: Object,
       value: {},
       observer(settleDetailData) {
-        const {
-          outOfStockGoodsList,
-          abnormalDeliveryGoodsList,
-          inValidGoodsList,
-        } = settleDetailData;
+        const data = settleDetailData || {};
+        const outOfStockGoodsList = Array.isArray(data.outOfStockGoodsList) ? data.outOfStockGoodsList : [];
+        const abnormalDeliveryGoodsList = Array.isArray(data.abnormalDeliveryGoodsList)
+          ? data.abnormalDeliveryGoodsList
+          : [];
+        const inValidGoodsList = Array.isArray(data.inValidGoodsList) ? data.inValidGoodsList : [];
         // 弹窗逻辑   超出配送范围   失效    库存不足;
-        const tempList =
-          abnormalDeliveryGoodsList ||
-          inValidGoodsList ||
-          outOfStockGoodsList ||
-          [];
+        const tempList = [
+          ...abnormalDeliveryGoodsList,
+          ...inValidGoodsList,
+          ...outOfStockGoodsList,
+        ].filter((goods) => goods && typeof goods === 'object');
 
-        tempList.forEach((goods, index) => {
-          goods.id = index;
-          goods.unSettlementGoods &&
-            goods.unSettlementGoods.forEach((ele) => {
-              ele.name = ele.goodsName;
-              ele.price = ele.payPrice;
-              ele.imgUrl = ele.image;
-            });
-        });
+        const goodsList = tempList.map((goods, index) => ({
+          ...goods,
+          id: index,
+          unSettlementGoods: (Array.isArray(goods.unSettlementGoods) ? goods.unSettlementGoods : []).map((ele) => ({
+            ...ele,
+            name: ele.goodsName,
+            price: ele.payPrice,
+            imgUrl: ele.image,
+          })),
+        }));
         this.setData({
-          // settleDetailData,
-          goodsList: tempList,
+          goodsList,
         });
       },
     },
@@ -41,15 +42,15 @@ Component({
       const { item } = e.currentTarget.dataset;
       if (item === 'cart') {
         // 购物车
-        Navigator.gotoPage('/cart');
+        wx.switchTab({ url: '/pages/cart/index' });
       } else if (item === 'orderSure') {
         // 结算页
-        this.triggerEvent('change', undefined);
+        this.triggerEvent('change', { action: 'continue' });
       }
     },
     onDelive() {
       // 修改配送地址
-      Navigator.gotoPage('/address', { type: 'orderSure' });
+      this.triggerEvent('change', { action: 'address' });
     },
   },
 });

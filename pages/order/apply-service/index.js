@@ -49,7 +49,7 @@ Page({
       width: 212,
       height: 212,
     },
-    serviceRequireType: 'REFUND_GOODS',
+    serviceRequireType: '',
   },
 
   setWatcher(key, callback) {
@@ -125,7 +125,7 @@ Page({
       Dialog.alert({
         content: '请先选择订单',
       }).then(() => {
-        wx.redirectTo({ url: 'pages/order/order-list/index' });
+        wx.redirectTo({ url: '/pages/order/order-list/index' });
       });
       return false;
     }
@@ -133,7 +133,9 @@ Page({
       Dialog.alert({
         content: '请先选择商品',
       }).then(() => {
-        wx.redirectTo(`pages/order/order-detail/index?orderNo=${orderNo}`);
+        wx.redirectTo({
+          url: `/pages/order/order-detail/index?orderNo=${encodeURIComponent(orderNo)}`,
+        });
       });
       return false;
     }

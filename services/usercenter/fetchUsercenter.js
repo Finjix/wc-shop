@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 /** 获取个人中心信息 */
 function mockFetchUserCenter() {
@@ -12,7 +13,5 @@ export function fetchUserCenter() {
   if (config.useMock) {
     return mockFetchUserCenter();
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchUserCenter');
 }

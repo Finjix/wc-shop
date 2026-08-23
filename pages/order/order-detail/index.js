@@ -105,7 +105,7 @@ Page({
         statusDesc: order.orderStatusName,
         amount: order.paymentAmount,
         totalAmount: order.goodsAmountApp,
-        logisticsNo: order.logisticsVO.logisticsNo,
+        logisticsNo: order.logisticsVO?.logisticsNo,
         goodsList: (order.orderItemVOs || []).map((goods) =>
           Object.assign({}, goods, {
             id: goods.id,
@@ -131,7 +131,7 @@ Page({
         addressEditable:
           [OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_DELIVERY].includes(order.orderStatus) &&
           order.orderSubStatus !== -1, // 订单正在取消审核时不允许修改地址（但是返回的状态码与待发货一致）
-        isPaid: !!order.paymentVO.paySuccessTime,
+        isPaid: !!order.paymentVO?.paySuccessTime,
         logisticsNodes: this.flattenNodes(order.trajectoryVos || []),
       });
     });
@@ -154,6 +154,7 @@ Page({
 
   // 拼接省市区
   composeAddress(order) {
+    if (!order.logisticsVO) return '';
     return [
       //order.logisticsVO.receiverProvince,
       order.logisticsVO.receiverCity,
@@ -205,9 +206,9 @@ Page({
   onDeliveryClick() {
     const logisticsData = {
       nodes: this.data.logisticsNodes,
-      company: this.data.order.logisticsVO.logisticsCompanyName,
-      logisticsNo: this.data.order.logisticsVO.logisticsNo,
-      phoneNumber: this.data.order.logisticsVO.logisticsCompanyTel,
+      company: this.data.order.logisticsVO?.logisticsCompanyName,
+      logisticsNo: this.data.order.logisticsVO?.logisticsNo,
+      phoneNumber: this.data.order.logisticsVO?.logisticsCompanyTel,
     };
     wx.navigateTo({
       url: `/pages/order/delivery-detail/index?data=${encodeURIComponent(JSON.stringify(logisticsData))}`,

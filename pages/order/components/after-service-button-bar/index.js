@@ -9,13 +9,19 @@ Component({
     service: {
       type: Object,
       observer(service) {
-        const buttonsRight = (service.buttons || service.buttonVOs || []).filter(
+        const currentService = service || {};
+        const buttonsRight = (currentService.buttons || currentService.buttonVOs || []).filter(
           (button) => button.type !== ServiceButtonTypes.VIEW_DELIVERY,
         );
+        const normalizedButtonsRight = buttonsRight.map((button) => ({
+          ...button,
+          openType: button.openType || '',
+        }));
         this.setData({
+          currentService,
           buttons: {
             left: [],
-            right: buttonsRight,
+            right: normalizedButtonsRight,
           },
         });
       },
@@ -23,7 +29,7 @@ Component({
   },
 
   data: {
-    service: {},
+    currentService: {},
     buttons: {
       left: [],
       right: [],
@@ -36,16 +42,16 @@ Component({
       const { type } = e.currentTarget.dataset;
       switch (type) {
         case ServiceButtonTypes.REVOKE:
-          this.onConfirm(this.data.service);
+          this.onConfirm(this.data.currentService);
           break;
         case ServiceButtonTypes.FILL_TRACKING_NO:
-          this.onFillTrackingNo(this.data.service);
+          this.onFillTrackingNo(this.data.currentService);
           break;
         case ServiceButtonTypes.CHANGE_TRACKING_NO:
-          this.onChangeTrackingNo(this.data.service);
+          this.onChangeTrackingNo(this.data.currentService);
           break;
         case ServiceButtonTypes.VIEW_DELIVERY:
-          this.viewDelivery(this.data.service);
+          this.viewDelivery(this.data.currentService);
           break;
       }
     },
@@ -58,21 +64,21 @@ Component({
 
     viewDelivery(service) {
       wx.navigateTo({
-        url: `/pages/order/delivery-detail/index?data=${JSON.stringify(
-          service.logistics || service.logisticsVO,
+        url: `/pages/order/delivery-detail/index?data=${encodeURIComponent(
+          JSON.stringify(service.logistics || service.logisticsVO || {}),
         )}&source=2`,
       });
     },
 
     onChangeTrackingNo(service) {
       wx.navigateTo({
-        url: `/pages/order/fill-tracking-no/index?rightsNo=${
-          service.id
-        }&logisticsNo=${service.logisticsNo}&logisticsCompanyName=${
-          service.logisticsCompanyName
-        }&logisticsCompanyCode=${service.logisticsCompanyCode}&remark=${
-          service.remark || ''
-        }`,
+        url: `/pages/order/fill-tracking-no/index?rightsNo=${encodeURIComponent(
+          service.id || '',
+        )}&logisticsNo=${encodeURIComponent(service.logisticsNo || '')}&logisticsCompanyName=${encodeURIComponent(
+          service.logisticsCompanyName || '',
+        )}&logisticsCompanyCode=${encodeURIComponent(
+          service.logisticsCompanyCode || '',
+        )}&remark=${encodeURIComponent(service.remark || '')}`,
       });
     },
 
@@ -94,7 +100,7 @@ Component({
       })
         .then(() => {})
         .catch(() => {
-          const params = { rightsNo: this.data.service.id };
+          const params = { rightsNo: this.data.currentService.id };
           return cancelRights(params).then(() => {
             Toast({
               context: this,

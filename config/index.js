@@ -1,6 +1,8 @@
 export const config = {
   /** 是否使用mock代替api返回 */
   useMock: true,
+  /** 是否允许在 Mock 环境跳过微信支付，仅用于本地演示 */
+  enableMockPayment: false,
 };
 
 export const cdnBase =

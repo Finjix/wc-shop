@@ -1,5 +1,6 @@
 import { config } from '../../config/index';
 import { mockIp, mockReqId } from '../../utils/mock';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 /** 获取结算mock数据 */
 function mockFetchSettleDetail(params) {
@@ -39,9 +40,7 @@ export function fetchSettleDetail(params) {
     return mockFetchSettleDetail(params);
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchSettleDetail');
 }
 
 /* 提交订单 */
@@ -50,7 +49,5 @@ export function dispatchCommitPay(params) {
     return mockDispatchCommitPay(params);
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('dispatchCommitPay');
 }

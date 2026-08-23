@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 /** 获取商品评论数 */
 function mockFetchCommentsCount(ID = 0) {
@@ -12,7 +13,5 @@ export function fetchCommentsCount(ID = 0) {
   if (config.useMock) {
     return mockFetchCommentsCount(ID);
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchCommentsCount');
 }

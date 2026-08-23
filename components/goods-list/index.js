@@ -9,7 +9,7 @@ Component({
     id: {
       type: String,
       value: '',
-      observer: (id) => {
+      observer(id) {
         this.genIndependentID(id);
       },
     },

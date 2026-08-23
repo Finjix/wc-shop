@@ -9,38 +9,22 @@ Component({
     overall: {
       type: Number,
       value: 1,
-      observer(overall) {
-        this.setData({
-          overall,
-        });
-      },
     },
     layout: {
       type: Number,
       value: 1,
-      observer(layout) {
-        this.setData({
-          layout,
-        });
-      },
     },
     sorts: {
       type: String,
       value: '',
-      observer(sorts) {
-        this.setData({
-          sorts,
-        });
-      },
     },
     sortType: {
       type: String,
       value: '',
-      observer(sortType) {
-        this.setData({
-          sortType,
-        });
-      },
+    },
+    prices: {
+      type: Array,
+      value: [],
     },
     showMoreSorts: {
       type: Boolean,
@@ -52,22 +36,15 @@ Component({
     },
   },
 
-  data: {
-    layout: 1,
-    overall: 1,
-    sorts: '',
-    sortType: '',
-  },
-
   methods: {
     onChangeShowAction() {
-      const { layout } = this.data;
+      const { layout } = this.properties;
       const nextLayout = layout === 1 ? 0 : 1;
       this.triggerEvent('change', { ...this.properties, layout: nextLayout });
     },
 
     handlePriseSort() {
-      const { sorts } = this.data;
+      const { sorts } = this.properties;
       this.triggerEvent('change', {
         ...this.properties,
         overall: 0,
@@ -93,7 +70,7 @@ Component({
     },
 
     onOverallAction() {
-      const { overall } = this.data;
+      const { overall } = this.properties;
       if (this.properties.showMoreSorts) {
         this.triggerEvent('change', {
           ...this.properties,

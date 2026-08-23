@@ -92,7 +92,7 @@
             <view slot="description">
               <view> {{service.receiverAddress}} </view>
               <view>收货人：{{service.receiverName}}</view>
-              <view>收货人手机：{{service.receiverName}}</view>
+              <view>收货人手机：{{service.receiverPhone}}</view>
             </view>
           </t-cell>
         </t-cell-group>

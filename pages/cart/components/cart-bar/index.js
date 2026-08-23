@@ -18,12 +18,13 @@ Component({
       type: Number,
       value: 0,
       observer(num) {
-        const isDisabled = num == 0;
-        setTimeout(() => {
+        const isDisabled = num === 0;
+        if (this.disableTimer) clearTimeout(this.disableTimer);
+        this.disableTimer = setTimeout(() => {
           this.setData({
             isDisabled,
           });
-        });
+        }, 0);
       },
     },
     totalDiscountAmount: {
@@ -42,6 +43,12 @@ Component({
   },
   data: {
     isDisabled: false,
+  },
+
+  lifetimes: {
+    detached() {
+      if (this.disableTimer) clearTimeout(this.disableTimer);
+    },
   },
 
   methods: {

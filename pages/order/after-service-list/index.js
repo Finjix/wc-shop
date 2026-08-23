@@ -78,7 +78,7 @@ Page({
         this.setData({
           pullDownRefreshing: false,
         });
-        Promise.reject(err);
+        console.error('refresh after-service list error:', err);
       });
   },
 
@@ -148,10 +148,10 @@ Page({
               })),
               storeId: _data.storeId,
               buttons: _data.buttonVOs || [],
-              logisticsNo: _data.logisticsVO.logisticsNo, // 退货物流单号
-              logisticsCompanyName: _data.logisticsVO.logisticsCompanyName, // 退货物流公司
-              logisticsCompanyCode: _data.logisticsVO.logisticsCompanyCode, // 退货物流公司
-              remark: _data.logisticsVO.remark, // 退货备注
+              logisticsNo: _data.logisticsVO?.logisticsNo, // 退货物流单号
+              logisticsCompanyName: _data.logisticsVO?.logisticsCompanyName, // 退货物流公司
+              logisticsCompanyCode: _data.logisticsVO?.logisticsCompanyCode, // 退货物流公司
+              remark: _data.logisticsVO?.remark, // 退货备注
               logisticsVO: _data.logisticsVO,
             };
           });
@@ -177,7 +177,8 @@ Page({
         this.setData({
           listLoading: 3,
         });
-        return Promise.reject(err);
+        console.error('load after-service list error:', err);
+        return null;
       });
   },
 

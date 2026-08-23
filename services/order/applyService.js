@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 /** 获取售后单mock数据 */
 function mockFetchRightsPreview(params) {
@@ -14,9 +15,7 @@ export function fetchRightsPreview(params) {
     return mockFetchRightsPreview(params);
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchRightsPreview');
 }
 
 /** 确认收货 */
@@ -26,9 +25,7 @@ export function dispatchConfirmReceived() {
     return delay();
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('dispatchConfirmReceived');
 }
 
 /** 获取可选的mock售后原因列表 */
@@ -45,9 +42,7 @@ export function fetchApplyReasonList(params) {
     return mockFetchApplyReasonList(params);
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchApplyReasonList');
 }
 
 /** 发起mock售后申请 */
@@ -64,7 +59,5 @@ export function dispatchApplyService(params) {
     return mockDispatchApplyService(params);
   }
 
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('dispatchApplyService');
 }

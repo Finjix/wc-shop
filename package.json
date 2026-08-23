@@ -4,7 +4,8 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "lint": "eslint --cache --fix --ext .js",
+    "lint": "eslint --cache --ext .js .",
+    "lint:fix": "eslint --cache --fix --ext .js .",
     "check": "node config/eslintCheck.js",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s"
   },

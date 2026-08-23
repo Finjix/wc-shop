@@ -32,6 +32,61 @@ function toNumber(value) {
   return Number(value) || 0;
 }
 
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getGoodsSearchText(goods) {
+  const tags = (goods.spuTagList || []).map((tag) => tag.title);
+  const specs = (goods.specList || []).reduce(
+    (values, spec) => values.concat([
+      spec.title,
+      ...(spec.specValueList || []).map((value) => value.specValue),
+    ]),
+    [],
+  );
+  return normalizeText([goods.title, goods.etitle, ...tags, ...specs].join(' '));
+}
+
+function categoryMatches(goods, categoryName, categoryId) {
+  const name = normalizeText(categoryName);
+  const id = normalizeText(categoryId);
+  if (!name && !id) return true;
+
+  const categoryIds = [...(goods.categoryIds || []), ...(goods.groupIdList || [])].map(normalizeText);
+  if (id && categoryIds.includes(id)) return true;
+
+  const categoryKeywords = {
+    服装: ['衣', '裙', '裤', '鞋', '服', '装'],
+    女装: ['裙', '女', '毛衣', '外套', '棉衣', '连衣'],
+    男装: ['男', 't恤', '卫衣', '裤', '西装'],
+    儿童装: ['童', '儿童', '小孩'],
+    美妆: ['妆', '唇', '眼影', '粉底', '口红'],
+  };
+  const keywords = categoryKeywords[categoryName] || [name];
+  const text = getGoodsSearchText(goods);
+  return keywords.some((keyword) => text.includes(normalizeText(keyword)));
+}
+
+function filterGoods(goods, params) {
+  const keyword = normalizeText(params.keyword);
+  const categoryName = params.categoryName || '';
+  const categoryId = params.categoryId || '';
+  const minPrice = toNumber(params.minPrice);
+  const maxPrice = params.maxPrice === undefined || params.maxPrice === '' ? null : toNumber(params.maxPrice);
+
+  return goods.filter((item) => {
+    const text = getGoodsSearchText(item);
+    const price = toNumber(item.minSalePrice);
+    return (
+      (!keyword || text.includes(keyword)) &&
+      categoryMatches(item, categoryName, categoryId) &&
+      price >= minPrice &&
+      (maxPrice === null || price <= maxPrice)
+    );
+  });
+}
+
 function sortGoods(goods, sort, sortType) {
   const sortedGoods = [...goods];
 
@@ -55,17 +110,31 @@ export function getSearchResult(params = {}) {
     pageSize = 30,
     sort = 0,
     sortType = 0,
+    keyword = '',
+    categoryName = '',
+    categoryId = '',
+    minPrice = 0,
+    maxPrice,
   } = params;
-  const allGoods = sortGoods(getGoodsList(7), Number(sort), sortType);
-  const start = (pageNum - 1) * pageSize;
+  const filteredGoods = filterGoods(getGoodsList(7), {
+    keyword,
+    categoryName,
+    categoryId,
+    minPrice,
+    maxPrice,
+  });
+  const allGoods = sortGoods(filteredGoods, Number(sort), sortType);
+  const normalizedPageNum = Math.max(1, Number(pageNum) || 1);
+  const normalizedPageSize = Math.max(1, Number(pageSize) || 30);
+  const start = (normalizedPageNum - 1) * normalizedPageSize;
 
   return {
     saasId: null,
     storeId: null,
-    pageNum,
-    pageSize,
+    pageNum: normalizedPageNum,
+    pageSize: normalizedPageSize,
     totalCount: allGoods.length,
-    spuList: allGoods.slice(start, start + pageSize),
+    spuList: allGoods.slice(start, start + normalizedPageSize),
     algId: 0,
   };
 }

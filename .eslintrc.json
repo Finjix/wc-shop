@@ -1,0 +1,36 @@
+{
+  "env": {
+    "es6": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module"
+  },
+  "globals": {
+    "App": "readonly",
+    "Behavior": "readonly",
+    "Component": "readonly",
+    "Page": "readonly",
+    "clearTimeout": "readonly",
+    "clearInterval": "readonly",
+    "console": "readonly",
+    "getApp": "readonly",
+    "getCurrentPages": "readonly",
+    "module": "readonly",
+    "process": "readonly",
+    "require": "readonly",
+    "setTimeout": "readonly",
+    "wx": "readonly"
+  },
+  "rules": {
+    "no-undef": "error",
+    "no-redeclare": "error",
+    "no-unused-vars": [
+      "warn",
+      {
+        "args": "none",
+        "ignoreRestSiblings": true
+      }
+    ]
+  }
+}

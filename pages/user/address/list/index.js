@@ -1,7 +1,13 @@
 /* eslint-disable no-param-reassign */
-import { fetchDeliveryAddressList, persistMockAddressList } from '../../../../services/address/fetchAddress';
+import {
+  fetchDeliveryAddressList,
+  persistMockAddress,
+  persistMockAddressList,
+} from '../../../../services/address/fetchAddress';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { getAddressPromise, resolveAddress, rejectAddress } from '../../../../services/address/list';
+
+const isTrueQueryValue = (value) => value === true || value === 1 || value === '1' || value === 'true';
 
 Page({
   data: {
@@ -20,10 +26,10 @@ Page({
   onLoad(query) {
     const { selectMode = '', isOrderSure = '', id = '' } = query;
     this.setData({
-      isOrderSure: !!isOrderSure,
+      isOrderSure: isTrueQueryValue(isOrderSure),
       id,
     });
-    this.selectMode = !!selectMode;
+    this.selectMode = isTrueQueryValue(selectMode);
     this.init();
   },
 
@@ -45,12 +51,14 @@ Page({
     const { id } = this.data;
     fetchDeliveryAddressList().then((addressList) => {
       addressList.forEach((address) => {
-        if (address.id === id) {
+        if (String(address.id ?? address.addressId) === String(id)) {
           address.checked = true;
         }
       });
       this.hasLoaded = true;
       this.setData({ addressList });
+    }).catch(() => {
+      Toast({ context: this, selector: '#t-toast', message: '地址加载失败，请稍后重试', icon: '' });
     });
   },
   getWXAddressHandle() {
@@ -74,16 +82,19 @@ Page({
           duration: 1000,
         });
         const { length: len } = this.data.addressList;
-        this.setData({
-          [`addressList[${len}]`]: {
-            name: res.userName,
-            phoneNumber: res.telNumber,
-            address: `${res.provinceName}${res.cityName}${res.countryName}${res.detailInfo}`,
-            isDefault: 0,
-            tag: '微信地址',
-            id: len,
-          },
-        });
+        const address = {
+          name: res.userName,
+          phone: res.telNumber,
+          provinceName: res.provinceName,
+          cityName: res.cityName,
+          districtName: res.countryName,
+          detailAddress: res.detailInfo,
+          isDefault: 0,
+          addressTag: '微信地址',
+          id: len,
+          addressId: len,
+        };
+        persistMockAddress(address).then(() => this.getAddressList());
       },
     });
   },
@@ -162,7 +173,7 @@ Page({
           newAddress.id = `${addressList.length}`;
           newAddress.addressId = `${addressList.length}`;
 
-          if (newAddress.isDefault === 1) {
+          if (newAddress.isDefault === true || Number(newAddress.isDefault) === 1) {
             addressList = addressList.map((address) => {
               address.isDefault = 0;
 

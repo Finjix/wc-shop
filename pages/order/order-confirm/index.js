@@ -61,9 +61,32 @@ Page({
     if (options.type === 'cart') {
       // 从购物车跳转过来时，获取传入的商品列表数据
       const goodsRequestListJson = wx.getStorageSync('order.goodsRequestList');
-      goodsRequestList = JSON.parse(goodsRequestListJson);
+      try {
+        goodsRequestList = Array.isArray(goodsRequestListJson)
+          ? goodsRequestListJson
+          : JSON.parse(goodsRequestListJson || 'null');
+      } catch (error) {
+        goodsRequestList = null;
+      }
+      wx.removeStorageSync('order.goodsRequestList');
     } else if (typeof options.goodsRequestList === 'string') {
-      goodsRequestList = JSON.parse(options.goodsRequestList);
+      try {
+        goodsRequestList = JSON.parse(options.goodsRequestList);
+      } catch (error) {
+        goodsRequestList = null;
+      }
+    }
+    if (!Array.isArray(goodsRequestList) || goodsRequestList.length === 0) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '没有可结算的商品',
+        duration: 1500,
+        icon: '',
+      });
+      this.setData({ loading: false });
+      setTimeout(() => wx.navigateBack(), 500);
+      return;
     }
     //获取结算页请求数据列表
     const storeMap = {};
@@ -212,7 +235,10 @@ Page({
     // 商品库存不足继续结算
     const { settleDetailData } = this.data;
     const { outOfStockGoodsList, storeGoodsList, inValidGoodsList } = settleDetailData;
-    if ((outOfStockGoodsList && outOfStockGoodsList.length > 0) || (inValidGoodsList && storeGoodsList)) {
+    if (
+      (outOfStockGoodsList && outOfStockGoodsList.length > 0) ||
+      (inValidGoodsList && inValidGoodsList.length > 0 && storeGoodsList && storeGoodsList.length > 0)
+    ) {
       // 合并正常商品 和 库存 不足商品继续支付
       // 过滤不必要的参数
       const filterOutGoodsList = [];
@@ -235,8 +261,9 @@ Page({
   submitOrder() {
     const { settleDetailData, userAddressReq, storeInfoList } = this.data;
     const { goodsRequestList } = this;
+    const address = settleDetailData.userAddress || userAddressReq;
 
-    if (!userAddressReq && !settleDetailData.userAddress) {
+    if (!address) {
       Toast({
         context: this,
         selector: '#t-toast',
@@ -252,9 +279,9 @@ Page({
     }
     this.payLock = true;
     const params = {
-      userAddressReq: settleDetailData.userAddress || userAddressReq,
+      userAddressReq: address,
       goodsRequestList: goodsRequestList,
-      userName: settleDetailData.userAddress.name || userAddressReq.name,
+      userName: address.name,
       totalAmount: settleDetailData.totalPayAmount,
       storeInfoList,
     };
@@ -347,7 +374,15 @@ Page({
     };
 
     if (channel === 'wechat') {
-      wechatPayOrder(payOrderInfo);
+      wechatPayOrder(payOrderInfo, this).catch(() => {});
+    }
+  },
+
+  onNoGoodsChange(e) {
+    if (e?.detail?.action === 'address') {
+      this.onGotoAddress();
+    } else {
+      this.onSureCommit();
     }
   },
 

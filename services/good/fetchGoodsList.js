@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 /** 获取商品列表 */
 function mockFetchGoodsList(params) {
@@ -33,7 +34,5 @@ export function fetchGoodsList(params) {
   if (config.useMock) {
     return mockFetchGoodsList(params);
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('fetchGoodsList');
 }

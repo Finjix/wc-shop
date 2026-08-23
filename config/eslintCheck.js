@@ -1,89 +1,58 @@
-/* eslint-disable prefer-template */
+/* eslint-disable no-console */
 /**
- * 工程代码pre-commit 检查工具
- * @date 2019.9.4
-
+ * 工程代码 pre-commit 检查工具。
+ * 使用 Node 读取暂存区文件，避免 Windows 环境依赖 Unix grep。
  */
-const { exec } = require('child_process');
+const { execFileSync } = require('child_process');
 const { CLIEngine } = require('eslint');
-const cli = new CLIEngine({});
-const { log } = console;
 
-function getErrorLevel(number) {
-  switch (number) {
-    case 2:
-      return 'error';
-    case 1:
-      return 'warn';
-    default:
+function getStagedJavaScriptFiles() {
+  try {
+    const output = execFileSync(
+      'git',
+      ['diff', '--cached', '--name-only', '--diff-filter=ACM'],
+      { encoding: 'utf8' },
+    );
+    return output
+      .split(/\r?\n/)
+      .map((file) => file.trim())
+      .filter((file) => /\.(?:js|ts)$/i.test(file));
+  } catch (error) {
+    console.error(`读取暂存区文件失败：${error.message}`);
+    process.exitCode = 1;
+    return [];
   }
-  return 'undefined';
 }
-let pass = 0;
-exec('git diff --cached --name-only --diff-filter=ACM | grep -Ei "\\.ts$|\\.js$"', (error, stdout) => {
-  if (stdout.length) {
-    const array = stdout.split('\n');
-    array.pop();
-    const { results } = cli.executeOnFiles(array);
-    let errorCount = 0;
-    let warningCount = 0;
-    results.forEach((result) => {
-      errorCount += result.errorCount;
-      warningCount += result.warningCount;
-      if (result.messages.length > 0) {
-        log('\n');
-        log(result.filePath);
-        result.messages.forEach((obj) => {
-          const level = getErrorLevel(obj.severity);
-          if (level === 'warn')
-            log(
-              ' ' +
-                obj.line +
-                ':' +
-                obj.column +
-                '\t ' +
-                level +
-                ' \0  ' +
-                obj.message +
-                '\t\t' +
-                obj.ruleId +
-                '',
-            );
-          if (level === 'error')
-            log(
-              ' ' +
-                obj.line +
-                ':' +
-                obj.column +
-                '\t ' +
-                level +
-                ' \0  ' +
-                obj.message +
-                '\t\t ' +
-                obj.ruleId +
-                '',
-            );
-          if (level === 'error') pass = 1;
-        });
-      }
-    });
-    if (warningCount > 0 || errorCount > 0) {
-      const problemCount = errorCount + warningCount;
-      log(
-        '\n' +
-          problemCount +
-          ' problems' +
-          ' (' +
-          errorCount +
-          ' errors, ' +
-          warningCount +
-          ' warnings) \0',
-      );
-    }
-    !pass && log('~~ Done: 代码检验通过，提交成功 ~~');
-    process.exit(pass);
-  }
-  if (error !== null) {
-    log(`exec error: ${error}`);
-  }
+
+const files = getStagedJavaScriptFiles();
+if (files.length === 0) {
+  console.log('没有需要检查的暂存区 JavaScript/TypeScript 文件。');
+  process.exit(0);
+}
+
+const cli = new CLIEngine({});
+const { results } = cli.executeOnFiles(files);
+let errorCount = 0;
+let warningCount = 0;
+
+results.forEach((result) => {
+  errorCount += result.errorCount;
+  warningCount += result.warningCount;
+  if (!result.messages.length) return;
+
+  console.log(`\n${result.filePath}`);
+  result.messages.forEach((message) => {
+    const level = message.severity === 2 ? 'error' : 'warn';
+    console.log(
+      ` ${message.line}:${message.column}\t${level}\t${message.message}\t${message.ruleId || ''}`,
+    );
+  });
 });
+
+if (errorCount || warningCount) {
+  console.log(`\n${errorCount + warningCount} problems (${errorCount} errors, ${warningCount} warnings)`);
+} else {
+  console.log('~~ Done: 代码检验通过，提交成功 ~~');
+}
+
+process.exit(errorCount > 0 ? 1 : 0);

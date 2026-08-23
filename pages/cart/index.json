@@ -3,6 +3,7 @@
   "navigationStyle": "custom",
   "usingComponents": {
     "cart-group": "./components/cart-group/index",
+    "cart-empty": "./components/cart-empty/index",
     "cart-bar": "./components/cart-bar/index",
     "price": "/components/price/index",
     "t-icon": "tdesign-miniprogram/icon/icon",

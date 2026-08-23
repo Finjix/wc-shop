@@ -16,7 +16,7 @@
     wx:key="storeIndex"
   >
     <view
-      wx:if="{{orderCardList[storeIndex].goodsList.length > 0}}"
+      wx:if="{{orderCardList[storeIndex] && orderCardList[storeIndex].goodsList.length > 0}}"
       wx:for="{{orderCardList[storeIndex].goodsList}}"
       wx:for-item="goods"
       wx:for-index="gIndex"
@@ -71,7 +71,7 @@
     </view>
   </view>
   <t-popup visible="{{popupShow}}" placement="bottom" bind:visible-change="onPopupChange">
-    <no-goods slot="content" bind:change="onSureCommit" settleDetailData="{{settleDetailData}}" />
+    <no-goods slot="content" bind:change="onNoGoodsChange" settleDetailData="{{settleDetailData}}" />
   </t-popup>
 </view>
 <t-toast id="t-toast" />

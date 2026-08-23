@@ -1,5 +1,6 @@
 import Dialog from 'tdesign-miniprogram/dialog/index';
 import Toast from 'tdesign-miniprogram/toast/index';
+import { config } from '../../../config/index';
 
 import { dispatchCommitPay } from '../../../services/order/orderConfirm';
 
@@ -20,11 +21,11 @@ export const commitPay = (params) => {
   });
 };
 
-export const paySuccess = (payOrderInfo) => {
+export const paySuccess = (payOrderInfo, context) => {
   const { payAmt, tradeNo } = payOrderInfo;
   // 支付成功
   Toast({
-    context: this,
+    context,
     selector: '#t-toast',
     message: '支付成功',
     duration: 2000,
@@ -36,13 +37,13 @@ export const paySuccess = (payOrderInfo) => {
     orderNo: tradeNo,
   };
   const paramsStr = Object.keys(params)
-    .map((k) => `${k}=${params[k]}`)
+    .map((k) => `${k}=${encodeURIComponent(params[k] ?? '')}`)
     .join('&');
   // 跳转支付结果页面
   wx.redirectTo({ url: `/pages/order/pay-result/index?${paramsStr}` });
 };
 
-export const payFail = (payOrderInfo, resultMsg) => {
+export const payFail = (payOrderInfo = {}, resultMsg, context) => {
   if (resultMsg === 'requestPayment:fail cancel') {
     if (payOrderInfo.dialogOnCancel) {
       //结算页，取消付款，dialog提示
@@ -57,7 +58,7 @@ export const payFail = (payOrderInfo, resultMsg) => {
     } else {
       //订单列表页，订单详情页，取消付款，toast提示
       Toast({
-        context: this,
+        context,
         selector: '#t-toast',
         message: '支付取消',
         duration: 2000,
@@ -66,7 +67,7 @@ export const payFail = (payOrderInfo, resultMsg) => {
     }
   } else {
     Toast({
-      context: this,
+      context,
       selector: '#t-toast',
       message: `支付失败：${resultMsg}`,
       duration: 2000,
@@ -79,26 +80,48 @@ export const payFail = (payOrderInfo, resultMsg) => {
 };
 
 // 微信支付方式
-export const wechatPayOrder = (payOrderInfo) => {
-  // const payInfo = JSON.parse(payOrderInfo.payInfo);
-  // const { timeStamp, nonceStr, signType, paySign } = payInfo;
-  return new Promise((resolve) => {
-    // demo 中直接走支付成功
-    paySuccess(payOrderInfo);
-    resolve();
-    /* wx.requestPayment({
-      timeStamp,
-      nonceStr,
+export const wechatPayOrder = (payOrderInfo, context) => {
+  if (config.useMock) {
+    if (config.enableMockPayment) {
+      paySuccess(payOrderInfo, context);
+      return Promise.resolve();
+    }
+    payFail(payOrderInfo, '当前为演示环境，未启用模拟支付', context);
+    return Promise.reject(new Error('Mock payment is disabled'));
+  }
+
+  let payInfo;
+  try {
+    payInfo = typeof payOrderInfo?.payInfo === 'string'
+      ? JSON.parse(payOrderInfo.payInfo)
+      : payOrderInfo?.payInfo;
+  } catch (error) {
+    payFail(payOrderInfo, '支付参数格式错误', context);
+    return Promise.reject(error);
+  }
+
+  if (!payInfo?.timeStamp || !payInfo?.nonceStr || !payInfo?.package || !payInfo?.paySign) {
+    const error = new Error('支付服务未返回完整支付参数');
+    payFail(payOrderInfo, error.message, context);
+    return Promise.reject(error);
+  }
+
+  return new Promise((resolve, reject) => {
+    wx.requestPayment({
+      timeStamp: String(payInfo.timeStamp),
+      nonceStr: payInfo.nonceStr,
       package: payInfo.package,
-      signType,
-      paySign,
-      success: function () {
-        paySuccess(payOrderInfo);
+      signType: payInfo.signType || 'RSA',
+      paySign: payInfo.paySign,
+      success: () => {
+        paySuccess(payOrderInfo, context);
         resolve();
       },
-      fail: function (err) {
-        payFail(payOrderInfo, err.errMsg);
+      fail: (err) => {
+        const resultMsg = err?.errMsg || '未知错误';
+        payFail(payOrderInfo, resultMsg, context);
+        reject(err);
       },
-    }); */
+    });
   });
 };

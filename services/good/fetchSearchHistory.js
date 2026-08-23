@@ -1,4 +1,5 @@
 import { config } from '../../config/index';
+import { apiUnavailable } from '../_utils/apiUnavailable';
 
 /** 获取搜索历史 */
 function mockSearchHistory() {
@@ -12,7 +13,5 @@ export function getSearchHistory() {
   if (config.useMock) {
     return mockSearchHistory();
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return apiUnavailable('getSearchHistory');
 }

@@ -67,20 +67,27 @@ Component({
         stack.push(children[activeKey].setActive(true));
       }
 
+      const setRadius = (index, method, value) => {
+        const child = children[index];
+        if (child && typeof child[method] === 'function') {
+          stack.push(child[method](value));
+        }
+      };
+
       preTopRightRadiusItemIndexs.forEach((item) => {
-        stack.push(children[item].setTopRightRadius(false));
+        setRadius(item, 'setTopRightRadius', false);
       });
 
       preBottomRightRadiusItemIndexs.forEach((item) => {
-        stack.push(children[item].setBottomRightRadius(false));
+        setRadius(item, 'setBottomRightRadius', false);
       });
 
       this.topRightRadiusItemIndexs.forEach((item) => {
-        stack.push(children[item].setTopRightRadius(true));
+        setRadius(item, 'setTopRightRadius', true);
       });
 
       this.bottomRightRadiusItemIndexs.forEach((item) => {
-        stack.push(children[item].setBottomRightRadius(true));
+        setRadius(item, 'setBottomRightRadius', true);
       });
 
       return Promise.all(stack);

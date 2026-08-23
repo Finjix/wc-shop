@@ -59,10 +59,15 @@ Component({
         if (deleteBtnIndex > -1) {
           buttonsLeft = buttonsRight.splice(deleteBtnIndex, 1);
         }
+        const normalizedButtonsRight = buttonsRight.map((button) => ({
+          ...button,
+          openType: button.openType || '',
+        }));
         this.setData({
+          currentOrder: order || {},
           buttons: {
             left: buttonsLeft,
-            right: buttonsRight,
+            right: normalizedButtonsRight,
           },
         });
       },
@@ -74,7 +79,7 @@ Component({
   },
 
   data: {
-    order: {},
+    currentOrder: {},
     buttons: {
       left: [],
       right: [],
@@ -87,44 +92,39 @@ Component({
       const { type } = e.currentTarget.dataset;
       switch (type) {
         case OrderButtonTypes.DELETE:
-          this.onDelete(this.data.order);
+          this.onDelete(this.data.currentOrder);
           break;
         case OrderButtonTypes.CANCEL:
-          this.onCancel(this.data.order);
+          this.onCancel(this.data.currentOrder);
           break;
         case OrderButtonTypes.CONFIRM:
-          this.onConfirm(this.data.order);
+          this.onConfirm(this.data.currentOrder);
           break;
         case OrderButtonTypes.PAY:
-          this.onPay(this.data.order);
+          this.onPay(this.data.currentOrder);
           break;
         case OrderButtonTypes.APPLY_REFUND:
-          this.onApplyRefund(this.data.order);
+          this.onApplyRefund(this.data.currentOrder);
           break;
         case OrderButtonTypes.VIEW_REFUND:
-          this.onViewRefund(this.data.order);
+          this.onViewRefund(this.data.currentOrder);
           break;
         case OrderButtonTypes.COMMENT:
-          this.onAddComment(this.data.order);
+          this.onAddComment(this.data.currentOrder);
           break;
         case OrderButtonTypes.VIEW_COMMENT:
-          this.onViewComment(this.data.order);
+          this.onViewComment(this.data.currentOrder);
           break;
         case OrderButtonTypes.INVITE_GROUPON:
           //分享邀请好友拼团
           break;
         case OrderButtonTypes.REBUY:
-          this.onBuyAgain(this.data.order);
+          this.onBuyAgain(this.data.currentOrder);
       }
     },
 
     onCancel() {
-      Toast({
-        context: this,
-        selector: '#t-toast',
-        message: '你点击了取消订单',
-        icon: 'check-circle',
-      });
+      this.confirmDemoAction('取消订单');
     },
 
     onConfirm() {
@@ -135,38 +135,47 @@ Component({
         cancelBtn: '取消',
       })
         .then(() => {
-          Toast({
-            context: this,
-            selector: '#t-toast',
-            message: '你确认了确认收货',
-            icon: 'check-circle',
-          });
+          this.showDemoUnavailable('确认收货');
         })
         .catch(() => {
           Toast({
             context: this,
             selector: '#t-toast',
-            message: '你取消了确认收货',
+            message: '已取消确认收货',
             icon: 'check-circle',
           });
         });
     },
 
     onPay() {
-      Toast({
-        context: this,
-        selector: '#t-toast',
-        message: '你点击了去支付',
-        icon: 'check-circle',
-      });
+      this.showDemoUnavailable('订单支付');
     },
 
     onBuyAgain() {
+      this.showDemoUnavailable('再次购买');
+    },
+
+    onDelete() {
+      this.confirmDemoAction('删除订单');
+    },
+
+    confirmDemoAction(action) {
+      Dialog.confirm({
+        title: `确认${action}？`,
+        content: '当前使用演示数据，真实订单服务尚未接入。',
+        confirmBtn: '继续',
+        cancelBtn: '取消',
+      }).then(() => {
+        this.showDemoUnavailable(action);
+      }).catch(() => {});
+    },
+
+    showDemoUnavailable(action) {
       Toast({
         context: this,
         selector: '#t-toast',
-        message: '你点击了再次购买',
-        icon: 'check-circle',
+        message: `${action}未执行：订单服务尚未接入`,
+        icon: '',
       });
     },
 
@@ -188,7 +197,7 @@ Component({
         orderLevel: true,
       };
       const paramsStr = Object.keys(params)
-        .map((k) => `${k}=${params[k]}`)
+        .map((k) => `${k}=${encodeURIComponent(params[k] ?? '')}`)
         .join('&');
       wx.navigateTo({ url: `/pages/order/apply-service/index?${paramsStr}` });
     },
@@ -208,7 +217,11 @@ Component({
       const title = order?.goodsList?.[0]?.title;
       const specs = order?.goodsList?.[0]?.specs;
       wx.navigateTo({
-        url: `/pages/goods/comments/create/index?specs=${specs}&title=${title}&orderNo=${order?.orderNo}&imgUrl=${imgUrl}`,
+        url: `/pages/goods/comments/create/index?specs=${encodeURIComponent(
+          specs || '',
+        )}&title=${encodeURIComponent(title || '')}&orderNo=${encodeURIComponent(
+          order?.orderNo || '',
+        )}&imgUrl=${encodeURIComponent(imgUrl || '')}`,
       });
     },
 
@@ -216,7 +229,9 @@ Component({
       const spuId = order?.goodsList?.[0]?.spuId;
       if (spuId === undefined || spuId === null || spuId === '') return;
       wx.navigateTo({
-        url: `/pages/goods/comments/index?spuId=${spuId}&orderNo=${order.orderNo}`,
+        url: `/pages/goods/comments/index?spuId=${encodeURIComponent(spuId)}&orderNo=${encodeURIComponent(
+          order.orderNo || '',
+        )}`,
       });
     },
   },
