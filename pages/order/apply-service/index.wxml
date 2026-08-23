@@ -146,6 +146,7 @@
       <t-button
         t-class="bottom-bar__btn"
         bindtap="onSubmit"
+        disabled="{{submitting}}"
         loading="{{submitting}}"
       >
         提交

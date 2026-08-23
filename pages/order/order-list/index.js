@@ -81,7 +81,7 @@ Page({
     const params = {
       parameter: {
         pageSize: this.page.size,
-        pageNum: this.page.num,
+        page: this.page.num,
       },
     };
     if (requestStatus !== -1) params.parameter.orderStatus = requestStatus;

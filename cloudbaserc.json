@@ -1,0 +1,24 @@
+{
+  "envId": "{{env.CLOUDBASE_ENV_ID}}",
+  "functionRoot": "./cloudfunctions",
+  "functions": [
+    {
+      "name": "shop",
+      "dir": "./cloudfunctions",
+      "handler": "shop/index.main",
+      "runtime": "Nodejs20.19",
+      "timeout": 20,
+      "memorySize": 256,
+      "installDependency": true
+    },
+    {
+      "name": "admin",
+      "dir": "./cloudfunctions",
+      "handler": "admin/index.main",
+      "runtime": "Nodejs20.19",
+      "timeout": 20,
+      "memorySize": 256,
+      "installDependency": true
+    }
+  ]
+}

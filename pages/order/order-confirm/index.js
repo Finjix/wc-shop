@@ -1,8 +1,22 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchSettleDetail } from '../../../services/order/orderConfirm';
+import { getPendingGoodsRequestList } from '../../../services/order/orderConfirm';
+import { fetchCartGroupData } from '../../../services/cart/cart';
 import { fetchDeliveryAddress } from '../../../services/address/fetchAddress';
-import { commitPay, wechatPayOrder } from './pay';
+import { commitPay } from './pay';
 import { getAddressPromise } from '../../../services/address/list';
+
+function getSelectedGoodsFromCart(cartGroupData) {
+  const result = [];
+  (cartGroupData?.storeGoods || []).forEach((store) => {
+    (store.promotionGoodsList || []).forEach((promotion) => {
+      (promotion.goodsPromotionList || []).forEach((goods) => {
+        if (Boolean(goods.isSelected)) result.push(goods);
+      });
+    });
+  });
+  return result;
+}
 
 Page({
   data: {
@@ -58,17 +72,20 @@ Page({
     if (options.userAddressReq) {
       userAddressReq = options.userAddressReq;
     }
+    if (Array.isArray(options.goodsRequestList)) goodsRequestList = options.goodsRequestList;
     if (options.type === 'cart') {
-      // 从购物车跳转过来时，获取传入的商品列表数据
-      const goodsRequestListJson = wx.getStorageSync('order.goodsRequestList');
-      try {
-        goodsRequestList = Array.isArray(goodsRequestListJson)
-          ? goodsRequestListJson
-          : JSON.parse(goodsRequestListJson || 'null');
-      } catch (error) {
-        goodsRequestList = null;
+      goodsRequestList = getPendingGoodsRequestList();
+      if (!Array.isArray(goodsRequestList) || goodsRequestList.length === 0) {
+        fetchCartGroupData()
+          .then((res) => this.handleOptionsParams({
+            ...options,
+            type: undefined,
+            goodsRequestList: getSelectedGoodsFromCart(res.data),
+            skipDefaultAddress: true,
+          }))
+          .catch(() => this.handleError('购物车读取失败，请稍后重试'));
+        return;
       }
-      wx.removeStorageSync('order.goodsRequestList');
     } else if (typeof options.goodsRequestList === 'string') {
       try {
         goodsRequestList = JSON.parse(options.goodsRequestList);
@@ -146,11 +163,11 @@ Page({
     return false;
   },
 
-  handleError() {
+  handleError(message = '结算异常, 请稍后重试') {
     Toast({
       context: this,
       selector: '#t-toast',
-      message: '结算异常, 请稍后重试',
+      message,
       duration: 2000,
       icon: '',
     });
@@ -263,6 +280,10 @@ Page({
     const { goodsRequestList } = this;
     const address = settleDetailData.userAddress || userAddressReq;
 
+    if (!Array.isArray(goodsRequestList) || goodsRequestList.length === 0) {
+      Toast({ context: this, selector: '#t-toast', message: '购物车为空，请返回购物车重新选择' });
+      return;
+    }
     if (!address) {
       Toast({
         context: this,
@@ -274,108 +295,73 @@ Page({
 
       return;
     }
-    if (this.payLock || !settleDetailData.settleType || !settleDetailData.totalAmount) {
+    if (this.payLock || !settleDetailData.settleType) {
       return;
     }
     this.payLock = true;
+    this.createRequestId = this.createRequestId || `order-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const params = {
       userAddressReq: address,
       goodsRequestList: goodsRequestList,
       userName: address.name,
       totalAmount: settleDetailData.totalPayAmount,
       storeInfoList,
+      requestKey: this.createRequestId,
     };
     commitPay(params).then(
       (res) => {
         this.payLock = false;
         const { data } = res;
-        // 提交出现失效、不在配送范围的商品提示弹窗
-        if (this.isInvalidOrder(data)) {
-          return;
-        }
-        if (res.code === 'Success') {
-          this.handlePay(data, settleDetailData);
-        } else {
-          Toast({
-            context: this,
-            selector: '#t-toast',
-            message: res.msg || '提交订单超时，请稍后重试',
-            duration: 2000,
-            icon: '',
-          });
-          setTimeout(() => {
-            // 提交支付失败   返回购物车
-            wx.navigateBack();
-          }, 2000);
-        }
+        this.createRequestId = null;
+        Toast({ context: this, selector: '#t-toast', message: '订单已创建，当前为待支付状态', duration: 1600, icon: 'check-circle' });
+        setTimeout(() => {
+          if (data?.orderNo) wx.redirectTo({ url: `/pages/order/order-detail/index?orderNo=${encodeURIComponent(data.orderNo)}` });
+          else wx.redirectTo({ url: '/pages/order/order-list/index' });
+        }, 600);
       },
       (err) => {
         this.payLock = false;
-        if (err.code === 'CONTAINS_INSUFFICIENT_GOODS' || err.code === 'TOTAL_AMOUNT_DIFFERENT') {
+        const code = String(err?.code || '').toUpperCase();
+        if (['CONTAINS_INSUFFICIENT_GOODS', 'STOCK_INSUFFICIENT', 'OUT_OF_STOCK', 'TOTAL_AMOUNT_DIFFERENT'].includes(code)) {
           Toast({
             context: this,
             selector: '#t-toast',
-            message: err.msg || '支付异常',
+            message: err.msg || '商品库存或金额已变化，请重新确认',
             duration: 2000,
             icon: '',
           });
           this.init();
-        } else if (err.code === 'ORDER_PAY_FAIL') {
+        } else if (['ADDRESS_REQUIRED', 'ADDRESS_MISSING'].includes(code)) {
           Toast({
             context: this,
             selector: '#t-toast',
-            message: '支付失败',
+            message: '请先添加收货地址',
             duration: 2000,
-            icon: 'close-circle',
+            icon: 'help-circle',
           });
-          setTimeout(() => {
-            wx.redirectTo({ url: '/pages/order/order-list/index' });
-          });
-        } else if (err.code === 'ILLEGAL_CONFIG_PARAM') {
+        } else if (['EMPTY_CART', 'CART_EMPTY'].includes(code)) {
           Toast({
             context: this,
             selector: '#t-toast',
-            message: '支付失败，微信支付商户号设置有误，请商家重新检查支付设置。',
+            message: '购物车为空，请返回购物车重新选择',
             duration: 2000,
-            icon: 'close-circle',
+            icon: '',
           });
-          setTimeout(() => {
-            wx.redirectTo({ url: '/pages/order/order-list/index' });
-          });
+          setTimeout(() => wx.navigateBack(), 1000);
+        } else if (['DUPLICATE_ORDER', 'DUPLICATE_SUBMIT', 'ORDER_DUPLICATE'].includes(code)) {
+          Toast({ context: this, selector: '#t-toast', message: '订单已提交，请勿重复操作', duration: 1800, icon: '' });
+          setTimeout(() => wx.redirectTo({ url: '/pages/order/order-list/index' }), 600);
         } else {
           Toast({
             context: this,
             selector: '#t-toast',
-            message: err.msg || '提交支付超时，请稍后重试',
+            message: err.msg || '订单提交失败，请稍后重试',
             duration: 2000,
             icon: '',
           });
-          setTimeout(() => {
-            // 提交支付失败  返回购物车
-            wx.navigateBack();
-          }, 2000);
         }
       },
     );
-  },
-
-  // 处理支付
-  handlePay(data, settleDetailData) {
-    const { channel, payInfo, tradeNo, interactId, transactionId } = data;
-    const { totalAmount, totalPayAmount } = settleDetailData;
-    const payOrderInfo = {
-      payInfo: payInfo,
-      orderId: tradeNo,
-      orderAmt: totalAmount,
-      payAmt: totalPayAmount,
-      interactId: interactId,
-      tradeNo: tradeNo,
-      transactionId: transactionId,
-    };
-
-    if (channel === 'wechat') {
-      wechatPayOrder(payOrderInfo, this).catch(() => {});
-    }
   },
 
   onNoGoodsChange(e) {

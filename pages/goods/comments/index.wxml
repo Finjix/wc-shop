@@ -69,4 +69,7 @@
 	  failedColor="#FA550F"
 	/>
 </view>
+<view wx:if="{{hasLoaded && !commentList.length && !loadError}}" class="comments-empty">
+  暂无评价
+</view>
 </block>

@@ -1,5 +1,8 @@
 import { getRightsList } from './api';
 import { AfterServiceStatus, ServiceType, ServiceTypeDesc } from '../config';
+import Toast from 'tdesign-miniprogram/toast/index';
+import { getCloudErrorMessage } from '../../../utils/cloud';
+import { normalizeLogistics, normalizeServiceType } from '../after-service-detail/contract';
 
 Page({
   page: {
@@ -36,6 +39,7 @@ Page({
     pullDownRefreshing: false, // 下拉刷新时不显示load-more
     emptyImg: 'https://tdesign.gtimg.com/miniprogram/template/retail/order/empty-order-list.png',
     backRefresh: false,
+    errorMessage: '',
   },
 
   onLoad(query) {
@@ -101,6 +105,7 @@ Page({
     return getRightsList(params)
       .then((res) => {
         this.page.num++;
+        this.setData({ errorMessage: '' });
         let dataList = [];
         let { tabs } = this.data;
         if (res && res.data && res.data.states) {
@@ -122,37 +127,42 @@ Page({
             return item;
           });
         }
-        if (res && res.data && res.data.dataList) {
+        if (res && res.data && Array.isArray(res.data.dataList)) {
           dataList = (res.data.dataList || []).map((_data) => {
+            const rights = _data.rights || _data;
+            const rightsItem = _data.rightsItem || _data.items || [];
+            const logistics = _data.logisticsVO || _data.logistics || {};
             return {
-              id: _data.rights.rightsNo,
-              serviceNo: _data.rights.rightsNo,
-              storeName: _data.rights.storeName,
-              type: _data.rights.rightsType,
-              typeDesc: ServiceTypeDesc[_data.rights.rightsType],
+              id: rights.rightsNo || rights.id || rights._id,
+              serviceNo: rights.rightsNo || rights.id || rights._id,
+              storeName: rights.storeName,
+              type: normalizeServiceType(rights.rightsType ?? rights.type),
+              typeDesc: ServiceTypeDesc[normalizeServiceType(rights.rightsType ?? rights.type)] || rights.typeDesc || '',
               typeDescIcon:
-                _data.rights.rightsType === ServiceType.ONLY_REFUND
+                normalizeServiceType(rights.rightsType ?? rights.type) === ServiceType.ONLY_REFUND
                   ? 'money-circle'
                   : 'return-goods-1',
-              status: _data.rights.rightsStatus,
-              statusName: _data.rights.userRightsStatusName,
-              statusDesc: _data.rights.userRightsStatusDesc,
-              amount: _data.rights.refundAmount,
-              goodsList: _data.rightsItem.map((item, i) => ({
+              status: rights.rightsStatus,
+              statusName: rights.userRightsStatusName || rights.statusName,
+              statusDesc: rights.userRightsStatusDesc || rights.statusDesc,
+              amount: rights.refundAmount ?? rights.refundRequestAmount,
+              goodsList: rightsItem.map((item, i) => ({
                 id: i,
-                thumb: item.goodsPictureUrl,
-                title: item.goodsName,
-                specs: (item.specInfo || []).map((s) => s.specValues || ''),
-                itemRefundAmount: item.itemRefundAmount,
-                rightsQuantity: item.rightsQuantity,
+                thumb: item.goodsPictureUrl || item.thumb,
+                title: item.goodsName || item.title,
+                specs: Array.isArray(item.specInfo)
+                  ? item.specInfo.map((s) => s.specValues || s.specValue || '')
+                  : [],
+                itemRefundAmount: item.itemRefundAmount ?? item.refundAmount,
+                rightsQuantity: item.rightsQuantity ?? item.quantity,
               })),
               storeId: _data.storeId,
               buttons: _data.buttonVOs || [],
-              logisticsNo: _data.logisticsVO?.logisticsNo, // 退货物流单号
-              logisticsCompanyName: _data.logisticsVO?.logisticsCompanyName, // 退货物流公司
-              logisticsCompanyCode: _data.logisticsVO?.logisticsCompanyCode, // 退货物流公司
-              remark: _data.logisticsVO?.remark, // 退货备注
-              logisticsVO: _data.logisticsVO,
+              logisticsNo: logistics.logisticsNo,
+              logisticsCompanyName: logistics.logisticsCompanyName,
+              logisticsCompanyCode: logistics.logisticsCompanyCode,
+              remark: logistics.remark,
+              logisticsVO: normalizeLogistics(logistics),
             };
           });
         }
@@ -174,10 +184,13 @@ Page({
         });
       })
       .catch((err) => {
+        const message = getCloudErrorMessage(err, '售后列表加载失败，请稍后重试');
         this.setData({
           listLoading: 3,
+          errorMessage: message,
         });
         console.error('load after-service list error:', err);
+        Toast({ context: this, selector: '#t-toast', message, icon: '' });
         return null;
       });
   },

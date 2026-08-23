@@ -230,3 +230,8 @@ page {
   align-items: center;
   font-size: 24rpx;
 }
+.goods-detail-state {
+  padding: 80rpx 32rpx;
+  color: #999;
+  text-align: center;
+}

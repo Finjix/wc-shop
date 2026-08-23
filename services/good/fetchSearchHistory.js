@@ -1,17 +1,14 @@
-import { config } from '../../config/index';
-import { apiUnavailable } from '../_utils/apiUnavailable';
+import { callShop } from '../../utils/cloud';
 
-/** 获取搜索历史 */
-function mockSearchHistory() {
-  const { delay } = require('../_utils/delay');
-  const { getSearchHistory } = require('../../model/search');
-  return delay().then(() => getSearchHistory());
-}
-
-/** 获取搜索历史 */
 export function getSearchHistory() {
-  if (config.useMock) {
-    return mockSearchHistory();
-  }
-  return apiUnavailable('getSearchHistory');
+  return callShop('searchHistory.list');
+}
+export function addSearchHistory(keyword) {
+  return callShop('searchHistory.add', { keyword });
+}
+export function deleteSearchHistory(keyword) {
+  return callShop('searchHistory.remove', { keyword });
+}
+export function clearSearchHistory() {
+  return callShop('searchHistory.clear');
 }

@@ -74,7 +74,7 @@
       </view>
     </view>
     <view class="empty-wrap" wx:if="{{goodsList.length === 0 && hasLoaded}}">
-      <t-empty t-class="empty-tips" size="240rpx" description="暂无相关商品" />
+      <t-empty t-class="empty-tips" size="240rpx" description="{{emptyInfo.tip || '暂无相关商品'}}" />
     </view>
     <view class="category-goods-list" wx:if="{{goodsList.length}}">
       <goods-list

@@ -1,8 +1,8 @@
 export const config = {
-  /** 是否使用mock代替api返回 */
-  useMock: true,
-  /** 是否允许在 Mock 环境跳过微信支付，仅用于本地演示 */
-  enableMockPayment: false,
+  /** CloudBase 环境 ID；部署前填入开发者工具中显示的真实环境 ID。 */
+  cloudEnvId: 'cloud1-d6gerlzk9daa770ca',
+  /** 承载小程序业务接口的云函数名称。 */
+  cloudFunctionName: 'shop',
 };
 
 export const cdnBase =

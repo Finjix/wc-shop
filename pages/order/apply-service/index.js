@@ -8,8 +8,9 @@ import {
   dispatchConfirmReceived,
   fetchApplyReasonList,
   dispatchApplyService,
-} from '../../../services/order/applyService';
-import { fetchOrderDetail } from '../../../services/order/orderDetail';
+} from './api';
+import { getCloudErrorMessage } from '../../../utils/cloud';
+import { normalizeServiceType } from '../after-service-detail/contract';
 
 Page({
   query: {},
@@ -116,7 +117,14 @@ Page({
       // 收货状态仍保持“请选择”，但退款原因可以直接打开查看
       const applyReasons = await this.getApplyReasons(ServiceReceiptStatus.RECEIPTED);
       this.setData({ applyReasons });
-    } catch (e) {}
+    } catch (error) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: getCloudErrorMessage(error, '售后申请信息加载失败，请稍后重试'),
+        icon: '',
+      });
+    }
   },
 
   checkQuery() {
@@ -149,11 +157,14 @@ Page({
       wx.hideLoading();
       const preview = (res && res.data) || {};
       const previewAmount = Number(preview.refundableAmount || 0);
-      const orderAmount = Number(this.query.payAmt || this.query.orderAmt || 0);
-      const refundableAmount = previewAmount > 0 ? previewAmount : orderAmount;
+      const refundableAmount = previewAmount;
       const previewGoods = this.isOrderLevel ? preview.goodsList || [] : [preview];
+      if ((!previewGoods.length && this.isOrderLevel) || (!refundableAmount && !previewGoods.length)) {
+        throw new Error('云端未返回可申请的订单数据');
+      }
       const goodsInfoList = previewGoods.map((goods) => ({
         id: goods.skuId,
+        orderItemId: goods.orderItemId || goods.itemId,
         thumb: goods.goodsInfo && goods.goodsInfo.skuImage,
         title: goods.goodsInfo && goods.goodsInfo.goodsName,
         spuId: goods.spuId,
@@ -185,79 +196,13 @@ Page({
 
   async getRightsPreview() {
     const { orderNo, skuId, spuId } = this.query;
-    if (this.isOrderLevel) {
-      // 订单级售后金额以订单详情的实付金额为准，避免沿用按商品聚合的旧预览 mock。
-      const orderPreview = await this.getOrderPreview(orderNo);
-      if (Number(orderPreview && orderPreview.data && orderPreview.data.refundableAmount) > 0) {
-        return orderPreview;
-      }
-      try {
-        const preview = await fetchRightsPreview({ orderNo, orderLevel: true });
-        if (preview && preview.data) return preview;
-      } catch (e) {}
-      return this.getOrderPreview(orderNo);
-    }
-    const params = {
+    return fetchRightsPreview({
       orderNo,
+      orderLevel: this.isOrderLevel,
       skuId,
       spuId,
       numOfSku: this.data.serviceFrom.returnNum,
-    };
-    const res = await fetchRightsPreview(params);
-    return res;
-  },
-
-  async getOrderPreview(orderNo) {
-    try {
-      const res = await fetchOrderDetail({ parameter: orderNo });
-      const order = res && res.data;
-      const orderItems = (order && order.orderItemVOs) || [];
-      const goodsList = orderItems.map((goods) => {
-        const quantity = Number(goods.buyQuantity || 0);
-        const paidAmountEach =
-          Number(goods.goodsPaymentPrice || 0) ||
-          (quantity ? Number(goods.itemPaymentAmount || 0) / quantity : 0);
-        return {
-          spuId: goods.spuId,
-          skuId: goods.skuId,
-          numOfSku: quantity,
-          numOfSkuAvailable: quantity,
-          refundableAmount: `${goods.itemPaymentAmount || 0}`,
-          paidAmountEach: `${paidAmountEach}`,
-          boughtQuantity: quantity,
-          goodsInfo: {
-            goodsName: goods.goodsName,
-            skuImage: goods.goodsPictureUrl,
-            specInfo: goods.specifications || [],
-          },
-        };
-      });
-      const quantity = goodsList.reduce((sum, goods) => sum + goods.boughtQuantity, 0);
-      const orderAmount =
-        Number(order && order.paymentAmount) ||
-        Number(order && order.goodsAmountApp) ||
-        Number(order && order.totalAmount) ||
-        Number(this.query.payAmt || this.query.orderAmt || 0);
-      return {
-        data: {
-          refundableAmount: `${orderAmount}`,
-          shippingFeeIncluded: `${(order && order.freightFee) || 0}`,
-          numOfSku: quantity,
-          numOfSkuAvailable: quantity,
-          goodsList,
-        },
-      };
-    } catch (e) {
-      return {
-        data: {
-          refundableAmount: `${Number(this.query.payAmt || this.query.orderAmt || 0)}`,
-          shippingFeeIncluded: '0',
-          numOfSku: 1,
-          numOfSkuAvailable: 1,
-          goodsList: [],
-        },
-      };
-    }
+    });
   },
 
   onApplyOnlyRefund() {
@@ -288,11 +233,23 @@ Page({
                 orderNo: this.query.orderNo,
               },
             }).then(() => ServiceReceiptStatus.RECEIPTED);
-          }).catch(() => ServiceReceiptStatus.NOT_RECEIPTED);
+          }).catch((error) => {
+            if (error && error.code) {
+              Toast({
+                context: this,
+                selector: '#t-toast',
+                message: getCloudErrorMessage(error, '确认收货失败，请稍后重试'),
+                icon: '',
+              });
+              return null;
+            }
+            return ServiceReceiptStatus.NOT_RECEIPTED;
+          });
         }
         return ServiceReceiptStatus.RECEIPTED;
       })
       .then((receiptStatus) => {
+        if (!receiptStatus) return;
         this.setData({ serviceType: ServiceType.RETURN_GOODS });
         this.switchReceiptStatus(
           receiptStatus === ServiceReceiptStatus.NOT_RECEIPTED ? 0 : 1,
@@ -370,7 +327,13 @@ Page({
   },
 
   getApplyReasons(receiptStatus) {
-    const params = { rightsReasonType: receiptStatus };
+    const params = {
+      orderNo: this.query.orderNo,
+      skuId: this.query.skuId,
+      spuId: this.query.spuId,
+      orderLevel: this.isOrderLevel,
+      rightsReasonType: receiptStatus,
+    };
     return fetchApplyReasonList(params)
       .then((res) => {
         return res.data.rightsReasonList.map((reason) => ({
@@ -378,7 +341,13 @@ Page({
           desc: reason.desc,
         }));
       })
-      .catch(() => {
+      .catch((error) => {
+        Toast({
+          context: this,
+          selector: '#t-toast',
+          message: getCloudErrorMessage(error, '退款原因加载失败，请稍后重试'),
+          icon: '',
+        });
         return [];
       });
   },
@@ -397,54 +366,83 @@ Page({
 
   // 发起申请售后请求
   onSubmit() {
-    this.submitCheck().then(() => {
-      const rightsItem = this.data.orderLevel
-        ? this.data.goodsInfoList.map((goods) => ({
-            itemTotalAmount: Number(goods.paidAmountEach || 0) * Number(goods.boughtQuantity || 0),
-            rightsQuantity: goods.boughtQuantity,
-            skuId: goods.skuId,
-            spuId: goods.spuId,
-          }))
-        : [
-            {
-              itemTotalAmount:
-                Number(this.data.goodsInfo.paidAmountEach || 0) * Number(this.data.serviceFrom.returnNum || 0),
-              rightsQuantity: this.data.serviceFrom.returnNum,
-              skuId: this.query.skuId,
-              spuId: this.query.spuId,
-            },
-          ];
-      const params = {
-        rights: {
-          orderNo: this.query.orderNo,
-          refundRequestAmount: this.data.serviceFrom.amount.current,
-          receiptStatus: this.data.serviceFrom.receiptStatus.status,
-          rightsImageUrls: this.data.serviceFrom.rightsImageUrls,
-          rightsReasonDesc: this.data.serviceFrom.applyReason.desc,
-          rightsReasonType: this.data.serviceFrom.applyReason.type,
-          rightsType: this.data.serviceType,
-        },
-        rightsItem,
-        refundMemo: this.data.serviceFrom.remark,
-      };
-      this.setData({ submitting: true });
-      // 发起申请售后请求
-      dispatchApplyService(params)
-        .then((res) => {
-          Toast({
-            context: this,
-            selector: '#t-toast',
-            message: '申请成功',
-            icon: '',
-          });
-
-          wx.redirectTo({
-            url: `/pages/order/after-service-detail/index?rightsNo=${res.data.rightsNo}`,
-          });
-        })
-        .then(() => this.setData({ submitting: false }))
-        .catch(() => this.setData({ submitting: false }));
-    });
+    if (this.data.submitting || this.applySubmitPromise) return;
+    if (this.applySubmitBlockedUntil && Date.now() < this.applySubmitBlockedUntil) return;
+    this.applySubmitBlockedUntil = Date.now() + 2000;
+    this.applySubmitPromise = this.submitCheck()
+      .then((valid) => {
+        if (!valid) {
+          this.applySubmitBlockedUntil = 0;
+          return null;
+        }
+        const rightsItem = this.data.orderLevel
+          ? this.data.goodsInfoList.map((goods) => ({
+              itemTotalAmount: Number(goods.paidAmountEach || 0) * Number(goods.boughtQuantity || 0),
+              rightsQuantity: goods.boughtQuantity,
+              skuId: goods.skuId,
+              spuId: goods.spuId,
+              productId: goods.productId || goods.spuId,
+              orderItemId: goods.orderItemId,
+            }))
+          : [
+              {
+                itemTotalAmount:
+                  Number(this.data.goodsInfo.paidAmountEach || 0) * Number(this.data.serviceFrom.returnNum || 0),
+                rightsQuantity: this.data.serviceFrom.returnNum,
+                skuId: this.query.skuId,
+                spuId: this.query.spuId,
+                productId: this.query.productId || this.query.spuId,
+                orderItemId: this.query.orderItemId,
+              },
+            ];
+        const normalizedType = normalizeServiceType(this.data.serviceType, ServiceType.ONLY_REFUND);
+        const params = {
+          rights: {
+            orderNo: this.query.orderNo,
+            refundRequestAmount: this.data.serviceFrom.amount.current,
+            receiptStatus: this.data.serviceFrom.receiptStatus.status,
+            rightsImageUrls: this.data.serviceFrom.rightsImageUrls,
+            rightsReasonDesc: this.data.serviceFrom.applyReason.desc,
+            rightsReasonType: this.data.serviceFrom.applyReason.type,
+            rightsType: normalizedType,
+            type: normalizedType,
+          },
+          rightsItem,
+          refundMemo: this.data.serviceFrom.remark,
+        };
+        this.setData({ submitting: true });
+        return dispatchApplyService(params);
+      })
+      .then((res) => {
+        if (!res) return;
+        const data = res && res.data ? res.data : res;
+        const rightsNo = data && (data.rightsNo || data.afterSaleId || data.id || data._id);
+        if (!rightsNo) throw new Error('云端未返回售后单号，申请结果待确认');
+        this.applySubmitSucceeded = true;
+        Toast({
+          context: this,
+          selector: '#t-toast',
+          message: '申请成功',
+          icon: '',
+        });
+        wx.redirectTo({
+          url: `/pages/order/after-service-detail/index?rightsNo=${encodeURIComponent(rightsNo)}`,
+        });
+      })
+      .catch((error) => {
+        this.applySubmitBlockedUntil = Date.now() + 1000;
+        Toast({
+          context: this,
+          selector: '#t-toast',
+          message: getCloudErrorMessage(error, '售后申请失败，请稍后重试'),
+          icon: '',
+        });
+      })
+      .finally(() => {
+        this.applySubmitPromise = null;
+        if (!this.applySubmitSucceeded) this.setData({ submitting: false });
+      });
+    return this.applySubmitPromise;
   },
 
   submitCheck() {
@@ -457,9 +455,10 @@ Page({
           message: msg,
           icon: '',
         });
+        resolve(false);
         return;
       }
-      resolve();
+      resolve(true);
     });
   },
 

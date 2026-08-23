@@ -1,17 +1,20 @@
-import { config } from '../../config/index';
-import { apiUnavailable } from '../_utils/apiUnavailable';
+import { callShop } from '../../utils/cloud';
 
-/** 获取商品列表 */
-function mockFetchGood(ID = 0) {
-  const { delay } = require('../_utils/delay');
-  const { genGood } = require('../../model/good');
-  return delay().then(() => genGood(ID));
-}
-
-/** 获取商品列表 */
-export function fetchGood(ID = 0) {
-  if (config.useMock) {
-    return mockFetchGood(ID);
-  }
-  return apiUnavailable('fetchGood');
+export function fetchGood(ID = '') {
+  return callShop('products.detail', { spuId: ID }).then((result) => {
+    const details = result && result.product ? { ...result.product, skuList: result.skus || [] } : result;
+    if (!details || typeof details !== 'object') {
+      const error = new Error('商品不存在或已下架');
+      error.code = 'PRODUCT_NOT_FOUND';
+      throw error;
+    }
+    return {
+      ...details,
+      spuId: details.spuId || details._id || ID,
+      images: Array.isArray(details.images) ? details.images : (details.primaryImage ? [details.primaryImage] : []),
+      desc: Array.isArray(details.desc) ? details.desc : [],
+      specList: Array.isArray(details.specList) ? details.specList : [],
+      skuList: Array.isArray(details.skuList) ? details.skuList : [],
+    };
+  });
 }

@@ -3,6 +3,16 @@ import { fetchGood } from '../../../../services/good/fetchGood';
 
 const shortageImg = 'https://tdesign.gtimg.com/miniprogram/template/retail/cart/shortage.png';
 
+function skuStock(sku = {}) {
+  const value = sku.stockQuantity ?? sku.stock ?? sku.stockInfo?.stockQuantity;
+  const stockQuantity = Number(value);
+  return Number.isFinite(stockQuantity) ? Math.max(0, stockQuantity) : 0;
+}
+
+function skuPrice(sku = {}, fallback = 0) {
+  return sku.salePrice ?? sku.price ?? sku.priceInfo?.find((item) => item.priceType === 1)?.price ?? fallback;
+}
+
 Component({
   isSpecsTap: false, // 标记本次点击事件是否因为点击specs触发（由于底层goods-card组件没有catch specs点击事件，只能在此处加状态来避免点击specs时触发跳转商品详情）
   externalClasses: ['wr-class'],
@@ -95,8 +105,8 @@ Component({
       const { value } = e.detail;
       const { goods } = e.currentTarget.dataset;
       let num = value;
-      if (value > goods.stack) {
-        num = goods.stack;
+      if (goods.stockKnown === true && value > goods.stockQuantity) {
+        num = goods.stockQuantity;
       }
       this.changeQuantity(num, goods);
     },
@@ -143,8 +153,10 @@ Component({
         .then((details) => {
           const skuList = (details.skuList || []).map((sku) => ({
             ...sku,
-            price: sku.priceInfo?.find((item) => item.priceType === 1)?.price || details.minSalePrice,
-            stockQuantity: sku.stockInfo?.stockQuantity || 0,
+            skuId: sku.skuId ?? sku._id,
+            price: skuPrice(sku, details.minSalePrice),
+            stockQuantity: skuStock(sku),
+            stockKnown: sku.stockQuantity !== undefined || sku.stock !== undefined || sku.stockInfo?.stockQuantity !== undefined,
           }));
           let currentSku = skuList.find((sku) => String(sku.skuId) === String(goods.skuId));
           if (!currentSku && goods.specInfo?.length && details.specList?.length) {
@@ -167,6 +179,7 @@ Component({
                 skuImage: goods.thumb,
                 price: goods.price,
                 stockQuantity: goods.stockQuantity || 0,
+                stockKnown: goods.stockKnown === true,
                 specInfo: fallbackSpecInfo,
               };
               skuList.unshift(currentSku);
@@ -221,11 +234,12 @@ Component({
       const nextGoods = {
         ...currentGoods,
         skuId: sku.skuId,
-        price: sku.price || currentGoods.price,
+        price: skuPrice(sku, currentGoods.price),
         thumb: sku.skuImage || currentGoods.thumb,
         primaryImage: sku.skuImage || currentGoods.primaryImage || currentGoods.thumb,
-        stockQuantity: sku.stockQuantity,
-        stockStatus: sku.stockQuantity > 0,
+        stockQuantity: skuStock(sku),
+        stockKnown: sku.stockQuantity !== undefined || sku.stock !== undefined || sku.stockInfo?.stockQuantity !== undefined,
+        stockStatus: skuStock(sku) > 0,
         specInfo,
         specs: specInfo.map((item) => item.specValue),
       };

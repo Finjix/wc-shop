@@ -9,6 +9,28 @@ export const OrderStatus = {
   CANCELED_REJECTION: 80, // 已取消，拒收
 };
 
+export const OrderStatusDesc = {
+  [OrderStatus.PENDING_PAYMENT]: '待支付',
+  [OrderStatus.PENDING_DELIVERY]: '待发货',
+  [OrderStatus.PENDING_RECEIPT]: '待收货',
+  [OrderStatus.COMPLETE]: '已完成',
+  [OrderStatus.PAYMENT_TIMEOUT]: '已取消',
+};
+
+export function normalizeOrderStatus(status) {
+  if (typeof status === 'number') return status;
+  const aliases = {
+    PENDING_PAYMENT: OrderStatus.PENDING_PAYMENT,
+    PENDING_DELIVERY: OrderStatus.PENDING_DELIVERY,
+    PENDING_RECEIPT: OrderStatus.PENDING_RECEIPT,
+    COMPLETE: OrderStatus.COMPLETE,
+    COMPLETED: OrderStatus.COMPLETE,
+    CANCELED: OrderStatus.PAYMENT_TIMEOUT,
+    CANCELLED: OrderStatus.PAYMENT_TIMEOUT,
+  };
+  return aliases[String(status ?? '').toUpperCase()] ?? (Number(status) || OrderStatus.PAYMENT_TIMEOUT);
+}
+
 // 售后状态 10:待审核,20:已审核,30:已收货,40:收货异常,50:已完成,60:已关闭;
 export const AfterServiceStatus = {
   TO_AUDIT: 10, // 待审核

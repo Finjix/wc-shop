@@ -26,6 +26,9 @@
     <view style="text-align: center; color: #b9b9b9" wx:if="{{pageLoading}}">
       <t-loading theme="circular" size="40rpx" text="加载中..." inherit-color />
     </view>
+    <view class="home-empty-state" wx:if="{{homeLoaded && !pageLoading && !hotGoods.length}}">
+      {{emptyInfo || '暂无首页内容'}}
+    </view>
 
     <view class="broadcast-bar" bind:tap="onDistributionBannerTap">
       <view class="broadcast-icon">

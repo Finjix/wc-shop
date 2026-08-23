@@ -1,17 +1,25 @@
-import { config } from '../../config/index';
-import { apiUnavailable } from '../_utils/apiUnavailable';
+import { callShop, getCloudErrorMessage } from '../../utils/cloud';
+import { normalizeUserInfo } from '../good/normalize';
 
-/** 获取个人中心信息 */
-function mockFetchUserCenter() {
-  const { delay } = require('../_utils/delay');
-  const { genUsercenter } = require('../../model/usercenter');
-  return delay(200).then(() => genUsercenter());
-}
+const EMPTY_USER_CENTER = {
+  userInfo: { nickName: '', phoneNumber: '' },
+  orderTagInfos: [],
+};
 
-/** 获取个人中心信息 */
 export function fetchUserCenter() {
-  if (config.useMock) {
-    return mockFetchUserCenter();
-  }
-  return apiUnavailable('fetchUserCenter');
+  return callShop('user.me')
+    .then((result) => {
+      const source = result && typeof result === 'object' ? result : {};
+      return {
+        ...source,
+        userInfo: normalizeUserInfo(source.userInfo || source.user || source),
+        orderTagInfos: source.orderTagInfos || source.orderTags || [],
+      };
+    })
+    .catch((error) => {
+      if (typeof wx !== 'undefined' && wx.showToast) {
+        wx.showToast({ title: getCloudErrorMessage(error), icon: 'none' });
+      }
+      return EMPTY_USER_CENTER;
+    });
 }

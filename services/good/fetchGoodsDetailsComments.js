@@ -1,34 +1,25 @@
-import { config } from '../../config/index';
-import { apiUnavailable } from '../_utils/apiUnavailable';
+import { callShop } from '../../utils/cloud';
 
-/** 获取商品详情页评论数 */
-function mockFetchGoodDetailsCommentsCount(spuId = 0) {
-  const { delay } = require('../_utils/delay');
-  const {
-    getGoodsDetailsCommentsCount,
-  } = require('../../model/detailsComments');
-  return delay().then(() => getGoodsDetailsCommentsCount(spuId));
+export function getGoodsDetailsCommentsCount(spuId = '') {
+  return callShop('comments.count', { spuId }).then((result) => {
+    const source = result || {};
+    const commentCount = Number(source.commentCount ?? source.total ?? 0) || 0;
+    const goodCount = Number(source.goodCount || 0);
+    return {
+      ...source,
+      badCount: Number(source.badCount || 0),
+      commentCount,
+      goodCount,
+      goodRate: commentCount ? Math.round((goodCount / commentCount) * 100) : 0,
+      hasImageCount: Number(source.hasImageCount || 0),
+      middleCount: Number(source.middleCount || 0),
+    };
+  });
 }
 
-/** 获取商品详情页评论数 */
-export function getGoodsDetailsCommentsCount(spuId = 0) {
-  if (config.useMock) {
-    return mockFetchGoodDetailsCommentsCount(spuId);
-  }
-  return apiUnavailable('getGoodsDetailsCommentsCount');
-}
-
-/** 获取商品详情页评论 */
-function mockFetchGoodDetailsCommentList(spuId = 0) {
-  const { delay } = require('../_utils/delay');
-  const { getGoodsDetailsComments } = require('../../model/detailsComments');
-  return delay().then(() => getGoodsDetailsComments(spuId));
-}
-
-/** 获取商品详情页评论 */
-export function getGoodsDetailsCommentList(spuId = 0) {
-  if (config.useMock) {
-    return mockFetchGoodDetailsCommentList(spuId);
-  }
-  return apiUnavailable('getGoodsDetailsCommentList');
+export function getGoodsDetailsCommentList(spuId = '') {
+  return callShop('comments.list', { spuId }).then((result) => {
+    if (Array.isArray(result)) return result;
+    return result && (result.items || result.comments || result.list || result.commentList) || [];
+  });
 }

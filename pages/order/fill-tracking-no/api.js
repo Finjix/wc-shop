@@ -1,74 +1,43 @@
-import { mockIp, mockReqId } from '../../../utils/mock';
-import { updateMockAfterServiceLogistics } from '../../../model/order/afterService';
+import { callShop } from '../../../utils/cloud';
+import {
+  extractDeliveryCompanyList,
+  normalizeDeliveryCompanyList,
+} from '../after-service-detail/contract';
+
+function unwrapResult(result) {
+  const data = result && result.data !== undefined ? result.data : result;
+  if (data && data.data !== undefined && data.data !== data) return data.data;
+  return data;
+}
+
+function normalizeTrackingPayload(params = {}) {
+  return {
+    ...params,
+    afterSaleId: params.afterSaleId || params.rightsNo,
+    trackingNo: params.trackingNo || params.logisticsNo,
+    logisticsNo: params.logisticsNo || params.trackingNo,
+    logisticsCompanyCode: params.logisticsCompanyCode || params.companyCode || '',
+    logisticsCompanyName: params.logisticsCompanyName || params.companyName || '',
+  };
+}
 
 export function create(params = {}) {
-  updateMockAfterServiceLogistics(params);
-  const _resq = {
-    data: null,
-    code: 'Success',
-    msg: null,
-    requestId: mockReqId(),
-    clientIp: mockIp(),
-    rt: 79,
-    success: true,
-  };
-  return Promise.resolve(_resq);
+  return callShop('afterSales.submitTracking', normalizeTrackingPayload(params));
 }
 
 export function update(params = {}) {
-  updateMockAfterServiceLogistics(params);
-  const _resq = {
-    data: null,
-    code: 'Success',
-    msg: null,
-    requestId: mockReqId(),
-    clientIp: mockIp(),
-    rt: 79,
-    success: true,
-  };
-  return Promise.resolve(_resq);
+  return callShop('afterSales.submitTracking', normalizeTrackingPayload(params));
 }
 
-export function getDeliverCompanyList() {
-  const _resq = {
-    data: [
-      {
-        name: '中通快递',
-        code: '0001',
-      },
-      {
-        name: '申通快递',
-        code: '0002',
-      },
-      {
-        name: '圆通快递',
-        code: '0003',
-      },
-      {
-        name: '顺丰快递',
-        code: '0004',
-      },
-      {
-        name: '百世快递',
-        code: '0005',
-      },
-      {
-        name: '韵达快递',
-        code: '0006',
-      },
-      {
-        name: '邮政快递',
-        code: '0007',
-      },
-      {
-        name: '丰网快递',
-        code: '0008',
-      },
-      {
-        name: '顺丰直邮',
-        code: '0009',
-      },
-    ],
-  };
-  return Promise.resolve(_resq);
+export function getDeliverCompanyList(rightsNo) {
+  return callShop('afterSales.detail', {
+    rightsNo,
+    includeDeliveryCompanies: true,
+  }).then((result) => {
+    const source = unwrapResult(result);
+    const companies = extractDeliveryCompanyList(source);
+    return {
+      data: normalizeDeliveryCompanyList(companies),
+    };
+  });
 }

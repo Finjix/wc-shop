@@ -1,4 +1,5 @@
-import { getSearchHistory } from '../../../services/good/fetchSearchHistory';
+import { addSearchHistory, clearSearchHistory, deleteSearchHistory, getSearchHistory } from '../../../services/good/fetchSearchHistory';
+import { getCloudErrorMessage } from '../../../utils/cloud';
 
 Page({
   data: {
@@ -30,21 +31,25 @@ Page({
         });
       }
     } catch (error) {
-      console.error(error);
+      this.setData({ historyWords: [] });
+      wx.showToast({ title: getCloudErrorMessage(error, '搜索历史加载失败，请稍后重试'), icon: 'none' });
     }
   },
 
-  confirm() {
+  async confirm() {
     const { historyWords } = this.data;
     const { deleteType, deleteIndex } = this;
-    historyWords.splice(deleteIndex, 1);
-    if (deleteType === 0) {
-      this.setData({
-        historyWords,
-        dialogShow: false,
-      });
-    } else {
-      this.setData({ historyWords: [], dialogShow: false });
+    try {
+      if (deleteType === 0) {
+        await deleteSearchHistory(historyWords[deleteIndex]);
+        historyWords.splice(deleteIndex, 1);
+        this.setData({ historyWords, dialogShow: false });
+      } else {
+        await clearSearchHistory();
+        this.setData({ historyWords: [], dialogShow: false });
+      }
+    } catch (error) {
+      wx.showToast({ title: getCloudErrorMessage(error, '搜索历史删除失败'), icon: 'none' });
     }
   },
 
@@ -89,11 +94,12 @@ Page({
     }
   },
 
-  handleSubmit(e) {
+  async handleSubmit(e) {
     const { value = '' } = e.detail || {};
     const keyword = String(value).trim();
     if (!keyword) return;
 
+    try { await addSearchHistory(keyword); } catch { /* 搜索不因历史记录写入失败而中断 */ }
     wx.navigateTo({
       url: `/pages/goods/result/index?searchValue=${encodeURIComponent(keyword)}`,
     });

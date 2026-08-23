@@ -32,7 +32,7 @@
                 catchthumb="goGoodsDetail"
                 catchtitle="goGoodsDetail"
               >
-                <view slot="thumb-cover" class="stock-mask" wx:if="{{goods.shortageStock || goods.stockQuantity <= 3}}">
+                <view slot="thumb-cover" class="stock-mask" wx:if="{{goods.stockKnown && (goods.shortageStock || goods.stockQuantity <= 3)}}">
                   仅剩{{goods.stockQuantity}}件
                 </view>
                 <view slot="append-body" class="goods-stepper">

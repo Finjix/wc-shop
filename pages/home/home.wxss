@@ -345,3 +345,8 @@ page {
   font-weight: 800;
   line-height: 1;
 }
+.home-empty-state {
+  padding: 80rpx 32rpx;
+  color: #999;
+  text-align: center;
+}

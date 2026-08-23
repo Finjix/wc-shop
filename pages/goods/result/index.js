@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 import { getSearchResult } from '../../../services/good/fetchSearchResult';
+import { getCloudErrorMessage } from '../../../utils/cloud';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 
@@ -101,46 +102,35 @@ Page({
     });
     try {
       const result = await getSearchResult(params);
-      const code = 'Success';
-      const data = result;
-      if (code.toUpperCase() === 'SUCCESS') {
-        const { spuList, totalCount = 0 } = data;
-        if (totalCount === 0 && reset) {
-          this.total = totalCount;
-          this.setData({
-            emptyInfo: {
-              tip: '抱歉，未找到相关商品',
-            },
-            hasLoaded: true,
-            loadMoreStatus: 0,
-            loading: false,
-            goodsList: [],
-          });
-          return;
-        }
-
-        const _goodsList = reset ? spuList : goodsList.concat(spuList);
-        const _loadMoreStatus = _goodsList.length === totalCount ? 2 : 0;
-        this.pageNum = params.pageNum || 1;
+      const { spuList = [], totalCount = 0 } = result || {};
+      if (totalCount === 0 && reset) {
         this.total = totalCount;
         this.setData({
-          goodsList: _goodsList,
-          loadMoreStatus: _loadMoreStatus,
-        });
-      } else {
-        this.setData({
+          emptyInfo: { tip: '抱歉，未找到相关商品' },
+          hasLoaded: true,
+          loadMoreStatus: 0,
           loading: false,
+          goodsList: [],
         });
-        wx.showToast({
-          title: '查询失败，请稍候重试',
-        });
+        return;
       }
+
+      const _goodsList = reset ? spuList : goodsList.concat(spuList);
+      this.pageNum = params.pageNum || 1;
+      this.total = totalCount;
+      this.setData({
+        goodsList: _goodsList,
+        loadMoreStatus: _goodsList.length >= totalCount ? 2 : 0,
+        emptyInfo: { tip: '' },
+      });
     } catch (error) {
       this.setData({
         loading: false,
         hasLoaded: true,
         loadMoreStatus: 3,
+        emptyInfo: { tip: getCloudErrorMessage(error, '查询失败，请稍后重试') },
       });
+      wx.showToast({ title: getCloudErrorMessage(error, '查询失败，请稍后重试'), icon: 'none' });
     }
     this.setData({
       hasLoaded: true,

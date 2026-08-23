@@ -1,6 +1,9 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import Dialog from 'tdesign-miniprogram/dialog/index';
 import { OrderButtonTypes } from '../../config';
+import { cancelOrder, confirmOrderReceived, deleteOrder } from '../../../../services/order/orderDetail';
+import { addGoodsToCart } from '../../../../services/cart/cart';
+import { getCloudErrorMessage } from '../../../../utils/cloud';
 
 Component({
   options: {
@@ -123,58 +126,71 @@ Component({
       }
     },
 
-    onCancel() {
-      this.confirmDemoAction('取消订单');
+    onCancel(order) {
+      Dialog.confirm({ title: '确认取消订单？', content: '取消后会释放已锁定的库存。', confirmBtn: '确认取消', cancelBtn: '暂不取消' })
+        .then(() => cancelOrder(order.orderNo))
+        .then(() => this.finishAction('订单已取消'))
+        .catch((error) => { if (error) this.showActionError(error); });
     },
 
-    onConfirm() {
+    onConfirm(order) {
       Dialog.confirm({
         title: '确认是否已经收到货？',
         content: '',
         confirmBtn: '确认收货',
         cancelBtn: '取消',
       })
-        .then(() => {
-          this.showDemoUnavailable('确认收货');
-        })
-        .catch(() => {
-          Toast({
-            context: this,
-            selector: '#t-toast',
-            message: '已取消确认收货',
-            icon: 'check-circle',
-          });
-        });
+        .then(() => confirmOrderReceived({ orderNo: order.orderNo }))
+        .then(() => this.finishAction('已确认收货'))
+        .catch((error) => { if (error) this.showActionError(error); });
     },
 
     onPay() {
-      this.showDemoUnavailable('订单支付');
-    },
-
-    onBuyAgain() {
-      this.showDemoUnavailable('再次购买');
-    },
-
-    onDelete() {
-      this.confirmDemoAction('删除订单');
-    },
-
-    confirmDemoAction(action) {
-      Dialog.confirm({
-        title: `确认${action}？`,
-        content: '当前使用演示数据，真实订单服务尚未接入。',
-        confirmBtn: '继续',
-        cancelBtn: '取消',
-      }).then(() => {
-        this.showDemoUnavailable(action);
-      }).catch(() => {});
-    },
-
-    showDemoUnavailable(action) {
       Toast({
         context: this,
         selector: '#t-toast',
-        message: `${action}未执行：订单服务尚未接入`,
+        message: '订单已创建，支付参数尚未配置，请先在后台完成支付能力配置',
+        icon: '',
+      });
+    },
+
+    onBuyAgain(order) {
+      const goodsList = order.goodsList || [];
+      if (!goodsList.length) return;
+      Promise.all(goodsList.map((goods) => addGoodsToCart({
+        spuId: goods.spuId,
+        skuId: goods.skuId,
+        quantity: goods.num || goods.buyQuantity || 1,
+        title: goods.title,
+        primaryImage: goods.thumb,
+      }))).then(() => {
+        Toast({ context: this, selector: '#t-toast', message: '商品已重新加入购物车', icon: 'check-circle' });
+        wx.switchTab({ url: '/pages/cart/index' });
+      }).catch((error) => this.showActionError(error));
+    },
+
+    onDelete(order) {
+      Dialog.confirm({ title: '确认删除订单？', content: '删除后订单只会从你的订单列表隐藏。', confirmBtn: '确认删除', cancelBtn: '取消' })
+        .then(() => deleteOrder(order.orderNo))
+        .then(() => this.finishAction('订单已删除'))
+        .catch((error) => { if (error) this.showActionError(error); });
+    },
+
+    finishAction(message) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message,
+        icon: 'check-circle',
+      });
+      this.triggerEvent('refresh');
+    },
+
+    showActionError(error) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: getCloudErrorMessage(error, '订单操作失败，请稍后重试'),
         icon: '',
       });
     },
@@ -202,13 +218,13 @@ Component({
       wx.navigateTo({ url: `/pages/order/apply-service/index?${paramsStr}` });
     },
 
-    onViewRefund() {
-      Toast({
-        context: this,
-        selector: '#t-toast',
-        message: '你点击了查看退款',
-        icon: '',
-      });
+    onViewRefund(order) {
+      const rightsNo = order.rightsNo || order.afterSaleId;
+      if (!rightsNo) {
+        Toast({ context: this, selector: '#t-toast', message: '暂无售后记录', icon: '' });
+        return;
+      }
+      wx.navigateTo({ url: `/pages/order/after-service-detail/index?rightsNo=${encodeURIComponent(rightsNo)}` });
     },
 
     /** 添加订单评论 */
@@ -221,7 +237,7 @@ Component({
           specs || '',
         )}&title=${encodeURIComponent(title || '')}&orderNo=${encodeURIComponent(
           order?.orderNo || '',
-        )}&imgUrl=${encodeURIComponent(imgUrl || '')}`,
+        )}&spuId=${encodeURIComponent(order?.goodsList?.[0]?.spuId || '')}&imgUrl=${encodeURIComponent(imgUrl || '')}`,
       });
     },
 

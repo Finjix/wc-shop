@@ -2,6 +2,8 @@ import Toast from 'tdesign-miniprogram/toast/index';
 import { ServiceType, ServiceTypeDesc, ServiceStatus } from '../config';
 import { formatTime, getRightsDetail } from './api';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
+import { getCloudErrorMessage } from '../../../utils/cloud';
+import { normalizeLogistics, normalizeOrderItem, normalizeServiceType } from './contract';
 
 const TitleConfig = {
   [ServiceType.ORDER_CANCEL]: '退款详情',
@@ -29,6 +31,11 @@ Page({
   onLoad(query) {
     this.rightsNo = query.rightsNo;
     this.inputDialog = this.selectComponent('#input-dialog');
+    if (!this.rightsNo) {
+      this.setData({ pageLoading: false });
+      Toast({ context: this, selector: '#t-toast', message: '售后记录不存在', icon: '' });
+      return;
+    }
     this.init();
   },
 
@@ -61,14 +68,19 @@ Page({
     }).catch((error) => {
       console.error('load after-service detail error:', error);
       this.setData({ pageLoading: false });
-      Toast({ context: this, selector: '#t-toast', message: '售后详情加载失败，请稍后重试', icon: '' });
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: getCloudErrorMessage(error, '售后详情加载失败，请稍后重试'),
+        icon: '',
+      });
     });
   },
 
   getService() {
     const params = { rightsNo: this.rightsNo };
     return getRightsDetail(params).then((res) => {
-      const serviceRaw = res.data[0];
+      const serviceRaw = res && Array.isArray(res.data) ? res.data[0] : null;
       if (!serviceRaw) {
         wx.showToast({
           title: '售后记录不存在',
@@ -79,53 +91,55 @@ Page({
       // 滤掉填写运单号、修改运单号按钮，这两个按钮特殊处理，不在底部按钮栏展示
       if (!serviceRaw.buttonVOs) serviceRaw.buttonVOs = [];
       const deliveryButton = {};
+      const rights = serviceRaw.rights || serviceRaw;
+      const rightsItem = (serviceRaw.rightsItem || serviceRaw.items || rights.items || []).map(normalizeOrderItem);
+      const logisticsVO = normalizeLogistics(serviceRaw.logisticsVO || serviceRaw.logistics || {});
+      const serviceType = normalizeServiceType(rights.rightsType ?? rights.type);
       const service = {
-        id: serviceRaw.rights.rightsNo,
-        serviceNo: serviceRaw.rights.rightsNo,
-        storeName: serviceRaw.rights.storeName,
-        type: serviceRaw.rights.rightsType,
-        typeDesc: ServiceTypeDesc[serviceRaw.rights.rightsType],
-        status: serviceRaw.rights.rightsStatus,
-        statusIcon: this.genStatusIcon(serviceRaw.rights),
-        statusName: serviceRaw.rights.userRightsStatusName,
-        statusDesc: serviceRaw.rights.userRightsStatusDesc,
-        amount: serviceRaw.rights.refundRequestAmount,
-        goodsList: (serviceRaw.rightsItem || []).map((item, i) => ({
+        id: rights.rightsNo || rights.id || rights._id,
+        serviceNo: rights.rightsNo || rights.id || rights._id,
+        storeName: rights.storeName,
+        type: serviceType,
+        typeDesc: ServiceTypeDesc[serviceType] || rights.typeDesc || '',
+        status: rights.rightsStatus,
+        statusIcon: this.genStatusIcon(rights),
+        statusName: rights.userRightsStatusName || rights.statusName,
+        statusDesc: rights.userRightsStatusDesc || rights.statusDesc,
+        amount: rights.refundRequestAmount ?? rights.refundAmount,
+        goodsList: rightsItem.map((item, i) => ({
           id: i,
-          thumb: item.goodsPictureUrl,
-          title: item.goodsName,
-          specs: (item.specInfo || []).map((s) => s.specValues || ''),
-          itemRefundAmount: item.itemRefundAmount,
-          rightsQuantity: item.rightsQuantity,
+          thumb: item.goodsPictureUrl || item.thumb,
+          title: item.goodsName || item.title,
+          specs: Array.isArray(item.specInfo)
+            ? item.specInfo.map((s) => s.specValues || s.specValue || '')
+            : [],
+          itemRefundAmount: item.itemRefundAmount ?? item.refundAmount,
+          rightsQuantity: item.rightsQuantity ?? item.quantity,
         })),
-        orderNo: serviceRaw.rights.orderNo, // 订单编号
-        rightsNo: serviceRaw.rights.rightsNo, // 售后服务单号
-        rightsReasonDesc: serviceRaw.rights.rightsReasonDesc, // 申请售后原因
-        isRefunded: serviceRaw.rights.userRightsStatus === ServiceStatus.REFUNDED, // 是否已退款
+        orderNo: rights.orderNo || rights.orderId, // 订单编号
+        rightsNo: rights.rightsNo || rights.id || rights._id, // 售后服务单号
+        rightsReasonDesc: rights.rightsReasonDesc, // 申请售后原因
+        isRefunded: Number(rights.userRightsStatus) === ServiceStatus.REFUNDED, // 是否已退款
         refundMethodList: (serviceRaw.refundMethodList || []).map((m) => ({
           name: m.refundMethodName,
           amount: m.refundMethodAmount,
         })), // 退款明细
-        refundRequestAmount: serviceRaw.rights.refundRequestAmount, // 申请退款金额
+        refundRequestAmount: rights.refundRequestAmount ?? rights.refundAmount, // 申请退款金额
         payTraceNo: serviceRaw.rightsRefund?.traceNo, // 交易流水号
-        createTime: formatTime(parseFloat(`${serviceRaw.rights.createTime}`), 'YYYY-MM-DD HH:mm'), // 申请时间
-        logisticsNo: serviceRaw.logisticsVO?.logisticsNo, // 退货物流单号
-        logisticsCompanyName: serviceRaw.logisticsVO?.logisticsCompanyName, // 退货物流公司
-        logisticsCompanyCode: serviceRaw.logisticsVO?.logisticsCompanyCode, // 退货物流公司
-        remark: serviceRaw.logisticsVO?.remark, // 退货备注
-        logisticsDescription:
-          serviceRaw.rights.rightsType === ServiceType.RETURN_GOODS &&
-          Number(serviceRaw.rights.receiptStatus) === 2
-            ? '商家已发货'
-            : '买家已寄出',
-        receiverName: serviceRaw.logisticsVO?.receiverName, // 收货人
-        receiverPhone: serviceRaw.logisticsVO?.receiverPhone, // 收货人电话
+        createTime: formatTime(parseFloat(`${rights.createTime || rights.createdAt}`), 'YYYY-MM-DD HH:mm'), // 申请时间
+        logisticsNo: logisticsVO.logisticsNo, // 退货物流单号
+        logisticsCompanyName: logisticsVO.logisticsCompanyName, // 退货物流公司
+        logisticsCompanyCode: logisticsVO.logisticsCompanyCode, // 退货物流公司
+        remark: logisticsVO.remark, // 退货备注
+        logisticsDescription: logisticsVO.description || logisticsVO.logisticsDescription || '',
+        receiverName: logisticsVO.receiverName, // 收货人
+        receiverPhone: logisticsVO.receiverPhone, // 收货人电话
         receiverAddress: this.composeAddress(serviceRaw), // 收货人地址
         applyRemark: serviceRaw.rightsRefund?.refundDesc, // 申请退款时的填写的说明
         buttons: serviceRaw.buttonVOs || [],
-        logistics: serviceRaw.logisticsVO,
+        logistics: logisticsVO,
       };
-      const proofs = serviceRaw.rights.rightsImageUrls || [];
+      const proofs = rights.rightsImageUrls || [];
       this.setData({
         serviceRaw,
         service,
@@ -133,20 +147,20 @@ Page({
         pageTitle: TitleConfig[service.type] || '退款详情',
         'gallery.proofs': proofs,
         showProofs:
-          serviceRaw.rights.userRightsStatus === ServiceStatus.PENDING_VERIFY &&
+          rights.userRightsStatus === ServiceStatus.PENDING_VERIFY &&
           (service.applyRemark || proofs.length > 0),
       });
     });
   },
 
   composeAddress(service) {
-    if (!service.logisticsVO) return '';
+    const logistics = service.logisticsVO || service.logistics || {};
     return [
-      service.logisticsVO.receiverProvince,
-      service.logisticsVO.receiverCity,
-      service.logisticsVO.receiverCountry,
-      service.logisticsVO.receiverArea,
-      service.logisticsVO.receiverAddress,
+      logistics.receiverProvince,
+      logistics.receiverCity,
+      logistics.receiverCountry,
+      logistics.receiverArea,
+      logistics.receiverAddress,
     ]
       .filter((item) => !!item)
       .join(' ');
@@ -158,7 +172,10 @@ Page({
 
   onLogisticsTap() {
     const logistics = this.data.service.logistics || {};
-    if (!logistics.logisticsNo) return;
+    if (!logistics.logisticsNo && !logistics.nodes?.length) {
+      Toast({ context: this, selector: '#t-toast', message: '暂无物流信息', icon: '' });
+      return;
+    }
 
     wx.navigateTo({
       url: `/pages/order/delivery-detail/index?data=${encodeURIComponent(
@@ -198,7 +215,8 @@ Page({
 
   onGoodsCardTap(e) {
     const { index } = e.currentTarget.dataset;
-    const goods = this.data.serviceRaw.rightsItem[index];
+    const goods = (this.data.serviceRaw.rightsItem || [])[index];
+    if (!goods || !goods.skuId) return;
     navigateToGoodsDetail(`/pages/goods/details/index?skuId=${goods.skuId}`);
   },
 

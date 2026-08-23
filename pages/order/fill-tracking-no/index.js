@@ -2,6 +2,7 @@ import Dialog from 'tdesign-miniprogram/dialog/index';
 import Toast from 'tdesign-miniprogram/toast/index';
 import reasonSheet from '../components/reason-sheet/reasonSheet';
 import { getDeliverCompanyList, create, update } from './api';
+import { getCloudErrorMessage } from '../../../utils/cloud';
 
 Page({
   deliveryCompanyList: [],
@@ -30,6 +31,7 @@ Page({
       }).then(() => {
         wx.navigateBack({ backRefresh: true });
       });
+      return;
     }
     this.rightsNo = rightsNo;
     if (logisticsNo) {
@@ -81,8 +83,8 @@ Page({
     if (this.deliveryCompanyList.length > 0) {
       return Promise.resolve(this.deliveryCompanyList);
     }
-    return getDeliverCompanyList().then((res) => {
-      this.deliveryCompanyList = res.data || [];
+    return getDeliverCompanyList(this.rightsNo).then((res) => {
+      this.deliveryCompanyList = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
       return this.deliveryCompanyList;
     });
   },
@@ -95,6 +97,15 @@ Page({
 
   onCompanyTap() {
     this.getDeliveryCompanyList().then((deliveryCompanyList) => {
+      if (!deliveryCompanyList.length) {
+        Toast({
+          context: this,
+          selector: '#t-toast',
+          message: '云端暂无可选物流公司，请稍后重试',
+          icon: '',
+        });
+        return;
+      }
       reasonSheet({
         show: true,
         title: '选择物流公司',
@@ -108,9 +119,17 @@ Page({
         showCancelButton: true,
         emptyTip: '请选择物流公司',
       }).then((indexes) => {
+        if (!indexes || indexes[0] === undefined) return;
         this.setData({
           deliveryCompany: deliveryCompanyList[indexes[0]],
         });
+      });
+    }).catch((error) => {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: getCloudErrorMessage(error, '物流公司加载失败，请稍后重试'),
+        icon: '',
       });
     });
   },
@@ -130,6 +149,8 @@ Page({
   },
 
   onSubmit() {
+    if (this.data.submitting || this.trackingSubmitPromise) return;
+    if (this.trackingSubmitBlockedUntil && Date.now() < this.trackingSubmitBlockedUntil) return;
     const checkRes = this.checkParams();
     if (checkRes.errMsg) {
       Toast({
@@ -147,18 +168,20 @@ Page({
       deliveryCompany: { code, name },
     } = this.data;
 
+    this.trackingSubmitBlockedUntil = Date.now() + 2000;
     const params = {
       rightsNo: this.rightsNo,
+      afterSaleId: this.rightsNo,
+      trackingNo: String(trackingNo).trim(),
       logisticsCompanyCode: code,
       logisticsCompanyName: name,
       logisticsNo: trackingNo,
       remark,
     };
-    const api = this.isChange ? create : update;
+    const api = this.isChange ? update : create;
     this.setData({ submitting: true });
-    api(params)
+    this.trackingSubmitPromise = api(params)
       .then(() => {
-        this.setData({ submitting: false });
         Toast({
           context: this,
           selector: '#t-toast',
@@ -167,9 +190,19 @@ Page({
         });
         setTimeout(() => wx.navigateBack({ backRefresh: true }), 1000);
       })
-      .catch(() => {
+      .catch((error) => {
+        this.trackingSubmitBlockedUntil = Date.now() + 1000;
         this.setData({ submitting: false });
+        Toast({
+          context: this,
+          selector: '#t-toast',
+          message: getCloudErrorMessage(error, '物流信息保存失败，请稍后重试'),
+          icon: '',
+        });
+      }).finally(() => {
+        this.trackingSubmitPromise = null;
       });
+    return this.trackingSubmitPromise;
   },
 
   onScanTap() {

@@ -1,27 +1,27 @@
-import { config } from '../../config/index';
-import { apiUnavailable } from '../_utils/apiUnavailable';
+import { callShop, getCloudErrorMessage } from '../../utils/cloud';
+import { normalizeUserInfo } from '../good/normalize';
 
-/** 获取个人中心信息 */
-function mockFetchPerson() {
-  const { delay } = require('../_utils/delay');
-  const { genSimpleUserInfo } = require('../../model/usercenter');
-  const { genAddress } = require('../../model/address');
-  const address = genAddress();
-  return delay().then(() => ({
-    ...genSimpleUserInfo(),
-    address: {
-      provinceName: address.provinceName,
-      provinceCode: address.provinceCode,
-      cityName: address.cityName,
-      cityCode: address.cityCode,
-    },
-  }));
-}
+const EMPTY_PERSON = {
+  nickName: '',
+  phoneNumber: '',
+  gender: '',
+  address: { provinceName: '', provinceCode: '', cityName: '', cityCode: '' },
+};
 
-/** 获取个人中心信息 */
 export function fetchPerson() {
-  if (config.useMock) {
-    return mockFetchPerson();
-  }
-  return apiUnavailable('fetchPerson');
+  return callShop('user.me')
+    .then((result) => {
+      const person = result && typeof result === 'object' ? result : {};
+      return {
+        ...person,
+        ...normalizeUserInfo(person.userInfo || person.user || person),
+        address: person.address || EMPTY_PERSON.address,
+      };
+    })
+    .catch((error) => {
+      if (typeof wx !== 'undefined' && wx.showToast) {
+        wx.showToast({ title: getCloudErrorMessage(error), icon: 'none' });
+      }
+      return EMPTY_PERSON;
+    });
 }

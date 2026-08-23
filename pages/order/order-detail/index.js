@@ -127,7 +127,7 @@ Page({
       this.setData({
         order,
         _order,
-        formatCreateTime: formatTime(parseFloat(`${order.createTime}`), 'YYYY-MM-DD HH:mm'), // 格式化订单创建时间
+        formatCreateTime: formatTime(order.createTime, 'YYYY-MM-DD HH:mm'), // 格式化订单创建时间
         addressEditable:
           [OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_DELIVERY].includes(order.orderStatus) &&
           order.orderSubStatus !== -1, // 订单正在取消审核时不允许修改地址（但是返回的状态码与待发货一致）

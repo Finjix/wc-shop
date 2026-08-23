@@ -1,4 +1,5 @@
-import { fetchGoodsList } from '../../services/good/fetchGoods';
+import { fetchHomeContent } from '../../services/good/fetchHomeContent';
+import { getCloudErrorMessage } from '../../utils/cloud';
 import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 
 Page({
@@ -12,6 +13,8 @@ Page({
     toyGoods: [],
     lastingGoods: [],
     pageLoading: false,
+    homeLoaded: false,
+    emptyInfo: '',
     current: 1,
     autoplay: true,
     duration: '500',
@@ -58,6 +61,8 @@ Page({
 
     this.setData({
       pageLoading: true,
+      homeLoaded: false,
+      emptyInfo: '',
       imgSrcs: [],
       swiperGoods: [],
       hotGoods: [],
@@ -72,7 +77,8 @@ Page({
 
   async loadCarouselGoods() {
     try {
-      const goodsList = await fetchGoodsList(0, 36);
+      const homeContent = await fetchHomeContent(36);
+      const goodsList = homeContent.goodsList || [];
       const getGoodsGroup = (start) => goodsList.slice(start, start + 6);
       const hotGoods = getGoodsGroup(0);
       const newGoods = getGoodsGroup(6);
@@ -89,11 +95,15 @@ Page({
         lubricantGoods,
         toyGoods,
         lastingGoods,
-        imgSrcs: swiperGoods.map((item) => item.thumb),
+        imgSrcs: homeContent.imgSrcs || swiperGoods.map((item) => item.thumb),
         pageLoading: false,
+        homeLoaded: true,
+        emptyInfo: goodsList.length ? '' : '暂无首页商品内容',
       });
     } catch (err) {
-      this.setData({ pageLoading: false });
+      const message = getCloudErrorMessage(err, '首页内容加载失败，请稍后重试');
+      this.setData({ pageLoading: false, homeLoaded: true, emptyInfo: message });
+      wx.showToast({ title: message, icon: 'none' });
     }
   },
 

@@ -1,5 +1,5 @@
 import Toast from 'tdesign-miniprogram/toast/index';
-import { fetchDeliveryAddress, persistMockAddress } from '../../../../services/address/fetchAddress';
+import { fetchDeliveryAddress, persistAddress } from '../../../../services/address/fetchAddress';
 import { areaData } from '../../../../config/index';
 import { resolveAddress, rejectAddress } from '../../../../services/address/list';
 
@@ -64,7 +64,7 @@ Page({
 
   init(id) {
     if (id) {
-      this.getAddressDetail(Number(id));
+      this.getAddressDetail(id);
     }
   },
   getAddressDetail(id) {
@@ -278,6 +278,7 @@ Page({
     });
   },
   formSubmit() {
+    if (this.isSaving) return;
     const { isLegal, tips } = this.onVerifyInputLegal();
     this.privateData.verifyTips = tips;
     if (!isLegal) {
@@ -292,12 +293,7 @@ Page({
     }
     const { locationState } = this.data;
 
-    this.hasSaved = true;
-
     const address = {
-      saasId: '88888888',
-      uid: `88888888205500`,
-      authToken: null,
       id: locationState.addressId,
       addressId: locationState.addressId,
       phone: locationState.phone,
@@ -313,14 +309,27 @@ Page({
       detailAddress: locationState.detailAddress,
       isDefault: locationState.isDefault ? 1 : 0,
       addressTag: locationState.addressTag,
+      postalCode: locationState.postalCode,
       latitude: locationState.latitude,
       longitude: locationState.longitude,
-      storeId: null,
     };
 
-    persistMockAddress(address).then(() => {
-      resolveAddress(address);
+    this.isSaving = true;
+    persistAddress(address).then((savedAddress) => {
+      this.hasSaved = true;
+      resolveAddress(savedAddress);
       wx.navigateBack({ delta: 1 });
+    }).catch(() => {
+      this.hasSaved = false;
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '地址保存失败，请稍后重试',
+        icon: '',
+        duration: 1000,
+      });
+    }).then(() => {
+      this.isSaving = false;
     });
   },
 

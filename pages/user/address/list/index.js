@@ -1,13 +1,23 @@
 /* eslint-disable no-param-reassign */
 import {
   fetchDeliveryAddressList,
-  persistMockAddress,
-  persistMockAddressList,
+  persistAddress,
+  deleteDeliveryAddress,
 } from '../../../../services/address/fetchAddress';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { getAddressPromise, resolveAddress, rejectAddress } from '../../../../services/address/list';
 
 const isTrueQueryValue = (value) => value === true || value === 1 || value === '1' || value === 'true';
+const addressIdOf = (address = {}) => address.addressId ?? address.id ?? address._id ?? '';
+const isDefaultAddress = (address = {}) => isTrueQueryValue(address.isDefault);
+
+function sortAddressList(addressList) {
+  return [...addressList].sort((prevAddress, nextAddress) => {
+    if (isDefaultAddress(prevAddress) && !isDefaultAddress(nextAddress)) return -1;
+    if (!isDefaultAddress(prevAddress) && isDefaultAddress(nextAddress)) return 1;
+    return 0;
+  });
+}
 
 Page({
   data: {
@@ -74,14 +84,6 @@ Page({
           });
           return;
         }
-        Toast({
-          context: this,
-          selector: '#t-toast',
-          message: '添加成功',
-          icon: '',
-          duration: 1000,
-        });
-        const { length: len } = this.data.addressList;
         const address = {
           name: res.userName,
           phone: res.telNumber,
@@ -91,10 +93,25 @@ Page({
           detailAddress: res.detailInfo,
           isDefault: 0,
           addressTag: '微信地址',
-          id: len,
-          addressId: len,
         };
-        persistMockAddress(address).then(() => this.getAddressList());
+        persistAddress(address).then(() => {
+          Toast({
+            context: this,
+            selector: '#t-toast',
+            message: '添加成功',
+            icon: '',
+            duration: 1000,
+          });
+          this.getAddressList();
+        }).catch(() => {
+          Toast({
+            context: this,
+            selector: '#t-toast',
+            message: '地址保存失败，请稍后重试',
+            icon: '',
+            duration: 1000,
+          });
+        });
       },
     });
   },
@@ -103,14 +120,20 @@ Page({
     return address?.id ?? address?.addressId ?? event?.currentTarget?.dataset?.id;
   },
   deleteAddressById(id) {
-    if (id === undefined || id === null) return;
+    if (id === undefined || id === null || id === '') return;
 
-    const addressList = this.data.addressList.filter(
-      (address) => String(address.id ?? address.addressId) !== String(id),
+    const deletedAddress = this.data.addressList.find(
+      (address) => String(addressIdOf(address)) === String(id),
     );
-    persistMockAddressList(addressList).then(() => {
+    const addressList = this.data.addressList.filter(
+      (address) => String(addressIdOf(address)) !== String(id),
+    );
+    const nextDefaultAddress = isDefaultAddress(deletedAddress) ? addressList[0] : null;
+    const nextDefaultId = nextDefaultAddress ? addressIdOf(nextDefaultAddress) : '';
+    deleteDeliveryAddress(id, nextDefaultId).then(() => {
+      if (nextDefaultAddress) nextDefaultAddress.isDefault = 1;
       this.setData({
-        addressList,
+        addressList: sortAddressList(addressList),
         deleteID: '',
         showDeleteConfirm: false,
       });
@@ -119,6 +142,14 @@ Page({
         selector: '#t-toast',
         message: '地址删除成功',
         theme: 'success',
+        duration: 1000,
+      });
+    }).catch(() => {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '地址删除失败，请稍后重试',
+        icon: '',
         duration: 1000,
       });
     });
@@ -163,57 +194,28 @@ Page({
   waitForNewAddress() {
     getAddressPromise()
       .then((newAddress) => {
-        let addressList = [...this.data.addressList];
+        const savedAddress = { ...newAddress };
+        const savedAddressId = addressIdOf(savedAddress);
 
-        newAddress.phoneNumber = newAddress.phone;
-        newAddress.address = `${newAddress.provinceName}${newAddress.cityName}${newAddress.districtName}${newAddress.detailAddress}`;
-        newAddress.tag = newAddress.addressTag;
-
-        if (!newAddress.addressId) {
-          newAddress.id = `${addressList.length}`;
-          newAddress.addressId = `${addressList.length}`;
-
-          if (newAddress.isDefault === true || Number(newAddress.isDefault) === 1) {
-            addressList = addressList.map((address) => {
-              address.isDefault = 0;
-
-              return address;
-            });
-          } else {
-            newAddress.isDefault = 0;
-          }
-
-          addressList.push(newAddress);
-        } else {
-          if (Number(newAddress.isDefault) === 1) {
-            addressList = addressList.map((address) => {
-              address.isDefault = 0;
-
-              return address;
-            });
-          }
-          addressList = addressList.map((address) => {
-            if (address.addressId === newAddress.addressId) {
-              return newAddress;
-            }
-            return address;
-          });
+        // 编辑页已经完成云端保存；这里只更新列表展示，避免再次调用 create。
+        if (!savedAddressId) {
+          this.getAddressList();
+          return;
         }
 
-        addressList.sort((prevAddress, nextAddress) => {
-          if (prevAddress.isDefault && !nextAddress.isDefault) {
-            return -1;
-          }
-          if (!prevAddress.isDefault && nextAddress.isDefault) {
-            return 1;
-          }
-          return 0;
-        });
+        let addressList = [...this.data.addressList];
+        if (isDefaultAddress(savedAddress)) {
+          addressList = addressList.map((address) => ({ ...address, isDefault: 0 }));
+        }
+        const index = addressList.findIndex(
+          (address) => String(addressIdOf(address)) === String(savedAddressId),
+        );
+        if (index > -1) addressList[index] = savedAddress;
+        else addressList.push(savedAddress);
 
         this.setData({
-          addressList: addressList,
+          addressList: sortAddressList(addressList),
         });
-        persistMockAddressList(addressList);
       })
       .catch((e) => {
         if (e.message !== 'cancel') {

@@ -57,6 +57,8 @@
     content="提交"
     block
     shape="round"
+    disabled="{{submitting}}"
+    loading="{{submitting}}"
     t-class="submit-button{{isAllowedSubmit ? '' : '-disabled'}}"
     bind:tap="onSubmitBtnClick"
   />

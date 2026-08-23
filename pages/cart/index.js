@@ -1,5 +1,15 @@
 import Toast from 'tdesign-miniprogram/toast/index';
-import { fetchCartGroupData, persistMockCartGroupData } from '../../services/cart/cart';
+import {
+  clearInvalidCartItems,
+  deleteCartItem,
+  fetchCartGroupData,
+  replaceCartItemSku,
+  updateAllCartSelection,
+  updateCartItemQuantity,
+  updateCartItemSelection,
+  updateCartStoreSelection,
+} from '../../services/cart/cart';
+import { setPendingGoodsRequestList } from '../../services/order/orderConfirm';
 import { fetchGoodsList } from '../../services/good/fetchGoods';
 import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 
@@ -81,7 +91,7 @@ Page({
             goods.originPrice = undefined;
 
             // 统计是否有加购数大于库存数的商品
-            if (goods.quantity > goods.stockQuantity) {
+            if (goods.stockKnown === true && goods.quantity > goods.stockQuantity) {
               store.storeStockShortage = true;
             }
             // 统计是否全选
@@ -89,7 +99,7 @@ Page({
               store.isSelected = false;
             }
             // 库存为0（无货）的商品单独分组
-            if (goods.stockQuantity > 0) {
+            if (goods.stockKnown !== true || goods.stockQuantity > 0) {
               hasSelectableGoods = true;
               if (!goods.isSelected) {
                 isAllSelected = false;
@@ -240,132 +250,40 @@ Page({
     };
   },
 
-  // 注：实际场景时应该调用接口获取购物车数据
-  getCartGroupData(forceRefresh = false) {
-    const { cartGroupData } = this.data;
-    if (!cartGroupData || forceRefresh) {
-      return fetchCartGroupData();
-    }
-    return Promise.resolve({ data: cartGroupData });
+  getCartGroupData() {
+    return fetchCartGroupData();
   },
 
-  persistCartData() {
-    return persistMockCartGroupData(this.data.cartGroupData);
-  },
-
-  // 选择单个商品
-  // 注：实际场景时应该调用接口更改选中状态
   selectGoodsService({ spuId, skuId, isSelected }) {
     const { currentGoods } = this.findGoods(spuId, skuId);
     if (!currentGoods) return Promise.reject(new Error('购物车商品不存在'));
-    currentGoods.isSelected = isSelected;
-    return this.persistCartData();
+    return updateCartItemSelection({ spuId, skuId, isSelected });
   },
 
-  // 全选门店
-  // 注：实际场景时应该调用接口更改选中状态
   selectStoreService({ storeId, isSelected }) {
     const currentStore = (this.data.cartGroupData?.storeGoods || []).find(
       (s) => String(s.storeId) === String(storeId),
     );
     if (!currentStore) return Promise.reject(new Error('购物车门店不存在'));
-    currentStore.isSelected = isSelected;
-    currentStore.promotionGoodsList.forEach((activity) => {
-      activity.goodsPromotionList.forEach((goods) => {
-        goods.isSelected = isSelected;
-      });
-    });
-    return this.persistCartData();
+    return updateCartStoreSelection({ storeId, isSelected });
   },
 
-  // 加购数量变更
-  // 注：实际场景时应该调用接口
   changeQuantityService({ spuId, skuId, quantity }) {
     const { currentGoods } = this.findGoods(spuId, skuId);
     if (!currentGoods) return Promise.reject(new Error('购物车商品不存在'));
-    currentGoods.quantity = quantity;
-    return this.persistCartData();
+    return updateCartItemQuantity({ spuId, skuId, quantity });
   },
 
-  // 修改购物车商品规格
   replaceGoodsSpecsService({ oldGoods, goods }) {
-    const replaceInList = (list) => {
-      const index = list.findIndex((item) => item.spuId === oldGoods.spuId && item.skuId === oldGoods.skuId);
-      if (index < 0) return false;
-      list[index] = goods;
-      return true;
-    };
-
-    const { cartGroupData } = this.data;
-    let replaced = false;
-    for (const store of cartGroupData.storeGoods) {
-      for (const activity of store.promotionGoodsList) {
-        if (replaceInList(activity.goodsPromotionList)) {
-          replaced = true;
-          break;
-        }
-      }
-      if (!replaced) {
-        const shortageIndex = (store.shortageGoodsList || []).findIndex(
-          (item) => item.spuId === oldGoods.spuId && item.skuId === oldGoods.skuId,
-        );
-        if (shortageIndex > -1) {
-          store.shortageGoodsList.splice(shortageIndex, 1);
-          const targetActivity = (store.promotionGoodsList || []).find((activity) =>
-            Array.isArray(activity.goodsPromotionList),
-          );
-          if (targetActivity) {
-            targetActivity.goodsPromotionList.push(goods);
-          }
-          replaced = true;
-        }
-      }
-      if (replaced) break;
-    }
-    if (!replaced) return Promise.reject(new Error('购物车商品不存在'));
-
-    const oldAmount = Number(oldGoods.price) * Number(oldGoods.quantity || 0);
-    const newAmount = Number(goods.price) * Number(goods.quantity || 0);
-    const totalAmount = Number(cartGroupData.totalAmount) || 0;
-    cartGroupData.totalAmount = String(Math.max(0, totalAmount - oldAmount + newAmount));
-    return this.persistCartData();
+    return replaceCartItemSku({ oldGoods, goods });
   },
 
-  // 删除加购商品
-  // 注：实际场景时应该调用接口
   deleteGoodsService({ spuId, skuId }) {
-    function deleteGoods(group) {
-      for (const gindex in group) {
-        const goods = group[gindex];
-        if (String(goods.spuId) === String(spuId) && String(goods.skuId) === String(skuId)) {
-          group.splice(gindex, 1);
-          return gindex;
-        }
-      }
-      return -1;
-    }
-    const { storeGoods = [], invalidGoodItems = [] } = this.data.cartGroupData || {};
-    for (const store of storeGoods) {
-      for (const activity of store.promotionGoodsList || []) {
-        if (deleteGoods(activity.goodsPromotionList) > -1) {
-          return this.persistCartData();
-        }
-      }
-      if (deleteGoods(store.shortageGoodsList || []) > -1) {
-        return this.persistCartData();
-      }
-    }
-    if (deleteGoods(invalidGoodItems) > -1) {
-      return this.persistCartData();
-    }
-    return Promise.reject(new Error('购物车商品不存在'));
+    return deleteCartItem({ spuId, skuId });
   },
 
-  // 清空失效商品
-  // 注：实际场景时应该调用接口
   clearInvalidGoodsService() {
-    this.data.cartGroupData.invalidGoodItems = [];
-    return this.persistCartData();
+    return clearInvalidCartItems();
   },
 
   onGoodsSelect(e) {
@@ -374,7 +292,7 @@ Page({
       isSelected,
     } = e.detail;
     this.selectGoodsService({ spuId, skuId, isSelected })
-      .then(() => this.refreshData())
+      .then(() => this.refreshData(true))
       .catch(() => Toast({ context: this, selector: '#t-toast', message: '商品选择失败，请重试' }));
   },
 
@@ -384,7 +302,7 @@ Page({
       isSelected,
     } = e.detail;
     this.selectStoreService({ storeId, isSelected })
-      .then(() => this.refreshData())
+      .then(() => this.refreshData(true))
       .catch(() => Toast({ context: this, selector: '#t-toast', message: '门店选择失败，请重试' }));
   },
 
@@ -399,9 +317,11 @@ Page({
       return;
     }
     quantity = Math.max(1, Number(quantity) || 1);
-    const stockQuantity = currentGoods.stockQuantity > 0 ? currentGoods.stockQuantity : 0; // 避免后端返回的是-1
+    const stockQuantity = currentGoods.stockKnown === true && currentGoods.stockQuantity > 0
+      ? currentGoods.stockQuantity
+      : 0;
     // 加购数量超过库存数量
-    if (quantity > stockQuantity && quantity > currentGoods.quantity) {
+    if (currentGoods.stockKnown === true && quantity > stockQuantity && quantity > currentGoods.quantity) {
       Toast({
         context: this,
         selector: '#t-toast',
@@ -410,17 +330,14 @@ Page({
       return;
     }
     this.changeQuantityService({ spuId, skuId, quantity })
-      .then(() => this.refreshData())
+      .then(() => this.refreshData(true))
       .catch(() => Toast({ context: this, selector: '#t-toast', message: '数量修改失败，请重试' }));
   },
 
   onGoodsSpecsChange(e) {
     const { oldGoods, goods } = e.detail;
     this.replaceGoodsSpecsService({ oldGoods, goods })
-      .then(() => {
-        this.persistCartData();
-        this.setData({ cartGroupData: { ...this.data.cartGroupData } });
-      })
+      .then(() => this.refreshData(true))
       .catch(() => {
         Toast({
           context: this,
@@ -443,9 +360,8 @@ Page({
   },
 
   clearInvalidGoods() {
-    // 实际场景时应该调用接口清空失效商品
     this.clearInvalidGoodsService()
-      .then(() => this.refreshData())
+      .then(() => this.refreshData(true))
       .catch(() => Toast({ context: this, selector: '#t-toast', message: '清空失效商品失败，请重试' }));
   },
 
@@ -455,7 +371,7 @@ Page({
     } = e.detail;
     this.deleteGoodsService({ spuId, skuId }).then(() => {
       Toast({ context: this, selector: '#t-toast', message: '商品删除成功' });
-      this.refreshData();
+      this.refreshData(true);
     }).catch(() => Toast({ context: this, selector: '#t-toast', message: '商品删除失败，请重试' }));
   },
 
@@ -487,28 +403,9 @@ Page({
   onSelectAll(event) {
     const { isAllSelected } = event?.detail ?? {};
     if (typeof isAllSelected !== 'boolean') return;
-    const { cartGroupData } = this.data;
-    if (!cartGroupData) return;
-    let selectedGoodsCount = 0;
-    let selectedGoodsAmount = 0;
-    for (const store of cartGroupData.storeGoods) {
-      store.isSelected = isAllSelected;
-      for (const activity of store.promotionGoodsList) {
-        for (const goods of activity.goodsPromotionList) {
-          goods.isSelected = isAllSelected;
-          if (isAllSelected) {
-            const quantity = Number(goods.quantity) || 0;
-            selectedGoodsCount += quantity;
-            selectedGoodsAmount += quantity * (Number(goods.price) || 0);
-          }
-        }
-      }
-    }
-    cartGroupData.isAllSelected = isAllSelected;
-    cartGroupData.selectedGoodsCount = selectedGoodsCount;
-    cartGroupData.totalAmount = String(selectedGoodsAmount);
-    this.persistCartData();
-    this.setData({ cartGroupData: { ...cartGroupData } });
+    updateAllCartSelection({ isSelected: isAllSelected })
+      .then(() => this.refreshData(true))
+      .catch(() => Toast({ context: this, selector: '#t-toast', message: '全选操作失败，请重试' }));
   },
 
   onToSettle() {
@@ -516,7 +413,7 @@ Page({
     this.data.cartGroupData.storeGoods.forEach((store) => {
       store.promotionGoodsList.forEach((promotion) => {
         promotion.goodsPromotionList.forEach((m) => {
-          if (m.isSelected == 1) {
+          if (Boolean(m.isSelected)) {
             goodsRequestList.push(m);
           }
         });
@@ -526,7 +423,7 @@ Page({
       Toast({ context: this, selector: '#t-toast', message: '请先选择要结算的商品' });
       return;
     }
-    wx.setStorageSync('order.goodsRequestList', JSON.stringify(goodsRequestList));
+    setPendingGoodsRequestList(goodsRequestList);
     wx.navigateTo({ url: '/pages/order/order-confirm/index?type=cart' });
   },
   onGotoHome() {

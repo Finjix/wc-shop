@@ -2,6 +2,7 @@ import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchGood } from '../../../services/good/fetchGood';
 import { addGoodsToCart } from '../../../services/cart/cart';
 import { getGoodsDetailsCommentsCount } from '../../../services/good/fetchGoodsDetailsComments';
+import { getCloudErrorMessage } from '../../../utils/cloud';
 
 import { cdnBase } from '../../../config/index';
 
@@ -24,7 +25,9 @@ Page({
       hasImageCount: 0,
       middleCount: 0,
     },
-    details: {},
+    details: { images: [], desc: [], specList: [], skuList: [] },
+    detailLoading: false,
+    detailLoaded: false,
     goodsTabArray: [
       {
         name: '商品',
@@ -374,6 +377,7 @@ Page({
   },
 
   getDetail(spuId) {
+    this.setData({ detailLoading: true, detailLoaded: false });
     fetchGood(spuId).then((details) => {
       const skuArray = [];
       const {
@@ -405,12 +409,15 @@ Page({
         primaryImage,
         soldout: isPutOnSale === 0,
         soldNum,
+        detailLoading: false,
+        detailLoaded: true,
       });
-    }).catch(() => {
+    }).catch((error) => {
+      this.setData({ detailLoading: false, detailLoaded: true });
       Toast({
         context: this,
         selector: '#t-toast',
-        message: '商品详情加载失败，请稍后重试',
+        message: getCloudErrorMessage(error, '商品详情加载失败，请稍后重试'),
         icon: '',
       });
     });

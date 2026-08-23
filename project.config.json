@@ -50,6 +50,7 @@
     "swc": false,
     "disableSWC": true
   },
+  "cloudfunctionRoot": "cloudfunctions/",
   "compileType": "miniprogram",
   "libVersion": "3.13.0",
   "appid": "wx5c3298359d6853db",
