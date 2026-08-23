@@ -54,15 +54,3 @@ export function dispatchCommitPay(params) {
     resolve('real api');
   });
 }
-
-/** 开发票 */
-export function dispatchSupplementInvoice() {
-  if (config.useMock) {
-    const { delay } = require('../_utils/delay');
-    return delay();
-  }
-
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
-}

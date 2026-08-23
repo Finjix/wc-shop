@@ -6,9 +6,6 @@
 </view>
 <t-user-center-card
   userInfo="{{userInfo}}"
-  isPhoneHide="{{false}}"
-  name-class="custom-name-class"
-  phone-class="custom-phone-class"
   currAuthStep="{{currAuthStep}}"
   bind:gotoUserEditPage="gotoUserEditPage"
 />

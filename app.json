@@ -4,7 +4,7 @@
     {
       "root": "pages/user",
       "name": "user",
-      "pages": ["person-info/index", "address/list/index", "address/edit/index", "name-edit/index", "support/index", "help/index", "about/index"]
+      "pages": ["person-info/index", "address/list/index", "address/edit/index", "support/index", "help/index", "about/index"]
     },
     {
       "root": "pages/goods",
@@ -23,7 +23,6 @@
       "name": "order",
       "pages": [
         "order-confirm/index",
-        "receipt/index",
         "pay-result/index",
         "order-list/index",
         "order-detail/index",
@@ -31,8 +30,7 @@
         "after-service-list/index",
         "after-service-detail/index",
         "fill-tracking-no/index",
-        "delivery-detail/index",
-        "invoice/index"
+        "delivery-detail/index"
       ]
     }
   ],

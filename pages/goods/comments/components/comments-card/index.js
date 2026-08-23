@@ -1,8 +1,5 @@
 Component({
   externalClasses: ['wr-class'],
-  options: {
-    multipleSlots: true,
-  },
   properties: {
     goodsDetailInfo: {
       type: String,
@@ -35,13 +32,7 @@ Component({
   },
 
   data: {
-    showMoreStatus: false,
     showContent: false,
-    hideText: false,
-    eleHeight: null,
-    overText: false,
-    isDisabled: true,
-    startColors: ['#FFC51C', '#DDDDDD'],
   },
   methods: {},
 });

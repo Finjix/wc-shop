@@ -73,13 +73,6 @@
   <t-popup visible="{{popupShow}}" placement="bottom" bind:visible-change="onPopupChange">
     <no-goods slot="content" bind:change="onSureCommit" settleDetailData="{{settleDetailData}}" />
   </t-popup>
-  <select-coupons
-    bind:sure="onCoupons"
-    storeId="{{currentStoreId}}"
-    orderSureCouponList="{{couponList}}"
-    promotionGoodsList="{{promotionGoodsList}}"
-    couponsShow="{{couponsShow}}"
-  />
 </view>
 <t-toast id="t-toast" />
 <t-dialog id="t-dialog" />

@@ -103,15 +103,10 @@ const orderResps = [
       },
       buttonVOs: [{ primary: true, type: 1, name: '付款' }],
       labelVOs: null,
-      invoiceVO: null,
-      couponAmount: '0',
       autoCancelTime: '1823652629288',
       orderStatusName: '待付款',
       orderStatusRemark: '需支付￥0.20',
       logisticsLogVO: null,
-      invoiceStatus: 3,
-      invoiceDesc: '暂不开发票',
-      invoiceUrl: null,
     },
     code: 'Success',
     msg: null,
@@ -303,16 +298,6 @@ const orderResps = [
         },
       ],
       labelVOs: null,
-      invoiceVO: {
-        buyerName: '腾讯计算机有限公司', //个人或公司名称
-        buyerTaxNo: '9144 9808 0909 0293 XG', //税号
-        buyerPhone: '18600008888', //手机
-        email: '73900484@qq.com', //邮箱
-        titleType: 2, //发票抬头 1-个人 2-公司
-        contentType: 1, //发票内容 1-明细 2类别
-        invoiceType: 5, //是否开票 0-不开 5-电子发票
-        money: '1.54',
-      },
       trajectoryVos: [
         {
           title: '已下单',
@@ -342,14 +327,10 @@ const orderResps = [
         },
       ],
 
-      couponAmount: '5000',
       autoCancelTime: null,
       orderStatusName: '待发货',
       orderStatusRemark: null,
       logisticsLogVO: null,
-      invoiceStatus: 3,
-      invoiceDesc: '暂不开发票',
-      invoiceUrl: null,
     },
     code: 'Success',
     msg: null,
@@ -647,25 +628,10 @@ const orderResps = [
         },
       ],
 
-      couponAmount: '5000',
       autoCancelTime: null,
       orderStatusName: '待收货',
       orderStatusRemark: null,
       logisticsLogVO: null,
-      invoiceStatus: 1,
-      invoiceDesc: '已开发票',
-      invoiceUrl: null,
-      invoiceVO: {
-        buyerName: '公司名称XXXX', //个人或公司名称
-        buyerTaxNo: 'R5647U7', //税号
-        buyerPhone: '13534343434', //手机
-        email: '123@qq.com', //邮箱
-        titleType: 2, //发票抬头 1-个人 2-公司
-        contentType: 2, //发票内容 1-明细 2类别
-        invoiceType: 5, //是否开票 0-不开 5-电子发票
-        isInvoice: '已开票',
-        money: 10000,
-      },
     },
     code: 'Success',
     msg: null,
@@ -776,15 +742,10 @@ const orderResps = [
       },
       buttonVOs: null,
       labelVOs: null,
-      invoiceVO: null,
-      couponAmount: '5000',
       autoCancelTime: null,
       orderStatusName: '已取消(未支付)',
       orderStatusRemark: '超时未支付',
       logisticsLogVO: null,
-      invoiceStatus: 2,
-      invoiceDesc: '暂不开发票',
-      invoiceUrl: null,
     },
     code: 'Success',
     msg: null,
@@ -895,15 +856,10 @@ const orderResps = [
       },
       buttonVOs: null,
       labelVOs: null,
-      invoiceVO: null,
-      couponAmount: '5000',
       autoCancelTime: null,
       orderStatusName: '已取消(未支付)',
       orderStatusRemark: '超时未支付',
       logisticsLogVO: null,
-      invoiceStatus: 3,
-      invoiceDesc: '暂不开发票',
-      invoiceUrl: null,
     },
     code: 'Success',
     msg: null,
@@ -1017,24 +973,10 @@ const orderResps = [
         { primary: true, type: 6, name: '评价' },
       ],
       labelVOs: null,
-      invoiceVO: {
-        buyerName: '腾讯计算机有限公司', //个人或公司名称
-        buyerTaxNo: '9144 9808 0909 0293 XG', //税号
-        buyerPhone: '18600008888', //手机
-        email: '73900484@qq.com', //邮箱
-        titleType: 2, //发票抬头 1-个人 2-公司
-        contentType: 1, //发票内容 1-明细 2类别
-        invoiceType: 5, //是否开票 0-不开 5-电子发票
-        money: '1.54',
-      },
-      couponAmount: '0',
       autoCancelTime: null,
       orderStatusName: '交易完成',
       orderStatusRemark: null,
       logisticsLogVO: null,
-      invoiceStatus: 2,
-      invoiceDesc: '暂不开发票',
-      invoiceUrl: null,
     },
     code: 'Success',
     msg: null,
@@ -1148,15 +1090,10 @@ const orderResps = [
         { primary: true, type: 6, name: '评价' },
       ],
       labelVOs: null,
-      invoiceVO: null,
-      couponAmount: '0',
       autoCancelTime: null,
       orderStatusName: '交易完成',
       orderStatusRemark: null,
       logisticsLogVO: null,
-      invoiceStatus: 2,
-      invoiceDesc: '暂不开发票',
-      invoiceUrl: null,
     },
     code: 'Success',
     msg: null,

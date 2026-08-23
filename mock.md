@@ -6,7 +6,7 @@ services 用于请求逻辑，根据 config.useMock 配置可控制返回 mock �
 ### 1 模拟策略
 
 1）只依靠 ID 规律进行关联
-大部分情况下推荐使用本方案，ID 为`1`的商品固定会关联 ID 为`1`的优惠券或者[ID 对 10 的模运算结果为 1](https://www.runoob.com/try/try.php?filename=tryjs_oper_mod)的优惠券（看需要 1 个还是多个了）。
+大部分情况下推荐使用本方案，ID 为`1`的商品固定会关联 ID 为`1`的数据，或者关联[ID 对 10 的模运算结果为 1](https://www.runoob.com/try/try.php?filename=tryjs_oper_mod)的数据（看需要 1 个还是多个了）。
 
 > 为保持关系稳定，模运算统一使用`10`为除数，`ID`为被除数；即`1%10`、`2%10`。
 

@@ -7,26 +7,21 @@ import { dispatchCommitPay } from '../../../services/order/orderConfirm';
 export const commitPay = (params) => {
   return dispatchCommitPay({
     goodsRequestList: params.goodsRequestList, // 待结算的商品集合
-    invoiceRequest: params.invoiceRequest, // 发票信息
-    // isIgnore: params.isIgnore || false, // 删掉 是否忽视库存不足和商品失效,继续结算,true=继续结算 购物车请赋值false
     userAddressReq: params.userAddressReq, // 地址信息(用户在购物选择更换地址)
     currency: params.currency || 'CNY', // 支付货币: 人民币=CNY，美元=USD
     logisticsType: params.logisticsType || 1, // 配送方式 0=无需配送 1=快递 2=商家 3=同城 4=自提
-    // orderMark: params.orderMark, // 下单备注
     orderType: params.orderType || 0, // 订单类型 0=普通订单 1=虚拟订单
     payType: params.payType || 1, // 支付类型(0=线上、1=线下)
     totalAmount: params.totalAmount, // 新增字段"totalAmount"总的支付金额
     userName: params.userName, // 用户名
     payWay: 1,
     authorizationCode: '', //loginCode, // 登录凭证
-    storeInfoList: params.storeInfoList, //备注信息列表
-    couponList: params.couponList,
-    groupInfo: params.groupInfo,
+    storeInfoList: params.storeInfoList, // 门店信息列表
   });
 };
 
 export const paySuccess = (payOrderInfo) => {
-  const { payAmt, tradeNo, groupId, promotionId } = payOrderInfo;
+  const { payAmt, tradeNo } = payOrderInfo;
   // 支付成功
   Toast({
     context: this,
@@ -40,12 +35,6 @@ export const paySuccess = (payOrderInfo) => {
     totalPaid: payAmt,
     orderNo: tradeNo,
   };
-  if (groupId) {
-    params.groupId = groupId;
-  }
-  if (promotionId) {
-    params.promotionId = promotionId;
-  }
   const paramsStr = Object.keys(params)
     .map((k) => `${k}=${params[k]}`)
     .join('&');

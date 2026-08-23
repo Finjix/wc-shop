@@ -31,7 +31,7 @@ export function getGoodsAllComments(params) {
           isAnonymity: false,
           commentTime: '1591953561000',
           isAutoComment: false,
-          sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好发票',
+          sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好订单凭证',
           goodsDetailInfo: '颜色:纯净白  尺码:S码',
         },
         {
@@ -52,7 +52,7 @@ export function getGoodsAllComments(params) {
           isAnonymity: false,
           commentTime: '1591953561000',
           isAutoComment: false,
-          sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好发票',
+          sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好订单凭证',
           goodsDetailInfo: '颜色:纯净白  尺码:S码',
         },
         {
@@ -73,7 +73,7 @@ export function getGoodsAllComments(params) {
           isAnonymity: false,
           commentTime: '1591953561000',
           isAutoComment: false,
-          sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好发票',
+          sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好订单凭证',
           goodsDetailInfo: '颜色:纯净白  尺码:S码',
         },
         {
@@ -94,7 +94,7 @@ export function getGoodsAllComments(params) {
           isAnonymity: false,
           commentTime: '1591953561000',
           isAutoComment: false,
-          sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好发票',
+          sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好订单凭证',
           goodsDetailInfo: '颜色:纯净白  尺码:S码',
         },
       ],
@@ -118,7 +118,7 @@ export function getGoodsAllComments(params) {
         isAnonymity: false,
         commentTime: '1592224320000',
         isAutoComment: false,
-        sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好发票',
+        sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好订单凭证',
         goodsDetailInfo: '颜色:纯净白  尺码:S码',
       },
       {
@@ -134,7 +134,7 @@ export function getGoodsAllComments(params) {
         isAnonymity: false,
         commentTime: '1592224320000',
         isAutoComment: false,
-        sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好发票',
+        sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好订单凭证',
         goodsDetailInfo: '颜色:纯净白  尺码:S码',
       },
       {
@@ -150,7 +150,7 @@ export function getGoodsAllComments(params) {
         isAnonymity: false,
         commentTime: '1592218074000',
         isAutoComment: true,
-        sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好发票',
+        sellerReply: '亲，你好，我们会联系商家和厂商给您一个满意的答复请一定妥善保管好订单凭证',
       },
       {
         spuId: '1722045',

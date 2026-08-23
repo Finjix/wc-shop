@@ -5,7 +5,6 @@
 
  */
 const { exec } = require('child_process');
-const chalk = require('chalk');
 const { CLIEngine } = require('eslint');
 const cli = new CLIEngine({});
 const { log } = console;
@@ -43,11 +42,11 @@ exec('git diff --cached --name-only --diff-filter=ACM | grep -Ei "\\.ts$|\\.js$"
                 ':' +
                 obj.column +
                 '\t ' +
-                chalk.yellow(level) +
+                level +
                 ' \0  ' +
                 obj.message +
                 '\t\t' +
-                chalk.grey(obj.ruleId) +
+                obj.ruleId +
                 '',
             );
           if (level === 'error')
@@ -57,11 +56,11 @@ exec('git diff --cached --name-only --diff-filter=ACM | grep -Ei "\\.ts$|\\.js$"
                 ':' +
                 obj.column +
                 '\t ' +
-                chalk.red.bold(level) +
+                level +
                 ' \0  ' +
                 obj.message +
                 '\t\t ' +
-                chalk.grey(obj.ruleId) +
+                obj.ruleId +
                 '',
             );
           if (level === 'error') pass = 1;
@@ -69,17 +68,19 @@ exec('git diff --cached --name-only --diff-filter=ACM | grep -Ei "\\.ts$|\\.js$"
       }
     });
     if (warningCount > 0 || errorCount > 0) {
+      const problemCount = errorCount + warningCount;
       log(
         '\n' +
-          chalk.bgRed.bold(errorCount + warningCount + ' problems') +
+          problemCount +
+          ' problems' +
           ' (' +
-          chalk.red.bold(errorCount) +
+          errorCount +
           ' errors, ' +
-          chalk.yellow(warningCount) +
+          warningCount +
           ' warnings) \0',
       );
     }
-    !pass && log(chalk.green.bold('~~ Done: 代码检验通过，提交成功 ~~'));
+    !pass && log('~~ Done: 代码检验通过，提交成功 ~~');
     process.exit(pass);
   }
   if (error !== null) {

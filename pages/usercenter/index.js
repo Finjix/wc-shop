@@ -122,10 +122,6 @@ Page({
     const { type } = currentTarget.dataset;
 
     switch (type) {
-      case 'person-info': {
-        wx.navigateTo({ url: '/pages/user/person-info/index' });
-        break;
-      }
       case 'address': {
         wx.navigateTo({ url: '/pages/user/address/list/index' });
         break;
@@ -143,16 +139,6 @@ Page({
           context: this,
           selector: '#t-toast',
           message: '分销中心功能开发中',
-          icon: '',
-          duration: 1000,
-        });
-        break;
-      }
-      default: {
-        Toast({
-          context: this,
-          selector: '#t-toast',
-          message: '未知跳转',
           icon: '',
           duration: 1000,
         });
