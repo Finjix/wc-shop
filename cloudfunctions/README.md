@@ -1,6 +1,6 @@
 # wc-shop CloudBase functions
 
-这是小程序商城的真实后端契约。`shop` 面向已登录用户，`admin` 面向 `adminMembers` 白名单中的运营人员。两个函数共用 `cloudfunctions` 代码根目录，入口分别为 `shop/index.main` 和 `admin/index.main`；这样部署时 `shared/` 会随函数代码一起上传。
+这是小程序商城的真实后端契约。`shop` 面向已登录用户，`admin` 面向 `adminMembers` 白名单中的运营人员。两个函数共用 `cloudfunctions` 代码根目录，CLI 入口分别为 `shop/index.main` 和 `admin/index.main`；这样部署时 `shared/` 会随函数代码一起上传。
 
 ## 部署前置条件
 
@@ -8,6 +8,16 @@
 2. 在仓库外设置当前环境变量 `CLOUDBASE_ENV_ID`，它只用于解析 `cloudbaserc.json`，不要把实际环境 ID 写入仓库。
 3. 在数据库中创建首个 `adminMembers` 文档，推荐把文档 `_id` 设为 CloudBase 用户 UID，并设置 `status: "active"`、`roles: ["superadmin"]`。函数不会创建或绕过管理员。
 4. 使用 CloudBase CLI 在仓库根目录部署；配置已打开云端安装依赖，运行环境为 Node.js 20.19。可使用 `tcb fn deploy shop` 和 `tcb fn deploy admin`，实际环境 ID 由 CLI/环境变量提供。
+
+## 控制台 ZIP 部署
+
+控制台上传 ZIP 时，平台要求压缩包根目录直接存在 `index.js`。运行仓库根目录的 `npm run package:deploy`，三个包会统一生成到 `dist/`：
+
+- `dist/shop-cloudfunction.zip`：函数 Handler 填 `index.main`
+- `dist/admin-cloudfunction.zip`：函数 Handler 填 `index.main`
+- `dist/wc-shop-admin-static.zip`：静态托管包，根目录直接包含 `index.html`
+
+不要把 `cloudfunctions/shop` 文件夹直接压成 ZIP 后上传；那种包只有 `shop/index.js`，会触发 `filename not matched: index.js`。
 
 函数内使用 `@cloudbase/node-sdk` 的 `cloudbase.init({})`。CloudBase 云函数运行时提供服务端身份，不读取 `SecretId`、`SecretKey`、API Key 或任何仓库外密钥。
 

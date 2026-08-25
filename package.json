@@ -8,6 +8,7 @@
     "lint:fix": "eslint --cache --fix --ext .js .",
     "check": "node config/eslintCheck.js",
     "check:cloudbase": "node scripts/check-no-runtime-mock.js",
+    "package:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-deploy-bundles.ps1",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s"
   },
   "author": "",

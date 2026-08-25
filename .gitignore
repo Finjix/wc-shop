@@ -21,3 +21,8 @@ yarn-error.log*
 
 # eslint cache
 .eslintcache
+
+# CloudBase deployment archives are generated locally under dist/
+dist/*.zip
+dist/archive/
+dist/.package-staging/
