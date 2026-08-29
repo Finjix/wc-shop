@@ -1,4 +1,5 @@
 import { callShop } from '../../../utils/cloud';
+import { config } from '../../../config/runtime';
 import { normalizeOrderItem, normalizeServiceType } from '../after-service-detail/contract';
 
 function unwrapData(result) {
@@ -83,6 +84,7 @@ function imagePath(image) {
 async function uploadAfterSaleImage(image, index) {
   const path = imagePath(image);
   if (!path || path.startsWith('cloud://') || /^https?:\/\//i.test(path)) return path;
+  if (config.useMock) return path;
   if (typeof wx === 'undefined' || !wx.cloud || typeof wx.cloud.uploadFile !== 'function') throw new Error('当前环境无法上传售后凭证');
   const suffixMatch = path.match(/\.([a-zA-Z0-9]{1,8})(?:\?|$)/);
   const suffix = suffixMatch ? suffixMatch[1].toLowerCase() : 'jpg';

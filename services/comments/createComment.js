@@ -1,4 +1,5 @@
 import { callShop, normalizeComment, normalizeCommentPayload } from './api';
+import { config } from '../../config/runtime';
 
 function localPath(resource) {
   if (typeof resource === 'string') return resource;
@@ -8,6 +9,7 @@ function localPath(resource) {
 async function uploadCommentResource(resource, index) {
   const path = localPath(resource);
   if (!path || path.startsWith('cloud://') || /^https?:\/\//i.test(path)) return path;
+  if (config.useMock) return path;
   if (typeof wx === 'undefined' || !wx.cloud || typeof wx.cloud.uploadFile !== 'function') {
     const error = new Error('当前环境无法上传评价图片');
     error.code = 'CLOUD_UPLOAD_UNAVAILABLE';

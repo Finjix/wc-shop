@@ -1,4 +1,5 @@
 import { config } from '../config/runtime';
+import { mockCallShop } from './mockApi';
 
 const DEFAULT_CLOUD_ERROR = '云端服务暂不可用，请稍后重试';
 
@@ -25,6 +26,7 @@ function unwrapResult(response) {
 /** 统一调用 shop 云函数，入参为 { action, data }，成功返回 data。 */
 export function callShop(action, payload = {}) {
   if (!action) return Promise.reject(createCloudError('INVALID_SHOP_ACTION', '云端操作未指定'));
+  if (config.useMock) return mockCallShop(action, payload);
   if (typeof wx === 'undefined' || !wx.cloud || typeof wx.cloud.callFunction !== 'function') {
     return Promise.reject(createCloudError('CLOUD_UNAVAILABLE', '当前环境未启用腾讯云开发'));
   }

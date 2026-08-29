@@ -87,6 +87,9 @@ Page({
       const toyGoods = getGoodsGroup(24);
       const lastingGoods = getGoodsGroup(30);
       const swiperGoods = hotGoods;
+      const imgSrcs = Array.isArray(homeContent.imgSrcs) && homeContent.imgSrcs.length
+        ? homeContent.imgSrcs
+        : swiperGoods.map((item) => item.thumb).filter(Boolean);
       this.setData({
         swiperGoods,
         hotGoods,
@@ -95,7 +98,7 @@ Page({
         lubricantGoods,
         toyGoods,
         lastingGoods,
-        imgSrcs: homeContent.imgSrcs || swiperGoods.map((item) => item.thumb),
+        imgSrcs,
         pageLoading: false,
         homeLoaded: true,
         emptyInfo: goodsList.length ? '' : '暂无首页商品内容',

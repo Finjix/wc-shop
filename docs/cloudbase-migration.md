@@ -5,11 +5,20 @@
 ## 本地配置
 
 1. 在微信开发者工具的云开发环境中启用身份认证、文档数据库和云存储。
-2. 将真实环境 ID 填入 `config/index.js` 的 `cloudEnvId`，或通过开发者工具当前云环境提供默认环境。后台使用 `admin/.env.local`：
+2. 将真实环境 ID 填入 `config/runtime.js` 的 `cloudEnvId`，或通过开发者工具当前云环境提供默认环境。后台使用 `admin/.env.local`：
 
    ```text
    VITE_CLOUDBASE_ENV_ID=你的真实环境ID
    ```
+
+开发者工具默认启用历史 mock 数据，开关位于 `config/runtime.js`：
+
+```js
+useMock: true  // 使用 model/ 下的本地演示数据
+useMock: false // 调用 CloudBase 云函数
+```
+
+切换后重新编译小程序即可；切换为 `false` 前请先完成 CloudBase 环境和云函数部署。
 
 3. 创建集合：`categories`、`products`、`skus`、`users`、`addresses`、`carts`、`orders`、`comments`、`afterSales`、`homeContents`、`settings`、`adminMembers`。
 4. 在 `adminMembers` 中写入首个管理员文档，`_id` 或 `uid` 使用 CloudBase 登录用户 UID，设置 `roles: ["superadmin"]`、`status: "active"`、`enabled: true`。
