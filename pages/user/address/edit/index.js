@@ -1,6 +1,6 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchDeliveryAddress, persistAddress } from '../../../../services/address/fetchAddress';
-import { areaData } from '../../../../config/index';
+import { areaData } from '../../utils/areaData';
 import { resolveAddress, rejectAddress } from '../../../../services/address/list';
 
 const innerPhoneReg = '^1(?:3\\d|4[4-9]|5[0-35-9]|6[67]|7[0-8]|8\\d|9\\d)\\d{8}$';

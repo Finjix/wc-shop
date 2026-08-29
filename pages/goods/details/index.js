@@ -4,7 +4,7 @@ import { addGoodsToCart } from '../../../services/cart/cart';
 import { getGoodsDetailsCommentsCount } from '../../../services/good/fetchGoodsDetailsComments';
 import { getCloudErrorMessage } from '../../../utils/cloud';
 
-import { cdnBase } from '../../../config/index';
+import { cdnBase } from '../../../config/runtime';
 
 const imgPrefix = `${cdnBase}/`;
 

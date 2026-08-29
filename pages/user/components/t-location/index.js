@@ -1,7 +1,7 @@
 import { getPermission } from '../../../../utils/getPermission';
 import { phoneRegCheck } from '../../../../utils/util';
 import Toast from 'tdesign-miniprogram/toast/index';
-import { addressParse } from '../../../../utils/addressParse';
+import { addressParse } from '../../utils/addressParse';
 import { resolveAddress, rejectAddress } from '../../../../services/address/list';
 
 Component({

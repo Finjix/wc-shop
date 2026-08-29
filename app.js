@@ -1,5 +1,5 @@
 import updateManager from './common/updateManager';
-import { config } from './config/index';
+import { config } from './config/runtime';
 
 App({
   onLaunch() {

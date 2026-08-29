@@ -173,7 +173,4 @@ Page({
       this.fetUseriInfoHandle();
     }
   },
-  onSupportTap() {
-    wx.navigateTo({ url: '/pages/user/support/index' });
-  },
 });

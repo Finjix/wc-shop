@@ -1,4 +1,4 @@
-import { config } from '../config/index';
+import { config } from '../config/runtime';
 
 const DEFAULT_CLOUD_ERROR = '云端服务暂不可用，请稍后重试';
 

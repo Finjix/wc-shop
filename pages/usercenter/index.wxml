@@ -39,5 +39,4 @@
     <t-icon name="chevron-right" size="40rpx" color="#999999" />
   </button>
 </view>
-<view class="footer__version" bindtap="onSupportTap">Finjix 提供技术支持 版本 v0.01a</view>
 <t-toast id="t-toast" />
