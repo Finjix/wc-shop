@@ -37,7 +37,7 @@
       overall="{{overall}}"
       sortType="{{sortType}}"
       showMoreSorts="{{true}}"
-      color="#F5CE2B"
+      color="#695941"
       bind:showFilterPopup="showFilterPopup"
     >
       <filter-popup

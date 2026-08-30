@@ -1,28 +1,29 @@
 export default [
   {
     icon: 'home',
+    prefix: 'wr',
     text: '首页',
     url: 'pages/home/home',
   },
   {
     icon: 'sort',
-    text: '商品分类',
+    prefix: 'wr',
+    text: '商品',
     url: 'pages/category/index',
-  },
-  {
-    icon: 'wallet',
-    text: '分销',
-    url: '',
-    special: true,
+    disabled: true,
   },
   {
     icon: 'cart',
+    prefix: 'wr',
     text: '购物车',
     url: 'pages/cart/index',
+    disabled: true,
   },
   {
     icon: 'person',
+    prefix: 'wr',
     text: '我的',
     url: 'pages/usercenter/index',
+    disabled: true,
   },
 ];

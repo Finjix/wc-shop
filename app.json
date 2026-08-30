@@ -37,7 +37,7 @@
   "tabBar": {
     "custom": true,
     "color": "#666666",
-    "selectedColor": "#F5CE2B",
+    "selectedColor": "#695941",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
@@ -62,6 +62,7 @@
   "requiredPrivateInfos": ["chooseAddress"],
   "lazyCodeLoading": "requiredComponents",
   "window": {
+    "backgroundColor": "#FCF8EE",
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#fff",
     "navigationBarTitleText": "Weixin",

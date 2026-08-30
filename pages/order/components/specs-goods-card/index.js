@@ -67,7 +67,7 @@ Component({
     },
     cartColor: {
       type: String,
-      value: '#F5CE2B',
+      value: '#695941',
     },
     disablePopup: Boolean,
   },

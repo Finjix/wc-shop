@@ -1,5 +1,5 @@
 :host {
-  background-color: #f8f8f8;
+  background-color: #FCF8EE;
 }
 
 .order-detail {
@@ -49,7 +49,7 @@
 }
 
 .order-logistics .edit-text {
-  color: var(--app-theme-text-color, #8A6800);
+  color: var(--app-theme-text-color, #695941);
   font-size: 26rpx;
   line-height: 36rpx;
 }
@@ -204,10 +204,10 @@
 }
 
 .add-notes__confirm {
-  color: var(--app-theme-text-color, #8A6800) !important;
+  color: var(--app-theme-text-color, #695941) !important;
 }
 
 .t-button {
   --td-button-default-color: #000;
-  --td-button-primary-text-color: var(--app-theme-text-color, #8A6800);
+  --td-button-primary-text-color: #fff;
 }

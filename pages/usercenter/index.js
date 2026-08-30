@@ -20,7 +20,8 @@ const toolData = [
   },
   {
     title: '分销中心',
-    icon: 'usergroup',
+    icon: 'star',
+    prefix: 'wr',
     type: 'distribution-center',
   },
 ];

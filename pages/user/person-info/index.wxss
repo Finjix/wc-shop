@@ -1,5 +1,5 @@
 :host {
-  background-color: #f5f5f5;
+  background-color: #FCF8EE;
 }
 page view {
   box-sizing: border-box;
@@ -41,9 +41,9 @@ page view {
 }
 
 .nickname-edit__save {
-  border: 2rpx solid #333333;
-  background: #333333;
-  color: #ffffff;
+  border: 2rpx solid #695941;
+  background: #695941;
+  color: #fff;
 }
 
 .nickname-edit__actions button::after {

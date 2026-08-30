@@ -25,7 +25,7 @@
         bind:tap="onClickCell"
       >
         <view class="tool-item__icon">
-          <t-icon name="{{item.icon}}" size="48rpx" color="#666666" />
+          <t-icon prefix="{{item.prefix}}" name="{{item.icon}}" size="48rpx" color="#666666" />
         </view>
         <view class="tool-item__title">{{item.title}}</view>
       </view>

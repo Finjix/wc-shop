@@ -75,5 +75,5 @@
 }
 
 .add-notes__confirm {
-  color: #fa4126 !important;
+  color: #695941 !important;
 }

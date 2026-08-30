@@ -1,6 +1,6 @@
 .order-sure {
   box-sizing: border-box;
-  background: #f5f5f5;
+  background: #FCF8EE;
   padding: 24rpx 0 calc(env(safe-area-inset-bottom) + 136rpx);
   min-height: 100vh;
 }
@@ -35,8 +35,8 @@
   height: 80rpx;
   width: 240rpx;
   border-radius: 40rpx;
-  background-color: var(--app-theme-color, #F5CE2B);
-  color: var(--app-theme-text-color, #8A6800);
+  background-color: var(--app-theme-color, #695941);
+  color: #fff;
   line-height: 80rpx;
   font-weight: bold;
   font-size: 28rpx;

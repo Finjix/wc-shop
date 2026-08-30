@@ -14,7 +14,7 @@
 */
 /* var() css变量适配*/
 page {
-  background-color: #FFFFFF;
+  background-color: #FCF8EE;
 }
 
 .comments-header {
@@ -38,9 +38,9 @@ page {
 }
 
 .comments-header-active {
-  background-color: #FFF7CC !important;
-  color: #F5CE2B !important;
-  border: 1px solid #F5CE2B !important;
+  background-color: #F0ECE4 !important;
+  color: #695941 !important;
+  border: 1px solid #695941 !important;
 }
 
 .own-comment-list {

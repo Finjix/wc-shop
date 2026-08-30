@@ -10,6 +10,7 @@ Component({
       const selectedIndex = event.detail.value;
       const selectedItem = this.data.list[selectedIndex];
       if (!selectedItem) return;
+      if (selectedItem.disabled) return;
       if (selectedItem.special) {
         wx.showToast({
           title: '分销中心功能开发中',

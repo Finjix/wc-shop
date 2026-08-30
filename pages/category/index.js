@@ -1,5 +1,8 @@
 import { getCategoryList } from '../../services/good/fetchCategoryList';
 import { getCloudErrorMessage } from '../../utils/cloud';
+
+const SEARCH_NAVIGATION_DISABLED = true;
+
 Page({
   data: {
     list: [],
@@ -42,6 +45,7 @@ Page({
     });
   },
   navToSearchPage() {
+    if (SEARCH_NAVIGATION_DISABLED) return;
     wx.navigateTo({ url: '/pages/goods/search/index' });
   },
   updateCategoryHeight() {

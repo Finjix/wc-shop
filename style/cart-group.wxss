@@ -5,7 +5,7 @@
 .wr-swiper-cell__right .swiper-right-del {
   height: calc(100% - 40rpx);
   width: 60px;
-  background-color: #ff2525;
+  background-color: #695941;
   font-size: 28rpx;
   color: white;
   display: flex;
@@ -78,6 +78,6 @@
   padding: 18rpx 32rpx 24rpx 80rpx;
 }
 .text-primary .wr-icon {
-  color: #fa550f;
-  color: var(--color-primary, #fa550f);
+  color: #695941;
+  color: var(--color-primary, #695941);
 }

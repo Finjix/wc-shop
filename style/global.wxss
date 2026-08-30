@@ -1,5 +1,5 @@
 .text-primary {
-  color: #fa550f;
+  color: #695941;
 }
 .text-success {
   color: #5fb446;
@@ -29,7 +29,7 @@
   color: #fff;
 }
 .bg-primary {
-  background-color: #fa550f;
+  background-color: #695941;
   color: #fff;
 }
 .bg-success {
@@ -65,7 +65,7 @@
   color: #5d5d5d;
 }
 .bd-primary {
-  color: #fa550f;
+  color: #695941;
 }
 .bd-success {
   color: #5fb446;
@@ -157,7 +157,7 @@ page {
   height: 100%;
   font-family: 'Microsoft YaHei', '微软雅黑', 'MicrosoftJhengHei', '华文细黑', Helvetica, Arial, 'sans-serif';
   font-size: 26rpx;
-  background-color: #f8f8f8;
+  background-color: #FCF8EE;
   font-weight: 400;
 }
 view,
@@ -210,7 +210,7 @@ textarea {
   z-index: 0;
 }
 .price {
-  color: #ec8131;
+  color: #695941;
   font-size: 32rpx;
   font-weight: 600;
 }
@@ -223,14 +223,14 @@ textarea {
   background: #fff;
 }
 .color-price {
-  color: #ec8131;
+  color: #695941;
 }
 .bg-cart {
-  background-color: #ffc220;
+  background-color: #695941;
   color: #fff;
 }
 .market-addcart {
-  color: #ec8131;
+  color: #695941;
   font-size: 42rpx;
 }
 .ovh {
@@ -632,7 +632,7 @@ h6 {
   display: inline-block;
   text-align: center;
   height: 40rpx;
-  background: #ff2e45;
+  background: #695941;
   border-radius: 8rpx;
   color: #fff;
   line-height: 40rpx;
@@ -644,11 +644,11 @@ h6 {
 .btn-auto {
   display: inline-block;
   font-size: 20rpx;
-  border: 1px solid #ff2e45;
+  border: 1px solid #695941;
   border-radius: 8rpx;
   height: 36rpx;
   line-height: 36rpx;
-  color: #ff2e45;
+  color: #695941;
   padding: 0 12rpx;
   margin-right: 16rpx;
 }
@@ -665,7 +665,7 @@ h6 {
 }
 .btn-lg,
 .btn-md {
-  background-color: #ff2e45;
+  background-color: #695941;
 }
 .btn-sm {
   border: 1px solid #999;
@@ -686,9 +686,9 @@ h6 {
   height: 80rpx;
   line-height: 80rpx;
   text-align: center;
-  color: #ff2e45;
+  color: #695941;
   border-radius: 8rpx;
-  border: 1px solid #ff2e45;
+  border: 1px solid #695941;
   font-size: 26rpx;
 }
 .btn-md-dashed {
@@ -697,10 +697,10 @@ h6 {
   border-radius: 8rpx;
 }
 .btn-bj1 {
-  background-color: #ff2e45;
+  background-color: #695941;
 }
 .btn-bj2 {
-  background-color: #ff8522;
+  background-color: #695941;
 }
 .btn-dis {
   background-color: #999;
@@ -732,7 +732,7 @@ h6 {
   min-width: 24rpx;
   padding: 0 6rpx;
   border-radius: 24rpx;
-  background-color: #fd1d45 !important;
+  background-color: #695941 !important;
   color: #fff;
   text-align: center;
   font-size: 20rpx;
@@ -874,16 +874,16 @@ h6 {
   z-index: 200;
 }
 .theme-color {
-  color: #f12d22;
+  color: #695941;
 }
 .theme-bgc {
-  background-color: #f12d22;
+  background-color: #695941;
 }
 .theme-bdc {
-  border-color: #f12d22;
+  border-color: #695941;
 }
 .theme-bgcart {
-  background-color: #ffb56c;
+  background-color: #695941;
 }
 .IphoneX {
   padding-bottom: 68rpx !important;

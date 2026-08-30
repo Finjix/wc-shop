@@ -38,8 +38,8 @@
 }
 .popup-content .button-bar .btn {
   width: 100%;
-  background: var(--app-theme-color, #F5CE2B);
-  color: var(--app-theme-text-color, #8A6800);
+  background: var(--app-theme-color, #695941);
+  color: #fff;
   font-weight: 700;
   border-radius: 48rpx;
 }

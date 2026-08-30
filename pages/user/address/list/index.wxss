@@ -1,5 +1,5 @@
 page {
-  background: #f5f5f5;
+  background: #FCF8EE;
   height: 100%;
 }
 .address-container {
@@ -82,9 +82,9 @@ page {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #F5CE2B;
+  background-color: #695941;
   border-radius: 44rpx;
-  color: #8A6800;
+  color: #fff;
 }
 .address-container .btn-wrap .btn-default {
   background: #c6c6c6;

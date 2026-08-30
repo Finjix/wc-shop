@@ -3,6 +3,7 @@
 @import 'style/theme.wxss';
 
 page {
+  background-color: #FCF8EE;
   --app-page-title-font-size: 34rpx;
   --app-page-title-font-weight: 500;
   --td-navbar-title-font-size: var(--app-page-title-font-size);

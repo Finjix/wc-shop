@@ -54,7 +54,7 @@
           </view>
           <view slot="right" class="swiper-right-del" bindtap="deleteGoods" data-goods="{{goods}}">
             <view class="swiper-right-del__button">
-              <t-icon name="delete" size="36rpx" color="#8A6800" />
+              <t-icon name="delete" size="36rpx" color="#695941" />
             </view>
           </view>
         </swipeout>
@@ -95,7 +95,7 @@
           </view>
           <view slot="right" class="swiper-right-del" bindtap="deleteGoods" data-goods="{{goods}}">
             <view class="swiper-right-del__button">
-              <t-icon name="delete" size="36rpx" color="#8A6800" />
+              <t-icon name="delete" size="36rpx" color="#695941" />
             </view>
           </view>
         </swipeout>

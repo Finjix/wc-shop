@@ -101,7 +101,7 @@
   font-weight: 600;
 }
 .invalid-goods-wrap .invalid-head .invalid-clear {
-  color: var(--app-theme-text-color, #8A6800);
+  color: var(--app-theme-text-color, #695941);
 }
 .invalid-goods-wrap .toggle {
   display: flex;
@@ -109,7 +109,7 @@
   justify-content: center;
   align-items: center;
   font-size: 24rpx;
-  color: var(--app-theme-text-color, #8A6800);
+  color: var(--app-theme-text-color, #695941);
 }
 .invalid-goods-wrap .toggle .m-r-6 {
   margin-right: 6rpx;
@@ -120,7 +120,7 @@
   height: 0;
   border-left: 10rpx solid transparent;
   border-right: 10rpx solid transparent;
-  border-bottom: 10rpx solid var(--app-theme-color, #F5CE2B);
+  border-bottom: 10rpx solid var(--app-theme-color, #695941);
 }
 .invalid-goods-wrap .toggle .down-icon {
   display: inline-block;
@@ -128,7 +128,7 @@
   height: 0;
   border-left: 10rpx solid transparent;
   border-right: 10rpx solid transparent;
-  border-top: 10rpx solid var(--app-theme-color, #F5CE2B);
+  border-top: 10rpx solid var(--app-theme-color, #695941);
 }
 .action-btn {
   display: flex;
@@ -154,7 +154,7 @@
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background-color: var(--app-theme-color, #F5CE2B);
+  background-color: var(--app-theme-color, #695941);
   display: flex;
   justify-content: center;
   align-items: center;

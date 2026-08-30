@@ -27,7 +27,7 @@ Page({
     deleteDialogVisible: false,
     pendingDeleteGoods: null,
     cartLoadError: false,
-    themeColor: '#F5CE2B',
+    themeColor: '#695941',
   },
 
   // 调用自定义tabbar的init函数，使页面与tabbar激活状态保持一致

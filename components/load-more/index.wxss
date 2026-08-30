@@ -10,7 +10,7 @@
   display: flex;
   justify-content: center;
 
-  --td-loading-color: #fa4126;
+  --td-loading-color: #695941;
 }
 
 .load-more .t-class-loading-text {
@@ -31,5 +31,5 @@
 
 .load-more__refresh-btn {
   margin-left: 16rpx;
-  color: #fa4126;
+  color: #695941;
 }

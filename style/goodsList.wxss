@@ -62,8 +62,8 @@
   flex-grow: 2;
 }
 .goods-list-wrap .wr-goods-card .goods-card-tags-wrap {
-  color: #fa550f;
-  color: var(--color-primary, #fa550f);
+  color: #695941;
+  color: var(--color-primary, #695941);
   display: flex;
   height: 30rpx;
   flex-flow: row wrap;
@@ -82,8 +82,8 @@
 }
 .goods-list-wrap .wr-goods-card .goods-card-tags-wrap .tag::after {
   border-radius: 4rpx;
-  border: 2rpx solid #fa550f;
-  border: 2rpx solid var(--color-primary, #fa550f);
+  border: 2rpx solid #695941;
+  border: 2rpx solid var(--color-primary, #695941);
 }
 .goods-list-wrap .wr-goods-card .goods-add-cart {
   display: flex;

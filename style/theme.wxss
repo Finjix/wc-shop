@@ -1,8 +1,8 @@
 /* 主题定制 */
 page {
-  --app-theme-color: #F5CE2B;
-  --app-theme-color-soft: #FFF7CC;
-  --app-theme-text-color: #8A6800;
+  --app-theme-color: #695941;
+  --app-theme-color-soft: #F0ECE4;
+  --app-theme-text-color: #695941;
 }
 
 .t-input {
@@ -12,28 +12,28 @@ page {
 
 .t-tab-bar {
   --td-tab-bar-color: #bbb;
-  --td-tab-bar-active-color: #F5CE2B;
+  --td-tab-bar-active-color: #695941;
 }
 
 .t-cascader {
-  --td-cascader-active-color: var(--app-theme-color, #F5CE2B);
+  --td-cascader-active-color: var(--app-theme-color, #695941);
 }
 
 .t-switch {
-  --td-switch-checked-color: var(--app-theme-color, #F5CE2B);
+  --td-switch-checked-color: var(--app-theme-color, #695941);
 }
 
 .t-button {
   --td-button-font-weight: 500;
   --td-button-medium-font-size: 32rpx;
   --td-button-default-color: #fff;
-  --td-button-default-bg-color: #fa4126;
-  --td-button-default-border-color: #fa4126;
+  --td-button-default-bg-color: #695941;
+  --td-button-default-border-color: #695941;
   --td-button-default-disabled-color: #fff;
   --td-button-default-disabled-bg: #cccccc;
   --td-button-default-disabled-border-color: #cccccc;
-  --td-button-default-active-bg-color: #fa4126;
-  --td-button-default-active-border-color: #fa4126;
+  --td-button-default-active-bg-color: #695941;
+  --td-button-default-active-border-color: #695941;
 }
 
 .t-textarea {
@@ -41,11 +41,11 @@ page {
 }
 
 .t-checkbox {
-  --td-checkbox-icon-checked-color: #fa4126;
+  --td-checkbox-icon-checked-color: #695941;
 }
 
 .dialog__button-confirm {
-  color: #fa4126 !important;
+  color: #695941 !important;
 }
 
 .dialog__button-cancel {

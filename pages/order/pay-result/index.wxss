@@ -45,7 +45,7 @@
   height: 88rpx;
   width: 334rpx;
   border-radius: 44rpx;
-  border: 2rpx solid var(--app-theme-color, #F5CE2B);
+  border: 2rpx solid var(--app-theme-color, #695941);
   color: #333333;
   font-size: 28rpx;
   font-weight: bold;

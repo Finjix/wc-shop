@@ -3,7 +3,7 @@
 page {
   width: 100vw;
   min-height: 100vh;
-  background-color: #f6f6f6;
+  background-color: #FCF8EE;
   color: #222427;
   font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
 }
@@ -25,7 +25,7 @@ page {
 
 .goods-detail-page {
   min-height: 100vh;
-  background-color: #f6f6f6;
+  background-color: #FCF8EE;
   font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
 }
 

@@ -24,7 +24,7 @@
           bind:change="onRateChange"
           size="26"
           gap="6"
-          color="{{['#F5CE2B', '#ddd']}}"
+          color="{{['#695941', '#ddd']}}"
           data-item="goodRateValue"
         />
       </view>

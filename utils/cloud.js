@@ -24,9 +24,9 @@ function unwrapResult(response) {
 }
 
 /** 统一调用 shop 云函数，入参为 { action, data }，成功返回 data。 */
-export function callShop(action, payload = {}) {
+export function callShop(action, payload = {}, options = {}) {
   if (!action) return Promise.reject(createCloudError('INVALID_SHOP_ACTION', '云端操作未指定'));
-  if (config.useMock) return mockCallShop(action, payload);
+  if (config.useMock && options.useMock !== false) return mockCallShop(action, payload);
   if (typeof wx === 'undefined' || !wx.cloud || typeof wx.cloud.callFunction !== 'function') {
     return Promise.reject(createCloudError('CLOUD_UNAVAILABLE', '当前环境未启用腾讯云开发'));
   }
@@ -40,6 +40,11 @@ export function callShop(action, payload = {}) {
       if (error && error.code && error.message) throw error;
       throw createCloudError(error && (error.errCode || error.code) || 'CLOUD_REQUEST_FAILED', error && (error.errMsg || error.message) || DEFAULT_CLOUD_ERROR, error);
     });
+}
+
+/** 首页等需要真实业务数据的场景，跳过本地演示接口。 */
+export function callRealShop(action, payload = {}) {
+  return callShop(action, payload, { useMock: false });
 }
 
 export function getCloudErrorMessage(error, fallback = DEFAULT_CLOUD_ERROR) {

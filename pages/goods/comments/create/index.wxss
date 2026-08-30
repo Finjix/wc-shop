@@ -1,5 +1,5 @@
 page {
-  background-color: #ffffff;
+  background-color: #FCF8EE;
 }
 
 .page-container .comment-card {
@@ -73,9 +73,9 @@ page {
 
 .submit-button-container .submit-button {
   --td-button-default-color: #fff;
-  --td-button-default-bg-color: #fa4126;
-  --td-button-default-border-color: #fa4126;
-  --td-button-default-active-bg-color: #fa42269c;
+  --td-button-default-bg-color: #695941;
+  --td-button-default-border-color: #695941;
+  --td-button-default-active-bg-color: rgba(105, 89, 65, 0.6);
 }
 
 .submit-button-container .submit-button-disabled {

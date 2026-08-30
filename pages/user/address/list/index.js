@@ -165,7 +165,7 @@ Page({
       title: '删除收货地址',
       content: '确定删除这个收货地址吗？',
       confirmText: '删除',
-      confirmColor: '#F5CE2B',
+      confirmColor: '#695941',
       success: (result) => {
         if (result.confirm) this.deleteAddressById(id);
       },

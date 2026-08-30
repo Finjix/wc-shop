@@ -69,7 +69,7 @@
           <t-switch
             value="{{locationState.isDefault}}"
             slot="note"
-            colors="{{['#F5CE2B', '#c6c6c6']}}"
+            colors="{{['#695941', '#c6c6c6']}}"
             bind:change="onCheckDefaultAddress"
           />
         </t-cell>

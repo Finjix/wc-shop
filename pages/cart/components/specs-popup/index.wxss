@@ -42,7 +42,7 @@
 .specs-popup__price {
   display: block;
   margin-top: 20rpx;
-  color: var(--app-theme-text-color, #8A6800);
+  color: var(--app-theme-text-color, #695941);
   font-size: 34rpx;
   font-weight: 600;
 }
@@ -89,9 +89,9 @@
 }
 
 .specs-popup__option--active {
-  border-color: var(--app-theme-color, #F5CE2B);
-  background: var(--app-theme-color-soft, #FFF7CC);
-  color: var(--app-theme-text-color, #8A6800);
+  border-color: var(--app-theme-color, #695941);
+  background: var(--app-theme-color-soft, #F0ECE4);
+  color: var(--app-theme-text-color, #695941);
 }
 
 .specs-popup__option--disabled {
@@ -102,8 +102,8 @@
   height: 80rpx;
   margin: 32rpx 0 0;
   border-radius: 44rpx;
-  background: var(--app-theme-color, #F5CE2B);
-  color: #222427;
+  background: var(--app-theme-color, #695941);
+  color: #fff;
   font-size: 32rpx;
   line-height: 80rpx;
   text-align: center;

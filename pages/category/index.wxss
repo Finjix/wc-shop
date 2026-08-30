@@ -10,7 +10,7 @@
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  background-color: #f6f6f6;
+  background-color: #FCF8EE;
 }
 
 .category-header {
@@ -66,13 +66,13 @@
   align-items: center;
   padding-right: 20rpx;
   margin-right: 16rpx;
-  border-right: 1rpx solid #ffe3c8;
+  border-right: 1rpx solid #F0ECE4;
 }
 
 .goods-category-class {
   flex: 0 0 auto;
   min-height: 0;
-  background-color: #f6f6f6 !important;
+  background-color: #FCF8EE !important;
   height: auto;
 }
 

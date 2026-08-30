@@ -91,7 +91,7 @@
   white-space: nowrap;
   font-weight: 700;
   order: 1;
-  color: #fa4126;
+  color: #695941;
   margin: 0;
 }
 

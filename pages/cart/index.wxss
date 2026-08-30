@@ -1,12 +1,12 @@
 page {
-  background-color: #fff !important;
+  background-color: #FCF8EE !important;
 }
 
 :host {
   display: block;
   min-height: 100%;
   padding-bottom: 112rpx;
-  background-color: #fff;
+  background-color: #FCF8EE;
 }
 
 .cart-custom-nav {
@@ -136,5 +136,5 @@ page {
 
 .t-button {
   --td-button-default-color: #000;
-  --td-button-primary-text-color: var(--app-theme-text-color, #8A6800);
+  --td-button-primary-text-color: #fff;
 }

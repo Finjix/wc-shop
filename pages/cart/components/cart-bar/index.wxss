@@ -44,11 +44,11 @@
   width: 216rpx;
   height: 80rpx;
   border-radius: 40rpx;
-  background-color: var(--app-theme-color, #F5CE2B);
+  background-color: var(--app-theme-color, #695941);
   font-size: 28rpx;
   font-weight: bold;
   line-height: 80rpx;
-  color: var(--app-theme-text-color, #8A6800);
+  color: #fff;
   text-align: center;
 }
 .cart-bar .disabled-btn {
@@ -72,7 +72,7 @@
 }
 
 .cart-bar__total .cart-bar__total--price {
-  color: var(--app-theme-text-color, #8A6800);
+  color: var(--app-theme-text-color, #695941);
   font-weight: bold;
 }
 

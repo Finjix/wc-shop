@@ -12,7 +12,7 @@
         border="{{false}}"
       >
         <view slot="right-icon">
-          <t-icon name="check-circle-filled" size="36rpx" color="var(--app-theme-color, #F5CE2B)" wx:if="{{item.checked}}" />
+          <t-icon name="check-circle-filled" size="36rpx" color="var(--app-theme-color, #695941)" wx:if="{{item.checked}}" />
           <t-icon name="circle" size="36rpx" color="#C7C7C7" wx:else />
         </view>
       </t-cell>

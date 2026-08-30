@@ -1,15 +1,15 @@
 @import '../../../style/theme.wxss';
 
 :host {
-  background-color: #f5f5f5;
+  background-color: #FCF8EE;
 }
 
 .notice-bar {
   padding: 24rpx 30rpx;
   text-align: center;
   font-size: 26rpx;
-  color: #8a6800;
-  background: #fff7cc;
+  color: #695941;
+  background: #F0ECE4;
 }
 
 .fill-tracking-no__form {
@@ -70,7 +70,7 @@
 }
 
 .fill-tracking-no__button-bar .btn.confirmBtn {
-  background: #fa4126;
+  background: #695941;
   color: #fff;
 }
 
@@ -103,5 +103,5 @@
 
 .t-button {
   --td-button-default-color: #aeb3b7;
-  --td-button-primary-text-color: #fa4126;
+  --td-button-primary-text-color: #fff;
 }

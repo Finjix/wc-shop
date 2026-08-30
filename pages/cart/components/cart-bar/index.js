@@ -33,7 +33,7 @@ Component({
     },
     themeColor: {
       type: String,
-      value: '#F5CE2B',
+      value: '#695941',
     },
     bottomHeight: {
       type: Number,

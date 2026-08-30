@@ -1,5 +1,5 @@
 :host {
-  background-color: #f5f5f5;
+  background-color: #FCF8EE;
 }
 .page-container .tab-bar__placeholder,
 .page-container .tab-bar__inner {
@@ -19,24 +19,24 @@
   bottom: 12rpx;
 }
 .tab-bar__inner .t-tabs-is-active {
-  color: var(--app-theme-color, #F5CE2B) !important;
+  color: var(--app-theme-color, #695941) !important;
 }
 
 .tab-bar__inner .t-tabs-track {
-  background: var(--app-theme-color, #F5CE2B) !important;
+  background: var(--app-theme-color, #695941) !important;
 }
 
 .page-container .tab-bar__active {
   font-size: 28rpx;
 }
 .page-container .specs-popup .bottom-btn {
-  color: var(--app-theme-text-color, #8A6800);
+  color: var(--app-theme-text-color, #695941);
 }
 .page-container .specs-popup .bottom-btn::after {
-  border-color: var(--app-theme-color, #F5CE2B);
+  border-color: var(--app-theme-color, #695941);
 }
 .dialog .dialog__button-confirm {
-  color: var(--app-theme-text-color, #8A6800);
+  color: var(--app-theme-text-color, #695941);
 }
 .list-loading {
   height: 100rpx;
@@ -93,14 +93,14 @@ wr-order-goods-card:not(:first-child) .wr-goods-card {
   color: #b9b9b9 !important;
 }
 .tab-bar .tab-bar__active {
-  color: var(--app-theme-color, #F5CE2B) !important;
+  color: var(--app-theme-color, #695941) !important;
 }
 
 .tab-bar .t-tabs-track {
-  background: var(--app-theme-color, #F5CE2B) !important;
+  background: var(--app-theme-color, #695941) !important;
 }
 
 .t-button {
   --td-button-default-color: #000;
-  --td-button-primary-text-color: var(--app-theme-text-color, #8A6800);
+  --td-button-primary-text-color: #fff;
 }

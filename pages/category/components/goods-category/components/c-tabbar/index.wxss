@@ -39,7 +39,7 @@
   padding: 0 20rpx;
 }
 .c-tabbar-item.active:not(.disabled) {
-  color: #0071ce;
+  color: #695941;
   position: relative;
 }
 .c-tabbar-item.disabled {

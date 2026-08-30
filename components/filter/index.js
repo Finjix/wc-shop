@@ -32,7 +32,7 @@ Component({
     },
     color: {
       type: String,
-      value: '#FA550F',
+      value: '#695941',
     },
   },
 

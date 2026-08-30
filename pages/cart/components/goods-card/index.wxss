@@ -119,10 +119,10 @@
   margin: 16rpx 0 0 0;
 }
 .wr-goods-card__tag {
-  color: var(--app-theme-text-color, #8A6800);
+  color: var(--app-theme-text-color, #695941);
   background: transparent;
   font-size: 20rpx;
-  border: 1rpx solid var(--app-theme-color, #F5CE2B);
+  border: 1rpx solid var(--app-theme-color, #695941);
   padding: 0 8rpx;
   height: 30rpx;
   line-height: 30rpx;

@@ -34,12 +34,12 @@
 .order-card .header .order-status {
   font-size: 26rpx;
   line-height: 40rpx;
-  color: var(--app-theme-text-color, #8A6800);
+  color: var(--app-theme-text-color, #695941);
 }
 .order-card .more-mask {
   padding: 20rpx 0;
   text-align: center;
   background-color: white;
-  color: var(--app-theme-text-color, #8A6800);
+  color: var(--app-theme-text-color, #695941);
   font-size: 24rpx;
 }

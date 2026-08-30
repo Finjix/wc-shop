@@ -62,12 +62,12 @@
 }
 
 .filter-left-content .filter-item .filter-price-arrow-up.filter-price-arrow-active {
-  border-bottom-color: #facd1d;
+  border-bottom-color: #695941;
   opacity: 1;
 }
 
 .filter-left-content .filter-item .filter-price-arrow-down.filter-price-arrow-active {
-  border-top-color: #facd1d;
+  border-top-color: #695941;
   opacity: 1;
 }
 
@@ -76,5 +76,5 @@
 }
 
 .filter-left-content .filter-active-item {
-  color: #fa550f;
+  color: #695941;
 }

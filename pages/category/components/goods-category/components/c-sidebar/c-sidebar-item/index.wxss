@@ -30,7 +30,7 @@
 .c-sidebar-item.active .c-sidebar-item__text {
   background-color: white;
   border-radius: 36rpx;
-  color: #F5CE2B;
+  color: #695941;
   font-weight: 400;
 }
 

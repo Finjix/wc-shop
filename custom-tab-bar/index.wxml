@@ -8,13 +8,13 @@
 	 wx:for="{{list}}"
 		 wx:for-item="item"
 	 wx:for-index="index"
-	 wx:key="index"
+		 wx:key="index"
 	>
 		<view class="custom-tab-bar-wrapper">
 			<t-icon
-				prefix="wr"
+				prefix="{{item.prefix}}"
 				name="{{item.icon}}"
-				size="44rpx"
+				size="40rpx"
 			/>
 			<view class="text">{{ item.text }}</view>
 		</view>
