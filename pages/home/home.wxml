@@ -120,15 +120,15 @@
       </view>
       <view class="home-product-showcase__grid">
         <view
-          wx:for="{{hotGoods}}"
-          wx:key="spuId"
+          wx:for="{{hotShowcaseGoods}}"
+          wx:key="index"
           class="home-product-showcase__card"
           data-spu-id="{{item.spuId}}"
           bind:tap="navToHotGoodsDetail"
         >
           <image
             class="home-product-showcase__image"
-            src="{{item.thumb}}"
+            src="{{item.thumb || testImageSrc}}"
             mode="aspectFill"
             lazy-load
           />
@@ -140,10 +140,7 @@
         <image class="home-product-showcase__hero-image" src="{{testImageSrc}}" mode="aspectFill" />
       </view>
       <view class="home-product-showcase__grid">
-        <view class="home-product-showcase__card">
-          <image class="home-product-showcase__image" src="{{testImageSrc}}" mode="aspectFill" />
-        </view>
-        <view class="home-product-showcase__card">
+        <view wx:for="{{placeholderShowcaseCards}}" wx:key="*this" class="home-product-showcase__card">
           <image class="home-product-showcase__image" src="{{testImageSrc}}" mode="aspectFill" />
         </view>
       </view>

@@ -3,19 +3,34 @@ import { getCloudErrorMessage } from '../../utils/cloud';
 import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 
 const HOME_GOODS_LIMIT = 6;
+const HOME_SHOWCASE_CARD_LIMIT = 8;
 const SEARCH_NAVIGATION_DISABLED = true;
 const HOME_TEST_IMAGE = '/assets/home-test-image.jpg';
+const HOME_SHOWCASE_PLACEHOLDER_CARDS = Array.from(
+  { length: HOME_SHOWCASE_CARD_LIMIT },
+  (_, index) => index,
+);
+
+function buildShowcaseGoods(goods) {
+  const showcaseGoods = goods.slice(0, HOME_SHOWCASE_CARD_LIMIT);
+  while (showcaseGoods.length < HOME_SHOWCASE_CARD_LIMIT) {
+    showcaseGoods.push({});
+  }
+  return showcaseGoods;
+}
 
 Page({
   data: {
     imgSrcs: [],
     testImageSrc: HOME_TEST_IMAGE,
+    placeholderShowcaseCards: HOME_SHOWCASE_PLACEHOLDER_CARDS,
     placeholderSlides: [HOME_TEST_IMAGE, HOME_TEST_IMAGE, HOME_TEST_IMAGE],
     swiperGoods: [],
     dynamicGoods: [],
     dynamicGoodsSrcs: [],
     dynamicCurrent: 0,
     hotGoods: [],
+    hotShowcaseGoods: [],
     newGoods: [],
     domesticGoods: [],
     lubricantGoods: [],
@@ -100,6 +115,7 @@ Page({
       dynamicGoods: [],
       dynamicGoodsSrcs: [],
       hotGoods: [],
+      hotShowcaseGoods: [],
       newGoods: [],
       domesticGoods: [],
       lubricantGoods: [],
@@ -124,6 +140,7 @@ Page({
       const swiperGoods = hotGoods;
       const dynamicGoods = hotGoods.filter((item) => item && item.thumb);
       const dynamicGoodsSrcs = dynamicGoods.map((item) => item.thumb);
+      const hotShowcaseGoods = buildShowcaseGoods(hotGoods);
       const imgSrcs = Array.isArray(homeContent.imgSrcs)
         ? homeContent.imgSrcs.slice(0, 3)
         : [];
@@ -133,6 +150,7 @@ Page({
         dynamicGoods,
         dynamicGoodsSrcs,
         hotGoods,
+        hotShowcaseGoods,
         newGoods,
         domesticGoods,
         lubricantGoods,

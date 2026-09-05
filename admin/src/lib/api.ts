@@ -38,7 +38,7 @@ function unwrap<T>(result: ApiEnvelope<T> | undefined, requestId?: string): T {
       ? Object.entries(error.details).map(([key, value]) => `${key}=${String(value)}`).join(', ')
       : '';
     throw new ApiError(
-      [result?.message || message || '云函数返回失败，请检查 admin 云函数日志。', details].filter(Boolean).join('（') + (details ? '）' : ''),
+      [result?.message || message || '云函数返回失败，请检查 wc-shop-function 云函数日志。', details].filter(Boolean).join('（') + (details ? '）' : ''),
       result?.requestId || requestId,
       typeof error === 'object' ? error?.code : undefined,
     );
@@ -50,8 +50,8 @@ export async function callAdmin<T>(action: string, payload: Record<string, unkno
   const { app } = requireCloudBase();
   try {
     const response = await app.callFunction({
-      name: 'admin',
-      data: { action, data: payload },
+      name: 'wc-shop-function',
+      data: { scope: 'admin', action, data: payload },
     }) as { result: ApiEnvelope<T>; requestId?: string };
     return unwrap(response.result, response.requestId);
   } catch (error) {

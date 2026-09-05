@@ -65,7 +65,7 @@ export function OverviewPage() {
         <Metric label="用户总数" value={value(['userCount', 'users'])} note="来自 users" />
         <Metric label="待处理售后" value={value(['afterSalePending', 'pendingAfterSales'])} note="来自 afterSales" />
       </div>
-      <Panel className="overview-note"><h3>后台连接状态</h3><p>当前数据来自 CloudBase 的 admin 云函数。若云端尚未创建集合或没有数据，列表会保持为空，不会生成演示内容。</p></Panel>
+      <Panel className="overview-note"><h3>后台连接状态</h3><p>当前数据来自 CloudBase 的 wc-shop-function 云函数。若云端尚未创建集合或没有数据，列表会保持为空，不会生成演示内容。</p></Panel>
     </>}
   </>;
 }

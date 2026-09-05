@@ -7,9 +7,9 @@ export const config = {
   useMock: true,
   // 开发者工具默认使用本地 mock；联调 CloudBase 时改为 false。
   /** CloudBase 环境 ID；部署前填入开发者工具中显示的真实环境 ID。 */
-  cloudEnvId: 'cloud1-d6gerlzk9daa770ca',
-  /** 承载小程序业务接口的云函数名称。 */
-  cloudFunctionName: 'shop',
+  cloudEnvId: 'wc-shop-d8gx31ihpf0093259',
+  /** 承载小程序与管理后台接口的统一云函数名称。 */
+  cloudFunctionName: 'wc-shop-function',
 };
 
 export const cdnBase =

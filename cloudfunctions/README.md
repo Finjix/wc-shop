@@ -1,23 +1,22 @@
 # wc-shop CloudBase functions
 
-这是小程序商城的真实后端契约。`shop` 面向已登录用户，`admin` 面向 `adminMembers` 白名单中的运营人员。两个函数共用 `cloudfunctions` 代码根目录，CLI 入口分别为 `shop/index.main` 和 `admin/index.main`；这样部署时 `shared/` 会随函数代码一起上传。
+这是小程序商城的真实后端契约。现在由一个 TypeScript 云函数 `wc-shop-function` 承载两类接口：`shop` 面向已登录用户，`admin` 面向 `adminMembers` 白名单中的运营人员。请求通过顶层 `scope` 字段分流，入口源码为 `cloudfunctions/wc-shop-function/index.ts`，部署时使用编译后的 `index.js`。
 
 ## 部署前置条件
 
 1. 在 CloudBase 环境中启用微信/小程序身份认证、文档数据库和云存储。
 2. 在仓库外设置当前环境变量 `CLOUDBASE_ENV_ID`，它只用于解析 `cloudbaserc.json`，不要把实际环境 ID 写入仓库。
 3. 在数据库中创建首个 `adminMembers` 文档，推荐把文档 `_id` 设为 CloudBase 用户 UID，并设置 `status: "active"`、`roles: ["superadmin"]`。函数不会创建或绕过管理员。
-4. 使用 CloudBase CLI 在仓库根目录部署；配置已打开云端安装依赖，运行环境为 Node.js 20.19。可使用 `tcb fn deploy shop` 和 `tcb fn deploy admin`，实际环境 ID 由 CLI/环境变量提供。
+4. 使用 CloudBase CLI 在仓库根目录部署；配置已打开云端安装依赖，运行环境为 Node.js 20.19。先运行 `npm run package:deploy` 完成编译，再使用 `tcb fn deploy wc-shop-function`，实际环境 ID 由 CLI/环境变量提供。
 
 ## 控制台 ZIP 部署
 
-控制台上传 ZIP 时，平台要求压缩包根目录直接存在 `index.js`。运行仓库根目录的 `npm run package:deploy`，三个包会统一生成到 `dist/`：
+控制台上传 ZIP 时，平台要求压缩包根目录直接存在 `index.js`。运行仓库根目录的 `npm run package:deploy`，两个包会重新构建到 `dist/0830a/`：
 
-- `dist/shop-cloudfunction.zip`：函数 Handler 填 `index.main`
-- `dist/admin-cloudfunction.zip`：函数 Handler 填 `index.main`
-- `dist/wc-shop-admin-static.zip`：静态托管包，根目录直接包含 `index.html`
+- `dist/0830a/wc-shop-function.zip`：函数 Handler 填 `index.main`
+- `dist/0830a/wc-shop-admin-static.zip`：静态托管包，根目录直接包含 `index.html`
 
-不要把 `cloudfunctions/shop` 文件夹直接压成 ZIP 后上传；那种包只有 `shop/index.js`，会触发 `filename not matched: index.js`。
+不要把 `cloudfunctions/wc-shop-function` 文件夹直接压成 ZIP 后上传；控制台包必须使用脚本生成的 ZIP，使根目录直接包含 `index.js`。
 
 函数内使用 `@cloudbase/node-sdk` 的 `cloudbase.init({})`。CloudBase 云函数运行时提供服务端身份，不读取 `SecretId`、`SecretKey`、API Key 或任何仓库外密钥。
 
@@ -27,8 +26,8 @@
 
 ```js
 wx.cloud.callFunction({
-  name: 'shop',
-  data: { action: 'products.list', data: { page: 1, pageSize: 20 } },
+  name: 'wc-shop-function',
+  data: { scope: 'shop', action: 'products.list', data: { page: 1, pageSize: 20 } },
 });
 ```
 
@@ -36,7 +35,7 @@ wx.cloud.callFunction({
 
 ## Action 总览
 
-`shop`：
+`scope: 'shop'`：
 
 - `categories.list`、`products.list`、`products.detail`、`skus.list`、`home.get`
 - `user.me`、`user.update`
@@ -48,7 +47,7 @@ wx.cloud.callFunction({
 - `afterSales.reasons/preview/list/detail/create/confirmReceived/submitTracking`
 - `storage.tempUrls`
 
-`admin`：
+`scope: 'admin'`：
 
 - `auth.me`
 - `categories.*`、`products.*`、`skus.*`（list/get/create/update/delete；delete 为下架）
@@ -108,7 +107,7 @@ wx.cloud.callFunction({
 ## 安全边界
 
 - 所有用户写操作只使用服务端从 CloudBase 请求上下文解析的 UID；`userId`、金额、库存、订单状态和管理员角色不信任客户端。
-- `admin` 必须同时通过 CloudBase UID 身份校验、`adminMembers` 存在性、启用状态和角色 scope 校验。
+- `scope: 'admin'` 的请求必须同时通过 CloudBase UID 身份校验、`adminMembers` 存在性、启用状态和角色 scope 校验；`scope` 只负责路由，不能替代权限校验。
 - 服务端 SDK 具备管理员数据库权限，因此数据库客户端规则仍应配置为最小权限：客户端不直接写商品、库存、订单状态、管理员、设置或评论审核字段。
 - `fileId` 必须是应用约定的 CloudBase 存储路径；生产环境应在云存储规则或后台函数中继续限制前缀、文件类型和大小。
 - 函数没有硬编码环境 ID、账号、SecretId、SecretKey、密码或支付密钥。

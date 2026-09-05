@@ -24,5 +24,11 @@ yarn-error.log*
 
 # CloudBase deployment archives are generated locally under dist/
 dist/*.zip
+dist/*/*.zip
 dist/archive/
 dist/.package-staging/
+dist/.package-staging-*/
+
+# TypeScript cloud function build output; the generated index.js is used by CLI deploys.
+cloudfunctions/.build/
+cloudfunctions/wc-shop-function/index.js

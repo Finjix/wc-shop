@@ -23,7 +23,7 @@ function unwrapResult(response) {
   return result;
 }
 
-/** 统一调用 shop 云函数，入参为 { action, data }，成功返回 data。 */
+/** 统一调用 wc-shop-function，入参为 { scope, action, data }，成功返回 data。 */
 export function callShop(action, payload = {}, options = {}) {
   if (!action) return Promise.reject(createCloudError('INVALID_SHOP_ACTION', '云端操作未指定'));
   if (config.useMock && options.useMock !== false) return mockCallShop(action, payload);
@@ -33,7 +33,7 @@ export function callShop(action, payload = {}, options = {}) {
   return Promise.resolve()
     .then(() => wx.cloud.callFunction({
       name: config.cloudFunctionName,
-      data: { action, data: payload },
+      data: { scope: 'shop', action, data: payload },
     }))
     .then(unwrapResult)
     .catch((error) => {

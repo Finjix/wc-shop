@@ -17,7 +17,7 @@ page {
 .home-scroll-content {
   position: relative;
   background: #FCF8EE;
-  padding-bottom: calc(env(safe-area-inset-bottom) + 136rpx);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 80rpx + 64rpx);
 }
 
 .home-page-header {
