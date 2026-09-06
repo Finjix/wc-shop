@@ -1,6 +1,5 @@
 /* eslint-disable no-param-reassign */
 import { getSearchResult } from '../../../services/good/fetchSearchResult';
-import { getApiErrorMessage } from '../../../utils/api';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 
@@ -138,14 +137,15 @@ Page({
         loadMoreStatus: _goodsList.length >= totalCount ? 2 : 0,
         emptyInfo: { tip: '' },
       });
-    } catch (error) {
+    } catch {
+      this.total = 0;
       this.setData({
+        goodsList: [],
         loading: false,
         hasLoaded: true,
-        loadMoreStatus: 3,
-        emptyInfo: { tip: getApiErrorMessage(error, '查询失败，请稍后重试') },
+        loadMoreStatus: 0,
+        emptyInfo: { tip: '抱歉，未找到相关商品' },
       });
-      wx.showToast({ title: getApiErrorMessage(error, '查询失败，请稍后重试'), icon: 'none' });
     }
     this.setData({
       hasLoaded: true,
