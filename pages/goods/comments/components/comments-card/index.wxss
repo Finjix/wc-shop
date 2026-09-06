@@ -13,7 +13,11 @@
   bottom: 0rpx;
   width: 686rpx;
   height: 2rpx;
-  background-color: #e2dbd0;
+  background-color: #e5e5e5;
+}
+
+.comments-card-item--last::after {
+  display: none;
 }
 
 .comments-card-item-container {

@@ -29,6 +29,10 @@ Component({
       type: Array,
       value: [],
     },
+    isLast: {
+      type: Boolean,
+      value: false,
+    },
   },
 
   data: {

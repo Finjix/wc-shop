@@ -8,6 +8,7 @@
 <block wx:if="{{mineOnly}}">
   <view class="comments-card-list own-comment-list" wx:if="{{ownComment}}">
     <comments-card
+      isLast="{{true}}"
       commentScore="{{ownComment.commentScore}}"
       userName="{{ownComment.userName}}"
       commentResources="{{ownComment.commentResources || []}}"
@@ -49,6 +50,7 @@
 <view class="comments-card-list">
 	<block wx:for="{{commentList}}" wx:key="index">
 		<comments-card
+      isLast="{{index === commentList.length - 1}}"
 		  commentScore="{{item.commentScore}}"
 		  userName="{{item.userName}}"
 		  commentResources="{{item.commentResources || []}}"

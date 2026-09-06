@@ -1,4 +1,4 @@
-<view class="comments-card-item wr-class">
+<view class="comments-card-item wr-class {{isLast ? 'comments-card-item--last' : ''}}">
   <view class="comments-card-item-container">
     <view class="comments-title">
       <view class="userName">{{userName}}</view>

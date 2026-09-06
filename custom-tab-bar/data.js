@@ -10,7 +10,6 @@ export default [
     prefix: 'wr',
     text: '商品',
     url: 'pages/category/index',
-    disabled: true,
   },
   {
     icon: 'cart',
