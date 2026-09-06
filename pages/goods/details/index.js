@@ -242,7 +242,7 @@ Page({
         const currentPages = getCurrentPages();
         const cartPage = currentPages.find((page) => page.route === 'pages/cart/index');
         if (cartPage && typeof cartPage.refreshData === 'function') {
-          // 服务层已经持久化了 Mock 购物车，这里只刷新页面，避免同一商品被追加两次。
+          // 服务层已持久化购物车，这里仅刷新页面，避免同一商品被追加两次。
           cartPage.refreshData(true);
         }
         this.setData(

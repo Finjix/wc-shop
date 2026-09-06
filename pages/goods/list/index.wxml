@@ -11,24 +11,30 @@
     <view class="goods-list-header">
       <t-navbar
         t-class-title="goods-list-navbar__title"
-        title="{{categoryName}}"
+        title=""
         leftArrow
         fixed="{{false}}"
         background="#fff"
       />
+      <view
+        class="goods-list-navbar-search"
+        style="top: {{searchTop}}px; left: {{searchLeft}}px; width: {{searchWidth}}px;"
+      >
+        <t-search
+          t-class="goods-list-navbar-search__control"
+          t-class-input-container="goods-list-navbar-search__input-container"
+          t-class-left="goods-list-navbar-search__left-icon"
+          t-class-input="goods-list-navbar-search__input"
+          value="{{keywords}}"
+          leftIcon=""
+          clearable="{{false}}"
+          placeholder=""
+          bind:submit="handleSubmit"
+        >
+          <t-icon slot="left-icon" prefix="wr" name="search" size="40rpx" color="#bbb" />
+        </t-search>
+      </view>
       <view class="goods-list-toolbar">
-    <t-search
-      t-class="t-search"
-      t-class-input-container="t-class__input-container"
-      t-class-left="t-search__left-icon"
-      t-class-input="t-search__input"
-      value="{{keywords}}"
-      leftIcon=""
-      placeholder="官方正品 保密发货 售后无忧"
-      bind:submit="handleSubmit"
-    >
-      <t-icon slot="left-icon" prefix="wr" name="search" size="40rpx" color="#bbb" />
-    </t-search>
     <filter
       wr-class="filter-container"
       bind:change="handleFilterChange"

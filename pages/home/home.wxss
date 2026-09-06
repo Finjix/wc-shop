@@ -53,6 +53,10 @@ page {
   background: transparent;
 }
 
+.home-page-header .search {
+  position: relative;
+}
+
 .home-page-header .search-only {
   display: flex;
   align-items: center;
@@ -74,34 +78,37 @@ page {
   margin-right: 16rpx;
 }
 
-.search-divider {
-  flex: 0 0 1rpx;
-  width: 1rpx;
-  height: 32rpx;
-  margin-right: 0;
-  background-color: rgba(93, 93, 93, 0.28);
+.home-page-header .search-input {
+  color: #5d5d5d !important;
+  font-size: 26rpx !important;
 }
 
-.search-marquee {
-  flex: 1;
-  min-width: 0;
+.home-page-header .search-marquee {
+  position: absolute;
+  top: 0;
+  right: 24rpx;
+  left: 90rpx;
+  z-index: 1;
+  height: 64rpx;
   overflow: hidden;
+  line-height: 64rpx;
   white-space: nowrap;
+  pointer-events: none;
 }
 
-.search-marquee__track {
+.home-page-header .search-marquee__track {
   display: flex;
   width: max-content;
   animation: search-marquee 8s linear infinite;
   will-change: transform;
 }
 
-.search-marquee__item {
+.home-page-header .search-marquee__item {
   flex: 0 0 auto;
   padding-right: 64rpx;
   color: #5d5d5d;
   font-size: 26rpx;
-  line-height: 40rpx;
+  line-height: 64rpx;
   white-space: nowrap;
 }
 
@@ -147,31 +154,6 @@ page {
   font-size: 28rpx;
   line-height: 1;
   letter-spacing: 1rpx;
-}
-
-.home-placeholder-cards {
-  display: flex;
-  gap: 4rpx;
-  padding: 0;
-  background: #FCF8EE;
-}
-
-.home-placeholder-card {
-  display: flex;
-  width: calc((100% - 4rpx) / 2);
-  height: calc((100vw - 4rpx) / 2);
-  box-sizing: border-box;
-  align-items: center;
-  justify-content: center;
-  background: #D9D9D9;
-  color: #777;
-  font-size: 32rpx;
-}
-
-.home-placeholder-card__image {
-  display: block;
-  width: 100%;
-  height: 100%;
 }
 
 .home-featured-title {
@@ -256,16 +238,6 @@ page {
   width: 100%;
   height: 100%;
   border-radius: 24rpx;
-}
-
-.home-product-showcase--placeholder .home-product-showcase__hero,
-.home-product-showcase--placeholder .home-product-showcase__card {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #D9D9D9;
-  color: #777;
-  font-size: 32rpx;
 }
 
 .home-product-showcase__grid {

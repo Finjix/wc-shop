@@ -1,11 +1,11 @@
-import { callRealShop } from '../../utils/cloud';
+import { callShop } from '../../utils/cloud';
 import { normalizeGoodsList, normalizeHomeContent } from './normalize';
 
 /** 获取首页运营内容与真实商品，空库时返回空数组，不注入演示商品。 */
 export function fetchHomeContent(pageSize = 36) {
   return Promise.all([
-    callRealShop('home.get', {}).catch(() => ({})),
-    callRealShop('products.list', { page: 1, pageSize }),
+    callShop('home.get', {}).catch(() => ({})),
+    callShop('products.list', { page: 1, pageSize }),
   ]).then(([homeResult, productResult]) => {
     const products = normalizeGoodsList(productResult);
     const home = normalizeHomeContent(homeResult);

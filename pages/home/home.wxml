@@ -1,17 +1,29 @@
 <view class="home-page-header home-page-header--fixed" style="top: {{searchTop}}px; left: {{searchLeft}}px; width: {{searchWidth}}px;">
-  <view class="search" bind:tap="navToSearchPage">
-    <view class="search-only" style="height: {{searchHeight}}px; border-radius: {{searchRadius}}px;">
-      <view class="search-icon">
+  <view class="search" bind:tap="focusSearch">
+    <t-search
+      t-class="home-search"
+      t-class-input-container="search-only"
+      t-class-input="search-input"
+      value="{{searchValue}}"
+      leftIcon=""
+      clearable="{{false}}"
+      placeholder=""
+      focus="{{searchFocus}}"
+      bind:focus="handleSearchFocus"
+      bind:blur="handleSearchBlur"
+      bind:change="handleSearchChange"
+      bind:submit="handleSearchSubmit"
+    >
+      <view slot="left-icon" class="search-icon">
         <t-icon prefix="wr" name="search" size="40rpx" color="#9d8f96" />
       </view>
-      <view class="search-divider"></view>
-      <view class="search-marquee">
-        <view class="search-marquee__track">
-          <text class="search-marquee__item">邀请好友，享现金返利！</text>
-          <text class="search-marquee__item">邀请好友，享现金返利！</text>
-          <text class="search-marquee__item">邀请好友，享现金返利！</text>
-          <text class="search-marquee__item">邀请好友，享现金返利！</text>
-        </view>
+    </t-search>
+    <view wx:if="{{!searchFocus && !searchValue}}" class="search-marquee">
+      <view class="search-marquee__track">
+        <text class="search-marquee__item">邀请好友，享现金返利！</text>
+        <text class="search-marquee__item">邀请好友，享现金返利！</text>
+        <text class="search-marquee__item">邀请好友，享现金返利！</text>
+        <text class="search-marquee__item">邀请好友，享现金返利！</text>
       </view>
     </view>
   </view>
@@ -34,31 +46,10 @@
         list="{{imgSrcs}}"
         bind:click="navToGoodsDetail"
       />
-      <t-swiper
-        wx:else
-        t-class="home-swiper"
-        t-class-image="home-swiper__image"
-        height="1333.333rpx"
-        autoplay="{{true}}"
-        interval="{{interval}}"
-        duration="{{duration}}"
-        navigation="{{false}}"
-        imageProps="{{placeholderSwiperImageProps}}"
-        list="{{placeholderSlides}}"
-      />
     </view>
 
     <view class="home-safety-banner">
       <text>未满18禁用 | 保密发货 | 官方正品</text>
-    </view>
-
-    <view class="home-placeholder-cards">
-      <view class="home-placeholder-card">
-        <image class="home-placeholder-card__image" src="{{testImageSrc}}" mode="aspectFill" />
-      </view>
-      <view class="home-placeholder-card">
-        <image class="home-placeholder-card__image" src="{{testImageSrc}}" mode="aspectFill" />
-      </view>
     </view>
 
     <view class="home-featured-title">
@@ -83,22 +74,6 @@
         imageProps="{{featuredSwiperImageProps}}"
         list="{{dynamicGoodsSrcs}}"
         bind:click="navToDynamicGoodsDetail"
-      />
-      <t-swiper
-        wx:else
-        t-class="home-featured-swiper__host"
-        t-class-image="home-featured-swiper__image"
-        t-class-prev-image="home-featured-swiper__side-image"
-        t-class-next-image="home-featured-swiper__side-image"
-        height="1066.667rpx"
-        autoplay="{{true}}"
-        interval="3000"
-        duration="500"
-        navigation="{{false}}"
-        previous-margin="75rpx"
-        next-margin="75rpx"
-        imageProps="{{placeholderFeaturedSwiperImageProps}}"
-        list="{{placeholderSlides}}"
       />
     </view>
 
@@ -128,20 +103,10 @@
         >
           <image
             class="home-product-showcase__image"
-            src="{{item.thumb || testImageSrc}}"
+            src="{{item.thumb}}"
             mode="aspectFill"
             lazy-load
           />
-        </view>
-      </view>
-    </view>
-    <view wx:else class="home-product-showcase home-product-showcase--placeholder">
-      <view class="home-product-showcase__hero">
-        <image class="home-product-showcase__hero-image" src="{{testImageSrc}}" mode="aspectFill" />
-      </view>
-      <view class="home-product-showcase__grid">
-        <view wx:for="{{placeholderShowcaseCards}}" wx:key="*this" class="home-product-showcase__card">
-          <image class="home-product-showcase__image" src="{{testImageSrc}}" mode="aspectFill" />
         </view>
       </view>
     </view>

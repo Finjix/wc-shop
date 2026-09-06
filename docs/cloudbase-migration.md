@@ -11,14 +11,7 @@
    VITE_CLOUDBASE_ENV_ID=你的真实环境ID
    ```
 
-开发者工具默认启用历史 mock 数据，开关位于 `config/runtime.js`：
-
-```js
-useMock: true  // 使用 model/ 下的本地演示数据
-useMock: false // 调用 CloudBase 云函数
-```
-
-切换后重新编译小程序即可；切换为 `false` 前请先完成 CloudBase 环境和云函数部署。
+完成 CloudBase 环境和云函数部署后，重新编译小程序即可使用云端数据。
 
 3. 创建集合：`categories`、`products`、`skus`、`users`、`addresses`、`carts`、`orders`、`comments`、`afterSales`、`homeContents`、`settings`、`adminMembers`。
 4. 在 `adminMembers` 中写入首个管理员文档，`_id` 或 `uid` 使用 CloudBase 登录用户 UID，设置 `roles: ["superadmin"]`、`status: "active"`、`enabled: true`。

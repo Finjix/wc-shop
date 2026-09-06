@@ -27,6 +27,9 @@ Page({
     keywords: '',
     loadMoreStatus: 0,
     loading: true,
+    searchTop: 0,
+    searchLeft: 48,
+    searchWidth: 200,
   },
 
   pageNum: 1,
@@ -139,6 +142,18 @@ Page({
   },
 
   onLoad(options) {
+    const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const menuButtonInfo = wx.getMenuButtonBoundingClientRect();
+    const windowWidth = windowInfo.windowWidth || 375;
+    const screenSideGap = Math.max(windowWidth - (menuButtonInfo.right || windowWidth), 0);
+    const menuButtonLeft = menuButtonInfo.left || windowWidth;
+    const searchLeft = 48;
+    this.setData({
+      searchTop: menuButtonInfo.top || 0,
+      searchLeft,
+      searchWidth: Math.max(menuButtonLeft - searchLeft - screenSideGap, 0),
+    });
+
     const { categoryName = '', categoryId = '' } = options || {};
     let title = '';
     try {

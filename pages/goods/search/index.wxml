@@ -11,6 +11,7 @@
     t-class-input="t-search__input"
     value="{{searchValue}}"
     leftIcon=""
+    clearable="{{false}}"
     placeholder="iPhone12pro"
     bind:submit="handleSubmit"
     focus

@@ -1,7 +1,6 @@
 import { getCategoryList } from '../../services/good/fetchCategoryList';
+import { addSearchHistory } from '../../services/good/fetchSearchHistory';
 import { getCloudErrorMessage } from '../../utils/cloud';
-
-const SEARCH_NAVIGATION_DISABLED = true;
 
 Page({
   data: {
@@ -13,6 +12,7 @@ Page({
     navBarHeight: 44,
     customNavHeight: 44,
     categoryHeight: 0,
+    searchValue: '',
   },
   async init() {
     this.setData({ categoryLoading: true, categoryError: '' });
@@ -44,9 +44,20 @@ Page({
         : '/pages/goods/list/index',
     });
   },
-  navToSearchPage() {
-    if (SEARCH_NAVIGATION_DISABLED) return;
-    wx.navigateTo({ url: '/pages/goods/search/index' });
+  async handleSearchSubmit(event) {
+    const { value = '' } = event.detail || {};
+    const keyword = String(value).trim();
+    if (!keyword) return;
+
+    this.setData({ searchValue: keyword });
+    try {
+      await addSearchHistory(keyword);
+    } catch {
+      // 搜索不因历史记录写入失败而中断
+    }
+    wx.navigateTo({
+      url: `/pages/goods/result/index?searchValue=${encodeURIComponent(keyword)}`,
+    });
   },
   updateCategoryHeight() {
     const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();

@@ -1,30 +1,14 @@
 import { fetchHomeContent } from '../../services/good/fetchHomeContent';
+import { addSearchHistory } from '../../services/good/fetchSearchHistory';
 import { getCloudErrorMessage } from '../../utils/cloud';
 import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 
 const HOME_GOODS_LIMIT = 6;
 const HOME_SHOWCASE_CARD_LIMIT = 8;
-const SEARCH_NAVIGATION_DISABLED = true;
-const HOME_TEST_IMAGE = '/assets/home-test-image.jpg';
-const HOME_SHOWCASE_PLACEHOLDER_CARDS = Array.from(
-  { length: HOME_SHOWCASE_CARD_LIMIT },
-  (_, index) => index,
-);
-
-function buildShowcaseGoods(goods) {
-  const showcaseGoods = goods.slice(0, HOME_SHOWCASE_CARD_LIMIT);
-  while (showcaseGoods.length < HOME_SHOWCASE_CARD_LIMIT) {
-    showcaseGoods.push({});
-  }
-  return showcaseGoods;
-}
 
 Page({
   data: {
     imgSrcs: [],
-    testImageSrc: HOME_TEST_IMAGE,
-    placeholderShowcaseCards: HOME_SHOWCASE_PLACEHOLDER_CARDS,
-    placeholderSlides: [HOME_TEST_IMAGE, HOME_TEST_IMAGE, HOME_TEST_IMAGE],
     swiperGoods: [],
     dynamicGoods: [],
     dynamicGoodsSrcs: [],
@@ -53,24 +37,13 @@ Page({
       customStyle: 'border-radius: 48rpx; overflow: hidden; --td-image-round-radius: 48rpx;',
       showMenuByLongpress: true,
     },
-    placeholderSwiperImageProps: {
-      mode: 'aspectFill',
-      error: '测试图片',
-      customStyle: 'background: #D9D9D9; color: #777; --td-image-loading-bg-color: #D9D9D9; --td-image-round-radius: 0;',
-      showMenuByLongpress: true,
-    },
-    placeholderFeaturedSwiperImageProps: {
-      mode: 'aspectFill',
-      shape: 'round',
-      error: '测试图片',
-      customStyle: 'border-radius: 48rpx; overflow: hidden; background: #D9D9D9; color: #777; --td-image-round-radius: 48rpx; --td-image-loading-bg-color: #D9D9D9;',
-      showMenuByLongpress: true,
-    },
     searchTop: 0,
     searchLeft: 0,
     searchWidth: 375,
     searchHeight: 32,
     searchRadius: 16,
+    searchValue: '',
+    searchFocus: false,
   },
 
   onShow() {
@@ -140,7 +113,7 @@ Page({
       const swiperGoods = hotGoods;
       const dynamicGoods = hotGoods.filter((item) => item && item.thumb);
       const dynamicGoodsSrcs = dynamicGoods.map((item) => item.thumb);
-      const hotShowcaseGoods = buildShowcaseGoods(hotGoods);
+      const hotShowcaseGoods = hotGoods.slice(0, HOME_SHOWCASE_CARD_LIMIT);
       const imgSrcs = Array.isArray(homeContent.imgSrcs)
         ? homeContent.imgSrcs.slice(0, 3)
         : [];
@@ -168,9 +141,39 @@ Page({
     }
   },
 
-  navToSearchPage() {
-    if (SEARCH_NAVIGATION_DISABLED) return;
-    wx.navigateTo({ url: '/pages/goods/search/index' });
+  focusSearch() {
+    if (!this.data.searchFocus) {
+      this.setData({ searchFocus: true });
+    }
+  },
+
+  handleSearchFocus() {
+    this.setData({ searchFocus: true });
+  },
+
+  handleSearchBlur() {
+    this.setData({ searchFocus: false });
+  },
+
+  handleSearchChange(event) {
+    const { value = '' } = event.detail || {};
+    this.setData({ searchValue: value });
+  },
+
+  async handleSearchSubmit(event) {
+    const { value = '' } = event.detail || {};
+    const keyword = String(value).trim();
+    if (!keyword) return;
+
+    this.setData({ searchValue: keyword });
+    try {
+      await addSearchHistory(keyword);
+    } catch {
+      // 搜索不因历史记录写入失败而中断
+    }
+    wx.navigateTo({
+      url: `/pages/goods/result/index?searchValue=${encodeURIComponent(keyword)}`,
+    });
   },
 
   navToGoodsDetail({ detail }) {
