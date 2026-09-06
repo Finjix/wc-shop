@@ -1,6 +1,6 @@
-import { callShop } from '../../utils/cloud';
+import { request } from '../../utils/api';
 import { normalizeCategoryList } from './normalize';
 
 export function getCategoryList() {
-  return callShop('categories.list').then(normalizeCategoryList);
+  return request('categories.list').then(normalizeCategoryList);
 }

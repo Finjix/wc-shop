@@ -1,4 +1,4 @@
-import { callShop } from '../../utils/cloud';
+import { request } from '../../utils/api';
 
 let cachedAddressList = null;
 let addressMutationQueue = Promise.resolve();
@@ -111,13 +111,13 @@ function updateCachedAddress(savedAddress) {
 function persistAddressNow(address) {
   const payload = toCloudAddress(address);
   const action = payload.addressId ? 'addresses.update' : 'addresses.create';
-  return callShop(action, payload)
+  return request(action, payload)
     .then((result) => mergeSavedAddress(address, result))
     .then((savedAddress) => updateCachedAddress(savedAddress));
 }
 
 function setDefaultAddressNow(id) {
-  return callShop('addresses.setDefault', { addressId: id }).then((result) => {
+  return request('addresses.setDefault', { addressId: id }).then((result) => {
     const savedAddress = normalizeAddress({
       ...(result && typeof result === 'object' ? result : {}),
       addressId: id,
@@ -134,7 +134,7 @@ function setDefaultAddressNow(id) {
 }
 
 function deleteAddressNow(id, nextDefaultId = '') {
-  return callShop('addresses.remove', { addressId: id })
+  return request('addresses.remove', { addressId: id })
     .then(() => {
       if (nextDefaultId) return setDefaultAddressNow(nextDefaultId);
       return null;
@@ -154,13 +154,13 @@ export function fetchDeliveryAddress(id = '') {
   if (id === '' || id === null || id === undefined || String(id) === '0') {
     return fetchDeliveryAddressList().then((addressList) => addressList.find((item) => item.isDefault) || addressList[0] || null);
   }
-  return callShop('addresses.get', { addressId: id })
+  return request('addresses.get', { addressId: id })
     .then((result) => (result ? normalizeAddress(result.address || result) : null));
 }
 
 /** 获取收货地址列表，不读取本地存储。 */
 export function fetchDeliveryAddressList(len = 50) {
-  return callShop('addresses.list', { page: 1, pageSize: Math.max(1, Number(len) || 50) })
+  return request('addresses.list', { page: 1, pageSize: Math.max(1, Number(len) || 50) })
     .then((result) => cacheAddressList(getAddressList(result)));
 }
 

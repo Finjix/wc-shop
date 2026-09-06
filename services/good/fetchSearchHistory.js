@@ -1,14 +1,14 @@
-import { callShop } from '../../utils/cloud';
+import { request } from '../../utils/api';
 
 export function getSearchHistory() {
-  return callShop('searchHistory.list');
+  return request('searchHistory.list');
 }
 export function addSearchHistory(keyword) {
-  return callShop('searchHistory.add', { keyword });
+  return request('searchHistory.add', { keyword });
 }
 export function deleteSearchHistory(keyword) {
-  return callShop('searchHistory.remove', { keyword });
+  return request('searchHistory.remove', { keyword });
 }
 export function clearSearchHistory() {
-  return callShop('searchHistory.clear');
+  return request('searchHistory.clear');
 }

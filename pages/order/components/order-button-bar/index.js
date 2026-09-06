@@ -3,7 +3,7 @@ import Dialog from 'tdesign-miniprogram/dialog/index';
 import { OrderButtonTypes } from '../../config';
 import { cancelOrder, confirmOrderReceived, deleteOrder } from '../../../../services/order/orderDetail';
 import { addGoodsToCart } from '../../../../services/cart/cart';
-import { getCloudErrorMessage } from '../../../../utils/cloud';
+import { getApiErrorMessage } from '../../../../utils/api';
 
 Component({
   options: {
@@ -190,7 +190,7 @@ Component({
       Toast({
         context: this,
         selector: '#t-toast',
-        message: getCloudErrorMessage(error, '订单操作失败，请稍后重试'),
+        message: getApiErrorMessage(error, '订单操作失败，请稍后重试'),
         icon: '',
       });
     },

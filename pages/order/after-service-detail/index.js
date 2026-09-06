@@ -2,7 +2,7 @@ import Toast from 'tdesign-miniprogram/toast/index';
 import { ServiceType, ServiceTypeDesc, ServiceStatus } from '../config';
 import { formatTime, getRightsDetail } from './api';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
-import { getCloudErrorMessage } from '../../../utils/cloud';
+import { getApiErrorMessage } from '../../../utils/api';
 import { normalizeLogistics, normalizeOrderItem, normalizeServiceType } from './contract';
 
 const TitleConfig = {
@@ -71,7 +71,7 @@ Page({
       Toast({
         context: this,
         selector: '#t-toast',
-        message: getCloudErrorMessage(error, '售后详情加载失败，请稍后重试'),
+        message: getApiErrorMessage(error, '售后详情加载失败，请稍后重试'),
         icon: '',
       });
     });

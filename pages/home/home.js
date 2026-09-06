@@ -1,6 +1,6 @@
 import { fetchHomeContent } from '../../services/good/fetchHomeContent';
 import { addSearchHistory } from '../../services/good/fetchSearchHistory';
-import { getCloudErrorMessage } from '../../utils/cloud';
+import { getApiErrorMessage } from '../../utils/api';
 import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 
 const HOME_GOODS_LIMIT = 6;
@@ -135,7 +135,7 @@ Page({
         homeLoaded: true,
       });
     } catch (err) {
-      const message = getCloudErrorMessage(err, '首页内容加载失败，请稍后重试');
+      const message = getApiErrorMessage(err, '首页内容加载失败，请稍后重试');
       this.setData({ pageLoading: false, homeLoaded: true });
       wx.showToast({ title: message, icon: 'none' });
     }

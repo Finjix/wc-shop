@@ -1,4 +1,4 @@
-import { callShop } from '../../utils/cloud';
+import { request } from '../../utils/api';
 import { normalizeOrder } from './orderList';
 
 function dataOf(response) {
@@ -15,7 +15,7 @@ export function fetchOrderDetail(params = {}) {
     return Promise.reject(error);
   }
   const payload = typeof parameter === 'string' ? { orderNo: parameter } : parameter;
-  return callShop('orders.detail', payload).then((response) => {
+  return request('orders.detail', payload).then((response) => {
     const data = dataOf(response) || {};
     const order = data.order && typeof data.order === 'object' ? data.order : data;
     const normalized = normalizeOrder({
@@ -29,12 +29,12 @@ export function fetchOrderDetail(params = {}) {
 }
 
 export function fetchBusinessTime(params = {}) {
-  return callShop('orders.businessTime', params).then((response) => {
+  return request('orders.businessTime', params).then((response) => {
     const data = dataOf(response) || {};
     return { data: { ...data, telphone: data.telphone || data.telephone || data.phone || '' } };
   });
 }
 
-export function cancelOrder(orderNo) { return callShop('orders.cancel', { orderNo }); }
-export function confirmOrderReceived(params = {}) { return callShop('orders.confirmReceived', params); }
-export function deleteOrder(orderNo) { return callShop('orders.delete', { orderNo }); }
+export function cancelOrder(orderNo) { return request('orders.cancel', { orderNo }); }
+export function confirmOrderReceived(params = {}) { return request('orders.confirmReceived', params); }
+export function deleteOrder(orderNo) { return request('orders.delete', { orderNo }); }

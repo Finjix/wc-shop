@@ -1,5 +1,5 @@
 import { addSearchHistory, clearSearchHistory, deleteSearchHistory, getSearchHistory } from '../../../services/good/fetchSearchHistory';
-import { getCloudErrorMessage } from '../../../utils/cloud';
+import { getApiErrorMessage } from '../../../utils/api';
 
 Page({
   data: {
@@ -32,7 +32,7 @@ Page({
       }
     } catch (error) {
       this.setData({ historyWords: [] });
-      wx.showToast({ title: getCloudErrorMessage(error, '搜索历史加载失败，请稍后重试'), icon: 'none' });
+      wx.showToast({ title: getApiErrorMessage(error, '搜索历史加载失败，请稍后重试'), icon: 'none' });
     }
   },
 
@@ -49,7 +49,7 @@ Page({
         this.setData({ historyWords: [], dialogShow: false });
       }
     } catch (error) {
-      wx.showToast({ title: getCloudErrorMessage(error, '搜索历史删除失败'), icon: 'none' });
+      wx.showToast({ title: getApiErrorMessage(error, '搜索历史删除失败'), icon: 'none' });
     }
   },
 

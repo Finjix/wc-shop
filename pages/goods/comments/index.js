@@ -1,7 +1,7 @@
 import { fetchComments } from '../../../services/comments/fetchComments';
 import { fetchCommentsCount } from '../../../services/comments/fetchCommentsCount';
 import { fetchOrderComment } from '../../../services/comments/fetchOrderComment';
-import { getCloudErrorMessage } from '../../../utils/cloud';
+import { getApiErrorMessage } from '../../../utils/api';
 import Toast from 'tdesign-miniprogram/toast/index';
 import dayjs from 'dayjs';
 
@@ -65,7 +65,7 @@ Page({
       const ownComment = await fetchOrderComment(orderNo, productId);
       this.setData({ ownComment, loadError: '' });
     } catch (error) {
-      const message = getCloudErrorMessage(error);
+      const message = getApiErrorMessage(error);
       this.setData({ ownComment: null, loadError: message });
       this.showError(message);
     }
@@ -77,7 +77,7 @@ Page({
       const result = await fetchCommentsCount({ productId, spuId: productId });
       this.setData({ countObj: result, loadError: '' });
     } catch (error) {
-      const message = getCloudErrorMessage(error);
+      const message = getApiErrorMessage(error);
       this.setData({ loadError: message });
       this.showError(message);
     }
@@ -121,7 +121,7 @@ Page({
       const data = await fetchComments({ ...params, mineOnly });
       this.setCommentResult(data, params, reset, this.data.commentList || []);
     } catch (error) {
-      const message = getCloudErrorMessage(error);
+      const message = getApiErrorMessage(error);
       this.setData({ hasLoaded: true, loadMoreStatus: 3, loadError: message });
       this.showError(message);
     }

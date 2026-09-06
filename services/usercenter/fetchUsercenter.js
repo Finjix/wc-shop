@@ -1,4 +1,4 @@
-import { callShop, getCloudErrorMessage } from '../../utils/cloud';
+import { request, getApiErrorMessage } from '../../utils/api';
 import { normalizeUserInfo } from '../good/normalize';
 
 const EMPTY_USER_CENTER = {
@@ -7,7 +7,7 @@ const EMPTY_USER_CENTER = {
 };
 
 export function fetchUserCenter() {
-  return callShop('user.me')
+  return request('user.me')
     .then((result) => {
       const source = result && typeof result === 'object' ? result : {};
       return {
@@ -18,7 +18,7 @@ export function fetchUserCenter() {
     })
     .catch((error) => {
       if (typeof wx !== 'undefined' && wx.showToast) {
-        wx.showToast({ title: getCloudErrorMessage(error), icon: 'none' });
+        wx.showToast({ title: getApiErrorMessage(error), icon: 'none' });
       }
       return EMPTY_USER_CENTER;
     });

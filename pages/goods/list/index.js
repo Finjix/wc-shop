@@ -1,5 +1,5 @@
 import { fetchGoodsList } from '../../../services/good/fetchGoodsList';
-import { getCloudErrorMessage } from '../../../utils/cloud';
+import { getApiErrorMessage } from '../../../utils/api';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 
@@ -131,9 +131,9 @@ Page({
         loading: false,
         hasLoaded: true,
         loadMoreStatus: 3,
-        emptyInfo: { tip: getCloudErrorMessage(error, '查询失败，请稍后重试') },
+        emptyInfo: { tip: getApiErrorMessage(error, '查询失败，请稍后重试') },
       });
-      wx.showToast({ title: getCloudErrorMessage(error, '查询失败，请稍后重试'), icon: 'none' });
+      wx.showToast({ title: getApiErrorMessage(error, '查询失败，请稍后重试'), icon: 'none' });
     }
     this.setData({
       hasLoaded: true,

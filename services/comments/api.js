@@ -1,4 +1,4 @@
-import { callShop, getCloudErrorMessage } from '../../utils/cloud';
+import { request, getApiErrorMessage } from '../../utils/api';
 
 function resourceId(resource) {
   if (!resource) return '';
@@ -119,4 +119,4 @@ export function normalizeCommentPayload(payload = {}) {
   };
 }
 
-export { callShop, getCloudErrorMessage };
+export { request, getApiErrorMessage };

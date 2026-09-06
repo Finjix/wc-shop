@@ -1,4 +1,4 @@
-import { callShop } from '../../../utils/cloud';
+import { request } from '../../../utils/api';
 import {
   normalizeLogistics,
   normalizeOrderItem,
@@ -41,7 +41,7 @@ export function getRightsList({ parameter = {} } = {}) {
   const pageNum = Number(parameter.pageNum) || 1;
   const pageSize = Number(parameter.pageSize) || 10;
   const statusMap = { 10: 'pending_review', 20: 'approved', 30: 'refunding', 50: 'refunded', 60: 'rejected' };
-  return callShop('afterSales.list', {
+  return request('afterSales.list', {
     ...parameter,
     pageNum,
     page: Number(parameter.page ?? pageNum) || pageNum,

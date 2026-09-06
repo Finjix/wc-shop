@@ -1,7 +1,7 @@
-import { callShop } from '../../utils/cloud';
+import { request } from '../../utils/api';
 
 export function getGoodsDetailsCommentsCount(spuId = '') {
-  return callShop('comments.count', { spuId }).then((result) => {
+  return request('comments.count', { spuId }).then((result) => {
     const source = result || {};
     const commentCount = Number(source.commentCount ?? source.total ?? 0) || 0;
     const goodCount = Number(source.goodCount || 0);
@@ -18,7 +18,7 @@ export function getGoodsDetailsCommentsCount(spuId = '') {
 }
 
 export function getGoodsDetailsCommentList(spuId = '') {
-  return callShop('comments.list', { spuId }).then((result) => {
+  return request('comments.list', { spuId }).then((result) => {
     if (Array.isArray(result)) return result;
     return result && (result.items || result.comments || result.list || result.commentList) || [];
   });

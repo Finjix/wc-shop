@@ -9,7 +9,7 @@ import {
   fetchApplyReasonList,
   dispatchApplyService,
 } from './api';
-import { getCloudErrorMessage } from '../../../utils/cloud';
+import { getApiErrorMessage } from '../../../utils/api';
 import { normalizeServiceType } from '../after-service-detail/contract';
 
 Page({
@@ -121,7 +121,7 @@ Page({
       Toast({
         context: this,
         selector: '#t-toast',
-        message: getCloudErrorMessage(error, '售后申请信息加载失败，请稍后重试'),
+        message: getApiErrorMessage(error, '售后申请信息加载失败，请稍后重试'),
         icon: '',
       });
     }
@@ -238,7 +238,7 @@ Page({
               Toast({
                 context: this,
                 selector: '#t-toast',
-                message: getCloudErrorMessage(error, '确认收货失败，请稍后重试'),
+                message: getApiErrorMessage(error, '确认收货失败，请稍后重试'),
                 icon: '',
               });
               return null;
@@ -345,7 +345,7 @@ Page({
         Toast({
           context: this,
           selector: '#t-toast',
-          message: getCloudErrorMessage(error, '退款原因加载失败，请稍后重试'),
+          message: getApiErrorMessage(error, '退款原因加载失败，请稍后重试'),
           icon: '',
         });
         return [];
@@ -434,7 +434,7 @@ Page({
         Toast({
           context: this,
           selector: '#t-toast',
-          message: getCloudErrorMessage(error, '售后申请失败，请稍后重试'),
+          message: getApiErrorMessage(error, '售后申请失败，请稍后重试'),
           icon: '',
         });
       })

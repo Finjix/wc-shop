@@ -1,6 +1,6 @@
 import { getCategoryList } from '../../services/good/fetchCategoryList';
 import { addSearchHistory } from '../../services/good/fetchSearchHistory';
-import { getCloudErrorMessage } from '../../utils/cloud';
+import { getApiErrorMessage } from '../../utils/api';
 
 Page({
   data: {
@@ -25,7 +25,7 @@ Page({
         categoryError: result.length ? '' : '暂无分类内容',
       });
     } catch (error) {
-      const message = getCloudErrorMessage(error, '分类加载失败，请稍后重试');
+      const message = getApiErrorMessage(error, '分类加载失败，请稍后重试');
       this.setData({ list: [], categoryLoading: false, categoryLoaded: true, categoryError: message });
       wx.showToast({ title: message, icon: 'none' });
     }

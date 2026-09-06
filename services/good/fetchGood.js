@@ -1,7 +1,7 @@
-import { callShop } from '../../utils/cloud';
+import { request } from '../../utils/api';
 
 export function fetchGood(ID = '') {
-  return callShop('products.detail', { spuId: ID }).then((result) => {
+  return request('products.detail', { spuId: ID }).then((result) => {
     const details = result && result.product ? { ...result.product, skuList: result.skus || [] } : result;
     if (!details || typeof details !== 'object') {
       const error = new Error('商品不存在或已下架');

@@ -1,7 +1,7 @@
 import { getRightsList } from './api';
 import { AfterServiceStatus, ServiceType, ServiceTypeDesc } from '../config';
 import Toast from 'tdesign-miniprogram/toast/index';
-import { getCloudErrorMessage } from '../../../utils/cloud';
+import { getApiErrorMessage } from '../../../utils/api';
 import { normalizeLogistics, normalizeServiceType } from '../after-service-detail/contract';
 
 Page({
@@ -184,7 +184,7 @@ Page({
         });
       })
       .catch((err) => {
-        const message = getCloudErrorMessage(err, '售后列表加载失败，请稍后重试');
+        const message = getApiErrorMessage(err, '售后列表加载失败，请稍后重试');
         this.setData({
           listLoading: 3,
           errorMessage: message,

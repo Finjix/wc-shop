@@ -1,4 +1,4 @@
-import { callShop } from '../../utils/cloud';
+import { request } from '../../utils/api';
 
 const STATUS_LABELS = { 5: '待支付', 10: '待发货', 40: '待收货', 50: '已完成', 80: '已取消' };
 
@@ -93,7 +93,7 @@ export function fetchOrders(params = {}) {
     payload.orderStatus = requestedStatus;
   }
   delete payload.pageNum;
-  return callShop('orders.list', payload).then((response) => {
+  return request('orders.list', payload).then((response) => {
     const data = dataOf(response) || {};
     const orders = data.orders || data.list || data.items || [];
     const responsePage = Number(data.page ?? data.pageNum) || paging.page;
@@ -111,7 +111,7 @@ export function fetchOrders(params = {}) {
 }
 
 export function fetchOrdersCount(params = {}) {
-  return callShop('orders.count', params).then((response) => {
+  return request('orders.count', params).then((response) => {
     const data = dataOf(response);
     const counts = Array.isArray(data) ? data : data?.items || data?.counts || data?.tabs || data?.list || [];
     return { data: Array.isArray(counts) ? counts.map((item) => ({ ...item, tabType: statusOf(item.tabType ?? item.status ?? item.orderStatus), orderNum: Number(item.orderNum ?? item.count ?? item.total) || 0 })) : [] };

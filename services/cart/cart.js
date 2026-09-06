@@ -1,4 +1,4 @@
-import { callShop } from '../../utils/cloud';
+import { request } from '../../utils/api';
 import { fetchGood } from '../good/fetchGood';
 
 const skuStockCache = new Map();
@@ -174,7 +174,7 @@ async function hydrateCartStock(cart) {
 }
 
 function action(name, payload = {}) {
-  return callShop(name, payload).then((response) => ({ data: dataOf(response) }));
+  return request(name, payload).then((response) => ({ data: dataOf(response) }));
 }
 
 export function fetchCartGroupData(params = {}) {

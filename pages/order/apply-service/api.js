@@ -1,4 +1,4 @@
-import { callShop } from '../../../utils/cloud';
+import { request } from '../../../utils/api';
 import { normalizeOrderItem, normalizeServiceType } from '../after-service-detail/contract';
 
 function unwrapData(result) {
@@ -53,7 +53,7 @@ function normalizeReasons(data) {
 }
 
 export function fetchRightsPreview(params = {}) {
-  return callShop('afterSales.preview', {
+  return request('afterSales.preview', {
     ...params,
     orderId: params.orderId || params.orderNo,
     productId: params.productId || params.spuId,
@@ -63,14 +63,14 @@ export function fetchRightsPreview(params = {}) {
 }
 
 export function fetchApplyReasonList(params = {}) {
-  return callShop('afterSales.reasons', params).then((result) => ({
+  return request('afterSales.reasons', params).then((result) => ({
     data: { rightsReasonList: normalizeReasons(unwrapData(result)) },
   }));
 }
 
 export function dispatchConfirmReceived(params = {}) {
   const payload = params.parameter || params;
-  return callShop('afterSales.confirmReceived', payload).then((result) => ({
+  return request('afterSales.confirmReceived', payload).then((result) => ({
     data: unwrapData(result),
   }));
 }
@@ -80,17 +80,8 @@ function imagePath(image) {
   return image && (image.fileID || image.fileId || image.tempFilePath || image.path || image.url || image.image) || '';
 }
 
-async function uploadAfterSaleImage(image, index) {
-  const path = imagePath(image);
-  if (!path || path.startsWith('cloud://') || /^https?:\/\//i.test(path)) return path;
-  if (typeof wx === 'undefined' || !wx.cloud || typeof wx.cloud.uploadFile !== 'function') throw new Error('当前环境无法上传售后凭证');
-  const suffixMatch = path.match(/\.([a-zA-Z0-9]{1,8})(?:\?|$)/);
-  const suffix = suffixMatch ? suffixMatch[1].toLowerCase() : 'jpg';
-  const result = await wx.cloud.uploadFile({
-    cloudPath: `after-sales/${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${index}.${suffix}`,
-    filePath: path,
-  });
-  return result.fileID;
+function uploadAfterSaleImage(image) {
+  return imagePath(image);
 }
 
 export async function dispatchApplyService(params = {}) {
@@ -99,7 +90,7 @@ export async function dispatchApplyService(params = {}) {
   const rightsItem = rawItems.map(normalizeOrderItem);
   const firstItem = rightsItem[0] || {};
   const images = (await Promise.all((rights.rightsImageUrls || []).map(uploadAfterSaleImage))).filter(Boolean);
-  return callShop('afterSales.create', {
+  return request('afterSales.create', {
     ...params,
     orderId: rights.orderId || rights.orderNo,
     orderNo: rights.orderNo || rights.orderId,

@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { callShop } from '../../../utils/cloud';
+import { request } from '../../../utils/api';
 import {
   normalizeLogistics,
   normalizeOrderItem,
@@ -10,7 +10,7 @@ import {
 export const formatTime = (date, template) => dayjs(date).format(template);
 
 export function getRightsDetail({ rightsNo }) {
-  return callShop('afterSales.detail', { rightsNo }).then((result) => {
+  return request('afterSales.detail', { rightsNo }).then((result) => {
     const data = result && result.data !== undefined ? result.data : result;
     const source = data && data.data && !Array.isArray(data.data) ? data.data : data;
     const record = Array.isArray(source)
@@ -45,7 +45,7 @@ export function getRightsDetail({ rightsNo }) {
 }
 
 export function confirmReceived(params = {}) {
-  return callShop('afterSales.confirmReceived', params);
+  return request('afterSales.confirmReceived', params);
 }
 
 export function cancelRights() {

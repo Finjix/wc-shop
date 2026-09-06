@@ -1,4 +1,4 @@
-import { callShop } from '../../utils/cloud';
+import { request } from '../../utils/api';
 
 let pendingGoodsRequestList = null;
 
@@ -54,7 +54,7 @@ function domainError(code, message) {
 }
 
 function action(name, payload = {}) {
-  return callShop(name, payload).then((response) => ({ data: dataOf(response) })).catch((error) => {
+  return request(name, payload).then((response) => ({ data: dataOf(response) })).catch((error) => {
     if (error && !error.msg) error.msg = error.message;
     throw error;
   });

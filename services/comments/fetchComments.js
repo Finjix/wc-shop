@@ -1,4 +1,4 @@
-import { callShop, normalizeCommentList } from './api';
+import { request, normalizeCommentList } from './api';
 
 /** 获取商品评论 */
 export function fetchComments(params = {}) {
@@ -10,7 +10,7 @@ export function fetchComments(params = {}) {
     page: Number(params.page ?? params.pageNum ?? 1) || 1,
     pageSize: params.pageSize || 20,
   };
-  return callShop('comments.list', payload).then((result) =>
+  return request('comments.list', payload).then((result) =>
     normalizeCommentList(result, payload),
   );
 }

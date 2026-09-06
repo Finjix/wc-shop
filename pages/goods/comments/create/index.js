@@ -1,6 +1,6 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import { createComment } from '../../../../services/comments/createComment';
-import { getCloudErrorMessage } from '../../../../utils/cloud';
+import { getApiErrorMessage } from '../../../../utils/api';
 
 Page({
   data: {
@@ -76,7 +76,7 @@ Page({
       Toast({
         context: this,
         selector: '#t-toast',
-        message: getCloudErrorMessage(error, '评价提交失败，请稍后重试'),
+        message: getApiErrorMessage(error, '评价提交失败，请稍后重试'),
         icon: '',
       });
       this.commentSubmitBlockedUntil = Date.now() + 1000;

@@ -1,4 +1,4 @@
-import { callShop } from '../../../utils/cloud';
+import { request } from '../../../utils/api';
 import {
   extractDeliveryCompanyList,
   normalizeDeliveryCompanyList,
@@ -22,15 +22,15 @@ function normalizeTrackingPayload(params = {}) {
 }
 
 export function create(params = {}) {
-  return callShop('afterSales.submitTracking', normalizeTrackingPayload(params));
+  return request('afterSales.submitTracking', normalizeTrackingPayload(params));
 }
 
 export function update(params = {}) {
-  return callShop('afterSales.submitTracking', normalizeTrackingPayload(params));
+  return request('afterSales.submitTracking', normalizeTrackingPayload(params));
 }
 
 export function getDeliverCompanyList(rightsNo) {
-  return callShop('afterSales.detail', {
+  return request('afterSales.detail', {
     rightsNo,
     includeDeliveryCompanies: true,
   }).then((result) => {

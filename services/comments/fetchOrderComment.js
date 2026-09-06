@@ -1,7 +1,7 @@
-import { callShop, normalizeComment, normalizeCommentList } from './api';
+import { request, normalizeComment, normalizeCommentList } from './api';
 
 export function fetchOrderComment(orderNo, productId = '') {
-  return callShop('comments.list', {
+  return request('comments.list', {
     orderNo,
     orderId: orderNo,
     ...(productId ? { productId, spuId: productId } : {}),

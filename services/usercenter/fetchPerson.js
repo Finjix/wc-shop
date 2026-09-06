@@ -1,4 +1,4 @@
-import { callShop, getCloudErrorMessage } from '../../utils/cloud';
+import { request, getApiErrorMessage } from '../../utils/api';
 import { normalizeUserInfo } from '../good/normalize';
 
 const EMPTY_PERSON = {
@@ -9,7 +9,7 @@ const EMPTY_PERSON = {
 };
 
 export function fetchPerson() {
-  return callShop('user.me')
+  return request('user.me')
     .then((result) => {
       const person = result && typeof result === 'object' ? result : {};
       return {
@@ -20,7 +20,7 @@ export function fetchPerson() {
     })
     .catch((error) => {
       if (typeof wx !== 'undefined' && wx.showToast) {
-        wx.showToast({ title: getCloudErrorMessage(error), icon: 'none' });
+        wx.showToast({ title: getApiErrorMessage(error), icon: 'none' });
       }
       return EMPTY_PERSON;
     });

@@ -2,7 +2,7 @@ import Dialog from 'tdesign-miniprogram/dialog/index';
 import Toast from 'tdesign-miniprogram/toast/index';
 import reasonSheet from '../components/reason-sheet/reasonSheet';
 import { getDeliverCompanyList, create, update } from './api';
-import { getCloudErrorMessage } from '../../../utils/cloud';
+import { getApiErrorMessage } from '../../../utils/api';
 
 Page({
   deliveryCompanyList: [],
@@ -128,7 +128,7 @@ Page({
       Toast({
         context: this,
         selector: '#t-toast',
-        message: getCloudErrorMessage(error, '物流公司加载失败，请稍后重试'),
+        message: getApiErrorMessage(error, '物流公司加载失败，请稍后重试'),
         icon: '',
       });
     });
@@ -196,7 +196,7 @@ Page({
         Toast({
           context: this,
           selector: '#t-toast',
-          message: getCloudErrorMessage(error, '物流信息保存失败，请稍后重试'),
+          message: getApiErrorMessage(error, '物流信息保存失败，请稍后重试'),
           icon: '',
         });
       }).finally(() => {

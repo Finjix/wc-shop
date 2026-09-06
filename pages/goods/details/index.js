@@ -2,7 +2,7 @@ import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchGood } from '../../../services/good/fetchGood';
 import { addGoodsToCart } from '../../../services/cart/cart';
 import { getGoodsDetailsCommentsCount } from '../../../services/good/fetchGoodsDetailsComments';
-import { getCloudErrorMessage } from '../../../utils/cloud';
+import { getApiErrorMessage } from '../../../utils/api';
 
 import { cdnBase } from '../../../config/runtime';
 
@@ -417,7 +417,7 @@ Page({
       Toast({
         context: this,
         selector: '#t-toast',
-        message: getCloudErrorMessage(error, '商品详情加载失败，请稍后重试'),
+        message: getApiErrorMessage(error, '商品详情加载失败，请稍后重试'),
         icon: '',
       });
     });
