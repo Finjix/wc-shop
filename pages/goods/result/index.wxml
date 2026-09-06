@@ -1,14 +1,5 @@
-<scroll-view
-  class="goods-list-scroll"
-  scroll-y
-  enhanced
-  show-scrollbar="{{true}}"
-  bounces="{{false}}"
-  enable-back-to-top="{{true}}"
-  bindscrolltolower="onReachBottom"
->
-  <view class="goods-list-container">
-    <view class="goods-list-header">
+<view class="goods-list-page">
+  <view class="goods-list-header">
       <t-navbar
         t-class-title="goods-list-navbar__title"
         title=""
@@ -78,8 +69,18 @@
       </filter-popup>
     </filter>
       </view>
-    </view>
-    <view class="empty-wrap" wx:if="{{goodsList.length === 0 && hasLoaded}}">
+  </view>
+  <scroll-view
+    class="goods-list-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="{{true}}"
+    bounces="{{false}}"
+    enable-back-to-top="{{true}}"
+    bindscrolltolower="onReachBottom"
+  >
+    <view class="goods-list-container">
+      <view class="empty-wrap" wx:if="{{goodsList.length === 0 && hasLoaded}}">
       <t-empty t-class="empty-tips" size="240rpx" description="{{emptyInfo.tip || '暂无相关商品'}}" />
     </view>
     <view class="category-goods-list" wx:if="{{goodsList.length}}">
@@ -92,11 +93,12 @@
       />
     </view>
     <load-more
-      wx:if="{{goodsList.length > 0 || loadMoreStatus === 3}}"
+      wx:if="{{loadMoreStatus === 1}}"
       status="{{loadMoreStatus}}"
       no-more-text="没有更多了"
       bind:retry="onRetryLoad"
     />
-  </view>
-</scroll-view>
+    </view>
+  </scroll-view>
+</view>
 <t-toast id="t-toast" />

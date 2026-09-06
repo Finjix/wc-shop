@@ -211,7 +211,7 @@ Page({
             thumb: item.image,
             title: item.goodsName,
             specs: item.skuSpecLst.map((s) => s.specValue), // 规格列表 string[]
-            price: item.tagPrice || item.settlePrice || '0', // 优先取限时活动价
+            price: item.settlePrice || '0',
             num: item.quantity,
           });
         });

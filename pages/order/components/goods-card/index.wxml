@@ -46,15 +46,6 @@
 						 decimalSmaller
 						/>
 					</view>
-					<view wx:if="{{ goods.originPrice && !goods.hideKey.originPrice && isValidityLinePrice }}" class="wr-goods-card__origin-price">
-						<price
-						 wr-class="origin-price-class"
-						 symbol="{{currency}}"
-						 price="{{goods.originPrice}}"
-						 fill="{{priceFill}}"
-						/>
-					</view>
-					<slot name="origin-price" />
 					<view wx:if="{{goods.num && !goods.hideKey.num}}" class="wr-goods-card__num num-class">
 						<text class="wr-goods-card__num__prefix">x </text>
 						{{ goods.num }}

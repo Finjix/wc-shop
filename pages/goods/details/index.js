@@ -25,7 +25,7 @@ Page({
       hasImageCount: 0,
       middleCount: 0,
     },
-    details: { images: [], desc: [], specList: [], skuList: [] },
+    details: { desc: [], specList: [], skuList: [] },
     detailLoading: false,
     detailLoaded: false,
     goodsTabArray: [
@@ -66,15 +66,8 @@ Page({
     outOperateStatus: false, // 是否外层加入购物车
     operateType: 0,
     selectSkuSellsPrice: 0,
-    maxLinePrice: 0,
     minSalePrice: 0,
-    maxSalePrice: 0,
     spuId: '',
-    current: 0,
-    autoplay: true,
-    duration: 500,
-    interval: 5000,
-    soldNum: 0, // 已售数量
   },
 
   handlePopupHide() {
@@ -103,15 +96,6 @@ Page({
     const { url } = e.detail;
     wx.switchTab({
       url: url,
-    });
-  },
-
-  showCurImg(e) {
-    const { index } = e.detail;
-    const { images } = this.data.details;
-    wx.previewImage({
-      current: images[index],
-      urls: images, // 需要预览的图片http链接列表
     });
   },
 
@@ -277,7 +261,6 @@ Page({
     if (!sku || !sku.skuId) return null;
 
     const salePrice = sku.price || (sku.priceInfo || []).find((item) => item.priceType === 1)?.price;
-    const linePrice = (sku.priceInfo || []).find((item) => item.priceType === 2)?.price || '0';
     const stockQuantity = Math.max(0, Number(sku.quantity || sku.stockInfo?.stockQuantity || 0));
     const specInfo = (sku.specInfo || []).map((item) => {
       const spec = (details.specList || []).find((specItem) => specItem.specId === item.specId);
@@ -302,9 +285,6 @@ Page({
       stockStatus: stockQuantity > 0,
       stockQuantity,
       price: String(salePrice || details.minSalePrice || 0),
-      originPrice: String(linePrice),
-      tagPrice: null,
-      titlePrefixTags: null,
       roomId: null,
       specInfo,
       available: details.available,
@@ -385,9 +365,6 @@ Page({
         primaryImage,
         isPutOnSale,
         minSalePrice,
-        maxSalePrice,
-        maxLinePrice,
-        soldNum,
       } = details;
       skuList.forEach((item) => {
         const salePrice = (item.priceInfo || []).find((price) => price.priceType === 1);
@@ -402,13 +379,10 @@ Page({
       this.setData({
         details,
         isStock: details.spuStockQuantity > 0,
-        maxSalePrice: maxSalePrice ? parseInt(maxSalePrice) : 0,
-        maxLinePrice: maxLinePrice ? parseInt(maxLinePrice) : 0,
         minSalePrice: minSalePrice ? parseInt(minSalePrice) : 0,
         skuArray: skuArray,
         primaryImage,
         soldout: isPutOnSale === 0,
-        soldNum,
         detailLoading: false,
         detailLoaded: true,
       });
@@ -459,8 +433,8 @@ Page({
         };
         this.setData(nextState);
       }
-    } catch (error) {
-      console.error('comments statiistics error:', error);
+    } catch {
+      // 本地演示数据没有评价时，保留默认的零统计。
     }
   },
 

@@ -134,11 +134,11 @@ Page({
       const goodsList = homeContent.goodsList || [];
       const getGoodsGroup = (start) => goodsList.slice(start, start + HOME_GOODS_LIMIT);
       const hotGoods = getGoodsGroup(0);
-      const newGoods = getGoodsGroup(6);
-      const domesticGoods = getGoodsGroup(12);
-      const lubricantGoods = getGoodsGroup(18);
-      const toyGoods = getGoodsGroup(24);
-      const lastingGoods = getGoodsGroup(30);
+      const newGoods = [];
+      const domesticGoods = [];
+      const lubricantGoods = [];
+      const toyGoods = [];
+      const lastingGoods = [];
       const swiperGoods = hotGoods;
       const dynamicGoods = hotGoods.filter((item) => item && item.thumb);
       const dynamicGoodsSrcs = dynamicGoods.map((item) => item.thumb);

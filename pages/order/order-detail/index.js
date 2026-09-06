@@ -114,9 +114,8 @@ Page({
             skuId: goods.skuId,
             spuId: goods.spuId,
             specs: (goods.specifications || []).map((s) => s.specValue),
-            price: goods.tagPrice ? goods.tagPrice : goods.actualPrice, // 商品销售单价, 优先取限时活动价
+            price: goods.actualPrice,
             num: goods.buyQuantity,
-            titlePrefixTags: goods.tagText ? [{ text: goods.tagText }] : [],
           }),
         ),
         buttons: orderButtons,

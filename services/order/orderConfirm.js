@@ -91,7 +91,6 @@ function normalizePreview(response) {
           goodsName: item.goodsName || product.title || '',
           skuSpecLst: Array.isArray(specInfo) ? specInfo : [],
           settlePrice: item.unitPrice ?? item.price ?? 0,
-          tagPrice: item.unitPrice ?? item.price ?? 0,
           quantity: Number(item.quantity) || 1,
         };
       }),

@@ -111,7 +111,7 @@
   flex-direction: row;
   align-items: stretch;
   justify-content: flex-start;
-  background: #fff;
+  background: #FCF8EE;
   border-radius: 16rpx;
   overflow: hidden;
 }
@@ -132,6 +132,7 @@
   height: 220rpx;
   box-sizing: border-box;
   padding: 24rpx 24rpx 20rpx;
+  background: #FCF8EE;
   border-radius: 0 16rpx 16rpx 0;
 }
 

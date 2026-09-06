@@ -58,33 +58,6 @@
 .goods-list-wrap .wr-goods-card .wr-goods-card__content .card-index--wr-goods-card__price .symbol {
   font-size: 24rpx;
 }
-.goods-list-wrap .wr-goods-card .wr-goods-card__tags {
-  flex-grow: 2;
-}
-.goods-list-wrap .wr-goods-card .goods-card-tags-wrap {
-  color: #695941;
-  color: var(--color-primary, #695941);
-  display: flex;
-  height: 30rpx;
-  flex-flow: row wrap;
-  text-align: center;
-  width: 100%;
-  flex-shrink: 0;
-}
-.goods-list-wrap .wr-goods-card .goods-card-tags-wrap .tag {
-  box-sizing: border-box;
-  font-size: 20rpx;
-  border-radius: 4rpx;
-  flex-shrink: 0;
-  vertical-align: middle;
-  margin-right: 8rpx;
-  background-color: #fff;
-}
-.goods-list-wrap .wr-goods-card .goods-card-tags-wrap .tag::after {
-  border-radius: 4rpx;
-  border: 2rpx solid #695941;
-  border: 2rpx solid var(--color-primary, #695941);
-}
 .goods-list-wrap .wr-goods-card .goods-add-cart {
   display: flex;
   justify-content: center;
@@ -135,14 +108,6 @@
   color: #333;
   white-space: nowrap;
   display: block;
-}
-.goods-list-wrap.vertical .wr-goods-card .wr-goods-card__content .card-index--wr-goods-card__origin-price {
-  position: absolute;
-  left: 20rpx;
-  bottom: 72rpx;
-  margin-left: 0;
-  font-size: 24rpx;
-  color: #aaaaaa;
 }
 .goods-list-wrap.vertical .wr-goods-card .wr-goods-card__content .wr-goods-card__groupon-price {
   position: absolute;

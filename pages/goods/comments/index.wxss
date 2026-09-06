@@ -14,7 +14,7 @@
 */
 /* var() css变量适配*/
 page {
-  background-color: #FCF8EE;
+  background-color: #fff;
 }
 
 .comments-header {

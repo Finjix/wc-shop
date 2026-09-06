@@ -12,6 +12,7 @@
 	>
 		<view class="custom-tab-bar-wrapper">
 			<t-icon
+        class="custom-tab-bar-icon"
 				prefix="{{item.prefix}}"
 				name="{{item.icon}}"
 				size="40rpx"

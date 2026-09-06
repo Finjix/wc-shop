@@ -13,7 +13,6 @@ Component({
     'thumb-class',
     'specs-class',
     'price-class',
-    'origin-price-class',
     'price-prefix-class',
   ],
 
@@ -58,29 +57,11 @@ Component({
           return;
         }
 
-        /** 划线价是否有效 */
-        let isValidityLinePrice = true;
-        // 判断一次划线价格是否合理
-        if (
-          goods.originPrice &&
-          goods.price &&
-          goods.originPrice < goods.price
-        ) {
-          isValidityLinePrice = false;
-        }
-
-        // 敲定换行数量默认值
         if (goods.lineClamp === undefined || goods.lineClamp <= 0) {
-          // tag数组长度 大于0 且 可见
-          // 指定换行为1行
-          if ((goods.tags?.length || 0) > 0 && !goods.hideKey?.tags) {
-            goods.lineClamp = 1;
-          } else {
-            goods.lineClamp = 2;
-          }
+          goods.lineClamp = 2;
         }
 
-        this.setData({ goods, isValidityLinePrice });
+        this.setData({ goods });
       },
     },
     layout: {
@@ -159,8 +140,6 @@ Component({
     hiddenInData: false,
     independentID: '',
     goods: { id: '' },
-    /** 保证划线价格不小于原价，否则不渲染划线价 */
-    isValidityLinePrice: false,
   },
 
   lifetimes: {

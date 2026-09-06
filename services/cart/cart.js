@@ -40,7 +40,6 @@ function getSkuPrice(goods = {}, snapshot = {}, liveSku) {
     goods.price,
     goods.settlePrice,
     goods.actualPrice,
-    goods.tagPrice,
     liveSku?.salePrice,
     liveSku?.price,
     liveSku?.priceInfo?.find((item) => item.priceType === 1)?.price,
@@ -78,7 +77,6 @@ function normalizeGoods(goods = {}, store = {}, liveSku) {
       specValue: spec.specValue || spec.value || '',
     }))
       : [],
-    titlePrefixTags: goods.titlePrefixTags || (goods.tagText ? [{ text: goods.tagText }] : []),
   };
 }
 

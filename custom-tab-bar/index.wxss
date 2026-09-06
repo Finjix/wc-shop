@@ -13,7 +13,7 @@
   height: 72rpx;
 }
 
-.custom-tab-bar-wrapper > t-icon {
+.custom-tab-bar-icon {
   margin-bottom: 4rpx;
 }
 

@@ -88,8 +88,6 @@ Page({
             ? activity.goodsPromotionList
             : [];
           activity.goodsPromotionList = activity.goodsPromotionList.filter((goods) => {
-            goods.originPrice = undefined;
-
             // 统计是否有加购数大于库存数的商品
             if (goods.stockKnown === true && goods.quantity > goods.stockQuantity) {
               store.storeStockShortage = true;
@@ -123,10 +121,6 @@ Page({
           isEmpty = false;
         }
       }
-      cartGroupData.invalidGoodItems = cartGroupData.invalidGoodItems.map((goods) => {
-        goods.originPrice = undefined;
-        return goods;
-      });
       cartGroupData.isNotEmpty = !isEmpty;
       cartGroupData.isAllSelected = hasSelectableGoods && isAllSelected;
       cartGroupData.selectedGoodsCount = selectedGoodsCount;

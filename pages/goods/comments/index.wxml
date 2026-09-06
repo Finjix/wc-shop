@@ -62,6 +62,7 @@
 		/>
 	</block>
 	<t-load-more
+    wx:if="{{loadMoreStatus === 1}}"
 	  t-class="no-more"
 	  status="{{loadMoreStatus}}"
 	  no-more-text="没有更多了"

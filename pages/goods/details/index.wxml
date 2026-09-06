@@ -10,16 +10,12 @@
   <view wx:if="{{detailLoading}}" class="goods-detail-state">商品加载中...</view>
   <view wx:elif="{{detailLoaded && !details.title}}" class="goods-detail-state">商品不存在或已下架</view>
   <view class="goods-head">
-    <t-swiper
-      wx:if="{{details.images.length > 0}}"
-      height="750rpx"
-      current="{{current}}"
-      autoplay="{{autoplay}}"
-      duration="{{duration}}"
-      interval="{{interval}}"
-      navigation="{{false}}"
-      list="{{details.images}}"
-    ></t-swiper>
+    <image
+      wx:if="{{details.primaryImage}}"
+      class="goods-cover-image"
+      src="{{details.primaryImage}}"
+      mode="aspectFill"
+    />
     <view class="goods-info">
       <view class="goods-number">
         <view class="goods-price">
@@ -31,20 +27,9 @@
           />
           <view class="goods-price-up">起</view>
         </view>
-        <view class="sold-num">已售{{soldNum}}</view>
       </view>
       <view class="goods-title">
         <view class="goods-name">{{details.title}}</view>
-      </view>
-      <view class="goods-intro">{{intro}}</view>
-    </view>
-    <view class="spu-select" bindtap="showSkuSelectPopup">
-      <view wx:if="{{selectedAttrStr}}" class="label">已选</view>
-      <view class="content">
-        <view class="{{!selectedAttrStr ? 'tintColor' : ''}}">
-          {{selectedAttrStr ? buyNum : ''}}{{selectedAttrStr || '请选择规格'}}
-        </view>
-        <t-icon name="chevron-right" size="40rpx" color="#BBBBBB" />
       </view>
     </view>
     <view wx:if="{{ commentsStatistics.commentCount > 0 }}" class="comments-wrap">

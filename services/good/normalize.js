@@ -3,15 +3,12 @@ function firstValue(...values) {
 }
 
 export function normalizeGoodsItem(item = {}) {
-  const tags = item.tags || item.spuTagList || item.tagList || [];
   return {
     ...item,
     spuId: firstValue(item.spuId, item.id, item._id, ''),
     thumb: firstValue(item.thumb, item.primaryImage, item.image, ''),
     title: firstValue(item.title, item.name, ''),
     price: firstValue(item.price, item.minSalePrice, 0),
-    originPrice: firstValue(item.originPrice, item.maxLinePrice, item.minLinePrice, 0),
-    tags: Array.isArray(tags) ? tags.map((tag) => (typeof tag === 'string' ? tag : tag.title)).filter(Boolean) : [],
   };
 }
 

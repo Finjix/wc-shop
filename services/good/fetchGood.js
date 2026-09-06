@@ -11,7 +11,6 @@ export function fetchGood(ID = '') {
     return {
       ...details,
       spuId: details.spuId || details._id || ID,
-      images: Array.isArray(details.images) ? details.images : (details.primaryImage ? [details.primaryImage] : []),
       desc: Array.isArray(details.desc) ? details.desc : [],
       specList: Array.isArray(details.specList) ? details.specList : [],
       skuList: Array.isArray(details.skuList) ? details.skuList : [],

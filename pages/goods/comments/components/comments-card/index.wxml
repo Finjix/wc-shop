@@ -2,10 +2,8 @@
   <view class="comments-card-item-container">
     <view class="comments-title">
       <view class="userName">{{userName}}</view>
+      <view wx:if="{{goodsDetailInfo}}" class="goods-info-text">{{goodsDetailInfo}}</view>
       <text class="commentTime">{{commentTime}}</text>
-    </view>
-    <view class="comments-info" wx:if="{{goodsDetailInfo}}">
-      <view class="goods-info-text">{{goodsDetailInfo}}</view>
     </view>
     <view class="comments-card-item-container-content">
       <view class="content-text" hidden="{{showContent}}"> {{commentContent}} </view>

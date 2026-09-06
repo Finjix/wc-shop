@@ -4,9 +4,18 @@ page {
   background-color: #fff;
 }
 
-.goods-list-scroll {
+.goods-list-page {
+  display: flex;
   width: 100%;
   height: 100vh;
+  flex-direction: column;
+  background: #fff;
+}
+
+.goods-list-scroll {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
   background: #fff;
 }
 
@@ -24,6 +33,7 @@ page {
 
 .goods-list-header {
   position: relative;
+  flex: 0 0 auto;
   width: 100%;
   background: #fff;
 }
