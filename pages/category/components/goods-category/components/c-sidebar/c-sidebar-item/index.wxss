@@ -2,7 +2,7 @@
   display: flex;
   justify-content: center;
   text-align: center;
-  background-color: #fff;
+  background-color: #f5f5f5;
   color: #222427;
   padding: 20rpx 0;
   font-size: 26rpx;
@@ -49,5 +49,5 @@
 }
 
 .c-sidebar-item-container {
-  background-color: white;
+  background-color: #f5f5f5;
 }

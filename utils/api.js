@@ -1,4 +1,5 @@
 import { mockComments } from '../data/mockComments';
+import { mockCategories } from '../data/mockCategories';
 import { mockProducts } from '../data/mockProducts';
 
 const DEFAULT_API_ERROR = '当前仅保留前端界面，数据服务未配置';
@@ -70,7 +71,7 @@ function createApiError(message) {
   return error;
 }
 
-/** 前端版仅提供商品展示所需的本地测试数据。 */
+/** 前端版提供商品、分类与评价展示所需的本地测试数据。 */
 export function request(action, params = {}) {
   if (action === 'products.list') {
     return Promise.resolve(getMockProductList(params));
@@ -84,6 +85,9 @@ export function request(action, params = {}) {
   }
   if (action === 'comments.list') {
     return Promise.resolve(getMockCommentList(params));
+  }
+  if (action === 'categories.list') {
+    return Promise.resolve(mockCategories);
   }
   return Promise.reject(createApiError());
 }

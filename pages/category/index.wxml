@@ -3,27 +3,43 @@
     <view
       class="category-custom-nav"
       style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"
+    ></view>
+    <view
+      class="home-page-header home-page-header--fixed"
+      style="top: {{searchTop}}px; left: {{searchLeft}}px; width: {{searchWidth}}px;"
     >
-      <view class="category-custom-nav__content" style="height: {{navBarHeight}}px;">分类</view>
-    </view>
-    <view class="category-search">
-      <t-search
-        t-class-input="t-search__input"
-        t-class-input-container="t-search__input-container"
-        value="{{searchValue}}"
-        placeholder=""
-        leftIcon=""
-        clearable="{{false}}"
-        bind:submit="handleSearchSubmit"
-      >
-        <view slot="left-icon" class="search-leading">
-          <t-icon prefix="wr" name="search" size="40rpx" color="#9d8f96" />
+      <view class="search" bind:tap="focusSearch">
+        <t-search
+          t-class="home-search"
+          t-class-input-container="search-only"
+          t-class-input="search-input"
+          value="{{searchValue}}"
+          leftIcon=""
+          clearable="{{false}}"
+          placeholder=""
+          focus="{{searchFocus}}"
+          bind:focus="handleSearchFocus"
+          bind:blur="handleSearchBlur"
+          bind:change="handleSearchChange"
+          bind:submit="handleSearchSubmit"
+        >
+          <view slot="left-icon" class="search-icon">
+            <t-icon prefix="wr" name="search" size="40rpx" color="#9d8f96" />
+          </view>
+        </t-search>
+        <view wx:if="{{!searchFocus && !searchValue}}" class="search-marquee">
+          <view class="search-marquee__track">
+            <text class="search-marquee__item">邀请好友，享现金返利！</text>
+            <text class="search-marquee__item">邀请好友，享现金返利！</text>
+            <text class="search-marquee__item">邀请好友，享现金返利！</text>
+            <text class="search-marquee__item">邀请好友，享现金返利！</text>
+          </view>
         </view>
-      </t-search>
+      </view>
     </view>
   </view>
   <view class="category-state" wx:if="{{categoryLoading}}">加载中...</view>
-  <view class="category-state" wx:elif="{{categoryLoaded && !list.length}}">{{categoryError || '暂无分类内容'}}</view>
+  <view class="category-state" wx:elif="{{categoryLoaded && !categoryUnavailable && !list.length}}">{{categoryError || '暂无分类内容'}}</view>
   <goods-category
     wx:if="{{list.length}}"
     style="height: {{categoryHeight}}px;"

@@ -4,7 +4,7 @@
   t-class-title="app-page-navbar-title goods-detail-navbar-title"
   title="商品详情"
   leftArrow
-  fixed="{{false}}"
+  fixed="{{true}}"
 />
 <view class="goods-detail-page">
   <view wx:if="{{detailLoading}}" class="goods-detail-state">商品加载中...</view>

@@ -22,8 +22,14 @@
           wx:key="index"
           wx:if="{{level === 3 && item.children && item.children.length > 0}}"
         >
-          <view class="flex goods-category-normal-item-title"> {{item.name}} </view>
-          <view class="goods-category-normal-item-container">
+          <image
+            wx:if="{{item.image}}"
+            class="goods-category-normal-item-banner"
+            src="{{item.image}}"
+            mode="widthFix"
+          />
+          <view wx:else class="flex goods-category-normal-item-title"> {{item.name}} </view>
+          <view class="goods-category-normal-item-container {{item.image ? 'goods-category-normal-item-container--banner' : ''}}">
             <view
               class="goods-category-normal-item-container-item"
               wx:for="{{item.children}}"
