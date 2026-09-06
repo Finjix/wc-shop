@@ -1,6 +1,6 @@
 <view
   id="{{independentID}}"
-  class="goods-card {{layout === 'horizontal' ? 'goods-card--horizontal' : ''}}"
+  class="goods-card {{layout === 'horizontal' ? 'goods-card--horizontal' : ''}} {{cardStyle === 'white' ? 'goods-card--white' : ''}}"
   bind:tap="clickHandle"
   data-goods="{{ goods }}"
 >

@@ -17,6 +17,9 @@
   </block>
   <scroll-view
     scroll-y="true"
+    enhanced
+    bounces="{{false}}"
+    refresher-enabled="{{false}}"
     style="max-height: 500rpx"
     bindscrolltoupper="upper"
     bindscrolltolower="lower"

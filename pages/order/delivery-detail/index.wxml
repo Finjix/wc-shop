@@ -7,6 +7,7 @@
 	}
 </wxs>
 
+<scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"
   title="物流信息"
@@ -98,3 +99,4 @@
 <view wx:if="{{!logisticsData.nodes.length}}" class="page-section logistics-empty">
   {{emptyMessage}}
 </view>
+</scroll-view>

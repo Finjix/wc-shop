@@ -1,3 +1,4 @@
+<scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"
   title="关于"
@@ -8,3 +9,4 @@
 <view class="about-page">
   <text>暂无内容</text>
 </view>
+</scroll-view>

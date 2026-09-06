@@ -1,5 +1,5 @@
 :host {
-  background-color: #FCF8EE;
+  background-color: #fff;
 }
 .page-container .tab-bar__placeholder,
 .page-container .tab-bar__inner {

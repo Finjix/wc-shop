@@ -58,12 +58,11 @@ Page({
   },
   onChange(event) {
     const item = event && event.detail ? event.detail.item : null;
-    const categoryName = item && item.name ? encodeURIComponent(item.name) : '';
-    const categoryId = item && item.groupId ? encodeURIComponent(item.groupId) : '';
+    const keyword = item && item.name ? String(item.name).trim() : '';
+    if (!keyword) return;
+
     wx.navigateTo({
-      url: categoryName
-        ? `/pages/goods/list/index?categoryName=${categoryName}&categoryId=${categoryId}`
-        : '/pages/goods/list/index',
+      url: `/pages/goods/result/index?searchValue=${encodeURIComponent(keyword)}`,
     });
   },
   focusSearch() {

@@ -6,7 +6,15 @@
   leftArrow
   fixed="{{true}}"
 />
-<view class="goods-detail-page">
+<scroll-view
+  class="goods-detail-scroll"
+  scroll-y
+  enhanced
+  show-scrollbar="{{true}}"
+  bounces="{{false}}"
+  refresher-enabled="{{false}}"
+>
+<view class="goods-detail-page" style="padding-top: {{customNavHeight}}px; padding-bottom: 160rpx;">
   <view wx:if="{{detailLoading}}" class="goods-detail-state">商品加载中...</view>
   <view wx:elif="{{detailLoaded && !details.title}}" class="goods-detail-state">商品不存在或已下架</view>
   <view class="goods-head">
@@ -27,6 +35,7 @@
           />
           <view class="goods-price-up">起</view>
         </view>
+        <view class="goods-sold">已售：{{details.soldNum || 0}}</view>
       </view>
       <view class="goods-title">
         <view class="goods-name">{{details.title}}</view>
@@ -49,37 +58,38 @@
       <t-image t-class="desc-content__img" src="{{item}}" mode="widthFix" />
     </view>
   </view>
-  <view class="goods-bottom-operation">
-    <buy-bar
-      jumpArray="{{jumpArray}}"
-      soldout="{{soldout}}"
-      isStock="{{isStock}}"
-      buttonType="{{buttonType}}"
-      bind:toAddCart="toAddCart"
-      bind:toNav="toNav"
-      bind:toBuyNow="buyItNow"
-      class="goods-details-card"
-    />
-  </view>
-  <goods-specs-popup
-    id="goodsSpecsPopup"
-    show="{{isSpuSelectPopupShow}}"
-    title="{{details.title || ''}}"
-    src="{{specImg ? specImg : primaryImage}}"
-    specList="{{details.specList || []}}"
-    skuList="{{skuArray}}"
-    bind:closeSpecsPopup="handlePopupHide"
-    bind:change="chooseSpecItem"
-    bind:changeNum="changeNum"
-    bind:addCart="addCart"
-    bind:buyNow="gotoBuy"
-    bind:specsConfirm="specsConfirm"
-    isStock="{{isStock}}"
-    outOperateStatus="{{outOperateStatus}}"
-  >
-    <view slot="goods-price">
-      <view class="popup-sku__price" />
-    </view>
-  </goods-specs-popup>
 </view>
+</scroll-view>
+<view class="goods-bottom-operation">
+  <buy-bar
+    jumpArray="{{jumpArray}}"
+    soldout="{{soldout}}"
+    isStock="{{isStock}}"
+    buttonType="{{buttonType}}"
+    bind:toAddCart="toAddCart"
+    bind:toNav="toNav"
+    bind:toBuyNow="buyItNow"
+    class="goods-details-card"
+  />
+</view>
+<goods-specs-popup
+  id="goodsSpecsPopup"
+  show="{{isSpuSelectPopupShow}}"
+  title="{{details.title || ''}}"
+  src="{{specImg ? specImg : primaryImage}}"
+  specList="{{details.specList || []}}"
+  skuList="{{skuArray}}"
+  bind:closeSpecsPopup="handlePopupHide"
+  bind:change="chooseSpecItem"
+  bind:changeNum="changeNum"
+  bind:addCart="addCart"
+  bind:buyNow="gotoBuy"
+  bind:specsConfirm="specsConfirm"
+  isStock="{{isStock}}"
+  outOperateStatus="{{outOperateStatus}}"
+>
+  <view slot="goods-price">
+    <view class="popup-sku__price" />
+  </view>
+</goods-specs-popup>
 <t-toast id="t-toast" />

@@ -5,7 +5,7 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "backgroundTextStyle": "light",
-  "enablePullDownRefresh": true,
+  "enablePullDownRefresh": false,
   "usingComponents": {
     "t-loading": "tdesign-miniprogram/loading/loading",
     "t-swiper": "tdesign-miniprogram/swiper/swiper",

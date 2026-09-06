@@ -1,3 +1,4 @@
+<view class="comments-page">
 <t-navbar
   t-class-title="app-page-navbar-title"
   title="{{mineOnly ? '我的评价' : '全部评价'}}"
@@ -5,6 +6,16 @@
   fixed="{{false}}"
   background="#fff"
 />
+<scroll-view
+  class="comments-scroll"
+  scroll-y
+  enhanced
+  show-scrollbar="{{true}}"
+  bounces="{{false}}"
+  refresher-enabled="{{false}}"
+  bindscrolltolower="onReachBottom"
+>
+<view class="comments-scroll-content">
 <block wx:if="{{mineOnly}}">
   <view class="comments-card-list own-comment-list" wx:if="{{ownComment}}">
     <comments-card
@@ -76,3 +87,6 @@
   暂无评价
 </view>
 </block>
+</view>
+</scroll-view>
+</view>

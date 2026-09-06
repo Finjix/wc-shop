@@ -10,8 +10,7 @@
         catchlongpress="confirmDeleteGoods"
         data-goods="{{goods}}"
       >
-        <swipeout right-width="{{ 72 }}">
-          <view class="goods-item-info">
+        <view class="goods-item-info">
             <view class="check-wrap" catchtap="selectGoods" data-goods="{{goods}}">
               <t-icon
                 size="40rpx"
@@ -52,12 +51,6 @@
               </goods-card>
             </view>
           </view>
-          <view slot="right" class="swiper-right-del" bindtap="deleteGoods" data-goods="{{goods}}">
-            <view class="swiper-right-del__button">
-              <t-icon name="delete" size="36rpx" color="#695941" />
-            </view>
-          </view>
-        </swipeout>
       </view>
     </block>
     <block wx:if="{{store.shortageGoodsList.length>0}}">
@@ -70,8 +63,7 @@
         catchlongpress="confirmDeleteGoods"
         data-goods="{{goods}}"
       >
-        <swipeout right-width="{{ 72 }}">
-          <view class="goods-item-info">
+        <view class="goods-item-info">
             <view class="check-wrap">
               <view class="unCheck-icon" />
             </view>
@@ -93,12 +85,6 @@
               </goods-card>
             </view>
           </view>
-          <view slot="right" class="swiper-right-del" bindtap="deleteGoods" data-goods="{{goods}}">
-            <view class="swiper-right-del__button">
-              <t-icon name="delete" size="36rpx" color="#695941" />
-            </view>
-          </view>
-        </swipeout>
       </view>
     </block>
   </view>

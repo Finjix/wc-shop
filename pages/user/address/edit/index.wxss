@@ -1,10 +1,10 @@
 page {
-  background-color: #FCF8EE;
+  background-color: #fff;
 }
 page .divider-line {
   width: 100%;
   height: 20rpx;
-  background-color: #FCF8EE;
+  background-color: #fff;
 }
 .address-detail {
   font-size: 30rpx;

@@ -9,6 +9,7 @@
 		  currency="{{item.currency || '¥'}}"
 		  layout="{{layout}}"
 		  showAddCart="{{showAddCart}}"
+		  card-style="{{cardStyle}}"
 		  thresholds="{{thresholds}}"
 		  class="goods-card-inside"
 		  data-index="{{index}}"

@@ -19,6 +19,8 @@
   margin-top: 20rpx;
   overflow: visible;
   background-color: transparent;
+  border-radius: 16rpx;
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.14);
 }
 .cart-group .goods-item-info {
   display: flex;
@@ -26,7 +28,7 @@
   align-items: flex-start;
   padding-top: 20rpx;
   border-radius: 16rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+  box-shadow: none;
   overflow: hidden;
 }
 .cart-group .goods-item-info .check-wrap {
@@ -142,23 +144,6 @@
   opacity: 0.5;
 }
 
-.swiper-right-del {
-  height: calc(100% - 40rpx);
-  width: 144rpx;
-  background-color: transparent;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-.swiper-right-del__button {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
-  background-color: var(--app-theme-color, #695941);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
 .goods-stepper .stepper {
   border: none;
   border-radius: 0;

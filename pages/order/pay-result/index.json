@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "支付结果",
   "navigationStyle": "custom",
+  "disableScroll": true,
   "usingComponents": {
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-icon": "tdesign-miniprogram/icon/icon",

@@ -13,6 +13,17 @@ import { setPendingGoodsRequestList } from '../../services/order/orderConfirm';
 import { fetchGoodsList } from '../../services/good/fetchGoods';
 import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 
+const RECOMMENDED_GOODS_COUNT = 8;
+
+function shuffleGoods(goodsList) {
+  const shuffled = goodsList.slice();
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
 Page({
   data: {
     cartGroupData: null,
@@ -21,9 +32,7 @@ Page({
     customNavHeight: 44,
     recommendedLeft: [],
     recommendedRight: [],
-    recommendedOffset: 0,
     recommendedLoading: false,
-    recommendedHasMore: true,
     deleteDialogVisible: false,
     pendingDeleteGoods: null,
     cartLoadError: false,
@@ -53,10 +62,6 @@ Page({
       customNavHeight: statusBarHeight + navBarHeight,
     });
     this.refreshData();
-  },
-
-  onReachBottom() {
-    this.loadMoreRecommendedGoods();
   },
 
   refreshData(forceRefresh = false) {
@@ -130,7 +135,16 @@ Page({
       this.recommendedCartGoodsSignature = cartGoodsSignature;
       this.setData({ cartGroupData, cartLoadError: false });
       if (shouldRefreshRecommendations) {
-        this.loadRecommendedGoods(cartGroupData);
+        if (cartGroupData.isNotEmpty) {
+          this.loadRecommendedGoods(cartGroupData);
+        } else {
+          this.recommendedSpuIds = new Set();
+          this.setData({
+            recommendedLeft: [],
+            recommendedRight: [],
+            recommendedLoading: false,
+          });
+        }
       }
     }).catch((error) => {
       console.error('load cart error:', error);
@@ -170,35 +184,21 @@ Page({
     this.setData({
       recommendedLeft: [],
       recommendedRight: [],
-      recommendedOffset: 0,
-      recommendedLoading: false,
-      recommendedHasMore: true,
+      recommendedLoading: true,
     });
-    this.loadMoreRecommendedGoods();
-  },
-
-  loadMoreRecommendedGoods() {
-    const { recommendedLoading, recommendedHasMore, recommendedOffset } = this.data;
-    if (recommendedLoading || !recommendedHasMore) return;
-
-    const pageSize = 8;
-    this.setData({ recommendedLoading: true });
-    fetchGoodsList(recommendedOffset, pageSize)
+    fetchGoodsList(1, 100)
       .then((goodsList) => {
         if (!Array.isArray(goodsList)) {
-          this.setData({ recommendedLoading: false, recommendedHasMore: false });
+          this.setData({ recommendedLoading: false });
           return;
         }
 
-        const newGoods = goodsList.filter((goods) => {
-          const spuId = String(goods.spuId);
-          if (this.recommendedSpuIds.has(spuId)) return false;
-          this.recommendedSpuIds.add(spuId);
-          return true;
-        });
-        const recommendedLeft = this.data.recommendedLeft.slice();
-        const recommendedRight = this.data.recommendedRight.slice();
-        newGoods.forEach((goods) => {
+        const recommendedGoods = shuffleGoods(goodsList.filter((goods) => (
+          !this.recommendedSpuIds.has(String(goods.spuId))
+        ))).slice(0, RECOMMENDED_GOODS_COUNT);
+        const recommendedLeft = [];
+        const recommendedRight = [];
+        recommendedGoods.forEach((goods) => {
           const targetColumn = recommendedLeft.length <= recommendedRight.length ? recommendedLeft : recommendedRight;
           targetColumn.push(goods);
         });
@@ -206,9 +206,7 @@ Page({
         this.setData({
           recommendedLeft,
           recommendedRight,
-          recommendedOffset: recommendedOffset + goodsList.length,
           recommendedLoading: false,
-          recommendedHasMore: goodsList.length >= pageSize,
         });
       })
       .catch(() => {
@@ -419,9 +417,6 @@ Page({
     }
     setPendingGoodsRequestList(goodsRequestList);
     wx.navigateTo({ url: '/pages/order/order-confirm/index?type=cart' });
-  },
-  onGotoHome() {
-    wx.switchTab({ url: '/pages/home/home' });
   },
   onRetryCart() {
     this.refreshData(true);

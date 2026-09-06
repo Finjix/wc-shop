@@ -1,3 +1,4 @@
+<scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"
   title="填写运单号"
@@ -58,6 +59,7 @@
     </t-button>
   </view>
 </view>
+</scroll-view>
 <ui-reason-sheet id="wr-reason-sheet" />
 <t-toast id="t-toast" />
 <t-dialog id="t-dialog" />

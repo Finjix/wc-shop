@@ -8,6 +8,9 @@
       class="c-tabbar-more__board"
       style="{{ boardMaxHeight ? 'height:' + boardMaxHeight + 'px;' : '' }}"
       scroll-y
+      enhanced
+      bounces="{{false}}"
+      refresher-enabled="{{false}}"
     >
       <view class="c-tabbar-more__boardinner">
         <view

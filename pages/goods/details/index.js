@@ -60,6 +60,9 @@ Page({
     skuArray: [],
     primaryImage: '',
     specImg: '',
+    statusBarHeight: 0,
+    navBarHeight: 44,
+    customNavHeight: 44,
     isSpuSelectPopupShow: false,
     isAllSelectedSku: false,
     buyType: 0,
@@ -447,6 +450,12 @@ Page({
 
   onLoad(query) {
     const { spuId } = query;
+    const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const menuButtonInfo = wx.getMenuButtonBoundingClientRect();
+    const statusBarHeight = windowInfo.statusBarHeight || 0;
+    const navBarHeight = menuButtonInfo.height
+      ? menuButtonInfo.height + (menuButtonInfo.top - statusBarHeight) * 2
+      : 44;
     if (spuId === undefined || spuId === null || spuId === '') {
       Toast({
         context: this,
@@ -458,6 +467,9 @@ Page({
     }
     this.setData({
       spuId: spuId,
+      statusBarHeight,
+      navBarHeight,
+      customNavHeight: statusBarHeight + navBarHeight,
     });
     this.getDetail(spuId);
     this.getCommentsStatistics(spuId);

@@ -1,7 +1,7 @@
 @import '../../../style/theme.wxss';
 
 :host {
-  background-color: #FCF8EE;
+  background-color: #fff;
 }
 
 .notice-bar {

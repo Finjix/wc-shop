@@ -1,3 +1,4 @@
+<scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"
   title="支付结果"
@@ -25,3 +26,4 @@
 		<view class="status-btn" data-type="home" bindtap="onTapReturn">返回首页</view>
 	</view>
 </view>
+</scroll-view>

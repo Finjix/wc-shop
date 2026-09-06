@@ -62,7 +62,7 @@
   "requiredPrivateInfos": ["chooseAddress"],
   "lazyCodeLoading": "requiredComponents",
   "window": {
-    "backgroundColor": "#FCF8EE",
+    "backgroundColor": "#ffffff",
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#fff",
     "navigationBarTitleText": "Weixin",

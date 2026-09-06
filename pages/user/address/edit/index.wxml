@@ -1,3 +1,4 @@
+<scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"
   title="设置地址"
@@ -97,4 +98,5 @@
     bind:change="onInputValue"
   ></t-cascader>
 </view>
+</scroll-view>
 <t-toast id="t-toast" />

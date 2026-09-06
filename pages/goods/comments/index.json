@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "全部评价",
   "navigationStyle": "custom",
+  "disableScroll": true,
   "usingComponents": {
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-tag": "tdesign-miniprogram/tag/tag",

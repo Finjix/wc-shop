@@ -1,3 +1,4 @@
+<scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"
   title="搜索"
@@ -39,7 +40,9 @@
       </view>
     </view>
   </view>
-  <t-dialog
+</view>
+</scroll-view>
+<t-dialog
     visible="{{dialogShow}}"
     content="{{dialog.message}}"
     bindconfirm="confirm"
@@ -49,4 +52,3 @@
     t-class-confirm="dialog__button-confirm"
     t-class-cancel="dialog__button-cancel"
   />
-</view>

@@ -16,7 +16,6 @@ export default [
     prefix: 'wr',
     text: '购物车',
     url: 'pages/cart/index',
-    disabled: true,
   },
   {
     icon: 'person',

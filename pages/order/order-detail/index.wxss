@@ -1,5 +1,5 @@
 :host {
-  background-color: #FCF8EE;
+  background-color: #fff;
 }
 
 .order-detail {

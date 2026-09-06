@@ -111,7 +111,7 @@
   flex-direction: row;
   align-items: stretch;
   justify-content: flex-start;
-  background: #FCF8EE;
+  background: #fff;
   border-radius: 16rpx;
   overflow: hidden;
 }
@@ -132,8 +132,17 @@
   height: 220rpx;
   box-sizing: border-box;
   padding: 24rpx 24rpx 20rpx;
-  background: #FCF8EE;
+  background: #fff;
   border-radius: 0 16rpx 16rpx 0;
+}
+
+.goods-card--horizontal.goods-card--white .goods-card__main {
+  background: #fff;
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.14);
+}
+
+.goods-card--horizontal.goods-card--white .goods-card__body {
+  background: #fff;
 }
 
 .goods-card--horizontal .goods-card__upper {

@@ -1,9 +1,19 @@
-<view
-  class="cart-custom-nav"
-  style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"
+<t-navbar
+  t-class-content="cart-navbar-content"
+  t-class-title="app-page-navbar-title cart-navbar-title"
+  title="购物车"
+  fixed="{{true}}"
+  background="#fff"
+/>
+<scroll-view
+  class="cart-scroll"
+  scroll-y
+  enhanced
+  show-scrollbar="{{true}}"
+  bounces="{{false}}"
+  refresher-enabled="{{false}}"
 >
-  <view class="cart-custom-nav__content" style="height: {{navBarHeight}}px;">购物车</view>
-</view>
+<view class="cart-page-content" style="padding-top: {{customNavHeight}}px;">
 <!-- 分层购物车 -->
 <cart-group
   wx:if="{{cartGroupData && cartGroupData.isNotEmpty && !cartLoadError}}"
@@ -17,19 +27,14 @@
   bindconfirmdelete="onConfirmDeleteRequest"
   bindspecschange="onGoodsSpecsChange"
   bindclearinvalidgoods="clearInvalidGoods"
-  binddelete="onGoodsDelete"
 />
 
-<cart-empty
-  wx:if="{{cartGroupData && !cartGroupData.isNotEmpty && !cartLoadError}}"
-  bind:handleClick="onGotoHome"
-/>
 <view wx:if="{{cartLoadError}}" class="cart-load-error">
   <text>购物车加载失败，请重试</text>
   <view class="cart-load-error__retry" bindtap="onRetryCart">重试</view>
 </view>
 
-<view wx:if="{{recommendedLeft.length || recommendedRight.length}}" class="cart-recommend-section">
+<view wx:if="{{cartGroupData && cartGroupData.isNotEmpty && !cartLoadError && (recommendedLeft.length || recommendedRight.length)}}" class="cart-recommend-section">
     <view class="cart-recommend-title">
       <view class="cart-recommend-title__line" />
       <text>推荐商品</text>
@@ -37,24 +42,17 @@
     </view>
     <view class="cart-recommend-frame">
       <view class="cart-recommend-column">
-        <view
-          wx:for="{{recommendedLeft}}"
-          wx:key="spuId"
-          class="hot-product-card cart-recommend-card"
+          <view
+            wx:for="{{recommendedLeft}}"
+            wx:key="spuId"
+            class="hot-product-card cart-recommend-card"
           data-spu-id="{{item.spuId}}"
           bindtap="goRecommendedGoodsDetail"
-        >
-          <view class="hot-product-card__image-wrap cart-recommend-card__image-wrap">
-            <image class="hot-product-card__image" src="{{item.thumb}}" mode="widthFix" lazy-load />
-          </view>
-          <view class="hot-product-card__price-bar">
-            <view class="hot-product-card__price">
-              <text class="hot-product-card__price-label">到手</text>
-              <price wr-class="hot-product-card__price-number" price="{{item.price}}" />
-              <text class="hot-product-card__price-suffix">起</text>
+          >
+            <view class="hot-product-card__image-wrap cart-recommend-card__image-wrap">
+            <image class="hot-product-card__image" src="{{item.thumb}}" mode="aspectFill" lazy-load />
             </view>
           </view>
-        </view>
       </view>
       <view class="cart-recommend-column">
         <view
@@ -63,27 +61,25 @@
           class="hot-product-card cart-recommend-card"
           data-spu-id="{{item.spuId}}"
           bindtap="goRecommendedGoodsDetail"
-        >
-          <view class="hot-product-card__image-wrap cart-recommend-card__image-wrap">
-            <image class="hot-product-card__image" src="{{item.thumb}}" mode="widthFix" lazy-load />
-          </view>
-          <view class="hot-product-card__price-bar">
-            <view class="hot-product-card__price">
-              <text class="hot-product-card__price-label">到手</text>
-              <price wr-class="hot-product-card__price-number" price="{{item.price}}" />
-              <text class="hot-product-card__price-suffix">起</text>
+          >
+            <view class="hot-product-card__image-wrap cart-recommend-card__image-wrap">
+            <image class="hot-product-card__image" src="{{item.thumb}}" mode="aspectFill" lazy-load />
             </view>
           </view>
-        </view>
       </view>
     </view>
-    <view wx:if="{{recommendedLoading}}" class="cart-recommend-status">加载更多商品...</view>
-    <view wx:if="{{!recommendedHasMore && !recommendedLoading}}" class="cart-recommend-status">没有更多商品了</view>
 </view>
 
-<view wx:if="{{!recommendedLeft.length && !recommendedRight.length && recommendedLoading}}" class="cart-recommend-loading">
+<view wx:if="{{cartGroupData && cartGroupData.isNotEmpty && !cartLoadError && !recommendedLeft.length && !recommendedRight.length && recommendedLoading}}" class="cart-recommend-loading">
   推荐商品加载中...
 </view>
+</view>
+</scroll-view>
+
+<cart-empty
+  wx:if="{{cartGroupData && !cartGroupData.isNotEmpty && !cartLoadError}}"
+  top="{{customNavHeight}}"
+/>
 
 <!-- 商品小计以及结算按钮 -->
 <cart-bar
@@ -100,6 +96,7 @@
 <t-toast id="t-toast" />
 <t-dialog
   id="t-dialog"
+  t-class-confirm="cart-delete-dialog-confirm"
   visible="{{deleteDialogVisible}}"
   title="确认移出购物车"
   content="确定要将该商品移出购物车吗？"

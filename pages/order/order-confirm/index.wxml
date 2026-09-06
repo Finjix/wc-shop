@@ -1,4 +1,5 @@
 <wxs module="order" src="./order.wxs" />
+<scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"
   title="订单确认"
@@ -74,5 +75,6 @@
     <no-goods slot="content" bind:change="onNoGoodsChange" settleDetailData="{{settleDetailData}}" />
   </t-popup>
 </view>
+</scroll-view>
 <t-toast id="t-toast" />
 <t-dialog id="t-dialog" />

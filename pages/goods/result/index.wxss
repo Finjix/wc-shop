@@ -21,7 +21,7 @@ page {
 
 .goods-list-container {
   display: block;
-  min-height: 100vh;
+  min-height: 0;
   background-color: #fff;
 }
 
@@ -33,6 +33,7 @@ page {
 
 .goods-list-header {
   position: relative;
+  z-index: 3;
   flex: 0 0 auto;
   width: 100%;
   background: #fff;

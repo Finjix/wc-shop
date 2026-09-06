@@ -1,6 +1,6 @@
 .order-sure {
   box-sizing: border-box;
-  background: #FCF8EE;
+  background: #fff;
   padding: 24rpx 0 calc(env(safe-area-inset-bottom) + 136rpx);
   min-height: 100vh;
 }

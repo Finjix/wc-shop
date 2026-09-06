@@ -20,16 +20,16 @@
     </t-search>
     <view wx:if="{{!searchFocus && !searchValue}}" class="search-marquee">
       <view class="search-marquee__track">
-        <text class="search-marquee__item">邀请好友，享现金返利！</text>
-        <text class="search-marquee__item">邀请好友，享现金返利！</text>
-        <text class="search-marquee__item">邀请好友，享现金返利！</text>
-        <text class="search-marquee__item">邀请好友，享现金返利！</text>
+        <text class="search-marquee__item">欢迎光临番薯鞋店！</text>
+        <text class="search-marquee__item">欢迎光临番薯鞋店！</text>
+        <text class="search-marquee__item">欢迎光临番薯鞋店！</text>
+        <text class="search-marquee__item">欢迎光临番薯鞋店！</text>
       </view>
     </view>
   </view>
 </view>
 
-<scroll-view class="home-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}">
+<scroll-view class="home-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
   <view class="home-scroll-content">
     <view class="swiper-wrap">
       <t-swiper
@@ -61,7 +61,7 @@
     </view>
 
     <view class="home-safety-banner">
-      <text>未满18禁用 | 保密发货 | 官方正品</text>
+      <text>急速发货 | 品质保证 | 退货无忧</text>
     </view>
 
     <view class="home-placeholder-cards">

@@ -1,3 +1,4 @@
+<scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <view
   class="usercenter-custom-nav"
   style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"
@@ -39,4 +40,5 @@
     <t-icon name="chevron-right" size="40rpx" color="#999999" />
   </button>
 </view>
+</scroll-view>
 <t-toast id="t-toast" />

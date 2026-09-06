@@ -25,6 +25,10 @@ Component({
       type: Boolean,
       value: true,
     },
+    cardStyle: {
+      type: String,
+      value: '',
+    },
   },
 
   data: {

@@ -7,7 +7,7 @@
         <price class="specs-popup__price" price="{{currentPrice || price}}" fill />
       </view>
     </view>
-    <scroll-view class="specs-popup__body" scroll-y>
+    <scroll-view class="specs-popup__body" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
       <view wx:for="{{optionGroups}}" wx:for-item="group" wx:key="specId" class="specs-popup__group">
         <view class="specs-popup__group-title">{{group.title}}</view>
         <view class="specs-popup__options">

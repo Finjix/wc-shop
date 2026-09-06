@@ -76,6 +76,7 @@
     enhanced
     show-scrollbar="{{true}}"
     bounces="{{false}}"
+    refresher-enabled="{{false}}"
     enable-back-to-top="{{true}}"
     bindscrolltolower="onReachBottom"
   >
@@ -85,10 +86,11 @@
     </view>
     <view class="category-goods-list" wx:if="{{goodsList.length}}">
       <goods-list
-        wr-class="wr-goods-list"
+        wr-class="wr-goods-list goods-list-white"
         layout="horizontal"
         goodsList="{{goodsList}}"
         showAddCart="{{false}}"
+        card-style="white"
         bind:click="gotoGoodsDetail"
       />
     </view>

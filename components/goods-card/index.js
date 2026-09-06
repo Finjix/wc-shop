@@ -38,6 +38,11 @@ Component({
       value: true,
     },
 
+    cardStyle: {
+      type: String,
+      value: '',
+    },
+
     thresholds: {
       type: Array,
       value: [],

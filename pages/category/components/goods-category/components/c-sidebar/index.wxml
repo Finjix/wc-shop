@@ -1,3 +1,3 @@
-<scroll-view class="c-sidebar custom-class" scroll-y>
+<scroll-view class="c-sidebar custom-class" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
   <slot />
 </scroll-view>

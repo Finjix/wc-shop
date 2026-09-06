@@ -3,6 +3,9 @@
     wx:if="{{ tabList.length > 0 }}"
     class="c-tabbar__scroll"
     scroll-x="true"
+    enhanced
+    bounces="{{false}}"
+    refresher-enabled="{{false}}"
     scroll-into-view="{{ 'id-' + currentActive }}"
   >
     <view class="c-tabbar__inner {{showMore && tabList.length > 4 ? 'c-tabbar__inner_more' : ''}}">

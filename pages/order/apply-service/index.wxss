@@ -1,5 +1,5 @@
 :host {
-  background-color: #FCF8EE;
+  background-color: #fff;
 }
 .select-service .service-form .service-from-group {
   margin-top: 20rpx;
