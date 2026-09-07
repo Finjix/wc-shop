@@ -27,7 +27,7 @@
             prefix="{{classPrefix}}"
             name="{{item.iconName}}"
             size="56rpx"
-            color="#666666"
+            color="#695941"
           />
         </t-badge>
       </view>

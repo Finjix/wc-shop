@@ -1,3 +1,4 @@
+import { mockAddresses } from '../data/mockAddresses';
 import { mockComments } from '../data/mockComments';
 import { mockCategories } from '../data/mockCategories';
 import { cloneMockCart, createMockCartGoods, mockCart } from '../data/mockCart';
@@ -181,6 +182,87 @@ function createApiError(message) {
   return error;
 }
 
+let mockAddressSequence = mockAddresses.length + 1;
+
+function cloneMockAddress(address) {
+  return address ? { ...address } : null;
+}
+
+function buildMockAddress(params = {}, original = {}) {
+  const provinceName = params.province ?? params.provinceName ?? original.provinceName ?? '';
+  const cityName = params.city ?? params.cityName ?? original.cityName ?? '';
+  const districtName = params.district ?? params.districtName ?? original.districtName ?? '';
+  const detailAddress = params.detail ?? params.detailAddress ?? original.detailAddress ?? '';
+  const name = params.receiver ?? params.name ?? original.name ?? '';
+  const phone = params.phone ?? params.phoneNumber ?? original.phone ?? '';
+  const addressId = params.addressId || original.addressId || `mock-address-${mockAddressSequence++}`;
+
+  return {
+    ...original,
+    ...params,
+    addressId,
+    id: addressId,
+    name,
+    phone,
+    phoneNumber: phone,
+    provinceName,
+    provinceCode: params.provinceCode ?? original.provinceCode ?? '',
+    cityName,
+    cityCode: params.cityCode ?? original.cityCode ?? '',
+    districtName,
+    districtCode: params.districtCode ?? original.districtCode ?? '',
+    detailAddress,
+    address: `${provinceName}${cityName}${districtName}${detailAddress}`,
+    addressTag: params.addressTag ?? original.addressTag ?? '',
+    postalCode: params.postalCode ?? original.postalCode ?? '',
+    isDefault: params.isDefault ? 1 : 0,
+  };
+}
+
+function getMockAddressList() {
+  return mockAddresses.map(cloneMockAddress);
+}
+
+function createMockAddress(params) {
+  const address = buildMockAddress(params);
+  if (address.isDefault) {
+    mockAddresses.forEach((item) => { item.isDefault = 0; });
+  }
+  mockAddresses.push(address);
+  return cloneMockAddress(address);
+}
+
+function updateMockAddress(params) {
+  const addressId = String(params.addressId || '');
+  const index = mockAddresses.findIndex((item) => String(item.addressId) === addressId);
+  if (index < 0) return null;
+
+  const address = buildMockAddress(params, mockAddresses[index]);
+  if (address.isDefault) {
+    mockAddresses.forEach((item) => { item.isDefault = 0; });
+  }
+  mockAddresses[index] = address;
+  return cloneMockAddress(address);
+}
+
+function removeMockAddress(params) {
+  const addressId = String(params.addressId || '');
+  const index = mockAddresses.findIndex((item) => String(item.addressId) === addressId);
+  if (index >= 0) mockAddresses.splice(index, 1);
+  return { success: true };
+}
+
+function setMockDefaultAddress(params) {
+  const addressId = String(params.addressId || '');
+  const address = mockAddresses.find((item) => String(item.addressId) === addressId);
+  if (!address) return null;
+
+  mockAddresses.forEach((item) => {
+    item.isDefault = String(item.addressId) === addressId ? 1 : 0;
+  });
+  return cloneMockAddress(address);
+}
+
 /** 前端版提供商品、分类、评价与购物车展示所需的本地测试数据。 */
 export function request(action, params = {}) {
   if (action === 'products.list') {
@@ -198,6 +280,25 @@ export function request(action, params = {}) {
   }
   if (action === 'categories.list') {
     return Promise.resolve(mockCategories);
+  }
+  if (action === 'addresses.list') {
+    return Promise.resolve({ addressList: getMockAddressList() });
+  }
+  if (action === 'addresses.get') {
+    const address = mockAddresses.find((item) => String(item.addressId) === String(params.addressId));
+    return Promise.resolve(cloneMockAddress(address));
+  }
+  if (action === 'addresses.create') {
+    return Promise.resolve(createMockAddress(params));
+  }
+  if (action === 'addresses.update') {
+    return Promise.resolve(updateMockAddress(params));
+  }
+  if (action === 'addresses.remove') {
+    return Promise.resolve(removeMockAddress(params));
+  }
+  if (action === 'addresses.setDefault') {
+    return Promise.resolve(setMockDefaultAddress(params));
   }
   if (action === 'cart.get') {
     return Promise.resolve(cloneMockCart());

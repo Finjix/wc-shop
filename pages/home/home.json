@@ -9,8 +9,7 @@
   "usingComponents": {
     "t-loading": "tdesign-miniprogram/loading/loading",
     "t-swiper": "tdesign-miniprogram/swiper/swiper",
-    "t-icon": "tdesign-miniprogram/icon/icon",
-    "t-search": "tdesign-miniprogram/search/search",
+    "top-search": "/components/top-search/index",
     "price": "/components/price/index"
   }
 }

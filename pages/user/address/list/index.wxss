@@ -13,13 +13,17 @@ page {
   background-color: #ffffff;
   -webkit-overflow-scrolling: touch;
 }
-.address-list .no-address {
-  width: 750rpx;
-  padding-top: 30vh;
+.address-container .no-address {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
   align-items: center;
+  justify-content: center;
+  padding: 0;
+  transform: translateY(-50%);
 }
 .address-list .no-address__icon {
   width: 224rpx;
@@ -32,7 +36,6 @@ page {
   margin-top: 24rpx;
 }
 .address-container .bottom-fixed {
-  border-top: 1rpx solid #e5e5e5;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -53,31 +56,8 @@ page {
   font-size: 32rpx;
   font-weight: bold;
 }
-.address-container .btn-wrap .location-btn {
-  width: 332rpx;
-  height: 88rpx;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #ffffff;
-  color: #333;
-  position: relative;
-}
-.address-container .btn-wrap .location-btn::after {
-  content: '';
-  position: absolute; /* 把父视图设置为relative，方便定位*/
-  top: 0;
-  left: 0;
-  width: 200%;
-  height: 200%;
-  transform: scale(0.5);
-  transform-origin: 0 0;
-  box-sizing: border-box;
-  border-radius: 88rpx;
-  border: #dddddd 2rpx solid;
-}
 .address-container .btn-wrap .address-btn {
-  width: 332rpx;
+  width: 100%;
   height: 88rpx;
   display: flex;
   justify-content: center;
@@ -102,8 +82,4 @@ page {
 }
 .address-container .message {
   margin-top: 48rpx;
-}
-.address-container .custom-class {
-  margin-right: 12rpx;
-  font-weight: normal;
 }

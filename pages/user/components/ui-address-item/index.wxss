@@ -37,9 +37,6 @@
   padding: 32rpx;
   background-color: #fff;
 }
-.address-item-wrapper .address .address-edit {
-  padding: 20rpx 0 20rpx 46rpx;
-}
 .address-item-wrapper .address .address-left {
   width: 80rpx;
   display: flex;

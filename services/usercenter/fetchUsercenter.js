@@ -1,4 +1,4 @@
-import { request, getApiErrorMessage } from '../../utils/api';
+import { request } from '../../utils/api';
 import { normalizeUserInfo } from '../good/normalize';
 
 const EMPTY_USER_CENTER = {
@@ -16,10 +16,5 @@ export function fetchUserCenter() {
         orderTagInfos: source.orderTagInfos || source.orderTags || [],
       };
     })
-    .catch((error) => {
-      if (typeof wx !== 'undefined' && wx.showToast) {
-        wx.showToast({ title: getApiErrorMessage(error), icon: 'none' });
-      }
-      return EMPTY_USER_CENTER;
-    });
+    .catch(() => EMPTY_USER_CENTER);
 }

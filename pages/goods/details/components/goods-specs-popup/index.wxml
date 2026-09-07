@@ -1,4 +1,4 @@
-<t-popup visible="{{show}}" placement="bottom" bind:visible-change="handlePopupHide">
+<t-popup visible="{{show}}" placement="bottom" z-index="{{20000}}" bind:visible-change="handlePopupHide">
   <view class="popup-container">
     <view class="popup-close" bindtap="handlePopupHide">
       <t-icon name="close" size="36rpx" />

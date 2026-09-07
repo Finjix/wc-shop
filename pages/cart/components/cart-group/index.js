@@ -189,6 +189,10 @@ Component({
               skuList,
               selectedSkuId: goods.skuId,
             },
+          }, () => {
+            this.triggerEvent('specsopen', {
+              specPopup: this.data.specPopup,
+            });
           });
         })
         .catch(() => {

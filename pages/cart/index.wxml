@@ -26,7 +26,9 @@
   bindgoodsclick="goGoodsDetail"
   bindconfirmdelete="onConfirmDeleteRequest"
   bindspecschange="onGoodsSpecsChange"
+  bindspecsopen="onSpecsOpen"
   bindclearinvalidgoods="clearInvalidGoods"
+  id="cartGroup"
 />
 
 <view wx:if="{{cartLoadError}}" class="cart-load-error">
@@ -79,6 +81,20 @@
 <cart-empty
   wx:if="{{cartGroupData && !cartGroupData.isNotEmpty && !cartLoadError}}"
   top="{{customNavHeight}}"
+/>
+
+<specs-popup
+  show="{{specPopup.show}}"
+  title="{{specPopup.title}}"
+  price="{{specPopup.price}}"
+  thumb="{{specPopup.thumb}}"
+  spec-list="{{specPopup.specList}}"
+  sku-list="{{specPopup.skuList}}"
+  selected-sku-id="{{specPopup.selectedSkuId}}"
+  theme-color="{{themeColor}}"
+  zIndex="{{20000}}"
+  bindclose="onSpecsClose"
+  bindconfirm="onSpecsConfirm"
 />
 
 <!-- 商品小计以及结算按钮 -->

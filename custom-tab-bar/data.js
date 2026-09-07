@@ -22,6 +22,5 @@ export default [
     prefix: 'wr',
     text: '我的',
     url: 'pages/usercenter/index',
-    disabled: true,
   },
 ];

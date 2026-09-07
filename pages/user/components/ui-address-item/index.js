@@ -8,10 +8,6 @@ Component({
       type: Object,
       value: {},
     },
-    customIcon: {
-      type: String,
-      value: 'edit-1',
-    },
     extraSpace: {
       type: Boolean,
       value: true,
@@ -41,10 +37,6 @@ Component({
     onLongPress(e) {
       const { item } = e.currentTarget.dataset;
       this.triggerEvent('onLongPress', item);
-    },
-    onEdit(e) {
-      const { item } = e.currentTarget.dataset;
-      this.triggerEvent('onEdit', item);
     },
   },
 });

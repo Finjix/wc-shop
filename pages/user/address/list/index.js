@@ -67,9 +67,7 @@ Page({
       });
       this.hasLoaded = true;
       this.setData({ addressList });
-    }).catch(() => {
-      Toast({ context: this, selector: '#t-toast', message: '地址加载失败，请稍后重试', icon: '' });
-    });
+    }).catch(() => {});
   },
   getWXAddressHandle() {
     wx.chooseAddress({
@@ -163,7 +161,6 @@ Page({
 
     wx.showModal({
       title: '删除收货地址',
-      content: '确定删除这个收货地址吗？',
       confirmText: '删除',
       confirmColor: '#695941',
       success: (result) => {

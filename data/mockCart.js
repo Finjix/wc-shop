@@ -49,14 +49,14 @@ export function createMockCartGoods(goods = {}) {
     stockKnown: true,
     price: String(price),
     unitPrice: price,
-    specInfo: goods.specInfo?.length ? goods.specInfo : getSpecInfo(sku),
+    specInfo: sku ? getSpecInfo(sku) : (goods.specInfo || []),
     skuSnapshot: {
       ...(goods.skuSnapshot || {}),
       skuId: String(skuId),
       skuImage: goods.thumb || sku?.skuImage || product?.primaryImage || '',
       price,
       stockQuantity,
-      specInfo: goods.specInfo?.length ? goods.specInfo : getSpecInfo(sku),
+      specInfo: sku ? getSpecInfo(sku) : (goods.specInfo || []),
     },
   };
 }

@@ -1,33 +1,15 @@
-<view class="home-page-header home-page-header--fixed" style="top: {{searchTop}}px; left: {{searchLeft}}px; width: {{searchWidth}}px;">
-  <view class="search" bind:tap="focusSearch">
-    <t-search
-      t-class="home-search"
-      t-class-input-container="search-only"
-      t-class-input="search-input"
-      value="{{searchValue}}"
-      leftIcon=""
-      clearable="{{false}}"
-      placeholder=""
-      focus="{{searchFocus}}"
-      bind:focus="handleSearchFocus"
-      bind:blur="handleSearchBlur"
-      bind:change="handleSearchChange"
-      bind:submit="handleSearchSubmit"
-    >
-      <view slot="left-icon" class="search-icon">
-        <t-icon prefix="wr" name="search" size="40rpx" color="#9d8f96" />
-      </view>
-    </t-search>
-    <view wx:if="{{!searchFocus && !searchValue}}" class="search-marquee">
-      <view class="search-marquee__track">
-        <text class="search-marquee__item">欢迎光临番薯鞋店！</text>
-        <text class="search-marquee__item">欢迎光临番薯鞋店！</text>
-        <text class="search-marquee__item">欢迎光临番薯鞋店！</text>
-        <text class="search-marquee__item">欢迎光临番薯鞋店！</text>
-      </view>
-    </view>
-  </view>
-</view>
+<top-search
+  top="{{searchTop}}"
+  left="{{searchLeft}}"
+  width="{{searchWidth}}"
+  value="{{searchValue}}"
+  focus="{{searchFocus}}"
+  search-background="rgba(255,255,255,0.5)"
+  bind:focus="handleSearchFocus"
+  bind:blur="handleSearchBlur"
+  bind:change="handleSearchChange"
+  bind:submit="handleSearchSubmit"
+/>
 
 <scroll-view class="home-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
   <view class="home-scroll-content">

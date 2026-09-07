@@ -6,6 +6,7 @@
     "cart-group": "./components/cart-group/index",
     "cart-empty": "./components/cart-empty/index",
     "cart-bar": "./components/cart-bar/index",
+    "specs-popup": "./components/specs-popup/index",
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-toast": "tdesign-miniprogram/toast/toast",

@@ -4,7 +4,6 @@
   "disableScroll": true,
   "usingComponents": {
     "goods-category": "./components/goods-category/index",
-    "t-search": "tdesign-miniprogram/search/search",
-    "t-icon": "tdesign-miniprogram/icon/icon"
+    "top-search": "/components/top-search/index"
   }
 }

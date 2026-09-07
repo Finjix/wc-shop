@@ -5,18 +5,13 @@
 >
   <view class="usercenter-custom-nav__content" style="height: {{navBarHeight}}px;">个人中心</view>
 </view>
-<t-user-center-card
-  userInfo="{{userInfo}}"
-  currAuthStep="{{currAuthStep}}"
-  bind:gotoUserEditPage="gotoUserEditPage"
-/>
 <view class="content-wrapper">
   <view class="order-group-wrapper">
     <t-order-group orderTagInfos="{{orderTagInfos}}" bind:onClickTop="jumpAllOrder" bind:onClickItem="jumpNav" />
   </view>
   <view class="tools-card">
     <view class="tools-card__header">常用工具</view>
-    <view class="tools-grid">
+    <view class="tools-list">
       <view
         wx:for="{{toolData}}"
         wx:for-item="item"
@@ -26,19 +21,21 @@
         bind:tap="onClickCell"
       >
         <view class="tool-item__icon">
-          <t-icon prefix="{{item.prefix}}" name="{{item.icon}}" size="48rpx" color="#666666" />
+          <t-icon prefix="{{item.prefix}}" name="{{item.icon}}" size="48rpx" color="#695941" />
         </view>
         <view class="tool-item__title">{{item.title}}</view>
+        <t-icon class="tool-item__arrow" name="chevron-right" size="40rpx" color="#695941" />
       </view>
     </view>
+    <button class="service-card" open-type="contact">
+      <view class="service-card__icon">
+        <t-icon name="service" size="48rpx" color="#695941" />
+      </view>
+      <view class="service-card__title">在线客服</view>
+      <t-icon name="chevron-right" size="40rpx" color="#695941" />
+    </button>
   </view>
-  <button class="service-card" open-type="contact">
-    <view class="service-card__icon">
-      <t-icon name="service" size="48rpx" color="#666666" />
-    </view>
-    <view class="service-card__title">在线客服</view>
-    <t-icon name="chevron-right" size="40rpx" color="#999999" />
-  </button>
+  <view class="footer__version">Finjix 提供技术支持 v20260907a</view>
 </view>
 </scroll-view>
 <t-toast id="t-toast" />

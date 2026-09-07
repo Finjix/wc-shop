@@ -89,18 +89,4 @@
     </block>
   </view>
 </view>
-<specs-popup
-  show="{{specPopup.show}}"
-  title="{{specPopup.title}}"
-  price="{{specPopup.price}}"
-  thumb="{{specPopup.thumb}}"
-  spec-list="{{specPopup.specList}}"
-  sku-list="{{specPopup.skuList}}"
-  selected-sku-id="{{specPopup.selectedSkuId}}"
-  theme-color="{{themeColor}}"
-  zIndex="{{11001}}"
-  bindclose="hideSpecsPopup"
-  bindconfirm="confirmSpecs"
-/>
-
 <t-toast id="t-toast" />

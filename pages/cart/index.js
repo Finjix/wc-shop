@@ -33,6 +33,15 @@ Page({
     recommendedLeft: [],
     recommendedRight: [],
     recommendedLoading: false,
+    specPopup: {
+      show: false,
+      title: '',
+      price: '',
+      thumb: '',
+      specList: [],
+      skuList: [],
+      selectedSkuId: '',
+    },
     deleteDialogVisible: false,
     pendingDeleteGoods: null,
     cartLoadError: false,
@@ -337,6 +346,26 @@ Page({
           message: '规格修改失败，请重试',
         });
       });
+  },
+
+  onSpecsOpen(e) {
+    this.setData({
+      specPopup: e.detail.specPopup,
+    });
+  },
+
+  onSpecsClose() {
+    this.setData({
+      'specPopup.show': false,
+    });
+    this.selectComponent('#cartGroup')?.hideSpecsPopup();
+  },
+
+  onSpecsConfirm(e) {
+    this.selectComponent('#cartGroup')?.confirmSpecs(e);
+    this.setData({
+      'specPopup.show': false,
+    });
   },
 
   goGoodsDetail(e) {

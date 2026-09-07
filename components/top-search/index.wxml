@@ -1,0 +1,31 @@
+<view class="top-search" style="top: {{top}}px; left: {{left}}px; width: {{width}}px;">
+  <view class="top-search__control" bind:tap="focusSearch">
+    <t-search
+      t-class="top-search__search"
+      t-class-input-container="top-search__input-container"
+      t-class-input="top-search__input"
+      custom-style="--top-search-background: {{searchBackground}};"
+      value="{{value}}"
+      leftIcon=""
+      clearable="{{false}}"
+      placeholder=""
+      focus="{{focus}}"
+      bind:focus="handleSearchFocus"
+      bind:blur="handleSearchBlur"
+      bind:change="handleSearchChange"
+      bind:submit="handleSearchSubmit"
+    >
+      <view slot="left-icon" class="top-search__icon">
+        <t-icon prefix="wr" name="search" size="40rpx" color="#9d8f96" />
+      </view>
+    </t-search>
+    <view wx:if="{{!focus && !value}}" class="top-search__marquee">
+      <view class="top-search__marquee-track">
+        <text class="top-search__marquee-item">{{marqueeText}}</text>
+        <text class="top-search__marquee-item">{{marqueeText}}</text>
+        <text class="top-search__marquee-item">{{marqueeText}}</text>
+        <text class="top-search__marquee-item">{{marqueeText}}</text>
+      </view>
+    </view>
+  </view>
+</view>

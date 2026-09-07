@@ -53,7 +53,10 @@ function normalizeGoods(goods = {}, store = {}, liveSku) {
   const stock = getStockInfo({ ...goods, skuSnapshot: snapshot }, liveSku);
   const skuId = firstDefined(goods.skuId, goods.skuID, snapshot.skuId, liveSku?.skuId, liveSku?._id);
   const spuId = firstDefined(goods.spuId, goods.spuID, goods.productId, liveSku?.productId, liveSku?.spuId);
-  const specInfo = firstDefined(goods.specInfo, goods.specifications, snapshot.specInfo, liveSku?.specInfo, []);
+  const liveSpecInfo = Array.isArray(liveSku?.specInfo) && liveSku.specInfo.length > 0
+    ? liveSku.specInfo
+    : null;
+  const specInfo = liveSpecInfo || firstDefined(goods.specInfo, goods.specifications, snapshot.specInfo, []);
   const price = getSkuPrice(goods, snapshot, liveSku);
   return {
     ...goods,

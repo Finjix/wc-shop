@@ -34,6 +34,7 @@ page {
   overflow: hidden;
   border-radius: 20rpx;
   background: #ffffff;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
 }
 
 .tools-card__header {
@@ -44,36 +45,36 @@ page {
   line-height: 52rpx;
 }
 
-.tools-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  padding: 24rpx 16rpx 32rpx;
+.tools-list {
+  padding: 8rpx 0 16rpx;
 }
 
 .tool-item {
   display: flex;
-  min-height: 156rpx;
-  flex-direction: column;
+  min-height: 104rpx;
+  box-sizing: border-box;
   align-items: center;
-  justify-content: center;
+  padding: 16rpx 28rpx;
 }
 
 .tool-item__icon {
   display: flex;
-  width: 80rpx;
-  height: 80rpx;
+  width: 72rpx;
+  height: 72rpx;
   align-items: center;
   justify-content: center;
-  border-radius: 40rpx;
-  background: #f5f5f5;
 }
 
 .tool-item__title {
-  margin-top: 16rpx;
+  flex: 1;
+  margin-left: 20rpx;
   color: #333333;
-  font-size: 26rpx;
-  line-height: 36rpx;
-  text-align: center;
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+
+.tool-item__arrow {
+  flex-shrink: 0;
 }
 
 .service-card {
@@ -82,11 +83,12 @@ page {
   min-height: 104rpx;
   box-sizing: border-box;
   align-items: center;
-  margin-top: 24rpx;
-  padding: 20rpx 28rpx;
+  margin-top: 0;
+  padding: 16rpx 28rpx;
   border: 0;
-  border-radius: 20rpx;
+  border-radius: 0;
   background: #ffffff;
+  box-shadow: none;
   color: inherit;
   font-size: inherit;
   line-height: normal;
@@ -103,8 +105,6 @@ page {
   height: 72rpx;
   align-items: center;
   justify-content: center;
-  border-radius: 36rpx;
-  background: #f5f5f5;
 }
 
 .service-card__title {
@@ -116,7 +116,7 @@ page {
 }
 
 .footer__version {
-  margin-top: 0;
+  margin-top: 40rpx;
   margin-bottom: 4rpx;
   color: #999999;
   font-size: 24rpx;

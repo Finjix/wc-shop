@@ -8,22 +8,6 @@ const toolData = [
     icon: 'location',
     type: 'address',
   },
-  {
-    title: '关于',
-    icon: 'info-circle',
-    type: 'about',
-  },
-  {
-    title: '帮助',
-    icon: 'help-circle',
-    type: 'help-center',
-  },
-  {
-    title: '分销中心',
-    icon: 'star',
-    prefix: 'wr',
-    type: 'distribution-center',
-  },
 ];
 
 const orderTagInfos = [

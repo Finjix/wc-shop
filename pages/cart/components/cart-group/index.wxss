@@ -1,5 +1,5 @@
 .cart-group {
-  padding: 0 24rpx;
+  padding: 20rpx 24rpx 0;
   background-color: #fff;
 }
 .cart-group .goods-wrap {
