@@ -6,6 +6,10 @@
   <view class="usercenter-custom-nav__content" style="height: {{navBarHeight}}px;">个人中心</view>
 </view>
 <view class="content-wrapper">
+  <view class="user-profile">
+    <image class="user-profile__avatar" src="/assets/user-avatar.jpg" mode="aspectFill" />
+    <view class="user-profile__name">{{userInfo.nickName || '微信用户'}}</view>
+  </view>
   <view class="order-group-wrapper">
     <t-order-group orderTagInfos="{{orderTagInfos}}" bind:onClickTop="jumpAllOrder" bind:onClickItem="jumpNav" />
   </view>
@@ -35,7 +39,7 @@
       <t-icon name="chevron-right" size="40rpx" color="#695941" />
     </button>
   </view>
-  <view class="footer__version">Finjix 提供技术支持 v20260907a</view>
+  <view class="footer__version">Finjix 提供技术支持 v260908</view>
 </view>
 </scroll-view>
 <t-toast id="t-toast" />

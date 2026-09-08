@@ -118,7 +118,6 @@ page {
 
 .goods-detail-page .desc-content {
   background-color: #fff;
-  padding-bottom: 120rpx;
 }
 
 .goods-detail-page .desc-content__img {

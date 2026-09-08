@@ -28,6 +28,7 @@
 				  symbol="{{currency}}"
 				  price="{{goods.price}}"
 				/>
+				<view wx:if="{{showSold}}" class="goods-card__sold">已售：{{goods.soldNum || 0}}</view>
 				<t-icon
 				  wx:if="{{showAddCart}}"
 				  class="goods-card__add-cart"

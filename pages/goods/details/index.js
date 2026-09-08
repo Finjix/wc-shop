@@ -1,19 +1,13 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchGood } from '../../../services/good/fetchGood';
 import { addGoodsToCart } from '../../../services/cart/cart';
+import { setPendingGoodsRequestList } from '../../../services/order/orderConfirm';
 import { getGoodsDetailsCommentsCount } from '../../../services/good/fetchGoodsDetailsComments';
 import { getApiErrorMessage } from '../../../utils/api';
 
 import { cdnBase } from '../../../config/runtime';
 
 const imgPrefix = `${cdnBase}/`;
-
-const obj2Params = (obj = {}, encode = false) => {
-  const result = [];
-  Object.keys(obj).forEach((key) => result.push(`${key}=${encode ? encodeURIComponent(obj[key]) : obj[key]}`));
-
-  return result.join('&');
-};
 
 Page({
   data: {
@@ -330,17 +324,10 @@ Page({
       return;
     }
     this.handlePopupHide();
-    const query = {
-      ...goods,
-      goodsName: goods.title,
-    };
-    let urlQueryStr = obj2Params({
-      goodsRequestList: JSON.stringify([query]),
-    }, true);
-    urlQueryStr = urlQueryStr ? `?${urlQueryStr}` : '';
-    const path = `/pages/order/order-confirm/index${urlQueryStr}`;
+    // 通过页面间共享数据传递商品，避免将完整商品信息拼进 URL 导致跳转失败。
+    setPendingGoodsRequestList([goods]);
     wx.navigateTo({
-      url: path,
+      url: '/pages/order/order-confirm/index?type=direct',
     });
   },
 

@@ -98,7 +98,7 @@ Page({
       ? sortCommentsByLatest(pageList)
       : pageList;
     displayPageList.forEach((item) => {
-      if (item.commentTime) item.commentTime = dayjs(Number(item.commentTime)).format('YYYY/MM/DD HH:mm');
+      if (item.commentTime) item.commentTime = dayjs(Number(item.commentTime)).format('YYYY/MM/DD');
     });
     const totalCount = Number(data.totalCount || 0);
     const nextList = reset ? displayPageList : commentList.concat(displayPageList);

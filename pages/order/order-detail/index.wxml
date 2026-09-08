@@ -52,16 +52,6 @@
           <price fill decimalSmaller wr-class="pay-item__right font-bold" price="{{order.totalAmount || '0'}}" />
         </view>
         <view class="pay-item">
-          <text>运费</text>
-          <view class="pay-item__right font-bold">
-            <block wx:if="{{order.freightFee}}">
-              +
-              <price fill decimalSmaller price="{{order.freightFee}}" />
-            </block>
-            <text wx:else>免运费</text>
-          </view>
-        </view>
-        <view class="pay-item">
           <text>{{isPaid ? '实付' : '应付'}}</text>
           <price
             fill

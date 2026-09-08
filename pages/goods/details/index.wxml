@@ -14,7 +14,7 @@
   bounces="{{false}}"
   refresher-enabled="{{false}}"
 >
-<view class="goods-detail-page" style="padding-top: {{customNavHeight}}px; padding-bottom: 160rpx;">
+<view class="goods-detail-page" style="padding-top: {{customNavHeight}}px;">
   <view wx:if="{{detailLoading}}" class="goods-detail-state">商品加载中...</view>
   <view wx:elif="{{detailLoaded && !details.title}}" class="goods-detail-state">商品不存在或已下架</view>
   <view class="goods-head">

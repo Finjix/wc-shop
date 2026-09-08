@@ -1,10 +1,10 @@
 <wxs module="order" src="./order.wxs" />
-<scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
+<scroll-view class="app-page-scroll" scroll-y="{{scrollEnabled}}" enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"
   title="订单确认"
   leftArrow
-  fixed="{{false}}"
+  fixed="{{true}}"
   background="#fff"
 />
 <view class="order-sure" wx:if="{{!loading}}">
@@ -33,34 +33,6 @@
         <price wr-class="goods-price" price="{{goods.price}}" fill="{{true}}" decimalSmaller />
         <view class="goods-num">x{{goods.num}}</view>
       </view>
-    </view>
-  </view>
-  <view class="pay-detail">
-    <view class="pay-item">
-      <text>商品总额</text>
-      <price
-        fill
-        decimalSmaller
-        wr-class="pay-item__right font-bold"
-        price="{{settleDetailData.totalSalePrice || '0'}}"
-      />
-    </view>
-    <view class="pay-item">
-      <text>运费</text>
-      <view class="pay-item__right font-bold">
-        <block wx:if="{{settleDetailData.totalDeliveryFee && settleDetailData.totalDeliveryFee != 0}}">
-          +
-          <price fill decimalSmaller price="{{settleDetailData.totalDeliveryFee}}" />
-        </block>
-        <text wx:else>免运费</text>
-      </view>
-    </view>
-  </view>
-  <view class="amount-wrapper">
-    <view class="pay-amount">
-      <text class="order-num">共{{settleDetailData.totalGoodsCount}}件</text>
-      <text>小计</text>
-      <price class="total-price" price="{{settleDetailData.totalPayAmount}}" fill="{{false}}" decimalSmaller />
     </view>
   </view>
   <view class="wx-pay-cover">

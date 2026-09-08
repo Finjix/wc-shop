@@ -64,8 +64,6 @@
         <view class="price-total">
           <text>总价</text>
           <price fill price="{{order.totalAmount + ''}}" />
-          <text>，运费</text>
-          <price fill price="{{order.freightFee + ''}}" />
           <text decode>&nbsp;</text>
           <text class="bold-price" decode="{{true}}">实付&nbsp;</text>
           <price fill class="real-pay" price="{{order.amount + ''}}" decimalSmaller />
@@ -76,7 +74,7 @@
     </order-card>
     <!-- 列表加载中/已全部加载 -->
     <load-more
-      wx:if="{{!pullDownRefreshing}}"
+      wx:if="{{!pullDownRefreshing && listLoading !== 3}}"
       list-is-empty="{{!orderList.length}}"
       status="{{listLoading}}"
       bindretry="onReTryLoad"

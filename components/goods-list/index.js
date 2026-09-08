@@ -25,6 +25,10 @@ Component({
       type: Boolean,
       value: true,
     },
+    showSold: {
+      type: Boolean,
+      value: false,
+    },
     cardStyle: {
       type: String,
       value: '',

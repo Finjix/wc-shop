@@ -17,7 +17,6 @@
 			 decimalSmaller
 			 class="cart-bar__total--bold cart-bar__total--price"
 			/>
-			<text class="cart-bar__total--normal">（不含运费）</text>
 		</view>
 	</view>
 	<view catchtap="handleToSettle" class="{{isDisabled ? 'disabled-btn' : ''}} account-btn" hover-class="{{isDisabled ? 'hover-btn' : ''}}">

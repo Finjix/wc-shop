@@ -3,9 +3,6 @@
 		<view class="order-address" slot="title">
 			<view class="address-content">
 				<view class="title">
-					<view class="address-tag" wx:if="{{addressData.addressTag}}">
-						{{addressData.addressTag}}
-					</view>
 					{{addressData.provinceName}} {{addressData.cityName}} {{addressData.districtName}}
 				</view>
 				<view class="detail">{{addressData.detailAddress}}</view>

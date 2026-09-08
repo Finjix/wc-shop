@@ -3,6 +3,16 @@ import { mockComments } from '../data/mockComments';
 import { mockCategories } from '../data/mockCategories';
 import { cloneMockCart, createMockCartGoods, mockCart } from '../data/mockCart';
 import { mockProducts } from '../data/mockProducts';
+import {
+  buildMockSettleDetail,
+  cancelMockOrder,
+  confirmMockOrder,
+  createMockOrderFromItems,
+  deleteMockOrder,
+  getMockOrder,
+  getMockOrderCounts,
+  listMockOrders,
+} from '../data/mockOrders';
 
 const DEFAULT_API_ERROR = '当前仅保留前端界面，数据服务未配置';
 
@@ -263,7 +273,7 @@ function setMockDefaultAddress(params) {
   return cloneMockAddress(address);
 }
 
-/** 前端版提供商品、分类、评价与购物车展示所需的本地测试数据。 */
+/** 前端版提供商品、分类、评价、地址、购物车与订单展示所需的本地测试数据。 */
 export function request(action, params = {}) {
   if (action === 'products.list') {
     return Promise.resolve(getMockProductList(params));
@@ -299,6 +309,35 @@ export function request(action, params = {}) {
   }
   if (action === 'addresses.setDefault') {
     return Promise.resolve(setMockDefaultAddress(params));
+  }
+  if (action === 'orders.list') {
+    return Promise.resolve({ data: listMockOrders(params) });
+  }
+  if (action === 'orders.count') {
+    return Promise.resolve({ data: getMockOrderCounts() });
+  }
+  if (action === 'orders.detail') {
+    const order = getMockOrder(params.orderNo || params.orderId || params.id);
+    return order ? Promise.resolve({ data: { order } }) : Promise.reject(createApiError('订单不存在'));
+  }
+  if (action === 'orders.cancel') {
+    return Promise.resolve(cancelMockOrder(params.orderNo));
+  }
+  if (action === 'orders.confirmReceived') {
+    return Promise.resolve(confirmMockOrder(params.orderNo));
+  }
+  if (action === 'orders.delete') {
+    return Promise.resolve(deleteMockOrder(params.orderNo));
+  }
+  if (action === 'orders.businessTime') {
+    return Promise.resolve({ data: { telphone: '400-800-8888' } });
+  }
+  if (action === 'orders.preview') {
+    return Promise.resolve({ data: buildMockSettleDetail(params.items, params.addressId) });
+  }
+  if (action === 'orders.create') {
+    const order = createMockOrderFromItems(params.items, params.addressId);
+    return order ? Promise.resolve({ data: { order } }) : Promise.reject(createApiError('订单商品不存在'));
   }
   if (action === 'cart.get') {
     return Promise.resolve(cloneMockCart());

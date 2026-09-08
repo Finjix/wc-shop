@@ -32,6 +32,7 @@ Page({
     popupShow: false, // 不在配送范围 失效 库存不足 商品展示弹框
     storeInfoList: [],
     userAddress: null,
+    scrollEnabled: false,
   },
 
   payLock: false,
@@ -73,9 +74,9 @@ Page({
       userAddressReq = options.userAddressReq;
     }
     if (Array.isArray(options.goodsRequestList)) goodsRequestList = options.goodsRequestList;
-    if (options.type === 'cart') {
+    if (options.type === 'cart' || options.type === 'direct') {
       goodsRequestList = getPendingGoodsRequestList();
-      if (!Array.isArray(goodsRequestList) || goodsRequestList.length === 0) {
+      if ((!Array.isArray(goodsRequestList) || goodsRequestList.length === 0) && options.type === 'cart') {
         fetchCartGroupData()
           .then((res) => this.handleOptionsParams({
             ...options,
@@ -143,7 +144,14 @@ Page({
     if (resData.userAddress) {
       this.setData({ userAddress: resData.userAddress });
     }
-    this.setData({ settleDetailData: data });
+    const goodsCount = (data.storeGoodsList || []).reduce(
+      (count, store) => count + (store.skuDetailVos || []).length,
+      0,
+    );
+    this.setData({
+      settleDetailData: data,
+      scrollEnabled: goodsCount > 1,
+    });
     this.isInvalidOrder(data);
   },
 

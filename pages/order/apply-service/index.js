@@ -182,10 +182,7 @@ Page({
           current: refundableAmount,
         },
         'serviceFrom.returnNum': preview.numOfSku || 1,
-        amountTip: `最多可申请退款¥ ${priceFormat(refundableAmount, 2)}，含发货运费¥ ${priceFormat(
-          preview.shippingFeeIncluded || 0,
-          2,
-        )}`,
+        amountTip: `最多可申请退款¥ ${priceFormat(refundableAmount, 2)}`,
         maxApplyNum: preview.numOfSkuAvailable || preview.numOfSku || 1,
       });
     } catch (err) {
