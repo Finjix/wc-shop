@@ -105,9 +105,6 @@ Page({
               storeId: order.storeId,
               storeName: order.storeName,
               status: order.orderStatus,
-              hideApplyRefund: [OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(
-                order.orderStatus,
-              ),
               statusDesc: order.orderStatusName,
               amount: order.paymentAmount,
               totalAmount: order.totalAmount,

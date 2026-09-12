@@ -1,5 +1,5 @@
 import { mockAddresses } from '../data/mockAddresses';
-import { mockComments } from '../data/mockComments';
+import { createMockComment, mockComments } from '../data/mockComments';
 import { mockCategories } from '../data/mockCategories';
 import { cloneMockCart, createMockCartGoods, mockCart } from '../data/mockCart';
 import { mockProducts } from '../data/mockProducts';
@@ -8,11 +8,20 @@ import {
   cancelMockOrder,
   confirmMockOrder,
   createMockOrderFromItems,
-  deleteMockOrder,
   getMockOrder,
   getMockOrderCounts,
   listMockOrders,
+  markMockOrderCommented,
 } from '../data/mockOrders';
+import {
+  confirmMockAfterSaleReceived,
+  createMockAfterSale,
+  getMockAfterSale,
+  getMockAfterSaleReasons,
+  getMockAfterSalePreview,
+  listMockAfterSales,
+  submitMockAfterSaleTracking,
+} from '../data/mockAfterSales';
 
 const DEFAULT_API_ERROR = '当前仅保留前端界面，数据服务未配置';
 
@@ -61,6 +70,10 @@ function getProductComments(params = {}) {
   let comments = productId
     ? mockComments.filter((comment) => comment.productId === productId)
     : mockComments;
+  const orderNo = params.orderNo || params.orderId;
+  if (orderNo) {
+    comments = comments.filter((comment) => String(comment.orderNo || comment.orderId) === String(orderNo));
+  }
   if (params.hasImage) {
     comments = comments.filter((comment) => Array.isArray(comment.commentResources) && comment.commentResources.length);
   }
@@ -192,6 +205,19 @@ function createApiError(message) {
   return error;
 }
 
+let mockPaymentSequence = 1;
+
+function createMockPayment(params = {}) {
+  const paymentNo = `MOCK-PAY-${Date.now()}-${mockPaymentSequence++}`;
+  return {
+    channel: 'wechat',
+    mockPayment: true,
+    paymentNo,
+    tradeNo: paymentNo,
+    payAmt: params.totalAmount || 0,
+  };
+}
+
 let mockAddressSequence = mockAddresses.length + 1;
 
 function cloneMockAddress(address) {
@@ -288,6 +314,11 @@ export function request(action, params = {}) {
   if (action === 'comments.list') {
     return Promise.resolve(getMockCommentList(params));
   }
+  if (action === 'comments.create') {
+    const comment = createMockComment(params);
+    markMockOrderCommented(params.orderNo || params.orderId);
+    return Promise.resolve({ data: comment });
+  }
   if (action === 'categories.list') {
     return Promise.resolve(mockCategories);
   }
@@ -326,18 +357,53 @@ export function request(action, params = {}) {
   if (action === 'orders.confirmReceived') {
     return Promise.resolve(confirmMockOrder(params.orderNo));
   }
-  if (action === 'orders.delete') {
-    return Promise.resolve(deleteMockOrder(params.orderNo));
-  }
   if (action === 'orders.businessTime') {
     return Promise.resolve({ data: { telphone: '400-800-8888' } });
   }
   if (action === 'orders.preview') {
     return Promise.resolve({ data: buildMockSettleDetail(params.items, params.addressId) });
   }
+  if (action === 'orders.preparePayment') {
+    return Promise.resolve({ data: createMockPayment(params) });
+  }
   if (action === 'orders.create') {
+    if (!params.paymentNo) {
+      const error = createApiError('支付未完成，无法创建订单');
+      error.code = 'PAYMENT_REQUIRED';
+      return Promise.reject(error);
+    }
     const order = createMockOrderFromItems(params.items, params.addressId);
     return order ? Promise.resolve({ data: { order } }) : Promise.reject(createApiError('订单商品不存在'));
+  }
+  if (action === 'afterSales.preview') {
+    return Promise.resolve({ data: getMockAfterSalePreview(params) });
+  }
+  if (action === 'afterSales.reasons') {
+    return Promise.resolve({ data: { rightsReasonList: getMockAfterSaleReasons() } });
+  }
+  if (action === 'afterSales.create') {
+    const afterSale = createMockAfterSale(params);
+    return afterSale
+      ? Promise.resolve({ data: afterSale })
+      : Promise.reject(createApiError('订单不存在'));
+  }
+  if (action === 'afterSales.list') {
+    return Promise.resolve({ data: listMockAfterSales(params) });
+  }
+  if (action === 'afterSales.detail') {
+    const afterSale = getMockAfterSale(params.rightsNo || params.afterSaleId || params.id);
+    return afterSale
+      ? Promise.resolve({ data: afterSale })
+      : Promise.reject(createApiError('售后记录不存在'));
+  }
+  if (action === 'afterSales.confirmReceived') {
+    return Promise.resolve(confirmMockAfterSaleReceived(params));
+  }
+  if (action === 'afterSales.submitTracking') {
+    const afterSale = submitMockAfterSaleTracking(params);
+    return afterSale
+      ? Promise.resolve({ data: afterSale })
+      : Promise.reject(createApiError('售后记录不存在'));
   }
   if (action === 'cart.get') {
     return Promise.resolve(cloneMockCart());

@@ -15,15 +15,21 @@
   <view class="order-detail">
     <view class="header">
       <!-- 物流 -->
-      <view class="order-logistics" wx:if="{{logisticsNodes[0]}}" bindtap="onDeliveryClick">
+      <view
+        class="order-logistics"
+        wx:if="{{showLogistics && order.logisticsVO && order.logisticsVO.logisticsNo}}"
+        bindtap="onDeliveryClick"
+      >
         <t-icon name="deliver" size="40rpx" class="logistics-icon" prefix="wr" />
         <view class="logistics-content">
-          <view>{{logisticsNodes[0].desc}}</view>
-          <view class="logistics-time">{{logisticsNodes[0].date}}</view>
+          <view>查看物流</view>
         </view>
         <t-icon class="logistics-back" name="arrow_forward" size="36rpx" prefix="wr" />
       </view>
-      <view class="border-bottom" wx:if="{{logisticsNodes[0]}}" />
+      <view
+        class="border-bottom"
+        wx:if="{{showLogistics && order.logisticsVO && order.logisticsVO.logisticsNo}}"
+      />
       <!-- 收货地址 -->
       <view class="order-logistics">
         <view class="logistics-content">
@@ -48,11 +54,7 @@
       </order-goods-card>
       <view class="pay-detail">
         <view class="pay-item">
-          <text>商品总额</text>
-          <price fill decimalSmaller wr-class="pay-item__right font-bold" price="{{order.totalAmount || '0'}}" />
-        </view>
-        <view class="pay-item">
-          <text>{{isPaid ? '实付' : '应付'}}</text>
+          <text>实付</text>
           <price
             fill
             decimalSmaller

@@ -1,9 +1,12 @@
 import Toast from 'tdesign-miniprogram/toast/index';
-import { fetchSettleDetail } from '../../../services/order/orderConfirm';
-import { getPendingGoodsRequestList } from '../../../services/order/orderConfirm';
+import {
+  clearPendingGoodsRequestList,
+  fetchSettleDetail,
+  getPendingGoodsRequestList,
+} from '../../../services/order/orderConfirm';
 import { fetchCartGroupData } from '../../../services/cart/cart';
 import { fetchDeliveryAddress } from '../../../services/address/fetchAddress';
-import { commitPay } from './pay';
+import { createOrderAfterPayment, preparePayment, wechatPayOrder } from './pay';
 import { getAddressPromise } from '../../../services/address/list';
 
 function getSelectedGoodsFromCart(cartGroupData) {
@@ -282,7 +285,7 @@ Page({
       this.handleOptionsParams({ goodsRequestList });
     }
   },
-  // 提交订单
+  // 提交订单后先调起微信支付，支付成功后才创建商城订单。
   submitOrder() {
     const { settleDetailData, userAddressReq, storeInfoList } = this.data;
     const { goodsRequestList } = this;
@@ -300,37 +303,48 @@ Page({
         duration: 2000,
         icon: 'help-circle',
       });
+      return;
+    }
+    if (this.payLock || !settleDetailData.settleType) return;
 
-      return;
-    }
-    if (this.payLock || !settleDetailData.settleType) {
-      return;
-    }
     this.payLock = true;
     this.createRequestId = this.createRequestId || `order-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const params = {
       userAddressReq: address,
-      goodsRequestList: goodsRequestList,
+      goodsRequestList,
       userName: address.name,
       totalAmount: settleDetailData.totalPayAmount,
       storeInfoList,
       requestKey: this.createRequestId,
     };
-    commitPay(params).then(
-      (res) => {
+
+    preparePayment(params)
+      .then((res) => {
+        const paymentInfo = res?.data || {};
+        return wechatPayOrder(paymentInfo).then(() => createOrderAfterPayment(params, paymentInfo));
+      })
+      .then((res) => {
         this.payLock = false;
-        const { data } = res;
         this.createRequestId = null;
-        Toast({ context: this, selector: '#t-toast', message: '订单已创建，当前为待支付状态', duration: 1600, icon: 'check-circle' });
-        setTimeout(() => {
-          if (data?.orderNo) wx.redirectTo({ url: `/pages/order/order-detail/index?orderNo=${encodeURIComponent(data.orderNo)}` });
-          else wx.redirectTo({ url: '/pages/order/order-list/index' });
-        }, 600);
-      },
-      (err) => {
+        clearPendingGoodsRequestList();
+        const orderNo = res?.data?.orderNo;
+        const totalPaid = encodeURIComponent(settleDetailData.totalPayAmount || '0');
+        if (orderNo) {
+          wx.redirectTo({
+            url: `/pages/order/pay-result/index?totalPaid=${totalPaid}&orderNo=${encodeURIComponent(orderNo)}`,
+          });
+        } else {
+          wx.redirectTo({ url: '/pages/order/order-list/index' });
+        }
+      })
+      .catch((err) => {
         this.payLock = false;
+        this.createRequestId = null;
         const code = String(err?.code || '').toUpperCase();
-        if (['CONTAINS_INSUFFICIENT_GOODS', 'STOCK_INSUFFICIENT', 'OUT_OF_STOCK', 'TOTAL_AMOUNT_DIFFERENT'].includes(code)) {
+        const errMsg = String(err?.errMsg || err?.message || '').toLowerCase();
+        if (errMsg.includes('requestpayment:fail cancel')) {
+          Toast({ context: this, selector: '#t-toast', message: '支付已取消，订单未创建', duration: 1800, icon: '' });
+        } else if (['CONTAINS_INSUFFICIENT_GOODS', 'STOCK_INSUFFICIENT', 'OUT_OF_STOCK', 'TOTAL_AMOUNT_DIFFERENT'].includes(code)) {
           Toast({
             context: this,
             selector: '#t-toast',
@@ -356,20 +370,16 @@ Page({
             icon: '',
           });
           setTimeout(() => wx.navigateBack(), 1000);
-        } else if (['DUPLICATE_ORDER', 'DUPLICATE_SUBMIT', 'ORDER_DUPLICATE'].includes(code)) {
-          Toast({ context: this, selector: '#t-toast', message: '订单已提交，请勿重复操作', duration: 1800, icon: '' });
-          setTimeout(() => wx.redirectTo({ url: '/pages/order/order-list/index' }), 600);
         } else {
           Toast({
             context: this,
             selector: '#t-toast',
-            message: err.msg || '订单提交失败，请稍后重试',
+            message: err.msg || err.message || '支付失败，请稍后重试',
             duration: 2000,
             icon: '',
           });
         }
-      },
-    );
+      });
   },
 
   onNoGoodsChange(e) {

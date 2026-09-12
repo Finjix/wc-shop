@@ -32,3 +32,53 @@ export const mockComments = Array.from({ length: 16 }, (_, productIndex) =>
     isAutoComment: false,
   })),
 ).flat();
+
+mockComments.push({
+  commentId: 'mock-comment-order-1008',
+  orderId: 'MOCK202506110008',
+  orderNo: 'MOCK202506110008',
+  productId: 'test-10',
+  spuId: 'test-10',
+  skuId: 'test-10-sku-1',
+  commentScore: 5,
+  commentContent: '商品已收到，使用体验很好。',
+  commentResources: [],
+  commentTime: 1750000000000,
+  status: 'active',
+  commentStatus: 'active',
+  goodsDetailInfo: '默认',
+  isAnonymity: false,
+  isAutoComment: false,
+});
+
+function resourcePath(resource) {
+  if (typeof resource === 'string') return resource;
+  return resource?.image || resource?.fileID || resource?.fileId || resource?.url || resource?.src || '';
+}
+
+export function createMockComment(payload = {}) {
+  const productId = payload.productId || payload.spuId || '';
+  const resources = (payload.commentResources || payload.resources || [])
+    .map(resourcePath)
+    .filter(Boolean)
+    .map((image) => ({ type: 'image', image, fileID: image }));
+  const comment = {
+    commentId: `mock-comment-${Date.now()}`,
+    orderId: payload.orderId || payload.orderNo || '',
+    orderNo: payload.orderNo || payload.orderId || '',
+    productId,
+    spuId: payload.spuId || productId,
+    skuId: payload.skuId || '',
+    commentScore: Number(payload.commentScore ?? payload.rating) || 0,
+    commentContent: payload.commentContent || payload.content || '',
+    commentResources: resources,
+    commentTime: Date.now(),
+    status: 'active',
+    commentStatus: 'active',
+    goodsDetailInfo: '默认',
+    isAnonymity: false,
+    isAutoComment: false,
+  };
+  mockComments.unshift(comment);
+  return JSON.parse(JSON.stringify(comment));
+}

@@ -36,6 +36,7 @@
   margin: 0 0 0 16rpx;
   flex-direction: row;
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 176rpx;
 }
 .wr-goods-card__long_content {
@@ -43,6 +44,7 @@
   flex-direction: column;
   overflow: hidden;
   flex: 1 1 auto;
+  min-width: 0;
 }
 .wr-goods-card__long_content .goods_tips {
   width: 100%;
@@ -111,10 +113,12 @@
 }
 .wr-goods-card__short_content {
   display: flex;
+  flex: 0 0 112rpx;
+  width: 112rpx;
   flex-direction: column;
   justify-content: flex-start;
   align-items: flex-end;
-  margin: 0 0 0 46rpx;
+  margin: 0 0 0 24rpx;
 }
 .wr-goods-card__price__prefix {
   order: 0;

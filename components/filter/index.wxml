@@ -10,14 +10,6 @@
 				综合
 			</view>
 			<view
-			  class="filter-item {{sortType === 'sales' ? 'filter-active-item' : ''}}"
-			  style="color: {{sortType === 'sales' ? color : ''}}"
-			  bindtap="handleSortType"
-			  data-sort-type="sales"
-			>
-				销量
-			</view>
-			<view
 			  class="filter-item {{sortType === 'new' ? 'filter-active-item' : ''}}"
 			  style="color: {{sortType === 'new' ? color : ''}}"
 			  bindtap="handleSortType"

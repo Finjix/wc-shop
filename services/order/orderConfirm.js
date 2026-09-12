@@ -139,7 +139,8 @@ function normalizeCreatedOrder(response) {
   const orderNo = order.orderNo || order.orderNumber;
   const orderId = order.orderId || order.id || order._id;
   if (!orderNo && !orderId) throw domainError('ORDER_CREATE_INVALID_RESPONSE', '订单创建结果缺少订单编号');
-  const orderStatus = order.orderStatus ?? order.status ?? 5;
+  // 只有支付成功后才会进入订单创建流程，因此新订单必须是待发货状态。
+  const orderStatus = order.orderStatus ?? order.status ?? 10;
   return {
     data: {
       ...order,
@@ -147,16 +148,39 @@ function normalizeCreatedOrder(response) {
       orderId,
       orderStatus,
       status: order.status ?? orderStatus,
-      statusDesc: order.statusDesc || order.orderStatusName || '待支付',
+      statusDesc: order.statusDesc || order.orderStatusName || '待发货',
     },
   };
 }
 
-export function dispatchCommitPay(params = {}) {
+function validateOrderRequest(params = {}) {
   const goodsRequestList = normalizeGoodsRequestList(params.goodsRequestList);
-  if (!goodsRequestList.length) return Promise.reject(domainError('EMPTY_CART', '购物车为空，请先添加商品'));
+  if (!goodsRequestList.length) return { error: domainError('EMPTY_CART', '购物车为空，请先添加商品') };
   const payload = buildOrderPayload(params, goodsRequestList);
-  if (!payload.addressId) return Promise.reject(domainError('ADDRESS_REQUIRED', '请先添加收货地址'));
-  if (!payload.requestKey) return Promise.reject(domainError('IDEMPOTENCY_KEY_REQUIRED', '订单请求缺少幂等键，请重试'));
-  return action('orders.create', payload).then(normalizeCreatedOrder);
+  if (!payload.addressId) return { error: domainError('ADDRESS_REQUIRED', '请先添加收货地址') };
+  if (!payload.requestKey) return { error: domainError('IDEMPOTENCY_KEY_REQUIRED', '订单请求缺少幂等键，请重试') };
+  return { goodsRequestList, payload };
+}
+
+/** 创建微信支付单。该接口只生成支付参数，不创建商城订单。 */
+export function prepareWechatPayment(params = {}) {
+  const { payload, error } = validateOrderRequest(params);
+  if (error) return Promise.reject(error);
+  return action('orders.preparePayment', {
+    ...payload,
+    payWay: 'wechat',
+  });
+}
+
+/** 微信支付成功后创建已支付订单。 */
+export function createPaidOrder(params = {}, paymentInfo = {}) {
+  const { payload, error } = validateOrderRequest(params);
+  if (error) return Promise.reject(error);
+  const paymentNo = paymentInfo.paymentNo || paymentInfo.tradeNo || paymentInfo.transactionId;
+  if (!paymentNo) return Promise.reject(domainError('PAYMENT_NO_REQUIRED', '支付结果缺少交易编号'));
+  return action('orders.create', {
+    ...payload,
+    paymentNo: String(paymentNo),
+    paymentTransactionId: paymentInfo.transactionId || undefined,
+  }).then(normalizeCreatedOrder);
 }

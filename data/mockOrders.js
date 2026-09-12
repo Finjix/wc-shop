@@ -2,7 +2,6 @@ import { mockAddresses } from './mockAddresses';
 import { mockProducts } from './mockProducts';
 
 export const MockOrderStatus = {
-  PENDING_PAYMENT: 5,
   PENDING_DELIVERY: 10,
   PENDING_RECEIPT: 40,
   COMPLETE: 50,
@@ -10,7 +9,6 @@ export const MockOrderStatus = {
 };
 
 const STATUS_NAMES = {
-  [MockOrderStatus.PENDING_PAYMENT]: '待支付',
   [MockOrderStatus.PENDING_DELIVERY]: '待发货',
   [MockOrderStatus.PENDING_RECEIPT]: '待收货',
   [MockOrderStatus.COMPLETE]: '已完成',
@@ -52,24 +50,18 @@ function getDefaultAddress() {
 }
 
 function buttonsForStatus(status, commented = false) {
-  if (status === MockOrderStatus.PENDING_PAYMENT) {
-    return [
-      { type: 1, name: '去支付', primary: true },
-      { type: 2, name: '取消订单' },
-    ];
-  }
   if (status === MockOrderStatus.PENDING_DELIVERY) {
-    return [{ type: 4, name: '申请售后' }];
+    return [];
   }
   if (status === MockOrderStatus.PENDING_RECEIPT) {
     return [{ type: 3, name: '确认收货', primary: true }];
   }
   if (status === MockOrderStatus.COMPLETE) {
     return commented
-      ? [{ type: 10, name: '查看评价' }, { type: 7, name: '删除订单' }]
-      : [{ type: 6, name: '评价', primary: true }, { type: 7, name: '删除订单' }];
+      ? [{ type: 10, name: '查看评价' }]
+      : [{ type: 6, name: '评价', primary: true }];
   }
-  return [{ type: 7, name: '删除订单' }];
+  return [];
 }
 
 export function findMockSku(skuId) {
@@ -114,7 +106,8 @@ function createOrder({
   const totalAmount = orderGoods.reduce((total, item) => total + Number(item.itemPaymentAmount || 0), 0);
   const freightFee = 0;
   const orderAddress = address ? toReceiverAddress(address) : getDefaultAddress();
-  const paid = status !== MockOrderStatus.PENDING_PAYMENT && status !== MockOrderStatus.CANCELED;
+  // 本地订单均代表已完成支付后的订单，取消状态也保留支付记录。
+  const paid = true;
   const trajectoryVos = status === MockOrderStatus.PENDING_RECEIPT || status === MockOrderStatus.COMPLETE
     ? [{
       title: status === MockOrderStatus.COMPLETE ? '已签收' : '运输中',
@@ -140,6 +133,7 @@ function createOrder({
     createTime: createdAt,
     orderItemVOs: orderGoods,
     buttonVOs: buttonsForStatus(status, commented),
+    commented,
     logisticsVO: {
       ...orderAddress,
       logisticsNo: status === MockOrderStatus.PENDING_RECEIPT || status === MockOrderStatus.COMPLETE
@@ -156,13 +150,6 @@ function createOrder({
 
 function createInitialOrders() {
   return [
-    createOrder({
-      orderId: 'mock-order-1001',
-      orderNo: 'MOCK202506180001',
-      status: MockOrderStatus.PENDING_PAYMENT,
-      goods: [createProductGoods(1, 0, 1)],
-      createdAt: MOCK_NOW,
-    }),
     createOrder({
       orderId: 'mock-order-1002',
       orderNo: 'MOCK202506170002',
@@ -190,6 +177,14 @@ function createInitialOrders() {
       status: MockOrderStatus.COMPLETE,
       goods: [createProductGoods(7, 1, 1)],
       createdAt: MOCK_NOW - 86400000 * 4,
+      commented: true,
+    }),
+    createOrder({
+      orderId: 'mock-order-1008',
+      orderNo: 'MOCK202506110008',
+      status: MockOrderStatus.COMPLETE,
+      goods: [createProductGoods(10, 0, 1)],
+      createdAt: MOCK_NOW - 86400000 * 7,
       commented: true,
     }),
     createOrder({
@@ -267,10 +262,12 @@ export function confirmMockOrder(orderNo) {
   return updateMockOrderStatus(orderNo, MockOrderStatus.COMPLETE);
 }
 
-export function deleteMockOrder(orderNo) {
-  const index = mockOrders.findIndex((item) => String(item.orderNo) === String(orderNo));
-  if (index >= 0) mockOrders.splice(index, 1);
-  return { success: true };
+export function markMockOrderCommented(orderNo) {
+  const order = mockOrders.find((item) => String(item.orderNo) === String(orderNo));
+  if (!order) return null;
+  order.commented = true;
+  order.buttonVOs = buttonsForStatus(order.orderStatus, true);
+  return clone(order);
 }
 
 export function createMockOrderFromItems(items = {}, addressId = '') {
@@ -290,7 +287,7 @@ export function createMockOrderFromItems(items = {}, addressId = '') {
   const order = createOrder({
     orderId: `mock-order-${orderSequence}`,
     orderNo,
-    status: MockOrderStatus.PENDING_PAYMENT,
+    status: MockOrderStatus.PENDING_DELIVERY,
     goods,
     createdAt: Date.now(),
     address: mockAddresses.find((item) => String(item.addressId) === String(addressId)),

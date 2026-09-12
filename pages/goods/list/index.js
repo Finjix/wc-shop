@@ -74,9 +74,7 @@ Page({
       params.sort = 1;
       params.sortType = sorts === 'desc' ? 1 : 0;
     }
-    if (sortType === 'sales') {
-      params.sort = 2;
-    } else if (sortType === 'new') {
+    if (sortType === 'new') {
       params.sort = 3;
     }
 

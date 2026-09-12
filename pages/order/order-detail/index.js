@@ -1,5 +1,5 @@
 import { formatTime } from '../../../utils/util';
-import { OrderButtonTypes, OrderStatus, LogisticsIconMap } from '../config';
+import { OrderButtonTypes, OrderStatus } from '../config';
 import { fetchBusinessTime, fetchOrderDetail } from '../../../services/order/orderDetail';
 import { getAddressPromise } from '../../../services/address/list';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
@@ -14,7 +14,7 @@ Page({
     addressEditable: false,
     backRefresh: false, // 用于接收其他页面back时的状态
     formatCreateTime: '', //格式化订单创建时间
-    logisticsNodes: [],
+    showLogistics: false,
   },
 
   onLoad(query) {
@@ -80,19 +80,34 @@ Page({
     };
     return fetchOrderDetail(params).then((res) => {
       const order = res.data;
+      const hasReceived = order.orderStatus === OrderStatus.COMPLETE;
       const orderButtons = [...(order.buttonVOs || [])];
-      const hasOrderRefundButton = (order.orderItemVOs || []).some((goods) =>
-        (goods.buttonVOs || []).some((button) => button.type === OrderButtonTypes.APPLY_REFUND),
+      const canCancel =
+        order.orderStatus === OrderStatus.PENDING_DELIVERY && order.orderSubStatus !== -1;
+      const canApplyRefund = [OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(
+        order.orderStatus,
       );
       if (
-        hasOrderRefundButton &&
-        !orderButtons.some((button) => button.type === OrderButtonTypes.APPLY_REFUND)
+        canCancel &&
+        !orderButtons.some((button) => Number(button.type) === OrderButtonTypes.CANCEL)
       ) {
-        const confirmIndex = orderButtons.findIndex((button) => button.type === OrderButtonTypes.CONFIRM);
+        orderButtons.unshift({ type: OrderButtonTypes.CANCEL, name: '取消订单' });
+      }
+      if (
+        canApplyRefund &&
+        !orderButtons.some((button) =>
+          [OrderButtonTypes.APPLY_REFUND, OrderButtonTypes.VIEW_REFUND].includes(Number(button.type)),
+        )
+      ) {
+        const actionIndex = orderButtons.findIndex((button) => [
+          OrderButtonTypes.CONFIRM,
+          OrderButtonTypes.COMMENT,
+          OrderButtonTypes.VIEW_COMMENT,
+        ].includes(Number(button.type)));
         orderButtons.splice(
-          confirmIndex === -1 ? orderButtons.length : confirmIndex,
+          actionIndex === -1 ? orderButtons.length : actionIndex,
           0,
-          { primary: false, type: OrderButtonTypes.APPLY_REFUND, name: '申请售后' },
+          { type: OrderButtonTypes.APPLY_REFUND, name: '申请售后' },
         );
       }
       const _order = {
@@ -128,27 +143,11 @@ Page({
         _order,
         formatCreateTime: formatTime(order.createTime, 'YYYY-MM-DD HH:mm'), // 格式化订单创建时间
         addressEditable:
-          [OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_DELIVERY].includes(order.orderStatus) &&
+          order.orderStatus === OrderStatus.PENDING_DELIVERY &&
           order.orderSubStatus !== -1, // 订单正在取消审核时不允许修改地址（但是返回的状态码与待发货一致）
-        isPaid: !!order.paymentVO?.paySuccessTime,
-        logisticsNodes: this.flattenNodes(order.trajectoryVos || []),
+        showLogistics: !hasReceived,
       });
     });
-  },
-
-  // 展开物流节点
-  flattenNodes(nodes) {
-    return (nodes || []).reduce((res, node) => {
-      return (node.nodes || []).reduce((res1, subNode, index) => {
-        res1.push({
-          title: index === 0 ? node.title : '', // 子节点中仅第一个显示title
-          desc: subNode.status,
-          date: formatTime(+subNode.timestamp, 'YYYY-MM-DD HH:mm:ss'),
-          icon: index === 0 ? LogisticsIconMap[node.code] || '' : '', // 子节点中仅第一个显示icon
-        });
-        return res1;
-      }, res);
-    }, []);
   },
 
   // 拼接省市区
@@ -203,14 +202,10 @@ Page({
   },
 
   onDeliveryClick() {
-    const logisticsData = {
-      nodes: this.data.logisticsNodes,
-      company: this.data.order.logisticsVO?.logisticsCompanyName,
-      logisticsNo: this.data.order.logisticsVO?.logisticsNo,
-      phoneNumber: this.data.order.logisticsVO?.logisticsCompanyTel,
-    };
+    const logisticsNo = this.data.order.logisticsVO?.logisticsNo;
+    if (!logisticsNo) return;
     wx.navigateTo({
-      url: `/pages/order/delivery-detail/index?data=${encodeURIComponent(JSON.stringify(logisticsData))}`,
+      url: `/pages/order/logistics-webview/index?logisticsNo=${encodeURIComponent(logisticsNo)}`,
     });
   },
 

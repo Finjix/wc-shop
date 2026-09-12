@@ -1,6 +1,6 @@
 import { request } from '../../utils/api';
 
-const STATUS_LABELS = { 5: '待支付', 10: '待发货', 40: '待收货', 50: '已完成', 80: '已取消' };
+const STATUS_LABELS = { 10: '待发货', 40: '待收货', 50: '已完成', 80: '已取消' };
 
 function dataOf(response) {
   const value = response?.data ?? response;
@@ -10,7 +10,6 @@ function dataOf(response) {
 function statusOf(status) {
   if (typeof status === 'number') return status;
   const aliases = {
-    PENDING_PAYMENT: 5,
     PAID: 10,
     PENDING_DELIVERY: 10,
     SHIPPED: 40,
@@ -54,16 +53,21 @@ function pagingOf(parameter = {}) {
 }
 
 function buttonsForStatus(orderStatus) {
-  if (orderStatus === 5) return [{ type: 1, name: '去支付', primary: true }, { type: 2, name: '取消订单' }];
   if (orderStatus === 40) return [{ type: 3, name: '确认收货', primary: true }];
-  if (orderStatus === 50) return [{ type: 6, name: '评价', primary: true }, { type: 7, name: '删除订单' }];
-  if (orderStatus === 80) return [{ type: 7, name: '删除订单' }];
+  if (orderStatus === 50) return [{ type: 6, name: '评价', primary: true }];
   return [];
+}
+
+function visibleButtons(buttons = []) {
+  return buttons.filter((button) => Number(button.type) !== 4);
 }
 
 export function normalizeOrder(order = {}) {
   const orderStatus = statusOf(order.orderStatus ?? order.status);
   const items = (order.orderItemVOs || order.items || order.goodsList || []).map(normalizeItem);
+  const providedButtons = visibleButtons(
+    Array.isArray(order.buttonVOs) && order.buttonVOs.length ? order.buttonVOs : order.buttons,
+  );
   return {
     ...order,
     orderId: order.orderId ?? order.id ?? order._id,
@@ -76,7 +80,7 @@ export function normalizeOrder(order = {}) {
     goodsAmountApp: order.goodsAmountApp ?? order.subtotal ?? order.totalAmount ?? 0,
     createTime: order.createTime || order.createdAt,
     orderItemVOs: items,
-    buttonVOs: Array.isArray(order.buttonVOs) && order.buttonVOs.length ? order.buttonVOs : (Array.isArray(order.buttons) && order.buttons.length ? order.buttons : buttonsForStatus(orderStatus)),
+    buttonVOs: providedButtons.length ? providedButtons : buttonsForStatus(orderStatus),
     logisticsVO: { ...(order.logisticsVO || order.logistics || {}) },
   };
 }

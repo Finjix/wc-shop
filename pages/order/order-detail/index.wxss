@@ -34,6 +34,7 @@
 
 .order-logistics .logistics-content {
   flex: 1;
+  min-width: 0;
 }
 
 .order-logistics .logistics-content .logistics-time {
@@ -49,6 +50,8 @@
 }
 
 .order-logistics .edit-text {
+  flex-shrink: 0;
+  margin-left: 24rpx;
   color: var(--app-theme-text-color, #695941);
   font-size: 26rpx;
   line-height: 36rpx;
@@ -88,6 +91,9 @@
   background-color: #ffffff;
 }
 .order-detail .pay-detail .pay-item .pay-item__right {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: 24rpx;
   color: #333333;
   font-size: 24rpx;
   display: flex;
@@ -139,6 +145,11 @@
 
 .pay-item .pay-item__right .order-no {
   color: #333333;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
   font-size: 26rpx;
   line-height: 40rpx;
   padding-right: 16rpx;

@@ -43,7 +43,6 @@
         </view>
       </wr-goods-card>
       <view slot="more">
-        <view class="status-desc">{{order.statusDesc}}</view>
         <wr-after-service-button-bar service="{{order}}" bindrefresh="onRefresh" />
       </view>
     </wr-order-card>

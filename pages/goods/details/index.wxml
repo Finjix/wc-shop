@@ -35,7 +35,6 @@
           />
           <view class="goods-price-up">起</view>
         </view>
-        <view class="goods-sold">已售：{{details.soldNum || 0}}</view>
       </view>
       <view class="goods-title">
         <view class="goods-name">{{details.title}}</view>

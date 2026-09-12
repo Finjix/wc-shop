@@ -37,7 +37,7 @@ function priceFormat(price, fill = 0) {
  */
 const cosThumb = (url, width, height = width) => {
   if (!url) return '';
-  if (url.indexOf('?') > -1) {
+  if (url.indexOf('?') > -1 || url.indexOf('/') === 0 || url.indexOf('wxfile://') === 0) {
     return url;
   }
 

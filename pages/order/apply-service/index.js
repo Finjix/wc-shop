@@ -6,11 +6,14 @@ import reasonSheet from '../components/reason-sheet/reasonSheet';
 import {
   fetchRightsPreview,
   dispatchConfirmReceived,
-  fetchApplyReasonList,
   dispatchApplyService,
 } from './api';
 import { getApiErrorMessage } from '../../../utils/api';
 import { normalizeServiceType } from '../after-service-detail/contract';
+
+function isApiUnavailable(error) {
+  return error?.code === 'API_UNAVAILABLE';
+}
 
 Page({
   query: {},
@@ -24,12 +27,10 @@ Page({
       { desc: '未收到货', status: ServiceReceiptStatus.NOT_RECEIPTED },
       { desc: '已收到货', status: ServiceReceiptStatus.RECEIPTED },
     ],
-    applyReasons: [],
     serviceType: ServiceType.RETURN_GOODS, // 20-仅退款，10-退货退款
     serviceFrom: {
       returnNum: 1,
       receiptStatus: { desc: '请选择', status: null },
-      applyReason: { desc: '请选择', type: null },
       // max-填写上限(单位分)，current-当前值(单位分)，temp输入框中的值(单位元)
       amount: { max: 0, current: 0, temp: 0, focus: false },
       remark: '',
@@ -82,14 +83,10 @@ Page({
     let valid = true;
     let msg = '';
     // 检查必填项
-    if (!this.data.serviceFrom.applyReason.type) {
+    if (!(this.data.serviceFrom.remark || '').trim()) {
       valid = false;
       msg = '请填写退款原因';
-    } else if (!this.data.serviceFrom.amount.current) {
-      valid = false;
-      msg = '请填写退款金额';
-    }
-    if (this.data.serviceFrom.amount.current <= 0) {
+    } else if (Number(this.data.serviceFrom.amount.current) <= 0) {
       valid = false;
       msg = '退款金额必须大于0';
     }
@@ -99,14 +96,16 @@ Page({
   onLoad(query) {
     this.query = query;
     this.isOrderLevel = query.orderLevel === 'true';
+    this.isDirectApply = query.directApply === 'true';
     if (!this.checkQuery()) return;
     this.setData({
       canApplyReturn: query.canApplyReturn === 'true',
       orderLevel: this.isOrderLevel,
+      serviceRequireType: this.isDirectApply ? 'REFUND_MONEY' : '',
+      serviceType: this.isDirectApply ? ServiceType.ONLY_REFUND : ServiceType.RETURN_GOODS,
     });
     this.init();
     this.setWatcher('serviceFrom.returnNum', this.validate.bind(this));
-    this.setWatcher('serviceFrom.applyReason', this.validate.bind(this));
     this.setWatcher('serviceFrom.amount', this.validate.bind(this));
     this.setWatcher('serviceFrom.rightsImageUrls', this.validate.bind(this));
   },
@@ -114,10 +113,12 @@ Page({
   async init() {
     try {
       await this.refresh();
-      // 收货状态仍保持“请选择”，但退款原因可以直接打开查看
-      const applyReasons = await this.getApplyReasons(ServiceReceiptStatus.RECEIPTED);
-      this.setData({ applyReasons });
+      // 直接申请售后时默认进入“仅退款”表单，并预选未收到货。
+      if (this.isDirectApply) {
+        this.setData({ 'serviceFrom.receiptStatus': this.data.receiptStatusList[0] });
+      }
     } catch (error) {
+      if (isApiUnavailable(error)) return;
       Toast({
         context: this,
         selector: '#t-toast',
@@ -232,12 +233,14 @@ Page({
             }).then(() => ServiceReceiptStatus.RECEIPTED);
           }).catch((error) => {
             if (error && error.code) {
-              Toast({
-                context: this,
-                selector: '#t-toast',
-                message: getApiErrorMessage(error, '确认收货失败，请稍后重试'),
-                icon: '',
-              });
+              if (!isApiUnavailable(error)) {
+                Toast({
+                  context: this,
+                  selector: '#t-toast',
+                  message: getApiErrorMessage(error, '确认收货失败，请稍后重试'),
+                  icon: '',
+                });
+              }
               return null;
             }
             return ServiceReceiptStatus.NOT_RECEIPTED;
@@ -252,24 +255,6 @@ Page({
           receiptStatus === ServiceReceiptStatus.NOT_RECEIPTED ? 0 : 1,
         );
       });
-  },
-
-  onApplyReturnGoodsStatus() {
-    reasonSheet({
-      show: true,
-      title: '选择退款原因',
-      options: this.data.applyReasons.map((r) => ({
-        title: r.desc,
-        checked: r.type === this.data.serviceFrom.applyReason.type,
-      })),
-      showConfirmButton: true,
-      showCancelButton: true,
-      emptyTip: '请选择退款原因',
-    }).then((indexes) => {
-      this.setData({
-        'serviceFrom.applyReason': this.data.applyReasons[indexes[0]],
-      });
-    });
   },
 
   onChangeReturnNum(e) {
@@ -298,55 +283,21 @@ Page({
 
   switchReceiptStatus(index) {
     const statusItem = this.data.receiptStatusList[index];
-    // 没有找到对应的状态，则清空/初始化
     if (!statusItem) {
       this.setData({
         showReceiptStatusDialog: false,
         'serviceFrom.receiptStatus': { desc: '请选择', status: null },
-        'serviceFrom.applyReason': { desc: '请选择', type: null }, // 收货状态改变时，初始化申请原因
-        applyReasons: [],
       });
       return;
     }
-    // 仅选中项与当前项不一致时，才切换申请原因列表applyReasons
-    if (!statusItem || statusItem.status === this.data.serviceFrom.receiptStatus.status) {
+    if (statusItem.status === this.data.serviceFrom.receiptStatus.status) {
       this.setData({ showReceiptStatusDialog: false });
       return;
     }
-    this.getApplyReasons(statusItem.status).then((reasons) => {
-      this.setData({
-        showReceiptStatusDialog: false,
-        'serviceFrom.receiptStatus': statusItem,
-        'serviceFrom.applyReason': { desc: '请选择', type: null }, // 收货状态改变时，重置申请原因
-        applyReasons: reasons,
-      });
+    this.setData({
+      showReceiptStatusDialog: false,
+      'serviceFrom.receiptStatus': statusItem,
     });
-  },
-
-  getApplyReasons(receiptStatus) {
-    const params = {
-      orderNo: this.query.orderNo,
-      skuId: this.query.skuId,
-      spuId: this.query.spuId,
-      orderLevel: this.isOrderLevel,
-      rightsReasonType: receiptStatus,
-    };
-    return fetchApplyReasonList(params)
-      .then((res) => {
-        return res.data.rightsReasonList.map((reason) => ({
-          type: reason.id,
-          desc: reason.desc,
-        }));
-      })
-      .catch((error) => {
-        Toast({
-          context: this,
-          selector: '#t-toast',
-          message: getApiErrorMessage(error, '退款原因加载失败，请稍后重试'),
-          icon: '',
-        });
-        return [];
-      });
   },
 
   onReceiptStatusDialogConfirm(e) {
@@ -359,6 +310,7 @@ Page({
     this.setData({
       'serviceFrom.remark': value,
     });
+    this.validate();
   },
 
   // 发起申请售后请求
@@ -399,8 +351,7 @@ Page({
             refundRequestAmount: this.data.serviceFrom.amount.current,
             receiptStatus: this.data.serviceFrom.receiptStatus.status,
             rightsImageUrls: this.data.serviceFrom.rightsImageUrls,
-            rightsReasonDesc: this.data.serviceFrom.applyReason.desc,
-            rightsReasonType: this.data.serviceFrom.applyReason.type,
+            rightsReasonDesc: this.data.serviceFrom.remark,
             rightsType: normalizedType,
             type: normalizedType,
           },
@@ -428,6 +379,7 @@ Page({
       })
       .catch((error) => {
         this.applySubmitBlockedUntil = Date.now() + 1000;
+        if (isApiUnavailable(error)) return;
         Toast({
           context: this,
           selector: '#t-toast',

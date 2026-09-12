@@ -34,18 +34,6 @@ page {
   margin-top: 16rpx;
 }
 
-.comment-card .rate-container {
-  display: flex;
-  align-items: center;
-  margin-top: 22rpx;
-}
-
-.comment-card .rate-container .rate-title {
-  font-size: 28rpx;
-  font-weight: bold;
-  margin-right: 12rpx;
-}
-
 .comment-card .textarea-container {
   margin-top: 22rpx;
 }

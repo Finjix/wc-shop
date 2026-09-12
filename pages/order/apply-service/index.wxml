@@ -78,14 +78,6 @@
     <view class="service-from-group">
       <t-cell-group>
         <t-cell title="商品收货状态" arrow note="{{serviceFrom.receiptStatus.desc}}" bind:tap="onApplyGoodsStatus" />
-        <t-cell
-          bordered="{{false}}"
-          title="退款原因"
-          wx:if="{{canApplyReturn}}"
-          note="{{serviceFrom.applyReason.desc}}"
-          arrow
-          bindtap="onApplyReturnGoodsStatus"
-        />
       </t-cell-group>
     </view>
     <view class="service-from-group">
@@ -112,14 +104,14 @@
       </t-cell-group>
     </view>
     <view class="service-from-group__textarea">
-      <text class="textarea--label">退款说明</text>
+      <text class="textarea--label">退款原因</text>
       <t-textarea
         style="height: 220rpx"
         value="{{serviceFrom.remark}}"
         t-class="textarea--content"
         maxlength="200"
         indicator
-        placeholder="退款说明（选填）"
+        placeholder="请输入退款原因（必填）"
         bind:change="onRemarkChange"
       />
     </view>
@@ -132,13 +124,13 @@
         bind:complete="handleComplete"
         bind:select-change="handleSelectChange"
         gridConfig="{{uploadGridConfig}}"
-        max="3"
+        max="6"
       >
         <view slot="add-content" class="upload-addcontent-slot">
           <t-icon name="add" size="60rpx" />
           <view class="upload-desc">
             <text>上传凭证</text>
-            <text>（最多3张）</text>
+            <text>（最多6张）</text>
           </view>
         </view>
       </t-upload>

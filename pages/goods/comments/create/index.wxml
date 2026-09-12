@@ -17,23 +17,10 @@
         <view class="goods-detail">{{goodsDetail}}</view>
       </view>
     </view>
-    <view class="rate-container">
-      <text class="rate-title">商品评价</text>
-      <view class="rate">
-        <t-rate
-          value="{{goodRateValue}}"
-          bind:change="onRateChange"
-          size="26"
-          gap="6"
-          color="{{['#695941', '#ddd']}}"
-          data-item="goodRateValue"
-        />
-      </view>
-    </view>
     <view class="textarea-container">
       <t-textarea
         t-class="textarea"
-        maxlength="{{500}}"
+        maxlength="{{100}}"
         indicator
         placeholder="对商品满意吗？评论一下"
         bind:change="onTextAreaChange"
@@ -43,7 +30,7 @@
       <t-upload
         media-type="{{['image']}}"
         files="{{uploadFiles}}"
-        max="3"
+        max="4"
         bind:remove="handleRemove"
         bind:success="handleSuccess"
         gridConfig="{{gridConfig}}"

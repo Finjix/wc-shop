@@ -1,34 +1,30 @@
 export const OrderStatus = {
-  PENDING_PAYMENT: 5, // 待支付
   PENDING_DELIVERY: 10, // 待发货
   PENDING_RECEIPT: 40, // 待收货
   COMPLETE: 50, // 已完成/待评价
-  PAYMENT_TIMEOUT: 80, // 已取消，支付超时
-  CANCELED_NOT_PAYMENT: 80, // 已取消，未支付主动取消
-  CANCELED_PAYMENT: 80, // 已取消，已支付主动取消
-  CANCELED_REJECTION: 80, // 已取消，拒收
+  CANCELED: 80, // 已取消
+  CANCELED_PAYMENT: 80, // 已支付后取消
+  CANCELED_REJECTION: 80, // 拒收
 };
 
 export const OrderStatusDesc = {
-  [OrderStatus.PENDING_PAYMENT]: '待支付',
   [OrderStatus.PENDING_DELIVERY]: '待发货',
   [OrderStatus.PENDING_RECEIPT]: '待收货',
   [OrderStatus.COMPLETE]: '已完成',
-  [OrderStatus.PAYMENT_TIMEOUT]: '已取消',
+  [OrderStatus.CANCELED]: '已取消',
 };
 
 export function normalizeOrderStatus(status) {
   if (typeof status === 'number') return status;
   const aliases = {
-    PENDING_PAYMENT: OrderStatus.PENDING_PAYMENT,
     PENDING_DELIVERY: OrderStatus.PENDING_DELIVERY,
     PENDING_RECEIPT: OrderStatus.PENDING_RECEIPT,
     COMPLETE: OrderStatus.COMPLETE,
     COMPLETED: OrderStatus.COMPLETE,
-    CANCELED: OrderStatus.PAYMENT_TIMEOUT,
-    CANCELLED: OrderStatus.PAYMENT_TIMEOUT,
+    CANCELED: OrderStatus.CANCELED,
+    CANCELLED: OrderStatus.CANCELED,
   };
-  return aliases[String(status ?? '').toUpperCase()] ?? (Number(status) || OrderStatus.PAYMENT_TIMEOUT);
+  return aliases[String(status ?? '').toUpperCase()] ?? (Number(status) || OrderStatus.CANCELED);
 }
 
 // 售后状态 10:待审核,20:已审核,30:已收货,40:收货异常,50:已完成,60:已关闭;
@@ -56,16 +52,14 @@ export const ServiceTypeDesc = {
 
 // 订单按钮类型
 export const OrderButtonTypes = {
-  PAY: 1, // 付款
   CANCEL: 2, // 取消订单
   CONFIRM: 3, // 确认收货
   APPLY_REFUND: 4, // 申请售后
   VIEW_REFUND: 5, // 查看退款
   COMMENT: 6, // 评价
-  DELETE: 7, // 删除订单
+  VIEW_COMMENT: 10, // 查看评价
   DELIVERY: 8, // 查看物流
   REBUY: 9, // 再次购买
-  VIEW_COMMENT: 10, // 查看评价
   INVITE_GROUPON: 11, //邀请好友拼团
 };
 

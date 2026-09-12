@@ -71,12 +71,6 @@ page {
   left: 8rpx;
 }
 
-.goods-detail-page .goods-info .goods-sold {
-  color: #999999;
-  font-size: 24rpx;
-  line-height: 36rpx;
-}
-
 .goods-detail-page .goods-info .goods-price .class-goods-price {
   font-size: 64rpx;
   color: var(--app-theme-text-color, #695941);

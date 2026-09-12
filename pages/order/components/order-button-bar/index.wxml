@@ -1,18 +1,7 @@
 <view class="btn-bar">
-  <view class="left">
-    <t-button
-      wx:for="{{buttons.left}}"
-      wx:key="type"
-      wx:for-item="leftBtn"
-      size="extra-small"
-      shape="round"
-      t-class="{{isBtnMax ? 't-button--max':'t-button'}}  order-btn delete-btn"
-      hover-class="order-btn--active"
-      catchtap="onOrderBtnTap"
-      data-type="{{leftBtn.type}}"
-    >
-      {{leftBtn.name}}
-    </t-button>
+  <view wx:if="{{showAmount}}" class="order-pay-amount">
+    <text class="order-pay-amount__label">实付</text>
+    <price fill decimalSmaller wr-class="order-pay-amount__price" price="{{order.amount || '0'}}" />
   </view>
   <view class="right">
     <t-button

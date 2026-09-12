@@ -149,14 +149,6 @@
           t-class="t-refund-wrapper"
           t-class-title="t-refund-info"
           t-class-note="t-refund-note"
-          title="退款原因"
-          note="{{service.rightsReasonDesc}}"
-        />
-        <t-cell
-          bordered="{{false}}"
-          t-class="t-refund-wrapper"
-          t-class-title="t-refund-info"
-          t-class-note="t-refund-note"
           title="退款金额"
         >
           <wr-price slot="note" price="{{service.refundRequestAmount}}" fill />
@@ -169,15 +161,22 @@
           title="申请时间"
           note="{{service.createTime}}"
         />
+        <t-cell
+          bordered="{{false}}"
+          t-class="t-refund-wrapper"
+          t-class-title="t-refund-info"
+          t-class-note="t-refund-note"
+          title="退款原因"
+          note="{{service.rightsReasonDesc}}"
+        />
       </view>
-      <!-- 凭证/说明 -->
+      <!-- 凭证 -->
       <view class="service-section__pay credential_desc" wx:if="{{showProofs}}">
         <t-cell
           bordered="{{false}}"
-          title="凭证/说明"
+          title="凭证"
           t-class="t-refund-wrapper"
           t-class-title="t-refund-info"
-          description="{{service.applyRemark}}"
         />
         <t-grid border="{{false}}" column="{{3}}">
           <t-grid-item

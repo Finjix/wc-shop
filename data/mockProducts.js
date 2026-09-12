@@ -72,7 +72,6 @@ function createMockProduct(index) {
     desc: [TEST_IMAGE],
     minSalePrice: Math.min(...salePrices),
     price: Math.min(...salePrices),
-    soldNum: index * 128 + 36,
     spuStockQuantity: totalStock,
     isPutOnSale: 1,
     available: true,

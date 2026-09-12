@@ -5,8 +5,25 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 72rpx;
   line-height: 1;
 }
+.btn-bar .order-pay-amount {
+  display: flex;
+  align-items: baseline;
+  color: #333333;
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+.btn-bar .order-pay-amount__label {
+  margin-right: 8rpx;
+}
+.btn-bar .order-pay-amount__price {
+  color: #000000;
+  font-size: 36rpx;
+  font-weight: bold;
+}
+
 .btn-bar .order-btn {
   line-height: 1;
   /* border-radius: unset; */
@@ -16,6 +33,7 @@
 .btn-bar .right {
   display: flex;
   align-items: center;
+  margin-left: auto;
 }
 .btn-bar .t-button {
   width: 160rpx;
@@ -27,13 +45,6 @@
   margin-left: 24rpx;
 
   --td-button-extra-small-height: 72rpx;
-}
-
-.btn-bar .left .delete-btn {
-  font-size: 22rpx;
-}
-.btn-bar .left .delete-btn::after {
-  display: none;
 }
 
 .btn-bar .right .normal {

@@ -44,37 +44,11 @@
 .empty-wrapper {
   height: calc(100vh - 88rpx);
 }
-.btn-bar {
-  margin-top: 20rpx;
-}
 .load-more {
   margin: 0 24rpx;
 }
 wr-order-goods-card:not(:first-child) .wr-goods-card {
   margin-top: 40rpx;
-}
-
-.price-total {
-  font-size: 24rpx;
-  line-height: 32rpx;
-  color: #999999;
-  padding-top: 10rpx;
-  width: 100%;
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-end;
-}
-.price-total .bold-price {
-  color: #333333;
-  font-size: 28rpx;
-  line-height: 40rpx;
-  color: #333333;
-}
-.price-total .real-pay {
-  font-size: 36rpx;
-  line-height: 48rpx;
-  color: #000000;
-  font-weight: bold;
 }
 
 .t-tabs.t-tabs--top .t-tabs-scroll {

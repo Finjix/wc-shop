@@ -14,9 +14,6 @@
   display: flex;
   align-items: center;
 }
-.pay-result .pay-status text {
-  padding-left: 12rpx;
-}
 .pay-result .pay-money {
   color: #666666;
   font-size: 28rpx;
@@ -35,15 +32,16 @@
   margin-top: 48rpx;
   padding: 12rpx 32rpx;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   width: 100%;
   box-sizing: border-box;
 }
 
 .pay-result .btn-wrapper .status-btn {
   height: 88rpx;
-  width: 334rpx;
+  width: 100%;
   border-radius: 44rpx;
   border: 2rpx solid var(--app-theme-color, #695941);
   color: #333333;
@@ -51,4 +49,9 @@
   font-weight: bold;
   line-height: 88rpx;
   text-align: center;
+  box-sizing: border-box;
+}
+
+.pay-result .btn-wrapper .status-btn + .status-btn {
+  margin-top: 24rpx;
 }

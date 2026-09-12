@@ -61,15 +61,13 @@
         no-top-line="{{gIndex === 0}}"
       />
       <view slot="more">
-        <view class="price-total">
-          <text>总价</text>
-          <price fill price="{{order.totalAmount + ''}}" />
-          <text decode>&nbsp;</text>
-          <text class="bold-price" decode="{{true}}">实付&nbsp;</text>
-          <price fill class="real-pay" price="{{order.amount + ''}}" decimalSmaller />
-        </view>
-        <!-- 订单按钮栏 -->
-        <order-button-bar order="{{order}}" bindrefresh="onRefresh" data-order="{{order}}" />
+        <!-- 实付金额与订单操作按钮保持在同一行 -->
+        <order-button-bar
+          order="{{order}}"
+          showAmount="{{true}}"
+          bindrefresh="onRefresh"
+          data-order="{{order}}"
+        />
       </view>
     </order-card>
     <!-- 列表加载中/已全部加载 -->

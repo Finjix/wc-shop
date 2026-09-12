@@ -135,7 +135,6 @@ Page({
         receiverName: logisticsVO.receiverName, // 收货人
         receiverPhone: logisticsVO.receiverPhone, // 收货人电话
         receiverAddress: this.composeAddress(serviceRaw), // 收货人地址
-        applyRemark: serviceRaw.rightsRefund?.refundDesc, // 申请退款时的填写的说明
         buttons: serviceRaw.buttonVOs || [],
         logistics: logisticsVO,
       };
@@ -146,9 +145,7 @@ Page({
         deliveryButton,
         pageTitle: TitleConfig[service.type] || '退款详情',
         'gallery.proofs': proofs,
-        showProofs:
-          rights.userRightsStatus === ServiceStatus.PENDING_VERIFY &&
-          (service.applyRemark || proofs.length > 0),
+        showProofs: proofs.length > 0,
       });
     });
   },

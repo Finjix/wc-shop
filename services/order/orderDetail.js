@@ -37,4 +37,3 @@ export function fetchBusinessTime(params = {}) {
 
 export function cancelOrder(orderNo) { return request('orders.cancel', { orderNo }); }
 export function confirmOrderReceived(params = {}) { return request('orders.confirmReceived', params); }
-export function deleteOrder(orderNo) { return request('orders.delete', { orderNo }); }

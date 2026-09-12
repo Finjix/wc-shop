@@ -90,7 +90,6 @@
         layout="horizontal"
         goodsList="{{goodsList}}"
         showAddCart="{{false}}"
-        showSold="{{true}}"
         card-style="white"
         bind:click="gotoGoodsDetail"
       />

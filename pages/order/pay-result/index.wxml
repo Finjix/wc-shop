@@ -8,7 +8,6 @@
 />
 <view class="pay-result">
 	<view class="pay-status">
-		<t-icon name="check-circle-filled" size="60rpx" color="#47D368" />
 		<text>支付成功</text>
 	</view>
 	<view class="pay-money">
