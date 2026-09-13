@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Button, Tag } from 'tdesign-react';
+import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Button } from 'tdesign-react';
 import { useAuth } from '../auth/AuthProvider';
 
 const navGroups = [
@@ -13,8 +13,7 @@ const navGroups = [
     items: [
       { to: '/products', label: '商品', icon: '▦' },
       { to: '/categories', label: '分类', icon: '◫' },
-      { to: '/skus', label: 'SKU', icon: '◇' },
-      { to: '/inventory', label: '库存', icon: '▤' },
+      { to: '/skus', label: 'SKU / 库存', icon: '◇' },
     ],
   },
   {
@@ -26,20 +25,11 @@ const navGroups = [
       { to: '/after-sales', label: '售后', icon: '↩' },
     ],
   },
-  {
-    title: '用户与系统',
-    items: [
-      { to: '/users', label: '用户 / 地址', icon: '♙' },
-      { to: '/settings', label: '系统设置', icon: '⚙' },
-    ],
-  },
 ];
 
 export function AdminLayout() {
   const [open, setOpen] = useState(false);
-  const { member, logout } = useAuth();
-  const location = useLocation();
-  const current = navGroups.flatMap((group) => group.items).find((item) => location.pathname.startsWith(item.to));
+  const { logout } = useAuth();
 
   return (
     <div className="admin-shell">
@@ -67,21 +57,13 @@ export function AdminLayout() {
             </div>
           ))}
         </nav>
-        <div className="sidebar-foot">CloudBase Web Admin</div>
       </aside>
 
       <main className="main-area">
         <header className="topbar">
           <button className="menu-button" onClick={() => setOpen(true)} aria-label="打开导航">☰</button>
-          <div>
-            <div className="breadcrumb">管理后台 / {current?.label || '页面'}</div>
-            <h1>{current?.label || '管理后台'}</h1>
-          </div>
           <div className="topbar-actions">
-            <Tag theme="success" variant="light">真实云端</Tag>
             <div className="account-menu">
-              <span className="avatar">{String(member?.displayName || member?.username || '管').slice(0, 1)}</span>
-              <span className="account-name">{member?.displayName || member?.username || '管理员'}</span>
               <Button variant="text" theme="default" onClick={() => void logout()}>退出</Button>
             </div>
           </div>

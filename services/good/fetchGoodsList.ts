@@ -2,8 +2,10 @@
 
 import { request } from '../../utils/api';
 import { normalizeSearchResult, toProductListPayload } from './normalize';
+import { resolveGoodsListImages } from './resolveImages';
 
-export function fetchGoodsList(params = {}) {
-  return request('products.list', toProductListPayload(params)).then(normalizeSearchResult);
+export async function fetchGoodsList(params = {}) {
+  const result = normalizeSearchResult(await request('products.list', toProductListPayload(params)));
+  return { ...result, spuList: await resolveGoodsListImages(result.spuList) };
 }
 // @ts-nocheck

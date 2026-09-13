@@ -54,13 +54,12 @@ wx.cloud.callFunction({
 - `inventory.adjust`
 - `home.list/get/upsert`
 - `orders.list/get/updateStatus/ship/cancel`
-- `users.list/get/update`
 - `comments.list/get/updateStatus/delete`
 - `afterSales.list/get/updateStatus`
 - `settings.list/get/upsert`
 - `storage.tempUrls`
 
-商品图片、评论图片和后台图片字段保存 CloudBase `fileId` 或经过 CloudBase SDK 生成的临时 URL。函数只负责解析临时 URL；实际文件上传应由已认证的小程序/Web SDK 直接上传到云存储，不能把 Secret 放进前端。
+商品图片、SKU 图片、首页轮播图和评论图片字段保存 CloudBase `fileId` 或经过 CloudBase SDK 生成的临时 URL。函数只负责解析临时 URL；实际文件上传应由已认证的小程序/Web SDK 直接上传到云存储，不能把 Secret 放进前端。
 
 ## 订单和库存边界
 
@@ -74,7 +73,7 @@ wx.cloud.callFunction({
 
 ## 集合结构与建议索引
 
-核心集合：`categories`、`products`、`skus`、`users`、`addresses`、`carts`、`orders`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`、`adminMembers`。
+核心集合：`categories`、`products`、`skus`、`addresses`、`carts`、`orders`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`、`adminMembers`；不建立用户档案集合。
 
 建议在 CloudBase 数据库中建立以下索引（均为非唯一，除非控制台明确支持并确认现有数据无重复）：
 
@@ -93,7 +92,7 @@ wx.cloud.callFunction({
 
 - `products`: `title`, `primaryImage`, `images`, `categoryIds`, `status`, `sort`, `minSalePrice`, `maxSalePrice`
 - `skus`: `productId`, `skuId`, `specInfo`, `salePrice`, `status`, `stockQuantity`, `soldQuantity`
-- `users/addresses/carts`: 均带 `userId`；购物车文档 `_id` 推荐直接使用 UID
+- `addresses/carts`: 均带 `userId`；购物车文档 `_id` 推荐直接使用 UID
 - `orders`: `userId`, `status`, `paymentStatus`, `items`, `addressSnapshot`, `subtotal`, `shippingFee`, `totalAmount`, `requestHash`
 - `adminMembers`: `_id`/`uid`, `roles`, `status`, `enabled`
 
@@ -109,6 +108,7 @@ wx.cloud.callFunction({
 - 所有用户写操作只使用服务端从 CloudBase 请求上下文解析的 UID；`userId`、金额、库存、订单状态和管理员角色不信任客户端。
 - `scope: 'admin'` 的请求必须同时通过 CloudBase UID 身份校验、`adminMembers` 存在性、启用状态和角色 scope 校验；`scope` 只负责路由，不能替代权限校验。
 - 服务端 SDK 具备管理员数据库权限，因此数据库客户端规则仍应配置为最小权限：客户端不直接写商品、库存、订单状态、管理员、设置或评论审核字段。
+- `user.me` / `user.update` 只返回当前请求身份所需的临时资料，不建立或更新用户档案；订单仍保留履约所需的 `userId` 和收货地址快照。
 - `fileId` 必须是应用约定的 CloudBase 存储路径；生产环境应在云存储规则或后台函数中继续限制前缀、文件类型和大小。
 - 函数没有硬编码环境 ID、账号、SecretId、SecretKey、密码或支付密钥。
 

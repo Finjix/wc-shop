@@ -1,6 +1,9 @@
 import { cloudbaseApp, requireCloudBase } from './cloudbase';
 import type { ApiEnvelope } from '../types';
 
+const localApiUrl = import.meta.env.VITE_LOCAL_API_URL?.trim() ?? '';
+const localSessionKey = 'wc-shop.local-admin-session';
+
 export class ApiError extends Error {
   requestId?: string;
   code?: string;
@@ -46,7 +49,57 @@ function unwrap<T>(result: ApiEnvelope<T> | undefined, requestId?: string): T {
   return result.data;
 }
 
+function localSession() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const value = window.localStorage.getItem(localSessionKey);
+    return value ? JSON.parse(value) as { uid?: string; username?: string } : null;
+  } catch {
+    return null;
+  }
+}
+
+function localHeaders() {
+  const session = localSession();
+  return {
+    'content-type': 'application/json',
+    'x-local-uid': session?.uid || 'local-admin',
+  };
+}
+
+async function callLocal<T>(action: string, payload: Record<string, unknown> = {}) {
+  const response = await fetch(`${localApiUrl.replace(/\/$/, '')}/api`, {
+    method: 'POST',
+    headers: localHeaders(),
+    body: JSON.stringify({ scope: 'admin', action, data: payload }),
+  });
+  let result: ApiEnvelope<T> | undefined;
+  try {
+    result = await response.json() as ApiEnvelope<T>;
+  } catch {
+    throw new ApiError(`本地后台响应无效（HTTP ${response.status}）`);
+  }
+  return unwrap(result, String(response.status));
+}
+
+async function localLogin(username: string, password: string) {
+  const response = await fetch(`${localApiUrl.replace(/\/$/, '')}/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const result = await response.json() as ApiEnvelope<{ uid: string; username: string }>;
+  const session = unwrap(result, String(response.status));
+  window.localStorage.setItem(localSessionKey, JSON.stringify(session));
+  return session;
+}
+
+function clearLocalSession() {
+  if (typeof window !== 'undefined') window.localStorage.removeItem(localSessionKey);
+}
+
 export async function callAdmin<T>(action: string, payload: Record<string, unknown> = {}) {
+  if (localApiUrl) return callLocal<T>(action, payload);
   const { app } = requireCloudBase();
   try {
     const response = await app.callFunction({
@@ -62,6 +115,19 @@ export async function callAdmin<T>(action: string, payload: Record<string, unkno
 }
 
 export async function uploadCloudFile(file: File, folder = 'admin/products') {
+  if (localApiUrl) {
+    const response = await fetch(`${localApiUrl.replace(/\/$/, '')}/upload`, {
+      method: 'POST',
+      headers: localHeaders(),
+      body: JSON.stringify({
+        folder,
+        name: file.name,
+        content: Array.from(new Uint8Array(await file.arrayBuffer())),
+      }),
+    });
+    const result = await response.json() as ApiEnvelope<{ fileID: string }>;
+    return unwrap(result, String(response.status)).fileID;
+  }
   if (!cloudbaseApp) throw new ApiError('未配置 CloudBase 环境 ID，无法上传图片。');
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const cloudPath = `${folder}/${Date.now()}-${safeName}`;
@@ -74,6 +140,10 @@ export async function uploadCloudFile(file: File, folder = 'admin/products') {
 }
 
 export async function getTempFileUrl(fileID: string) {
+  if (localApiUrl) {
+    const result = await callLocal<Array<{ fileID: string; tempFileURL?: string }>>('storage.tempUrls', { fileList: [fileID] });
+    return result?.[0]?.tempFileURL || fileID;
+  }
   if (!cloudbaseApp) throw new ApiError('未配置 CloudBase 环境 ID，无法读取图片。');
   const result = await cloudbaseApp.getTempFileURL({ fileList: [fileID] });
   return result.fileList?.[0]?.tempFileURL || fileID;
@@ -83,4 +153,8 @@ export const adminApi = {
   call: <T>(action: string, payload: Record<string, unknown> = {}) => callAdmin<T>(action, payload),
   upload: uploadCloudFile,
   getTempFileUrl,
+  isLocal: Boolean(localApiUrl),
+  localLogin,
+  localSession,
+  clearLocalSession,
 };

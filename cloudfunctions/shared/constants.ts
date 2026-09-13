@@ -4,7 +4,6 @@ const COLLECTIONS = Object.freeze({
   categories: 'categories',
   products: 'products',
   skus: 'skus',
-  users: 'users',
   addresses: 'addresses',
   carts: 'carts',
   orders: 'orders',
@@ -63,7 +62,6 @@ const ADMIN_SCOPES = Object.freeze({
   read: ADMIN_ROLES,
   catalog: ['superadmin', 'admin', 'operations', 'inventory', 'content'],
   orders: ['superadmin', 'admin', 'operations', 'customer_service'],
-  users: ['superadmin', 'admin', 'customer_service'],
   content: ['superadmin', 'admin', 'operations', 'content'],
   settings: ['superadmin', 'admin'],
 });

@@ -6,7 +6,7 @@ const { requireAdmin } = require('./auth');
 const { getDoc, list, affected, withTransaction } = require('./db');
 const { getTempFileURLs } = require('./storage');
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
-const { skuStock } = require('./shop');
+const { skuPrice, skuStock } = require('./shop');
 
 function now() { return new Date().toISOString(); }
 function col(runtime, name) { return runtime.db.collection(name); }
@@ -39,6 +39,28 @@ async function listCollection(runtime, name, data, where) {
 
 function statusValue(value, fallback) {
   return value === undefined ? fallback : string(value, 'status', { max: 40 });
+}
+
+async function syncProductPrices(runtime, sku) {
+  const reference = sku && (sku.productId || sku.spuId);
+  if (!reference) return;
+  const products = col(runtime, COLLECTIONS.products);
+  const direct = await getDoc(products, String(reference), false);
+  const fallback = direct ? null : await products.where({ spuId: String(reference) }).limit(1).get();
+  const product = direct || fallback?.data?.[0];
+  if (!product) return;
+  const refs = Array.from(new Set([product._id, product.spuId].filter(Boolean).map(String)));
+  const batches = [];
+  for (const ref of refs) {
+    batches.push(await list(col(runtime, COLLECTIONS.skus), { where: { status: STATUS.active, productId: ref } }));
+    batches.push(await list(col(runtime, COLLECTIONS.skus), { where: { status: STATUS.active, spuId: ref } }));
+  }
+  const activeSkus = Array.from(new Map(batches.flatMap((batch) => batch.items).map((item) => [String(item._id || item.skuId), item])).values());
+  const prices = activeSkus.map((item) => skuPrice(item)).filter((value) => Number.isFinite(value) && value > 0);
+  const pricePatch = prices.length
+    ? { minSalePrice: Math.min(...prices), maxSalePrice: Math.max(...prices) }
+    : { minSalePrice: 0, maxSalePrice: 0 };
+  await products.doc(product._id || String(reference)).update({ ...pricePatch, updatedAt: now() });
 }
 
 async function catalogAction(runtime, data, action) {
@@ -74,31 +96,38 @@ async function catalogAction(runtime, data, action) {
     const timestamp = now();
     let item;
     if (entity === 'categories') item = { ...allowedFields(data, ['name', 'parentId', 'level', 'sort', 'icon', 'description']), status: statusValue(data.status, STATUS.active) };
-    else if (entity === 'products') item = { ...allowedFields(data, ['spuId', 'title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description']), status: statusValue(data.status, STATUS.active) };
+    else if (entity === 'products') item = { ...allowedFields(data, ['spuId', 'title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList']), status: statusValue(data.status, STATUS.active) };
     else item = { ...allowedFields(data, ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity']), status: statusValue(data.status, STATUS.active), stockQuantity: integer(data.stockQuantity === undefined ? 0 : data.stockQuantity, 'stockQuantity', { min: 0 }), soldQuantity: integer(data.soldQuantity === undefined ? 0 : data.soldQuantity, 'soldQuantity', { min: 0 }) };
     item.createdAt = timestamp;
     item.updatedAt = timestamp;
     const result = await collection.add(item);
     item._id = result.id || result._id;
+    if (entity === 'skus') await syncProductPrices(runtime, item);
     return item;
   }
   const id = string(data[`${entity.slice(0, -1)}Id`] || data.id || data.spuId || data.skuId, 'id', { max: 128 });
   const existing = await getDoc(collection, id, true);
   if (action.endsWith('.delete')) {
     await collection.doc(id).update({ status: STATUS.inactive, updatedAt: now() });
+    if (entity === 'skus') await syncProductPrices(runtime, { ...existing, status: STATUS.inactive });
     return { ...existing, status: STATUS.inactive, _id: id };
   }
   if (!action.endsWith('.update')) throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
   const fields = entity === 'categories'
     ? ['name', 'parentId', 'level', 'sort', 'icon', 'description', 'status']
     : entity === 'products'
-      ? ['spuId', 'title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'status']
+      ? ['spuId', 'title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList', 'status']
       : ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity', 'status'];
   const patch = allowedFields(data, fields);
   if (patch.status) patch.status = statusValue(patch.status);
-  if (entity === 'skus' && patch.stockQuantity !== undefined) patch.stockQuantity = integer(patch.stockQuantity, 'stockQuantity', { min: 0 });
+  if (entity === 'skus') {
+    if (patch.status && ![STATUS.active, STATUS.inactive].includes(patch.status)) throw errorFrom('INVALID_ARGUMENT', { field: 'status' });
+    if (patch.salePrice !== undefined) patch.salePrice = integer(patch.salePrice, 'salePrice', { min: 0 });
+    if (patch.stockQuantity !== undefined) patch.stockQuantity = integer(patch.stockQuantity, 'stockQuantity', { min: 0 });
+  }
   patch.updatedAt = now();
   await collection.doc(id).update(patch);
+  if (entity === 'skus') await syncProductPrices(runtime, { ...existing, ...patch, _id: id });
   return { ...existing, ...patch, _id: id };
 }
 
@@ -159,7 +188,12 @@ async function adminOrderAction(runtime, data, action) {
     const where = data.status ? { status: string(data.status, 'status', { max: 40 }) } : {};
     if (data.userId) where.userId = string(data.userId, 'userId', { max: 128 });
     if (data.orderNo) where.orderNo = string(data.orderNo, 'orderNo', { max: 128 });
-    return listCollection(runtime, COLLECTIONS.orders, data, where);
+    const result = await listCollection(runtime, COLLECTIONS.orders, data, where);
+    result.items = result.items.map((item) => {
+      const { addressSnapshot: _addressSnapshot, address: _address, userAddress: _userAddress, userAddressReq: _userAddressReq, ...summary } = item;
+      return summary;
+    });
+    return result;
   }
   const id = string(data.orderId || data.orderNo, 'orderId', { max: 128 });
   const direct = await getDoc(orders, id, false);
@@ -224,45 +258,18 @@ async function adminOrderAction(runtime, data, action) {
   });
 }
 
-async function usersAction(runtime, data, action) {
-  const users = col(runtime, COLLECTIONS.users);
-  if (action === 'users.list') {
-    const where = data.uid ? { uid: string(data.uid, 'uid', { max: 128 }) } : {};
-    return listCollection(runtime, COLLECTIONS.users, data, where);
-  }
-  const id = string(data.uid || data.userId, 'uid', { max: 128 });
-  const existing = await getDoc(users, id, true);
-  if (action === 'users.get') return existing;
-  if (action !== 'users.update') throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
-  const patch = { ...allowedFields(data, ['nickname', 'avatarUrl', 'status', 'note']), updatedAt: now() };
-  await users.doc(existing._id || id).update(patch);
-  return { ...existing, ...patch, _id: existing._id || id };
-}
-
-async function addressesAction(runtime, data) {
-  const where = data.userId ? { userId: string(data.userId, 'userId', { max: 128 }) } : {};
-  const result = await listCollection(runtime, COLLECTIONS.addresses, data, where);
-  result.items = result.items.map((item) => ({
-    ...item,
-    uid: item.uid || item.userId,
-    name: item.name || item.receiver,
-    detail: item.detail || item.address,
-  }));
-  return result;
-}
-
 async function dashboardSummary(runtime) {
-  const names = [COLLECTIONS.products, COLLECTIONS.orders, COLLECTIONS.users, COLLECTIONS.comments, COLLECTIONS.afterSales];
+  const names = [COLLECTIONS.products, COLLECTIONS.orders, COLLECTIONS.comments, COLLECTIONS.afterSales];
   const entries = await Promise.all(names.map((name) => list(col(runtime, name), {})));
-  const [products, orders, users, comments, afterSales] = entries.map((entry) => entry.items);
+  const [products, orders, comments, afterSales] = entries.map((entry) => entry.items);
   return {
     metrics: {
       productCount: products.length,
       orderCount: orders.length,
-      userCount: users.length,
       commentCount: comments.length,
       afterSaleCount: afterSales.length,
       pendingOrderCount: orders.filter((order) => order.status === STATUS.pendingPayment).length,
+      pendingAfterSaleCount: afterSales.filter((item) => item.status === STATUS.pendingReview).length,
     },
   };
 }
@@ -276,7 +283,15 @@ async function moderationAction(runtime, data, action, name) {
     if (data.userId) where.userId = string(data.userId, 'userId', { max: 128 });
     const result = await listCollection(runtime, name, data, where);
     if (name === COLLECTIONS.comments) result.items = result.items.map((item) => ({ ...item, score: item.score ?? item.rating, commentScore: item.commentScore ?? item.rating, commentContent: item.commentContent ?? item.content, orderNo: item.orderNo || item.orderId }));
-    if (name === COLLECTIONS.afterSales) result.items = result.items.map((item) => ({ ...item, afterSaleNo: item.afterSaleNo || item.rightsNo || item._id, orderNo: item.orderNo || item.orderId }));
+    if (name === COLLECTIONS.afterSales) result.items = result.items.map((item) => ({
+      ...item,
+      afterSaleNo: item.afterSaleNo || item.rightsNo || item._id,
+      orderNo: item.orderNo || item.orderId,
+      type: item.type ?? item.rightsType,
+      status: item.status ?? item.rightsStatus,
+      reason: item.reason || item.rightsReasonDesc,
+      amount: item.amount ?? item.refundAmount ?? item.refundRequestAmount,
+    }));
     return result;
   }
   const id = string(data.commentId || data.afterSaleId || data.id, 'id', { max: 128 });
@@ -319,7 +334,6 @@ async function settingsAction(runtime, data, action) {
 function scopeFor(action) {
   if (action.startsWith('products.') || action.startsWith('categories.') || action.startsWith('skus.') || action === 'inventory.adjust') return 'catalog';
   if (action.startsWith('orders.')) return 'orders';
-  if (action.startsWith('users.')) return 'users';
   if (action.startsWith('home.')) return 'content';
   if (action.startsWith('settings.')) return 'settings';
   if (action.startsWith('comments.') || action.startsWith('afterSales.')) return 'orders';
@@ -332,8 +346,11 @@ function normalizeAdminAction(action, data) {
   if (action === 'admin.me') nextAction = 'auth.me';
   if (action === 'dashboard.summary') return { action: 'dashboard.summary', data: nextData };
   if (action === 'products.save') {
-    nextAction = nextData.id || nextData.productId || nextData.spuId ? 'products.update' : 'products.create';
-    nextData = { ...nextData, status: nextData.status || (nextData.isPutOnSale === false ? STATUS.inactive : STATUS.active) };
+    const isUpdate = Boolean(nextData.id || nextData.productId || nextData.spuId);
+    nextAction = isUpdate ? 'products.update' : 'products.create';
+    if (!isUpdate || nextData.status !== undefined || nextData.isPutOnSale !== undefined) {
+      nextData = { ...nextData, status: nextData.status || (nextData.isPutOnSale === false ? STATUS.inactive : STATUS.active) };
+    }
     if (nextData.categoryIds === undefined && nextData.categoryId) nextData.categoryIds = [String(nextData.categoryId)];
   }
   if (action === 'categories.save') nextAction = nextData.id || nextData.categoryId ? 'categories.update' : 'categories.create';
@@ -365,8 +382,6 @@ async function adminEndpoint(event, context, runtime, action, data) {
   if (action === 'inventory.adjust') return inventoryAdjust(runtime, data);
   if (action.startsWith('home.')) return homeAction(runtime, data, action);
   if (action.startsWith('orders.')) return adminOrderAction(runtime, data, action);
-  if (action.startsWith('users.')) return usersAction(runtime, data, action);
-  if (action === 'addresses.list') return addressesAction(runtime, data);
   if (action.startsWith('comments.')) return moderationAction(runtime, data, action, COLLECTIONS.comments);
   if (action.startsWith('afterSales.')) return moderationAction(runtime, data, action, COLLECTIONS.afterSales);
   if (action.startsWith('settings.')) return settingsAction(runtime, data, action);

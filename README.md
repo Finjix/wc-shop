@@ -6,7 +6,7 @@
 
 - `pages/`、`services/`、`components/`：TypeScript 小程序页面、组件和业务适配层。
 - `cloudfunctions/`：`wc-shop-function` 统一 CloudBase 云函数，按 `shop` / `admin` scope 分流。
-- `admin/`：React + TypeScript + Vite 静态管理后台，覆盖商品、分类、SKU/库存、订单、用户、评论、售后和首页内容。
+- `admin/`：React + TypeScript + Vite 静态管理后台，覆盖商品、分类、SKU/库存、订单、评论、售后和首页内容。
 - `docs/cloudbase-migration.md`：环境、数据库、权限和部署清单。
 
 ## 本地检查
@@ -19,6 +19,22 @@ npm run typecheck:cloud
 npm run test:cloud
 npm run build:admin
 ```
+
+## 本地联调
+
+小程序本地调试和管理后台可以共用一个本地开发服务。先在终端启动本地数据服务：
+
+```powershell
+npm run dev:local-backend
+```
+
+再开另一个终端启动 React 管理后台：
+
+```powershell
+npm --prefix admin run dev -- --host 127.0.0.1 --port 5173
+```
+
+当前 `config/runtime.ts` 已打开本地小程序接口，地址为 `http://127.0.0.1:8787`；管理后台使用 `admin/.env.local` 中的 `VITE_LOCAL_API_URL`。本地后台默认管理员账号为 `admin`，密码为 `admin`，仅用于本地调试。微信开发者工具需要勾选“不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书”。发布前将 `useLocalBackend` 改回 `false`，并移除后台的 `VITE_LOCAL_API_URL`。
 
 ## 部署包
 

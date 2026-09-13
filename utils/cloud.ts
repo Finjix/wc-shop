@@ -1,4 +1,4 @@
-import { cloudEnvId, cloudFunctionName } from '../config/runtime';
+import { cloudEnvId, cloudFunctionName, localBackendUrl, localUserId, useLocalBackend } from '../config/runtime';
 
 export interface ApiErrorShape {
   code?: string;
@@ -34,6 +34,29 @@ function isRecord(value: unknown): value is Record<string, any> {
 
 function getCloud() {
   return typeof wx !== 'undefined' ? wx.cloud : undefined;
+}
+
+function localApiUrl(path = '/api') {
+  return `${localBackendUrl.replace(/\/$/, '')}${path}`;
+}
+
+function requestLocal<T>(action: string, data: Record<string, unknown>) {
+  return new Promise<T>((resolve, reject) => {
+    wx.request({
+      url: localApiUrl(),
+      method: 'POST',
+      data: { scope: 'shop', action, data },
+      header: { 'content-type': 'application/json', 'x-local-uid': localUserId },
+      success: (response) => {
+        try {
+          resolve(unwrap<T>(response.data));
+        } catch (error) {
+          reject(error);
+        }
+      },
+      fail: reject,
+    });
+  });
 }
 
 function getErrorMessage(error: unknown, fallback = '请求失败，请稍后重试。') {
@@ -74,6 +97,7 @@ function unwrap<T>(result: unknown, requestId?: string): T {
 }
 
 export async function request<T = unknown>(action: string, data: Record<string, unknown> = {}): Promise<T> {
+  if (useLocalBackend) return requestLocal<T>(action, data);
   const cloud = getCloud();
   if (!cloudEnvId || !cloud?.callFunction) {
     throw new ApiError('CloudBase 环境未初始化，请检查 cloudEnvId 配置。', undefined, 'CLOUD_NOT_INITIALIZED');
@@ -92,6 +116,26 @@ export async function request<T = unknown>(action: string, data: Record<string, 
 }
 
 export async function uploadCloudFile(localPath: string, folder: 'comments' | 'after-sales' | 'avatars' = 'comments') {
+  if (useLocalBackend) {
+    return new Promise<string>((resolve, reject) => {
+      wx.uploadFile({
+        url: localApiUrl('/upload'),
+        filePath: localPath,
+        name: 'file',
+        formData: { folder },
+        success: (response) => {
+          try {
+            const result = JSON.parse(response.data || '{}');
+            if (!result.ok || !result.data?.fileID) throw new Error(result.error?.message || '本地文件上传失败');
+            resolve(result.data.fileID);
+          } catch (error) {
+            reject(error);
+          }
+        },
+        fail: reject,
+      });
+    });
+  }
   const cloud = getCloud();
   if (!cloudEnvId || !cloud?.uploadFile) {
     throw new ApiError('CloudBase 环境未初始化，无法上传文件。', undefined, 'CLOUD_NOT_INITIALIZED');
@@ -105,6 +149,9 @@ export async function uploadCloudFile(localPath: string, folder: 'comments' | 'a
 
 export async function getTempFileUrl(fileID: string) {
   if (!fileID || /^(https?:|data:|wxfile:)/i.test(fileID)) return fileID;
+  if (useLocalBackend && fileID.startsWith('local://')) {
+    return `${localApiUrl('/files')}?fileID=${encodeURIComponent(fileID)}`;
+  }
   const cloud = getCloud();
   if (!cloud?.getTempFileURL) return fileID;
   const result = await cloud.getTempFileURL({ fileList: [fileID] });

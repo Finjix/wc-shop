@@ -179,22 +179,11 @@ async function readHome(runtime, data) {
 }
 
 async function getOrCreateUser(runtime, identity, data) {
-  const users = collection(runtime, COLLECTIONS.users);
-  const existing = await findDoc(runtime, COLLECTIONS.users, identity.uid, 'uid');
-  const timestamp = now();
-  const patch = {
+  return {
     uid: identity.uid,
     ...(data && data.nickname !== undefined ? { nickname: optionalString(data.nickname, 'nickname', { max: 40 }) } : {}),
     ...(data && data.avatarUrl !== undefined ? { avatarUrl: optionalString(data.avatarUrl, 'avatarUrl', { max: 1024 }) } : {}),
-    updatedAt: timestamp,
   };
-  if (existing) {
-    await users.doc(existing._id || identity.uid).update(patch);
-    return { ...existing, ...patch };
-  }
-  const user = { _id: identity.uid, ...patch, createdAt: timestamp };
-  await users.doc(identity.uid).set(user);
-  return user;
 }
 
 async function searchHistoryAction(runtime, event, context, data, action) {

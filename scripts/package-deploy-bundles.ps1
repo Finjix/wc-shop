@@ -60,6 +60,37 @@ function Invoke-Checked {
   }
 }
 
+function Compress-ZipTree {
+  param(
+    [Parameter(Mandatory = $true)][string]$SourceRoot,
+    [Parameter(Mandatory = $true)][string]$DestinationPath
+  )
+
+  Add-Type -AssemblyName System.IO.Compression
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  if (Test-Path -LiteralPath $DestinationPath) {
+    Remove-Item -LiteralPath $DestinationPath -Force
+  }
+
+  $root = [IO.Path]::GetFullPath($SourceRoot).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+  $archive = [IO.Compression.ZipFile]::Open($DestinationPath, [IO.Compression.ZipArchiveMode]::Create)
+  try {
+    Get-ChildItem -LiteralPath $SourceRoot -Recurse -File | ForEach-Object {
+      $relative = $_.FullName.Substring($root.Length) -replace '\\', '/'
+      $entry = $archive.CreateEntry($relative, [IO.Compression.CompressionLevel]::Optimal)
+      $input = [IO.File]::OpenRead($_.FullName)
+      try {
+        $output = $entry.Open()
+        try { $input.CopyTo($output) } finally { $output.Dispose() }
+      } finally {
+        $input.Dispose()
+      }
+    }
+  } finally {
+    $archive.Dispose()
+  }
+}
+
 function Copy-FunctionPackage {
   param(
     [Parameter(Mandatory = $true)][string]$Name,
@@ -79,7 +110,7 @@ function Copy-FunctionPackage {
   if (Test-Path -LiteralPath $zip) {
     Remove-Item -LiteralPath $zip -Force
   }
-  Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
+  Compress-ZipTree -SourceRoot $stage -DestinationPath $zip
   return $zip
 }
 
@@ -105,7 +136,7 @@ try {
   if (Test-Path -LiteralPath $staticZip) {
     Remove-Item -LiteralPath $staticZip -Force
   }
-  Compress-Archive -Path (Join-Path $staticStage '*') -DestinationPath $staticZip -CompressionLevel Optimal
+  Compress-ZipTree -SourceRoot $staticStage -DestinationPath $staticZip
 }
 finally {
   if (Test-Path -LiteralPath $stageRoot) {

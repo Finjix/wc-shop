@@ -22,7 +22,6 @@
 categories
 products
 skus
-users
 addresses
 carts
 orders
@@ -70,7 +69,7 @@ adminMembers: uid, status
 本项目不从小程序直接读写业务集合，所有业务请求均经过 `wc-shop-function`。因此数据库客户端规则采用最小权限：
 
 - `products`、`categories`、`skus`、`homeContents`：读写由云函数完成。
-- `users`、`addresses`、`carts`、`orders`、`comments`、`afterSales`、`searchHistories`：读写由云函数完成，并由云函数使用当前 UID 隔离。
+- `addresses`、`carts`、`orders`、`comments`、`afterSales`、`searchHistories`：读写由云函数完成，并由云函数使用当前 UID 隔离；用户基础资料不单独落库。
 - `settings`、`adminMembers`：只允许云函数/管理员服务端访问。
 
 在控制台中选择“仅管理员可读写”或等价的拒绝客户端读写规则；不要用“所有用户可读写”。保存后用小程序和后台分别做一次真实读取验证。
@@ -78,7 +77,7 @@ adminMembers: uid, status
 ## 4. 云存储
 
 1. 启用云存储。
-2. 小程序评论图片写入 `user/comments/`，售后凭证写入 `user/after-sales/`；后台商品图片写入 `admin/products/`。
+2. 小程序评论图片写入 `user/comments/`，售后凭证写入 `user/after-sales/`；后台商品和 SKU 图片写入 `admin/products/`，首页轮播图片写入 `home/`。
 3. 存储规则只允许已认证用户上传约定前缀，并限制图片类型和大小；读取使用临时 URL，不把 Secret 放到前端。
 4. 上传后确认文档中保存的是 `cloud://` fileID，而不是只保存本机临时路径。
 

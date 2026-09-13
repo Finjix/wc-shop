@@ -43,6 +43,7 @@ export interface Product {
   maxLinePrice?: number | string;
   isPutOnSale?: boolean | number;
   status?: string;
+  specList?: unknown[];
   [key: string]: unknown;
 }
 
@@ -64,7 +65,9 @@ export interface Sku {
   title?: string;
   specInfo?: unknown[];
   price?: number | string;
+  salePrice?: number | string;
   linePrice?: number | string;
+  status?: string;
   stockQuantity?: number;
   safeStockQuantity?: number;
   soldQuantity?: number;
@@ -89,28 +92,6 @@ export interface Order {
   [key: string]: unknown;
 }
 
-export interface User {
-  _id?: Id;
-  uid?: string;
-  nickname?: string;
-  avatarUrl?: string;
-  phone?: string;
-  createdAt?: string | number;
-  [key: string]: unknown;
-}
-
-export interface Address {
-  _id?: Id;
-  uid?: string;
-  name?: string;
-  phone?: string;
-  province?: string;
-  city?: string;
-  district?: string;
-  detail?: string;
-  [key: string]: unknown;
-}
-
 export interface Comment {
   _id?: Id;
   orderNo?: string;
@@ -121,6 +102,8 @@ export interface Comment {
   commentContent?: string;
   score?: number;
   commentScore?: number;
+  rating?: number;
+  images?: unknown[];
   status?: string;
   createdAt?: string | number;
   [key: string]: unknown;
@@ -129,11 +112,21 @@ export interface Comment {
 export interface AfterSale {
   _id?: Id;
   afterSaleNo?: string;
+  rightsNo?: string;
   orderNo?: string;
   userId?: string;
-  type?: string;
+  type?: string | number;
+  rightsType?: string | number;
   status?: string;
+  rightsStatus?: string | number;
   reason?: string;
+  description?: string;
+  amount?: number | string;
+  refundAmount?: number | string;
+  refundRequestAmount?: number | string;
+  images?: unknown[];
+  logisticsNo?: string;
+  logisticsCompanyName?: string;
   createdAt?: string | number;
   [key: string]: unknown;
 }
@@ -145,15 +138,10 @@ export interface LoginState {
 
 export interface ProductDraft {
   title: string;
-  subtitle: string;
-  description: string;
   categoryId: string;
   primaryImage: string;
   images: string[];
   minSalePrice: string;
-  maxSalePrice: string;
-  minLinePrice: string;
-  maxLinePrice: string;
-  isPutOnSale: boolean;
+  specList: string;
   [key: string]: unknown;
 }

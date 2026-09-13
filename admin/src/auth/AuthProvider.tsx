@@ -24,8 +24,10 @@ function memberIsAllowed(member: AdminMember | null) {
   return roles.some((role) => ['superadmin', 'admin', 'operations', 'inventory', 'customer_service', 'content'].includes(String(role)));
 }
 
-async function loadAdminMember() {
-  return adminApi.call<AdminMember>('admin.me');
+async function loadAdminMember(): Promise<AdminMember> {
+  const result = await adminApi.call<AdminMember | { member?: AdminMember }>('admin.me');
+  if (result && typeof result === 'object' && 'member' in result && result.member) return result.member as AdminMember;
+  return result as AdminMember;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -35,6 +37,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
+    if (adminApi.isLocal) {
+      const session = adminApi.localSession();
+      if (!session) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setError('');
+      try {
+        const nextMember = await loadAdminMember();
+        if (!memberIsAllowed(nextMember)) throw new Error('本地账号不是启用中的后台管理员。');
+        setLoginState(session);
+        setMember(nextMember);
+      } catch (err) {
+        adminApi.clearLocalSession();
+        setLoginState(null);
+        setMember(null);
+        setError(err instanceof Error ? err.message : '本地登录状态恢复失败。');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     if (!cloudbaseAuth || !cloudbaseEnvId) {
       setLoading(false);
       return;
@@ -87,6 +112,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const login = useCallback(async (username: string, password: string) => {
+    if (adminApi.isLocal) {
+      setLoading(true);
+      setError('');
+      try {
+        const session = await adminApi.localLogin(username, password);
+        const nextMember = await loadAdminMember();
+        if (!memberIsAllowed(nextMember)) throw new Error('本地账号不是启用中的后台管理员。');
+        setLoginState(session);
+        setMember(nextMember);
+      } catch (err) {
+        adminApi.clearLocalSession();
+        const message = err instanceof Error ? err.message : '本地登录失败，请检查账号和密码。';
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     const { auth } = requireCloudBase();
     setLoading(true);
     setError('');
@@ -110,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    if (adminApi.isLocal) adminApi.clearLocalSession();
     if (cloudbaseAuth) await cloudbaseAuth.signOut();
     setLoginState(null);
     setMember(null);
@@ -118,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({
     loading,
-    configured: Boolean(cloudbaseEnvId),
+    configured: Boolean(cloudbaseEnvId || adminApi.isLocal),
     loginState,
     member,
     error,

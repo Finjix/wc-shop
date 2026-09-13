@@ -32,3 +32,7 @@ dist/.package-staging-*/
 # TypeScript cloud function build output
 cloudfunctions/.build/
 cloudfunctions/wc-shop-function/index.js
+
+# Local backend development data and uploads
+data/.local-backend.json
+data/.local-files/

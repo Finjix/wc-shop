@@ -9,12 +9,12 @@ export function Panel({ children, className = '' }: { children: ReactNode; class
   return <section className={`panel ${className}`}>{children}</section>;
 }
 
-export function EmptyState({ title = '暂无数据', description = '云端数据库当前为空，创建数据后会显示在这里。', action }: { title?: string; description?: string; action?: ReactNode }) {
-  return <div className="empty-state"><div className="empty-icon">○</div><strong>{title}</strong><span>{description}</span>{action}</div>;
+export function EmptyState({ title = '暂无数据', action }: { title?: string; description?: string; action?: ReactNode }) {
+  return <div className="empty-state"><strong>{title}</strong>{action}</div>;
 }
 
 export function LoadingState() {
-  return <div className="loading-state"><Loading size="small" /> 正在从 CloudBase 读取...</div>;
+  return <div className="loading-state"><Loading size="small" /> 读取中…</div>;
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
@@ -29,7 +29,7 @@ export function Table({ children, minWidth = 760 }: { children: ReactNode; minWi
   return <div className="table-scroll"><table style={{ minWidth }}>{children}</table></div>;
 }
 
-export function EmptyTable({ colSpan, children = '暂无云端数据' }: { colSpan: number; children?: ReactNode }) {
+export function EmptyTable({ colSpan, children = '暂无数据' }: { colSpan: number; children?: ReactNode }) {
   return <tr><td colSpan={colSpan}><EmptyState title={String(children)} /></td></tr>;
 }
 

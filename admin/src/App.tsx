@@ -1,7 +1,7 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/AuthProvider';
 import { AdminLayout } from './components/Layout';
-import { AfterSalesPage, CategoriesPage, CommentsPage, HomeContentPage, OrderDetailPage, OrdersPage, OverviewPage, ProductsPage, SettingsPage, SkuPage, UsersPage } from './pages/Pages';
+import { AfterSalesPage, CategoriesPage, CommentsPage, HomeContentPage, OrderDetailPage, OrdersPage, OverviewPage, ProductsPage, SkuPage } from './pages/Pages';
 import { LoginPage } from './pages/LoginPage';
 import { LoadingState } from './components/Ui';
 
@@ -22,14 +22,12 @@ export function App() {
         <Route path="products" element={<ProductsPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="skus" element={<SkuPage />} />
-        <Route path="inventory" element={<SkuPage inventory />} />
+        <Route path="inventory" element={<Navigate to="/skus" replace />} />
         <Route path="home-content" element={<HomeContentPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:orderNo" element={<OrderDetailPage />} />
-        <Route path="users" element={<UsersPage />} />
         <Route path="comments" element={<CommentsPage />} />
         <Route path="after-sales" element={<AfterSalesPage />} />
-        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Route>
     <Route path="*" element={<Navigate to="/overview" replace />} />
