@@ -1,17 +1,17 @@
 <scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"
-  title="支付结果"
+  title="订单提交结果"
   leftArrow
   fixed="{{false}}"
   background="#fff"
 />
 <view class="pay-result">
-	<view class="pay-status">
-		<text>支付成功</text>
+    <view class="pay-status">
+      <text>订单已提交</text>
 	</view>
-	<view class="pay-money">
-		微信支付：
+    <view class="pay-money">
+		当前状态：待支付，订单金额：
 		<price
 		 wx:if="{{totalPaid}}"
 		 price="{{totalPaid}}"

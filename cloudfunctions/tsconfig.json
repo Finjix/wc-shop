@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "moduleDetection": "force",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "rootDir": ".",
+    "outDir": ".build",
+    "declaration": false,
+    "sourceMap": false,
+    "allowJs": false,
+    "noEmitOnError": true,
+    "types": ["node"]
+  },
+  "include": ["wc-shop-function/index.ts", "shared/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", ".build"]
+}

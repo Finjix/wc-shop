@@ -18,7 +18,7 @@
     />
   </view>
   <view class="category-state" wx:if="{{categoryLoading}}">加载中...</view>
-  <view class="category-state" wx:elif="{{categoryLoaded && !categoryUnavailable && !list.length}}">{{categoryError || '暂无分类内容'}}</view>
+  <view class="category-state" wx:elif="{{categoryLoaded && !list.length}}">{{categoryError || '暂无分类内容'}}</view>
   <goods-category
     wx:if="{{list.length}}"
     style="height: {{categoryHeight}}px;"

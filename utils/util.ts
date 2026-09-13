@@ -1,0 +1,128 @@
+import dayjs from 'dayjs';
+
+export const formatTime = (date: dayjs.ConfigType, template: string) => dayjs(date).format(template);
+
+/**
+ * 格式化价格数额为字符串
+ * 可对小数部分进行填充，默认不填充
+ * @param price 价格数额，以分为单位!
+ * @param fill 是否填充小数部分 0-不填充 1-填充第一位小数 2-填充两位小数
+ */
+export function priceFormat(price: number | string | null, fill = 0): number | string | null {
+  const numericPrice = Number(price);
+  if (!Number.isFinite(numericPrice) || price === null) {
+    return price;
+  }
+
+  const restoredValue = Math.round(numericPrice * 10 ** 8) / 10 ** 8; // 恢复精度丢失
+  let priceFormatValue = `${Math.ceil(restoredValue) / 100}`; // 向上取整，单位转换为元，转换为字符串
+  if (fill > 0) {
+    // 补充小数位数
+    if (priceFormatValue.indexOf('.') === -1) {
+      priceFormatValue = `${priceFormatValue}.`;
+    }
+    const n = fill - priceFormatValue.split('.')[1]?.length;
+    for (let i = 0; i < n; i++) {
+      priceFormatValue = `${priceFormatValue}0`;
+    }
+  }
+  return priceFormatValue;
+}
+
+/**
+ * 获取cdn裁剪后链接
+ *
+ * @param {string} url 基础链接
+ * @param {number} width 宽度，单位px
+ * @param {number} [height] 可选，高度，不填时与width同值
+ */
+export const cosThumb = (url: string, width: number, height = width) => {
+  if (!url) return '';
+  if (url.indexOf('?') > -1 || url.indexOf('/') === 0 || url.indexOf('wxfile://') === 0) {
+    return url;
+  }
+
+  if (url.indexOf('http://') === 0) {
+    url = url.replace('http://', 'https://');
+  }
+
+  return `${url}?imageMogr2/thumbnail/${~~width}x${~~height}`;
+};
+
+export const get = (source: any, paths: string | string[], defaultValue?: any) => {
+  if (typeof paths === 'string') {
+    paths = paths
+      .replace(/\[/g, '.')
+      .replace(/\]/g, '')
+      .split('.')
+      .filter(Boolean);
+  }
+  const { length } = paths;
+  let index = 0;
+  while (source != null && index < length) {
+    source = source[paths[index++]];
+  }
+  return source === undefined || index === 0 ? defaultValue : source;
+};
+let systemWidth = 0;
+/** 获取系统宽度，为了减少启动消耗所以在函数里边做初始化 */
+export const loadSystemWidth = () => {
+  if (systemWidth) {
+    return systemWidth;
+  }
+
+  try {
+    const systemInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    ({ screenWidth: systemWidth } = systemInfo);
+  } catch (e) {
+    systemWidth = 0;
+  }
+  return systemWidth;
+};
+
+/**
+ * 转换rpx为px
+ *
+ * @description
+ * 什么时候用？
+ * - 布局(width: 172rpx)已经写好, 某些组件只接受px作为style或者prop指定
+ *
+ */
+export const rpx2px = (rpx: number, round = false) => {
+  loadSystemWidth();
+
+  // px / systemWidth = rpx / 750
+  const result = (rpx * systemWidth) / 750;
+
+  if (round) {
+    return Math.floor(result);
+  }
+
+  return result;
+};
+
+/**
+ * 获取完整手机号。保留原方法名，兼容已有调用方。
+ * @param {string|number} phone 电话号
+ * @returns {string}
+ */
+export const phoneEncryption = (phone: string | number) => {
+  const value = String(phone ?? '');
+  if (value.length < 7) return value;
+  return `${value.slice(0, 3)}****${value.slice(-4)}`;
+};
+
+// 内置手机号正则字符串
+const innerPhoneReg =
+  '^1(?:3\\d|4[4-9]|5[0-35-9]|6[67]|7[0-8]|8\\d|9\\d)\\d{8}$';
+
+/**
+ * 手机号正则校验
+ * @param phone 手机号
+ * @param phoneReg 正则字符串
+ * @returns true - 校验通过 false - 校验失败
+ */
+export const phoneRegCheck = (phone: string) => {
+  const phoneRegExp = new RegExp(innerPhoneReg);
+  return phoneRegExp.test(phone);
+};

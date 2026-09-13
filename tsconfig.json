@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
+    "noEmit": true,
+    "allowJs": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["miniprogram-api-typings"]
+  },
+  "include": ["app.ts", "common/**/*.ts", "components/**/*.ts", "config/**/*.ts", "custom-tab-bar/**/*.ts", "pages/**/*.ts", "services/**/*.ts", "utils/**/*.ts", "typings/**/*.d.ts"],
+  "exclude": ["node_modules", "miniprogram_npm", "admin", "cloudfunctions"]
+}

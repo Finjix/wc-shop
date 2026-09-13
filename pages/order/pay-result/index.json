@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "支付结果",
+  "navigationBarTitleText": "订单提交结果",
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
