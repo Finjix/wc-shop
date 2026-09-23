@@ -1,5 +1,7 @@
 // @ts-nocheck
 
+import { request } from '../../utils/api';
+
 Component({
   properties: {
     top: {
@@ -32,7 +34,21 @@ Component({
     },
   },
 
+  lifetimes: {
+    attached() { this.refreshMarquee(); },
+  },
+  pageLifetimes: {
+    show() { this.refreshMarquee(); },
+  },
+
   methods: {
+    async refreshMarquee() {
+      try {
+        const result = await request('home.get', {});
+        const text = result?.config?.searchText;
+        if (typeof text === 'string' && text.trim()) this.setData({ marqueeText: text.trim() });
+      } catch { /* 离线时沿用默认文案 */ }
+    },
     focusSearch() {
       this.triggerEvent('focus');
     },

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin, Tag } from 'tdesign-react';
 import { adminApi } from '../lib/api';
 import type { AfterSale, Category, Comment, Order, Product, ProductDraft, Sku } from '../types';
-import { EmptyState, EmptyTable, ErrorState, Field, LoadingState, PageIntro, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
+import { EmptyState, EmptyTable, ErrorState, Field, LoadingState, Panel, Table, formatDate, formatMoney, readList } from '../components/Ui';
 
 function useResource<T>(action: string, payload: Record<string, unknown> = {}, refreshKey = 0) {
   const [data, setData] = useState<T | null>(null);
@@ -238,7 +238,6 @@ export function OverviewPage() {
     return found === undefined ? '—' : String(found);
   };
   return <>
-    <PageIntro title="概览" description="查看商城数据的实时摘要。" />
     {loading && <LoadingState />}
     {error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
     {!loading && !error && <>
@@ -336,7 +335,7 @@ export function ProductsPage() {
     setEditing(null); setDraft(emptyProduct); setEditorOpen(false); setRefreshKey((key) => key + 1);
   };
   return <>
-    <PageIntro title="商品管理" description="管理小程序商品卡片使用的名称、分类、起售价和商品图片；SKU 售价、库存与状态在 SKU / 库存管理中维护。" action={<Button theme="primary" onClick={() => openEditor()}>新建商品</Button>} />
+    <div className="page-actions"><Button theme="primary" onClick={() => openEditor()}>新建商品</Button></div>
     {loading && <LoadingState />}{error && <ErrorState message={error} />}
     {!loading && !error && <Panel><Table><thead><tr><th>商品</th><th>分类</th><th>销售价</th><th>状态</th><th>操作</th></tr></thead><tbody>
       {rows.length === 0 && <EmptyTable colSpan={5} />}
@@ -345,7 +344,7 @@ export function ProductsPage() {
         const resolvedImage = imageUrls[fileID];
         const imageSource = isRenderableImageSource(resolvedImage) ? resolvedImage : isRenderableImageSource(fileID) ? fileID : '';
         const status = productStatusOf(product);
-        return <tr key={String(product._id || product.spuId)}><td><div className="product-cell">{imageSource ? <img src={imageSource} alt="" /> : <span className="image-placeholder">图</span>}<div><strong>{product.title || '未命名商品'}</strong><small>ID：{String(product._id || product.spuId || '—')}</small></div></div></td><td>{String(product.categoryName || product.categoryId || product.categoryIds?.[0] || '—')}</td><td>{formatMoney(product.minSalePrice)}</td><td><Tag theme={status === 'active' ? 'success' : 'default'} variant="light">{productStatusLabels[status] || status || '—'}</Tag></td><td><Button variant="text" onClick={() => openEditor(product)}>编辑</Button></td></tr>;
+        return <tr key={String(product._id || product.spuId)}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong><small>ID：{String(product._id || product.spuId || '—')}</small></div></div></td><td>{String(product.categoryName || product.categoryId || product.categoryIds?.[0] || '—')}</td><td>{formatMoney(product.minSalePrice)}</td><td><Tag theme={status === 'active' ? 'success' : 'default'} variant="light">{productStatusLabels[status] || status || '—'}</Tag></td><td><Button variant="text" onClick={() => openEditor(product)}>编辑</Button></td></tr>;
       })}
     </tbody></Table></Panel>}
     {editorOpen ? <Panel className="editor-panel"><div className="panel-heading"><h3>{editing ? '编辑商品' : '新建商品'}</h3><Button variant="text" onClick={() => { setEditing(null); setDraft(emptyProduct); setEditorOpen(false); }}>关闭</Button></div><div className="form-grid">
@@ -362,7 +361,7 @@ export function CategoriesPage() {
   const [refreshKey, setRefreshKey] = useState(0); const [name, setName] = useState(''); const [parentId, setParentId] = useState('');
   const { data, loading, error } = useResource<unknown>('categories.list', { page: 1, pageSize: 100 }, refreshKey); const rows = readList<Category>(data); const { busy, run } = useAction();
   const save = async () => { if (!name.trim()) { await MessagePlugin.warning('请输入分类名称'); return; } await run('categories.save', { name, parentId: parentId || null }, '分类已保存'); setName(''); setParentId(''); setRefreshKey((key) => key + 1); };
-  return <><PageIntro title="分类管理" description="维护商品分类层级与展示名称。" /><Panel className="quick-form"><Field label="分类名称"><Input value={name} onChange={setName} placeholder="例如：日用百货" /></Field><Field label="父分类 ID"><Input value={parentId} onChange={setParentId} placeholder="顶级分类可留空" /></Field><Button theme="primary" loading={busy} onClick={() => void save()}>新增分类</Button></Panel>{loading && <LoadingState />}{error && <ErrorState message={error} />}{!loading && !error && <Panel><Table><thead><tr><th>名称</th><th>父分类</th><th>排序</th><th>状态</th></tr></thead><tbody>{rows.length === 0 && <EmptyTable colSpan={4} />}{rows.map((row) => <tr key={String(row._id || row.id)}><td><strong>{row.name}</strong></td><td>{String(row.parentId || '顶级')}</td><td>{String(row.sort ?? '—')}</td><td>{row.enabled === false ? '停用' : '启用'}</td></tr>)}</tbody></Table></Panel>}</>;
+  return <><Panel className="quick-form"><Field label="分类名称"><Input value={name} onChange={setName} placeholder="例如：日用百货" /></Field><Field label="父分类 ID"><Input value={parentId} onChange={setParentId} placeholder="顶级分类可留空" /></Field><Button theme="primary" loading={busy} onClick={() => void save()}>新增分类</Button></Panel>{loading && <LoadingState />}{error && <ErrorState message={error} />}{!loading && !error && <Panel><Table><thead><tr><th>名称</th><th>父分类</th><th>排序</th><th>状态</th></tr></thead><tbody>{rows.length === 0 && <EmptyTable colSpan={4} />}{rows.map((row) => <tr key={String(row._id || row.id)}><td><strong>{row.name}</strong></td><td>{String(row.parentId || '顶级')}</td><td>{String(row.sort ?? '—')}</td><td>{row.enabled === false ? '停用' : '启用'}</td></tr>)}</tbody></Table></Panel>}</>;
 }
 
 interface SkuDraft {
@@ -463,7 +462,7 @@ export function SkuPage() {
   };
   const updateStatus = async (row: Sku, status: string) => { await run('skus.update', { id: row._id || row.skuId, status }, 'SKU 状态已更新'); setRefreshKey((key) => key + 1); };
   return <>
-    <PageIntro title="SKU 与库存管理" description="这里维护小程序规格弹窗实际读取的 SKU 售价、规格、库存和上下架状态；下架 SKU 将不能被前端选购。" action={<Button theme="primary" onClick={() => openEditor()}>新建 SKU</Button>} />
+    <div className="page-actions"><Button theme="primary" onClick={() => openEditor()}>新建 SKU</Button></div>
     {editorOpen && <Panel className="editor-panel"><div className="panel-heading"><h3>{editing ? '编辑 SKU' : '新建 SKU'}</h3><Button variant="text" onClick={reset}>关闭</Button></div><div className="form-grid">
       <Field label="关联商品"><select value={draft.productId} onChange={(event) => { const product = productFor(event.target.value); setDraft((old) => ({ ...old, productId: event.target.value, spuId: String(product?.spuId || event.target.value) })); }}><option value="">请选择商品</option>{productRows.map((product) => <option key={String(product._id || product.spuId)} value={String(product._id || product.spuId)}>{product.title}（{String(product._id || product.spuId)}）</option>)}</select></Field>
       <Field label="SKU ID" hint="前端用此 ID 识别规格和下单 SKU。"><Input value={draft.skuId} onChange={(value) => setValue('skuId', value)} placeholder="例如 sku-color-red" /></Field>
@@ -477,131 +476,7 @@ export function SkuPage() {
   </>;
 }
 
-interface HomeContentDraft {
-  slot: string;
-  type: string;
-  title: string;
-  content: string;
-  image: string;
-  sort: string;
-  status: string;
-}
-
-const emptyHomeContent: HomeContentDraft = {
-  slot: 'home.banner.1',
-  type: 'banner',
-  title: '',
-  content: '',
-  image: '',
-  sort: '0',
-  status: 'active',
-};
-
-export function HomeContentPage() {
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
-  const [draft, setDraft] = useState<HomeContentDraft>(emptyHomeContent);
-  const [imagePreview, setImagePreview] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const { data, loading, error } = useResource<unknown>('homeContent.list', { page: 1, pageSize: 100 }, refreshKey);
-  const rows = readList<Record<string, unknown>>(data);
-  const { busy, run } = useAction();
-  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let active = true;
-    const fileIDs = Array.from(new Set(rows.map((row) => {
-      const value = row.image || (row.type === 'banner' ? row.content : '');
-      return typeof value === 'string' && value.startsWith('cloud://') ? value : '';
-    }).filter(Boolean)));
-    if (fileIDs.length === 0) {
-      setImageUrls({});
-      return () => { active = false; };
-    }
-    void Promise.all(fileIDs.map(async (fileID) => {
-      try {
-        return [fileID, await adminApi.getTempFileUrl(fileID)] as const;
-      } catch {
-        return [fileID, ''] as const;
-      }
-    })).then((entries) => {
-      if (active) setImageUrls(Object.fromEntries(entries));
-    });
-    return () => { active = false; };
-  }, [rows]);
-
-  const reset = () => {
-    setEditing(null);
-    setDraft(emptyHomeContent);
-    setImagePreview('');
-  };
-  const openEditor = (row?: Record<string, unknown>) => {
-    if (!row) {
-      reset();
-      return;
-    }
-    const image = String(row.image || (row.type === 'banner' ? row.content : '') || '');
-    setEditing(row);
-    setDraft({
-      slot: String(row.slot || row._id || ''),
-      type: String(row.type || 'banner'),
-      title: String(row.title || ''),
-      content: String(row.content || ''),
-      image,
-      sort: String(row.sort ?? '0'),
-      status: String(row.status || 'active'),
-    });
-    setImagePreview(imageUrls[image] || (isRenderableImageSource(image) ? image : ''));
-  };
-  useEffect(() => {
-    if (!editing) return;
-    const image = String(editing.image || (editing.type === 'banner' ? editing.content : '') || '');
-    if (image && imageUrls[image]) setImagePreview(imageUrls[image]);
-  }, [editing, imageUrls]);
-  const setValue = (key: keyof HomeContentDraft, value: string) => setDraft((old) => ({ ...old, [key]: value }));
-  const upload = async (file?: File) => {
-    if (!file) return;
-    setUploading(true);
-    try {
-      const fileID = await adminApi.upload(file, 'home');
-      setValue('image', fileID);
-      setImagePreview(await adminApi.getTempFileUrl(fileID).catch(() => ''));
-      await MessagePlugin.success('首页图片已上传，保存后会写入首页内容。');
-    } catch (err) {
-      await MessagePlugin.error(err instanceof Error ? err.message : '图片上传失败');
-    } finally { setUploading(false); }
-  };
-  const save = async () => {
-    if (!draft.slot.trim()) { await MessagePlugin.warning('请输入稳定槽位 key'); return; }
-    const sort = Number(draft.sort || 0);
-    if (!Number.isInteger(sort)) { await MessagePlugin.warning('排序必须是整数'); return; }
-    await run('homeContent.save', {
-      ...(editing ? { id: editing._id || editing.id } : {}),
-      slot: draft.slot.trim(),
-      type: draft.type,
-      title: draft.title.trim(),
-      content: draft.content.trim(),
-      image: draft.image.trim(),
-      sort,
-      status: draft.status,
-    }, '首页内容已保存');
-    reset();
-    setRefreshKey((key) => key + 1);
-  };
-  return <>
-    <PageIntro title="首页内容" description="维护小程序当前会读取的轮播图和首页内容。轮播图片使用 CloudBase fileID 保存，槽位 key 相同会更新原内容。" action={<Button theme="primary" onClick={() => openEditor()}>新增内容</Button>} />
-    <Panel className="form-panel"><div className="panel-heading"><h3>{editing ? '编辑首页内容' : '新增首页内容'}</h3>{editing && <Button variant="text" onClick={reset}>取消编辑</Button>}</div><div className="form-grid">
-      <Field label="稳定槽位 key" hint="例如 home.banner.1；相同 key 会更新原内容。"><Input value={draft.slot} onChange={(value) => setValue('slot', value)} placeholder="home.banner.1" /></Field>
-      <Field label="内容类型"><select value={draft.type} onChange={(event) => setValue('type', event.target.value)}><option value="banner">轮播</option><option value="recommend">推荐</option><option value="notice">公告</option></select></Field>
-      <Field label="标题"><Input value={draft.title} onChange={(value) => setValue('title', value)} placeholder="可选" /></Field>
-      <Field label="排序"><Input value={draft.sort} onChange={(value) => setValue('sort', value)} placeholder="数字越小越靠前" /></Field>
-      <Field label="首页图片" hint="前端首页会优先读取 image；也兼容旧数据中 banner 的 content 图片 fileID。"><input type="file" accept="image/*" onChange={(event) => void upload(event.target.files?.[0])} disabled={uploading} />{uploading && <small>正在上传...</small>}{imagePreview && <img className="content-preview" src={imagePreview} alt="首页内容预览" />}<Input value={draft.image} onChange={(value) => setValue('image', value)} placeholder="也可以直接填写图片 URL 或 fileID" /></Field>
-      <Field label="文本内容" hint="公告或旧数据可填写；当前首页轮播主要使用图片。"><textarea value={draft.content} onChange={(event) => setValue('content', event.target.value)} rows={4} placeholder="可选" /></Field>
-      <Field label="状态"><select value={draft.status} onChange={(event) => setValue('status', event.target.value)}><option value="active">启用</option><option value="inactive">停用</option></select></Field>
-    </div><Button theme="primary" loading={busy} onClick={() => void save()}>{editing ? '保存修改' : '保存内容'}</Button></Panel>
-    {loading && <LoadingState />}{error && <ErrorState message={error} />}{!loading && !error && <Panel><Table minWidth={900}><thead><tr><th>槽位</th><th>标题</th><th>类型</th><th>图片</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead><tbody>{rows.length === 0 && <EmptyTable colSpan={7} />}{rows.map((row) => { const value = String(row.image || (row.type === 'banner' ? row.content : '') || ''); const source = isRenderableImageSource(imageUrls[value]) ? imageUrls[value] : isRenderableImageSource(value) ? value : ''; return <tr key={String(row._id || row.id)}><td>{String(row.slot || row._id || '—')}</td><td>{String(row.title || '—')}</td><td>{String(row.type || '—')}</td><td>{source ? <img className="content-thumb" src={source} alt="" /> : value ? '已配置' : '—'}</td><td>{String(row.status || 'active') === 'active' ? '启用' : '停用'}</td><td>{formatDate(row.updatedAt || row.updateTime)}</td><td><Button variant="text" onClick={() => openEditor(row)}>编辑</Button></td></tr>; })}</tbody></Table></Panel>}
-  </>;
-}
+export { HomeContentPage } from './HomeContentPage';
 
 export function OrdersPage() {
   const [orderNoQuery, setOrderNoQuery] = useState('');
@@ -615,7 +490,6 @@ export function OrdersPage() {
     setRefreshKey((key) => key + 1);
   };
   return <>
-    <PageIntro title="订单管理" description="订单状态与小程序订单页保持一致：待支付、待发货、待收货、已完成、已取消；支付能力仍以云端真实状态为准。" />
     <Panel className="toolbar">
       <Input value={orderNoQuery} onChange={setOrderNoQuery} placeholder="订单号" />
       <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option>{orderStatusFilterOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
@@ -682,11 +556,7 @@ export function OrderDetailPage() {
   };
 
   return <>
-    <PageIntro
-      title={`订单详情 · ${String(data.orderNo || orderNo)}`}
-      description="订单详情与小程序订单页保持同一状态；收货信息仅随订单按需展示，不建立独立地址列表。"
-      action={<Button variant="outline" onClick={() => navigate('/orders')}>返回列表</Button>}
-    />
+    <div className="page-actions"><Button variant="outline" onClick={() => navigate('/orders')}>返回列表</Button></div>
     <div className="detail-grid">
       <Panel>
         <div className="panel-heading">
@@ -741,7 +611,7 @@ export function OrderDetailPage() {
 export function CommentsPage() {
   const [refreshKey, setRefreshKey] = useState(0); const { data, loading, error } = useResource<unknown>('comments.list', { page: 1, pageSize: 100 }, refreshKey); const rows = readList<Comment>(data); const { busy, run } = useAction();
   const moderate = async (row: Comment, status: string) => { await run('comments.moderate', { id: row._id, status }, '评论状态已更新'); setRefreshKey((key) => key + 1); };
-  return <><PageIntro title="评论管理" description="审核小程序评价内容；通过后才会出现在商品详情的评价列表中。" />{loading && <LoadingState />}{error && <ErrorState message={error} />}{!loading && !error && <Panel><Table minWidth={900}><thead><tr><th>用户</th><th>评分</th><th>内容</th><th>商品</th><th>订单</th><th>图片</th><th>状态</th><th>操作</th></tr></thead><tbody>{rows.length === 0 && <EmptyTable colSpan={8} />}{rows.map((row) => { const status = commentStatusKey(row.status); const imageCount = Array.isArray(row.images) ? row.images.length : 0; return <tr key={String(row._id)}><td>{String(row.userName || row.userId || '—')}</td><td>{String(row.score ?? row.commentScore ?? row.rating ?? '—')}</td><td className="long-text">{String(row.content || row.commentContent || '—')}</td><td>{String(row.productId || row.spuId || '—')}</td><td>{String(row.orderNo || '—')}</td><td>{imageCount ? `${imageCount} 张` : '—'}</td><td>{commentStatusLabel(row.status)}</td><td>{status !== 'active' && <Button variant="text" loading={busy} onClick={() => void moderate(row, 'active')}>通过</Button>}{status === 'active' && <Button variant="text" loading={busy} onClick={() => void moderate(row, 'rejected')}>隐藏</Button>}</td></tr>; })}</tbody></Table></Panel>}</>;
+  return <>{loading && <LoadingState />}{error && <ErrorState message={error} />}{!loading && !error && <Panel><Table minWidth={900}><thead><tr><th>用户</th><th>评分</th><th>内容</th><th>商品</th><th>订单</th><th>图片</th><th>状态</th><th>操作</th></tr></thead><tbody>{rows.length === 0 && <EmptyTable colSpan={8} />}{rows.map((row) => { const status = commentStatusKey(row.status); const imageCount = Array.isArray(row.images) ? row.images.length : 0; return <tr key={String(row._id)}><td>{String(row.userName || row.userId || '—')}</td><td>{String(row.score ?? row.commentScore ?? row.rating ?? '—')}</td><td className="long-text">{String(row.content || row.commentContent || '—')}</td><td>{String(row.productId || row.spuId || '—')}</td><td>{String(row.orderNo || '—')}</td><td>{imageCount ? `${imageCount} 张` : '—'}</td><td>{commentStatusLabel(row.status)}</td><td>{status !== 'active' && <Button variant="text" loading={busy} onClick={() => void moderate(row, 'active')}>通过</Button>}{status === 'active' && <Button variant="text" loading={busy} onClick={() => void moderate(row, 'rejected')}>隐藏</Button>}</td></tr>; })}</tbody></Table></Panel>}</>;
 }
 
 export function AfterSalesPage() {
@@ -754,7 +624,6 @@ export function AfterSalesPage() {
     setRefreshKey((key) => key + 1);
   };
   return <>
-    <PageIntro title="售后管理" description="处理小程序提交的售后申请；关联订单的收货信息进入订单详情后按需查看。" />
     {loading && <LoadingState />}
     {error && <ErrorState message={error} />}
     {!loading && !error && <Panel>

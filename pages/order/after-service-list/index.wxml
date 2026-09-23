@@ -53,12 +53,6 @@
       status="{{listLoading}}"
       bindretry="onReTryLoad"
     >
-      <!-- 空态 -->
-      <view slot="empty" class="empty-wrapper">
-        <t-empty size="240rpx" textColor="#999999" textSize="28rpx" src="{{emptyImg}}">
-          暂无退款或售后申请记录
-        </t-empty>
-      </view>
     </wr-load-more>
   </t-pull-down-refresh>
 </view>

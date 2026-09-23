@@ -9,7 +9,6 @@ Page({
       phoneNumber: '',
     },
     active: 0,
-    emptyMessage: '暂无物流信息',
   },
 
   onLoad(query) {
@@ -28,7 +27,6 @@ Page({
       };
       this.setData({
         logisticsData: service,
-        emptyMessage: service.logisticsNo || service.company ? '暂无物流节点' : '暂无物流信息',
       });
     } else if (data && typeof data === 'object') {
       this.setData({
@@ -36,7 +34,6 @@ Page({
           ...data,
           nodes: Array.isArray(data.nodes) ? data.nodes : [],
         },
-        emptyMessage: data.logisticsNo || data.company ? '暂无物流节点' : '暂无物流信息',
       });
     }
   },

@@ -1,4 +1,4 @@
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { createHashRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom';
 import { useAuth } from './auth/AuthProvider';
 import { AdminLayout } from './components/Layout';
 import { AfterSalesPage, CategoriesPage, CommentsPage, HomeContentPage, OrderDetailPage, OrdersPage, OverviewPage, ProductsPage, SkuPage } from './pages/Pages';
@@ -12,24 +12,28 @@ function ProtectedRoute() {
   return <Outlet />;
 }
 
-export function App() {
-  return <Routes>
-    <Route path="/login" element={<LoginPage />} />
-    <Route element={<ProtectedRoute />}>
-      <Route element={<AdminLayout />}>
-        <Route index element={<Navigate to="/overview" replace />} />
-        <Route path="overview" element={<OverviewPage />} />
-        <Route path="products" element={<ProductsPage />} />
-        <Route path="categories" element={<CategoriesPage />} />
-        <Route path="skus" element={<SkuPage />} />
-        <Route path="inventory" element={<Navigate to="/skus" replace />} />
-        <Route path="home-content" element={<HomeContentPage />} />
-        <Route path="orders" element={<OrdersPage />} />
-        <Route path="orders/:orderNo" element={<OrderDetailPage />} />
-        <Route path="comments" element={<CommentsPage />} />
-        <Route path="after-sales" element={<AfterSalesPage />} />
-      </Route>
-    </Route>
-    <Route path="*" element={<Navigate to="/overview" replace />} />
-  </Routes>;
-}
+const router = createHashRouter([
+  { path: '/login', element: <LoginPage /> },
+  {
+    element: <ProtectedRoute />,
+    children: [{
+      element: <AdminLayout />,
+      children: [
+        { index: true, element: <Navigate to="/overview" replace /> },
+        { path: 'overview', element: <OverviewPage /> },
+        { path: 'products', element: <ProductsPage /> },
+        { path: 'categories', element: <CategoriesPage /> },
+        { path: 'skus', element: <SkuPage /> },
+        { path: 'inventory', element: <Navigate to="/skus" replace /> },
+        { path: 'home-content', element: <HomeContentPage /> },
+        { path: 'orders', element: <OrdersPage /> },
+        { path: 'orders/:orderNo', element: <OrderDetailPage /> },
+        { path: 'comments', element: <CommentsPage /> },
+        { path: 'after-sales', element: <AfterSalesPage /> },
+      ],
+    }],
+  },
+  { path: '*', element: <Navigate to="/overview" replace /> },
+]);
+
+export function App() { return <RouterProvider router={router} />; }

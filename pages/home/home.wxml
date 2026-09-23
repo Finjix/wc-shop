@@ -13,9 +13,8 @@
 
 <scroll-view class="home-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
   <view class="home-scroll-content">
-    <view class="swiper-wrap">
+    <view class="swiper-wrap" wx:if="{{swiperSlides.length}}">
       <t-swiper
-        wx:if="{{imgSrcs.length > 0}}"
         t-class="home-swiper"
         t-class-image="home-swiper__image"
         height="1333.333rpx"
@@ -25,234 +24,43 @@
         interval="{{interval}}"
         navigation="{{false}}"
         imageProps="{{swiperImageProps}}"
-        list="{{imgSrcs}}"
+        list="{{swiperSlides}}"
         bind:click="navToGoodsDetail"
       />
-      <t-swiper
-        wx:else
-        t-class="home-swiper"
-        t-class-image="home-swiper__image"
-        height="1333.333rpx"
-        autoplay="{{true}}"
-        interval="{{interval}}"
-        duration="{{duration}}"
-        navigation="{{false}}"
-        imageProps="{{placeholderSwiperImageProps}}"
-        list="{{placeholderSlides}}"
-      />
     </view>
 
-    <view class="home-safety-banner">
-      <text>急速发货 | 品质保证 | 退货无忧</text>
-    </view>
+    <view class="home-safety-banner"><text>{{bannerText}}</text></view>
 
-    <view class="home-placeholder-cards">
-      <view class="home-placeholder-card">
-        <image class="home-placeholder-card__image" src="{{testImageSrc}}" mode="aspectFill" />
-      </view>
-      <view class="home-placeholder-card">
-        <image class="home-placeholder-card__image" src="{{testImageSrc}}" mode="aspectFill" />
+    <view class="home-promo-cards" wx:if="{{promos.length}}">
+      <view
+        wx:for="{{promos}}"
+        wx:key="id"
+        class="home-promo-card"
+        data-product-id="{{item.productId}}"
+        bind:tap="navToConfiguredProduct"
+      >
+        <image class="home-promo-card__image" src="{{item.image}}" mode="aspectFill" />
       </view>
     </view>
 
-    <view class="home-featured-title">
-      <text class="home-featured-title__en">Heartfelt Recommendations</text>
-      <text class="home-featured-title__zh">倾心推荐</text>
-    </view>
-    <view class="home-featured-swiper">
-      <t-swiper
-        wx:if="{{dynamicGoodsSrcs.length > 0}}"
-        t-class="home-featured-swiper__host"
-        t-class-image="home-featured-swiper__image"
-        t-class-prev-image="home-featured-swiper__side-image"
-        t-class-next-image="home-featured-swiper__side-image"
-        height="1066.667rpx"
-        current="{{dynamicCurrent}}"
-        autoplay="{{true}}"
-        duration="500"
-        interval="3000"
-        navigation="{{false}}"
-        previous-margin="75rpx"
-        next-margin="75rpx"
-        imageProps="{{featuredSwiperImageProps}}"
-        list="{{dynamicGoodsSrcs}}"
-        bind:click="navToDynamicGoodsDetail"
-      />
-      <t-swiper
-        wx:else
-        t-class="home-featured-swiper__host"
-        t-class-image="home-featured-swiper__image"
-        t-class-prev-image="home-featured-swiper__side-image"
-        t-class-next-image="home-featured-swiper__side-image"
-        height="1066.667rpx"
-        autoplay="{{true}}"
-        interval="3000"
-        duration="500"
-        navigation="{{false}}"
-        previous-margin="75rpx"
-        next-margin="75rpx"
-        imageProps="{{placeholderFeaturedSwiperImageProps}}"
-        list="{{placeholderSlides}}"
-      />
+    <view wx:for="{{featuredSections}}" wx:for-item="section" wx:key="id">
+      <view class="home-featured-title"><text class="home-featured-title__zh">{{section.title}}</text></view>
+      <view class="home-recommendation-grid">
+        <view
+          wx:for="{{section.products}}"
+          wx:for-item="product"
+          wx:key="id"
+          class="home-recommendation-card"
+          data-product-id="{{product.productId}}"
+          bind:tap="navToConfiguredProduct"
+        >
+          <image class="home-recommendation-card__image" src="{{product.image}}" mode="aspectFill" lazy-load />
+        </view>
+      </view>
     </view>
 
     <view style="text-align: center; color: #b9b9b9" wx:if="{{pageLoading}}">
       <t-loading theme="circular" size="40rpx" text="加载中..." inherit-color />
-    </view>
-    <view class="home-product-title home-featured-title">
-      <text class="home-featured-title__en">More Gifts</text>
-      <text class="home-featured-title__zh">更多献礼</text>
-    </view>
-    <view wx:if="{{hotGoods.length}}" class="home-product-showcase">
-      <view class="home-product-showcase__hero" bind:tap="navToHotGoodsHeroDetail">
-        <image
-          class="home-product-showcase__hero-image"
-          src="{{productHeroSrc}}"
-          mode="aspectFill"
-          lazy-load
-        />
-      </view>
-      <view class="home-product-showcase__grid">
-        <view
-          wx:for="{{hotShowcaseGoods}}"
-          wx:key="index"
-          class="home-product-showcase__card"
-          data-spu-id="{{item.spuId}}"
-          bind:tap="navToHotGoodsDetail"
-        >
-          <image
-            class="home-product-showcase__image"
-            src="{{item.thumb || testImageSrc}}"
-            mode="aspectFill"
-            lazy-load
-          />
-        </view>
-      </view>
-    </view>
-    <view wx:else class="home-product-showcase home-product-showcase--placeholder">
-      <view class="home-product-showcase__hero">
-        <image class="home-product-showcase__hero-image" src="{{testImageSrc}}" mode="aspectFill" />
-      </view>
-      <view class="home-product-showcase__grid">
-        <view wx:for="{{placeholderShowcaseCards}}" wx:key="*this" class="home-product-showcase__card">
-          <image class="home-product-showcase__image" src="{{testImageSrc}}" mode="aspectFill" />
-        </view>
-      </view>
-    </view>
-
-    <view wx:if="{{newGoods.length}}" class="new-sale-section">
-      <view class="hot-sale__pink-frame new-sale__frame">
-        <view class="new-sale__layout">
-          <view
-            wx:for="{{newGoods}}"
-            wx:key="index"
-            class="new-product-card"
-            data-spu-id="{{item.spuId}}"
-            bind:tap="navToHotGoodsDetail"
-          >
-            <view class="new-product-card__image-wrap">
-              <image
-                class="new-product-card__image"
-                src="{{item.thumb}}"
-                mode="aspectFill"
-                lazy-load
-              />
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <view wx:if="{{domesticGoods.length}}" class="hot-sale-section">
-      <view class="hot-sale__pink-frame">
-        <view class="hot-sale__grid">
-          <view
-            wx:for="{{domesticGoods}}"
-            wx:key="index"
-            class="hot-product-card"
-            data-spu-id="{{item.spuId}}"
-            bind:tap="navToHotGoodsDetail"
-          >
-            <view class="hot-product-card__image-wrap">
-              <image
-                class="hot-product-card__image"
-                src="{{item.thumb}}"
-                mode="aspectFill"
-                lazy-load
-              />
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <view wx:if="{{lubricantGoods.length}}" class="new-sale-section">
-      <view class="hot-sale__pink-frame new-sale__frame">
-        <view class="new-sale__layout">
-          <view
-            wx:for="{{lubricantGoods}}"
-            wx:key="index"
-            class="new-product-card"
-            data-spu-id="{{item.spuId}}"
-            bind:tap="navToHotGoodsDetail"
-          >
-            <view class="new-product-card__image-wrap">
-              <image
-                class="new-product-card__image"
-                src="{{item.thumb}}"
-                mode="aspectFill"
-                lazy-load
-              />
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <view wx:if="{{toyGoods.length}}" class="hot-sale-section">
-      <view class="hot-sale__pink-frame">
-        <view class="hot-sale__grid">
-          <view
-            wx:for="{{toyGoods}}"
-            wx:key="index"
-            class="hot-product-card"
-            data-spu-id="{{item.spuId}}"
-            bind:tap="navToHotGoodsDetail"
-          >
-            <view class="hot-product-card__image-wrap">
-              <image
-                class="hot-product-card__image"
-                src="{{item.thumb}}"
-                mode="aspectFill"
-                lazy-load
-              />
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <view wx:if="{{lastingGoods.length}}" class="new-sale-section">
-      <view class="hot-sale__pink-frame new-sale__frame">
-        <view class="new-sale__layout">
-          <view
-            wx:for="{{lastingGoods}}"
-            wx:key="index"
-            class="new-product-card"
-            data-spu-id="{{item.spuId}}"
-            bind:tap="navToHotGoodsDetail"
-          >
-            <view class="new-product-card__image-wrap">
-              <image
-                class="new-product-card__image"
-                src="{{item.thumb}}"
-                mode="aspectFill"
-                lazy-load
-              />
-            </view>
-          </view>
-        </view>
-      </view>
     </view>
   </view>
 </scroll-view>

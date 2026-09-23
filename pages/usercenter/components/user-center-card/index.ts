@@ -11,10 +11,6 @@ Component({
       type: Number,
       value: AuthStepType.ONE,
     },
-    userInfo: {
-      type: Object,
-      value: {},
-    },
   },
   data: {
     AuthStepType,

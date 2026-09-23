@@ -13,28 +13,6 @@ page {
   background-color: #ffffff;
   -webkit-overflow-scrolling: touch;
 }
-.address-container .no-address {
-  position: fixed;
-  top: 50%;
-  left: 0;
-  width: 100%;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transform: translateY(-50%);
-}
-.address-list .no-address__icon {
-  width: 224rpx;
-  height: 224rpx;
-}
-.address-list .no-address__text {
-  font-size: 28rpx;
-  line-height: 40rpx;
-  color: #999999;
-  margin-top: 24rpx;
-}
 .address-container .bottom-fixed {
   position: fixed;
   bottom: 0;

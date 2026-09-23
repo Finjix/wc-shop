@@ -21,9 +21,6 @@
       />
     </block>
   </view>
-  <view wx:else class="no-address">
-    <t-empty icon="" description="收货地址空空的" />
-  </view>
   <view class="bottom-fixed">
     <view class="btn-wrap">
       <view class="address-btn {{addressList.length >= 20 ? 'btn-default':''}}" bind:tap="createHandle">

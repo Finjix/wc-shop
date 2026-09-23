@@ -8,48 +8,6 @@ page view {
   padding-top: 20rpx;
 }
 
-.nickname-edit {
-  padding: 12rpx 32rpx 20rpx;
-  background: #ffffff;
-}
-
-.nickname-edit__hint {
-  padding-top: 8rpx;
-  color: #999999;
-  font-size: 24rpx;
-  line-height: 32rpx;
-}
-
-.nickname-edit__actions {
-  display: flex;
-  gap: 20rpx;
-  padding-top: 20rpx;
-}
-
-.nickname-edit__actions button {
-  flex: 1;
-  height: 72rpx;
-  border-radius: 36rpx;
-  font-size: 28rpx;
-  line-height: 72rpx;
-}
-
-.nickname-edit__cancel {
-  border: 2rpx solid #dddddd;
-  background: #ffffff;
-  color: #666666;
-}
-
-.nickname-edit__save {
-  border: 2rpx solid #695941;
-  background: #695941;
-  color: #fff;
-}
-
-.nickname-edit__actions button::after {
-  border: 0;
-}
-
 .person-info .order-group__left {
   margin-right: 0;
 }

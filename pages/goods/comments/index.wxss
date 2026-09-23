@@ -71,13 +71,6 @@ page {
   background-color: #fff;
 }
 
-.own-comment-empty {
-  padding-top: 160rpx;
-  text-align: center;
-  color: #999;
-  font-size: 28rpx;
-}
-
 .no-more {
   padding-left: 20rpx;
   padding-right: 20rpx;

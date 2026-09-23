@@ -22,7 +22,6 @@ Page({
     orderList: [],
     listLoading: 0,
     pullDownRefreshing: false,
-    emptyImg: 'https://tdesign.gtimg.com/miniprogram/template/retail/order/empty-order-list.png',
     backRefresh: false,
     status: -1,
     pendingCommentOnly: false,

@@ -83,16 +83,6 @@ page {
   display: flex !important;
 }
 
-.goods-list-container .empty-wrap {
-  margin-top: 184rpx;
-  margin-bottom: 120rpx;
-  height: 300rpx;
-}
-
-.goods-list-container .empty-wrap .empty-tips .empty-content .content-text {
-  margin-top: 40rpx;
-}
-
 .goods-list-container .price-container {
   padding: 32rpx;
   height: 100vh;

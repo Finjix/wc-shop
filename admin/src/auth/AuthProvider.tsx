@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let unsubscribe: (() => void) | undefined;
 
     void refresh().then(() => {
-      if (!active || !cloudbaseAuth) return;
+      if (adminApi.isLocal || !active || !cloudbaseAuth) return;
 
       const result = cloudbaseAuth.onAuthStateChange((_event: unknown, session: unknown) => {
         if (!active || session) return;

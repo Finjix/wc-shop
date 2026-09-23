@@ -39,7 +39,6 @@ Page({
     dataList: [],
     listLoading: 0, // 0-未加载，1-加载中，2-已全部加载
     pullDownRefreshing: false, // 下拉刷新时不显示load-more
-    emptyImg: 'https://tdesign.gtimg.com/miniprogram/template/retail/order/empty-order-list.png',
     backRefresh: false,
     errorMessage: '',
   },

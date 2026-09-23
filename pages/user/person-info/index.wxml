@@ -8,31 +8,7 @@
 />
 <view class="person-info">
   <t-cell-group>
-    <t-cell
-      wx:if="{{!editingNickname}}"
-      title="昵称"
-      arrow
-      note="{{personInfo.nickName}}"
-      data-type="name"
-      bind:click="onClickCell"
-      t-class="t-cell-class"
-      t-class-left="order-group__left"
-    />
-    <view wx:else class="nickname-edit">
-      <t-input
-        borderless
-        focus="{{true}}"
-        maxlength="15"
-        model:value="{{nicknameDraft}}"
-        placeholder="请输入昵称"
-      />
-      <view class="nickname-edit__hint">最多可输入15个字</view>
-      <view class="nickname-edit__actions">
-        <button class="nickname-edit__cancel" bind:tap="cancelNickname">取消</button>
-        <button class="nickname-edit__save" bind:tap="saveNickname">保存</button>
-      </view>
-    </view>
+    <t-cell title="昵称" note="微信用户" t-class="t-cell-class" t-class-left="order-group__left" />
   </t-cell-group>
 </view>
 </scroll-view>
-<t-toast id="t-toast" />

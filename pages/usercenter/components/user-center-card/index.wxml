@@ -2,9 +2,9 @@
   <!-- 未登录的情况 -->
   <block wx:if="{{currAuthStep === AuthStepType.ONE}}">
     <view class="user-center-card__header" bind:tap="gotoUserEditPage">
-      <view class="user-center-card__header__avatar">用户</view>
+      <image class="user-center-card__header__avatar" src="/assets/user-avatar.jpg" mode="aspectFill" />
       <view class="user-center-card__identity">
-        <view class="user-center-card__header__name">{{'请登录'}}</view>
+        <view class="user-center-card__header__name">微信用户</view>
         <view class="user-center-card__header__badge">登录后享受更多权益</view>
       </view>
       <t-icon name="chevron-right" size="40rpx" color="#666666" />
@@ -13,9 +13,9 @@
   <!-- 已登录但未授权用户信息情况 -->
   <block wx:if="{{currAuthStep === AuthStepType.TWO}}">
     <view class="user-center-card__header">
-      <view class="user-center-card__header__avatar">用户</view>
+      <image class="user-center-card__header__avatar" src="/assets/user-avatar.jpg" mode="aspectFill" />
       <view class="user-center-card__identity">
-        <view class="user-center-card__header__name">{{userInfo.nickName || '微信用户'}}</view>
+        <view class="user-center-card__header__name">微信用户</view>
       </view>
       <t-icon name="chevron-right" size="40rpx" color="#666666" />
       <view class="user-center-card__header__transparent" bind:tap="gotoUserEditPage"></view>

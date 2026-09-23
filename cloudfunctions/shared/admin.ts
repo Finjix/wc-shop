@@ -7,6 +7,7 @@ const { getDoc, list, affected, withTransaction } = require('./db');
 const { getTempFileURLs } = require('./storage');
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
 const { skuPrice, skuStock } = require('./shop');
+const { HOME_CONFIG_SLOT, validateHomeConfig, productIds } = require('./home-config');
 
 function now() { return new Date().toISOString(); }
 function col(runtime, name) { return runtime.db.collection(name); }
@@ -161,6 +162,13 @@ async function homeAction(runtime, data, action) {
   const existing = await getDoc(home, key, false);
   if (action === 'home.get') return existing || (() => { throw errorFrom('NOT_FOUND'); })();
   const patch = { ...allowedFields(data, ['slot', 'type', 'title', 'subtitle', 'content', 'image', 'link', 'payload', 'sort', 'status']), updatedAt: now() };
+  if (key === HOME_CONFIG_SLOT || patch.slot === HOME_CONFIG_SLOT) {
+    assert(key === HOME_CONFIG_SLOT && patch.slot === HOME_CONFIG_SLOT && patch.type === 'pageConfig', { field: 'slot' });
+    patch.payload = validateHomeConfig(patch.payload);
+    const ids = productIds(patch.payload);
+    const products = await Promise.all(ids.map((id) => getDoc(col(runtime, COLLECTIONS.products), id, false)));
+    products.forEach((product, index) => assert(product && product.status === STATUS.active, { field: 'productId', id: ids[index] }));
+  }
   if (!existing) {
     const item = { _id: key, ...patch, status: statusValue(patch.status, STATUS.active), createdAt: now() };
     await home.doc(key).set(item);

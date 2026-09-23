@@ -96,7 +96,4 @@
 		</t-step>
 	</t-steps>
 </view>
-<view wx:if="{{!logisticsData.nodes.length}}" class="page-section logistics-empty">
-  {{emptyMessage}}
-</view>
 </scroll-view>

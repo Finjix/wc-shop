@@ -41,9 +41,6 @@
 .list-loading {
   height: 100rpx;
 }
-.empty-wrapper {
-  height: calc(100vh - 88rpx);
-}
 .load-more {
   margin: 0 24rpx;
 }
@@ -53,10 +50,6 @@ wr-order-goods-card:not(:first-child) .wr-goods-card {
 
 .t-tabs.t-tabs--top .t-tabs-scroll {
   border: none !important;
-}
-.t-empty-text {
-  font-size: 28rpx;
-  color: #999;
 }
 
 .page-container .order-number {

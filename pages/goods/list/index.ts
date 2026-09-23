@@ -109,7 +109,6 @@ Page({
       if (totalCount === 0 && reset) {
         this.total = totalCount;
         this.setData({
-          emptyInfo: { tip: '抱歉，未找到相关商品' },
           hasLoaded: true,
           loadMoreStatus: 0,
           loading: false,
@@ -124,14 +123,12 @@ Page({
       this.setData({
         goodsList: _goodsList,
         loadMoreStatus: _goodsList.length >= totalCount ? 2 : 0,
-        emptyInfo: { tip: '' },
       });
     } catch (error) {
       this.setData({
         loading: false,
         hasLoaded: true,
         loadMoreStatus: 3,
-        emptyInfo: { tip: getApiErrorMessage(error, '查询失败，请稍后重试') },
       });
       wx.showToast({ title: getApiErrorMessage(error, '查询失败，请稍后重试'), icon: 'none' });
     }

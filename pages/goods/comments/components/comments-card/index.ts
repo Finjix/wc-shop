@@ -11,10 +11,6 @@ Component({
       type: String,
       value: '',
     },
-    userName: {
-      type: String,
-      default: '',
-    },
     commentContent: {
       type: String,
       value: '',

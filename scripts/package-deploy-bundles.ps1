@@ -30,7 +30,14 @@ $runtimeEntry = Join-Path $cloudRoot 'wc-shop-function\index.js'
 $npmCommand = (Get-Command npm -ErrorAction Stop).Source
 $tscCommand = Join-Path $adminRoot 'node_modules\.bin\tsc.cmd'
 $previousViteEnv = $env:VITE_CLOUDBASE_ENV_ID
+$previousLocalApiEnv = $env:VITE_LOCAL_API_URL
+$localEnvBackup = Join-Path $adminRoot '.env.local.deploy-backup'
+$localEnvMoved = $false
 $env:VITE_CLOUDBASE_ENV_ID = $cloudEnvId
+# A deployment build must never inherit the local backend endpoint from
+# admin/.env.local. Vite gives process environment variables precedence over
+# env files, so an empty value disables the local API branch for this build.
+$env:VITE_LOCAL_API_URL = ''
 
 if (-not (Test-Path -LiteralPath $tscCommand)) {
   throw "TypeScript compiler not found at $tscCommand. Run npm --prefix admin install first."
@@ -115,7 +122,23 @@ function Copy-FunctionPackage {
 }
 
 try {
+  if (Test-Path -LiteralPath $envFile) {
+    if (Test-Path -LiteralPath $localEnvBackup) {
+      throw "Temporary deployment env backup already exists at $localEnvBackup"
+    }
+    Move-Item -LiteralPath $envFile -Destination $localEnvBackup
+    $localEnvMoved = $true
+  }
+
   Invoke-Checked -Command $npmCommand -Arguments @('--prefix', $adminRoot, 'run', 'build') -Label 'admin build'
+
+  $adminStaticRoot = Join-Path $adminRoot 'dist'
+  $localApiResidue = Get-ChildItem -LiteralPath $adminStaticRoot -Recurse -File |
+    Select-String -Pattern '127\.0\.0\.1:8787|localhost:8787' -SimpleMatch:$false
+  if ($localApiResidue) {
+    throw 'Production admin build contains a local API URL. Remove VITE_LOCAL_API_URL from the deployment build before uploading.'
+  }
+
   Invoke-Checked -Command $tscCommand -Arguments @('-p', (Join-Path $cloudRoot 'tsconfig.json')) -Label 'cloud function TypeScript build'
 
   if (-not (Test-Path -LiteralPath $compiledEntry)) {
@@ -139,6 +162,9 @@ try {
   Compress-ZipTree -SourceRoot $staticStage -DestinationPath $staticZip
 }
 finally {
+  if ($localEnvMoved -and (Test-Path -LiteralPath $localEnvBackup)) {
+    Move-Item -LiteralPath $localEnvBackup -Destination $envFile -Force
+  }
   if (Test-Path -LiteralPath $stageRoot) {
     Remove-Item -LiteralPath $stageRoot -Recurse -Force
   }
@@ -146,6 +172,11 @@ finally {
     Remove-Item Env:VITE_CLOUDBASE_ENV_ID -ErrorAction SilentlyContinue
   } else {
     $env:VITE_CLOUDBASE_ENV_ID = $previousViteEnv
+  }
+  if ($null -eq $previousLocalApiEnv) {
+    Remove-Item Env:VITE_LOCAL_API_URL -ErrorAction SilentlyContinue
+  } else {
+    $env:VITE_LOCAL_API_URL = $previousLocalApiEnv
   }
 }
 

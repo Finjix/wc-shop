@@ -8,7 +8,6 @@ Page({
   data: {
     list: [],
     categoryLoading: false,
-    categoryLoaded: false,
     categoryError: '',
     statusBarHeight: 0,
     navBarHeight: 44,
@@ -27,15 +26,13 @@ Page({
       this.setData({
         list: result,
         categoryLoading: false,
-        categoryLoaded: true,
-        categoryError: result.length ? '' : '暂无分类内容',
+        categoryError: '',
       });
     } catch (error) {
       const message = getApiErrorMessage(error, '分类加载失败，请稍后重试');
       this.setData({
         list: [],
         categoryLoading: false,
-        categoryLoaded: true,
         categoryError: message,
       });
       wx.showToast({ title: message, icon: 'none' });

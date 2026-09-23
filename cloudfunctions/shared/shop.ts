@@ -6,6 +6,7 @@ const {
 } = require('./constants');
 const { errorFrom } = require('./errors');
 const { getDoc, list, listData, affected, withTransaction } = require('./db');
+const { HOME_CONFIG_SLOT, productIds } = require('./home-config');
 const { requireUser } = require('./auth');
 const { getTempFileURLs } = require('./storage');
 const {
@@ -175,7 +176,11 @@ async function readHome(runtime, data) {
   if (data.slot) where.slot = string(data.slot, 'slot', { max: 64 });
   const result = await list(collection(runtime, COLLECTIONS.homeContents), { where, orderBy: { field: 'sort', direction: 'asc' } });
   const items = result.items.map((item) => pick(item, ['_id', 'slot', 'type', 'title', 'subtitle', 'content', 'image', 'link', 'payload', 'sort']));
-  return { items, total: result.total === undefined ? items.length : result.total };
+  const config = items.find((item) => item.slot === HOME_CONFIG_SLOT && item.type === 'pageConfig')?.payload || null;
+  const ids = productIds(config);
+  const products = await Promise.all(ids.map((id) => getActiveProduct(runtime, id, false)));
+  const productsById = Object.fromEntries(ids.flatMap((id, index) => products[index] ? [[id, publicProduct(products[index])]] : []));
+  return { items, config, productsById, total: result.total === undefined ? items.length : result.total };
 }
 
 async function getOrCreateUser(runtime, identity, data) {

@@ -1,6 +1,5 @@
 // @ts-nocheck
 
-import { fetchUserCenter } from '../../services/usercenter/fetchUsercenter';
 import Toast from 'tdesign-miniprogram/toast/index';
 const COMPLETE_ORDER_STATUS = 50;
 
@@ -47,13 +46,8 @@ const getDefaultData = () => ({
   statusBarHeight: 0,
   navBarHeight: 44,
   customNavHeight: 44,
-  userInfo: {
-    nickName: '用户_1A4B',
-    phoneNumber: '',
-  },
   toolData,
   orderTagInfos,
-  currAuthStep: 1,
 });
 
 Page({
@@ -65,14 +59,9 @@ Page({
 
   onShow() {
     this.getTabBar().init();
-    this.init();
   },
   onPullDownRefresh() {
-    this.init();
-  },
-
-  init() {
-    this.fetUseriInfoHandle();
+    wx.stopPullDownRefresh();
   },
 
   initCustomNav() {
@@ -87,21 +76,6 @@ Page({
       statusBarHeight,
       navBarHeight,
       customNavHeight: statusBarHeight + navBarHeight,
-    });
-  },
-
-  fetUseriInfoHandle() {
-    fetchUserCenter().then(({ userInfo, orderTagInfos: orderInfo }) => {
-      const info = orderTagInfos.map((v) => ({
-        ...v,
-        ...((orderInfo || []).find((item) => item.tabType === v.tabType) || {}),
-      }));
-      this.setData({
-        userInfo,
-        orderTagInfos: info,
-        currAuthStep: 2,
-      });
-      wx.stopPullDownRefresh();
     });
   },
 
@@ -153,12 +127,7 @@ Page({
   },
 
   gotoUserEditPage() {
-    const { currAuthStep } = this.data;
-    if (currAuthStep === 2) {
-      wx.navigateTo({ url: '/pages/user/person-info/index' });
-    } else {
-      this.fetUseriInfoHandle();
-    }
+    wx.navigateTo({ url: '/pages/user/person-info/index' });
   },
 });
 // @ts-nocheck

@@ -5,7 +5,9 @@ const assert = require('assert');
 const { getIdentity, requireUser } = require('../shared/auth');
 const { resultData, listData, getDoc, withTransaction } = require('../shared/db');
 const { normalizeOrderItems, shopEndpoint } = require('../shared/shop');
+const { adminEndpoint } = require('../shared/admin');
 const { page } = require('../shared/validation');
+const { validateHomeConfig, DEFAULT_SEARCH_TEXT, DEFAULT_BANNER_TEXT } = require('../shared/home-config');
 
 function appError(code) {
   return (error) => error && error.code === code;
@@ -95,6 +97,7 @@ function makeRuntime() {
   }
 
   return {
+    records,
     db: {
       collection,
       async runTransaction(worker) {
@@ -219,6 +222,54 @@ async function testOrderCreationUsesDocumentOnlyTransaction() {
   assert.strictEqual(runtime.writes.some((write) => write.operation === 'update' && write.collection === 'skus'), true);
 }
 
+async function testHomeConfigLimitsAndLegacyResponse() {
+  const blankLink = { image: '', productId: '' };
+  const config = {
+    searchText: DEFAULT_SEARCH_TEXT,
+    bannerText: DEFAULT_BANNER_TEXT,
+    banners: [{ image: 'cloud://home/slide.jpg', productId: 'product-1' }, blankLink, blankLink],
+    promos: [blankLink, blankLink],
+    sections: [{ id: 'featured', title: '精选', productIds: Array(6).fill('product-1') }],
+  };
+  assert.strictEqual(validateHomeConfig(config).sections[0].productIds.length, 6);
+  assert.throws(() => validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: ['product-1'] }] }), appError('INVALID_ARGUMENT'));
+  assert.throws(() => validateHomeConfig({ ...config, sections: [] }), appError('INVALID_ARGUMENT'));
+  assert.throws(() => validateHomeConfig({ ...config, sections: Array(7).fill(config.sections[0]) }), appError('INVALID_ARGUMENT'));
+  assert.strictEqual(validateHomeConfig({ ...config, banners: Array(6).fill(blankLink) }).banners.length, 6);
+  assert.throws(() => validateHomeConfig({ ...config, banners: [] }), appError('INVALID_ARGUMENT'));
+  assert.throws(() => validateHomeConfig({ ...config, banners: Array(7).fill(blankLink) }), appError('INVALID_ARGUMENT'));
+
+  const runtime = makeRuntime();
+  runtime.records.homeContents = {
+    'legacy-banner': { _id: 'legacy-banner', slot: 'home.banner.1', type: 'banner', image: 'legacy.jpg', status: 'active', sort: 0 },
+    'home.page-config': { _id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', payload: config, status: 'active', sort: -100 },
+  };
+  const result = await shopEndpoint({}, {}, runtime, 'home.get', {});
+  assert.strictEqual(result.items.length, 2, 'legacy items remain available');
+  assert.deepStrictEqual(result.config, config);
+  assert.strictEqual(result.productsById['product-1'].title, '测试商品');
+
+  const writable = makeRuntime();
+  writable.records.adminMembers = {};
+  writable.records.adminMembers['admin-1'] = { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' };
+  const saved = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
+    id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: config,
+  });
+  assert.deepStrictEqual(saved.payload, config);
+  const loaded = await shopEndpoint({}, {}, writable, 'home.get', {});
+  assert.strictEqual(loaded.config.sections[0].productIds.length, 6);
+  assert.strictEqual(loaded.productsById['product-1'].title, '测试商品');
+  writable.records.products['product-1'].status = 'inactive';
+  const afterRemoval = await shopEndpoint({}, {}, writable, 'home.get', {});
+  assert.strictEqual(afterRemoval.productsById['product-1'], undefined, 'unavailable products are omitted');
+  await assert.rejects(
+    () => adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
+      id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: config,
+    }),
+    appError('INVALID_ARGUMENT'),
+  );
+}
+
 const cases = [
   {
     name: 'event.userInfo is not trusted as identity',
@@ -246,6 +297,7 @@ const cases = [
     name: 'order creation uses document-only transaction operations',
     run: testOrderCreationUsesDocumentOnlyTransaction,
   },
+  { name: 'home configuration limits and legacy response', run: testHomeConfigLimitsAndLegacyResponse },
 ];
 
 async function run() {

@@ -1,10 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button, Loading } from 'tdesign-react';
 
-export function PageIntro({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
-  return <div className="page-intro"><div><h2>{title}</h2>{description && <p>{description}</p>}</div>{action}</div>;
-}
-
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <section className={`panel ${className}`}>{children}</section>;
 }

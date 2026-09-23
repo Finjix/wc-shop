@@ -48,7 +48,7 @@ export function normalizeHomeContent(result) {
   const homeGoods = items.flatMap((item) => item.goodsList || item.products || (item.product ? [item.product] : []));
   const goodsList = normalizeGoodsList({ items: source.productItems || homeGoods });
   const explicitImages = [source.imgSrcs, source.swiperImages, source.bannerImages].find((value) => Array.isArray(value) && value.length > 0);
-  const imgSrcs = explicitImages || items.map((item) => item.image || item.imageUrl || item.cover || (item.type === 'banner' ? item.content : '')).filter(Boolean);
+  const imgSrcs = explicitImages || items.filter((item) => item.type === 'banner').map((item) => item.image || item.imageUrl || item.cover || item.content || '').filter(Boolean);
   return { ...source, goodsList, imgSrcs: Array.isArray(imgSrcs) ? imgSrcs : [] };
 }
 
@@ -64,11 +64,4 @@ export function toProductListPayload(params = {}) {
   };
 }
 
-export function normalizeUserInfo(userInfo = {}) {
-  return {
-    ...userInfo,
-    nickName: firstValue(userInfo.nickName, userInfo.nickname, ''),
-    phoneNumber: firstValue(userInfo.phoneNumber, userInfo.phone, ''),
-  };
-}
 // @ts-nocheck

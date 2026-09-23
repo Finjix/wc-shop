@@ -21,7 +21,6 @@
     <comments-card
       isLast="{{true}}"
       commentScore="{{ownComment.commentScore}}"
-      userName="{{ownComment.userName}}"
       commentResources="{{ownComment.commentResources || []}}"
       commentContent="{{ownComment.commentContent}}"
       isAnonymity="{{ownComment.isAnonymity}}"
@@ -32,7 +31,6 @@
       goodsDetailInfo="{{ownComment.goodsDetailInfo || ''}}"
     />
   </view>
-  <view class="own-comment-empty" wx:else>暂无评价</view>
 </block>
 <block wx:else>
 <view class="comments-header">
@@ -63,7 +61,6 @@
 		<comments-card
       isLast="{{index === commentList.length - 1}}"
 		  commentScore="{{item.commentScore}}"
-		  userName="{{item.userName}}"
 		  commentResources="{{item.commentResources || []}}"
 		  commentContent="{{item.commentContent}}"
 		  isAnonymity="{{item.isAnonymity}}"
@@ -82,9 +79,6 @@
 	  color="#BBBBBB"
 	  failedColor="#FA550F"
 	/>
-</view>
-<view wx:if="{{hasLoaded && !commentList.length && !loadError}}" class="comments-empty">
-  暂无评价
 </view>
 </block>
 </view>

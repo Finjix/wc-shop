@@ -50,5 +50,16 @@ export async function resolveHomeContentImages(result = {}) {
       content: item.type === 'banner' ? await resolveImage(item.content) : item.content,
     })))
     : result.items;
-  return { ...result, items };
+  const config = result.config && typeof result.config === 'object'
+    ? {
+      ...result.config,
+      banners: await Promise.all((result.config.banners || []).map(async (item) => ({ ...item, image: await resolveImage(item.image) }))),
+      promos: await Promise.all((result.config.promos || []).map(async (item) => ({ ...item, image: await resolveImage(item.image) }))),
+    }
+    : null;
+  const productEntries = await Promise.all(Object.entries(result.productsById || {}).map(async ([id, product]) => {
+    const [resolved] = await resolveGoodsListImages([product]);
+    return [id, resolved];
+  }));
+  return { ...result, items, config, productsById: Object.fromEntries(productEntries) };
 }

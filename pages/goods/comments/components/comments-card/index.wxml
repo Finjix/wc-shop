@@ -1,7 +1,7 @@
 <view class="comments-card-item wr-class {{isLast ? 'comments-card-item--last' : ''}}">
   <view class="comments-card-item-container">
     <view class="comments-title">
-      <view class="userName">{{userName}}</view>
+      <view class="userName">微信用户</view>
       <view wx:if="{{goodsDetailInfo}}" class="goods-info-text">{{goodsDetailInfo}}</view>
       <text class="commentTime">{{commentTime}}</text>
     </view>
