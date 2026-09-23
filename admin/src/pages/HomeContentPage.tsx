@@ -4,11 +4,13 @@ import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { adminApi } from '../lib/api';
 import type { AdminOutletContext } from '../components/Layout';
 import type { ListResult, Product } from '../types';
-import { ErrorState, Field, LoadingState, Panel } from '../components/Ui';
+import { ErrorState, Field, ImageFilePicker, LoadingState, Panel } from '../components/Ui';
 
 const SLOT = 'home.page-config';
-const DEFAULT_SEARCH_TEXT = '欢迎光临番薯鞋店！';
-const DEFAULT_BANNER_TEXT = '急速发货 | 品质保证 | 退货无忧';
+const CONTENT_PLACEHOLDER = '请输入内容';
+const LEGACY_SEARCH_TEXT = '欢迎光临番薯鞋店！';
+const LEGACY_BANNER_TEXT = '急速发货 | 品质保证 | 退货无忧';
+const OLD_BANNER_TEXT = '急速发货 | 品质保证 | 售后无忧';
 
 type ImageLink = { image: string; productId: string };
 type ProductSection = { id: string; title: string; productIds: string[] };
@@ -20,13 +22,13 @@ type HomeConfig = {
   sections: ProductSection[];
 };
 type HomeRecord = { _id?: string; slot?: string; type?: string; image?: string; content?: string; link?: string; payload?: unknown; sort?: number; status?: string };
-type SaveSource = 'top' | 'search' | 'banners' | 'bannerText' | 'promos' | 'sections';
+type SaveSource = 'search' | 'banners' | 'bannerText' | 'promos' | 'sections';
 
 const blankLink = (): ImageLink => ({ image: '', productId: '' });
 const blankSection = (): ProductSection => ({ id: `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title: '', productIds: Array(6).fill('') });
 const defaultConfig = (): HomeConfig => ({
-  searchText: DEFAULT_SEARCH_TEXT,
-  bannerText: DEFAULT_BANNER_TEXT,
+  searchText: '',
+  bannerText: '',
   banners: [blankLink()],
   promos: Array.from({ length: 2 }, blankLink),
   sections: [blankSection()],
@@ -39,8 +41,8 @@ function readConfig(rows: HomeRecord[]): HomeConfig {
     const banners = Array.isArray(stored.banners) ? stored.banners.slice(0, 6).map((entry) => ({ ...blankLink(), ...entry })) : [];
     while (banners.length > 1 && !banners[banners.length - 1].image && !banners[banners.length - 1].productId) banners.pop();
     return {
-      searchText: stored.searchText || draft.searchText,
-      bannerText: stored.bannerText || draft.bannerText,
+      searchText: stored.searchText === LEGACY_SEARCH_TEXT ? '' : stored.searchText ?? draft.searchText,
+      bannerText: [LEGACY_BANNER_TEXT, OLD_BANNER_TEXT].includes(stored.bannerText || '') ? '' : stored.bannerText ?? draft.bannerText,
       banners: banners.length ? banners : [blankLink()],
       promos: draft.promos.map((fallback, index) => ({ ...fallback, ...stored.promos?.[index] })),
       sections: Array.isArray(stored.sections) && stored.sections.length ? stored.sections.map((section) => ({
@@ -125,16 +127,20 @@ function ProductSelect({ value, onChange, known, onKnown }: {
   </div>;
 }
 
-function ImagePicker({ image, onChange }: { image: string; onChange: (value: string) => void }) {
+function ImagePreview({ image, aspect }: { image: string; aspect: 'banner' | 'square' }) {
   const [preview, setPreview] = useState('');
-  const [uploading, setUploading] = useState(false);
   useEffect(() => {
     let active = true;
     if (!image) { setPreview(''); return () => { active = false; }; }
-    if (!image.startsWith('cloud://')) { setPreview(image); return () => { active = false; }; }
+    if (!image.startsWith('cloud://') && !image.startsWith('local://')) { setPreview(image); return () => { active = false; }; }
     void adminApi.getTempFileUrl(image).then((url) => { if (active) setPreview(url); }).catch(() => { if (active) setPreview(''); });
     return () => { active = false; };
   }, [image]);
+  return preview ? <img className={`home-config-preview home-config-preview-${aspect}`} src={preview} alt="封面预览" /> : null;
+}
+
+function ImagePicker({ onChange }: { onChange: (value: string) => void }) {
+  const [uploading, setUploading] = useState(false);
   const upload = async (file?: File) => {
     if (!file) return;
     setUploading(true);
@@ -143,9 +149,8 @@ function ImagePicker({ image, onChange }: { image: string; onChange: (value: str
     finally { setUploading(false); }
   };
   return <>
-    <input type="file" accept="image/*" onChange={(event) => void upload(event.target.files?.[0])} disabled={uploading} />
+    <ImageFilePicker onSelect={(file) => void upload(file)} disabled={uploading} />
     {uploading && <small>正在上传...</small>}
-    {preview && <img className="home-config-preview" src={preview} alt="封面预览" />}
   </>;
 }
 
@@ -219,21 +224,11 @@ export function HomeContentPage() {
   const updateLink = (kind: 'banners' | 'promos', index: number, field: keyof ImageLink, value: string) => {
     setConfig((old) => ({ ...old, [kind]: old[kind].map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item) }));
   };
-  const swapBanners = (index: number, delta: number) => setConfig((old) => {
-    const banners = [...old.banners];
-    [banners[index], banners[index + delta]] = [banners[index + delta], banners[index]];
-    return { ...old, banners };
-  });
   const updateSection = (index: number, change: Partial<ProductSection>) => setConfig((old) => ({
     ...old, sections: old.sections.map((section, itemIndex) => itemIndex === index ? { ...section, ...change } : section),
   }));
-  const swapSections = (index: number, delta: number) => setConfig((old) => {
-    const sections = [...old.sections];
-    [sections[index], sections[index + delta]] = [sections[index + delta], sections[index]];
-    return { ...old, sections };
-  });
 
-  const save = async (source: SaveSource = 'top'): Promise<boolean> => {
+  const save = async (source: SaveSource = 'search'): Promise<boolean> => {
     setSaveFeedback(null);
     const fail = async (message: string) => {
       setSaveFeedback({ source, type: 'error', message });
@@ -245,11 +240,9 @@ export function HomeContentPage() {
     for (const [kind, entries] of [['轮播图', config.banners], ['图片入口', config.promos]] as const) {
       for (const [index, entry] of entries.entries()) {
         const place = kind === '图片入口' ? `${index === 0 ? '左侧' : '右侧'}图片入口` : `轮播图 ${index + 1}`;
-        if (entry.image.trim() && !entry.productId.trim()) return fail(`${place}：请选择跳转商品`);
         if (!entry.image.trim() && entry.productId.trim()) return fail(`${place}：请上传封面图片`);
       }
     }
-    if (!config.bannerText.trim()) return fail('轮播下方文字：请填写显示文字');
     if (config.sections.length < 1 || config.sections.length > 6) return fail('商品区：请保留一至六个');
     for (const [index, section] of config.sections.entries()) {
       if (!section.title.trim()) return fail(`商品区 ${index + 1}：请填写标题`);
@@ -288,31 +281,35 @@ export function HomeContentPage() {
   const feedback = (source: SaveSource) => saveFeedback?.source === source && <p className={`home-config-feedback home-config-feedback-${saveFeedback.type}`} role="alert">{saveFeedback.message}</p>;
   const productSelect = (value: string, onChange: (value: string) => void) => <ProductSelect value={value} onChange={onChange} known={known} onKnown={(product) => setKnown((old) => ({ ...old, [String(product._id)]: product }))} />;
   const imageLinkFields = (kind: 'banners' | 'promos', entry: ImageLink, index: number) => <div className="home-config-link-fields">
-    <Field label="封面图片"><ImagePicker image={entry.image} onChange={(value) => updateLink(kind, index, 'image', value)} /></Field>
-    <Field label="跳转商品">{productSelect(entry.productId, (value) => updateLink(kind, index, 'productId', value))}</Field>
+    <Field label="封面图片" fileUpload><ImagePicker onChange={(value) => updateLink(kind, index, 'image', value)} /></Field>
+    <Field label="跳转商品（可选）">{productSelect(entry.productId, (value) => updateLink(kind, index, 'productId', value))}</Field>
   </div>;
 
   return <div className="home-config-page">
-    <div className="home-config-save"><Button theme="primary" loading={saving} disabled={saving} onClick={() => void save()}>保存首页设置</Button>{dirty && <span>有未保存的修改</span>}</div>
-    {feedback('top')}
-    <Panel><div className="panel-heading"><h3>顶部搜索栏</h3>{panelSaveButton('search')}</div>{feedback('search')}<Field label="滚动文字"><Input value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: value }))} maxcharacter={120} /></Field></Panel>
+    <Panel><div className="panel-heading"><h3>顶部搜索栏</h3>{panelSaveButton('search')}</div>{feedback('search')}<Field label="滚动文字"><Input value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={120} /></Field></Panel>
 
-    <Panel><div className="panel-heading"><h3>轮播图</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 6} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button>{panelSaveButton('banners')}</div></div>{feedback('banners')}
+    <Panel><div className="panel-heading"><h3>轮播图（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 6} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button>{panelSaveButton('banners')}</div></div>{feedback('banners')}
       {config.banners.map((entry, index) => <div className="home-config-entry" key={index}>
-        <div className="home-config-entry-head"><strong>轮播 {index + 1}</strong><div><Button size="small" variant="text" disabled={index === 0} onClick={() => swapBanners(index, -1)}>上移</Button><Button size="small" variant="text" disabled={index === config.banners.length - 1} onClick={() => swapBanners(index, 1)}>下移</Button><Button size="small" variant="text" onClick={() => setConfig((old) => ({ ...old, banners: old.banners.map((item, i) => i === index ? blankLink() : item) }))}>清空</Button><Button size="small" variant="text" disabled={config.banners.length <= 1} onClick={() => setConfig((old) => ({ ...old, banners: old.banners.filter((_, i) => i !== index) }))}>删除</Button></div></div>
+        <div className="home-config-entry-head"><strong>轮播 {index + 1}</strong><Button size="small" variant="text" disabled={config.banners.length <= 1} onClick={() => setConfig((old) => ({ ...old, banners: old.banners.filter((_, i) => i !== index) }))}>删除</Button></div>
         {imageLinkFields('banners', entry, index)}
       </div>)}
+      {config.banners.some((entry) => entry.image) && <div className="home-config-image-previews">
+        {config.banners.map((entry, index) => entry.image && <div className="home-config-image-preview" key={index}><ImagePreview image={entry.image} aspect="banner" /></div>)}
+      </div>}
     </Panel>
 
-    <Panel><div className="panel-heading"><h3>轮播下方文字</h3>{panelSaveButton('bannerText')}</div>{feedback('bannerText')}<Field label="显示文字"><Input value={config.bannerText} onChange={(value) => setConfig((old) => ({ ...old, bannerText: value }))} maxcharacter={160} /></Field></Panel>
+    <Panel><div className="panel-heading"><h3>轮播下方文字</h3>{panelSaveButton('bannerText')}</div>{feedback('bannerText')}<Field label="显示文字"><Input value={config.bannerText} onChange={(value) => setConfig((old) => ({ ...old, bannerText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={160} /></Field></Panel>
 
-    <Panel><div className="panel-heading"><h3>轮播下方两个图片位</h3>{panelSaveButton('promos')}</div>{feedback('promos')}
-      {config.promos.map((entry, index) => <div className="home-config-entry" key={index}><div className="home-config-entry-head"><strong>{index === 0 ? '左侧位置' : '右侧位置'}</strong><Button size="small" variant="text" onClick={() => setConfig((old) => ({ ...old, promos: old.promos.map((item, i) => i === index ? blankLink() : item) }))}>清空</Button></div>{imageLinkFields('promos', entry, index)}</div>)}
+    <Panel><div className="panel-heading"><h3>轮播下方两个图片位（1:1）</h3>{panelSaveButton('promos')}</div>{feedback('promos')}
+      {config.promos.map((entry, index) => <div className="home-config-entry" key={index}><div className="home-config-entry-head"><strong>{index === 0 ? '左侧位置' : '右侧位置'}</strong></div>{imageLinkFields('promos', entry, index)}</div>)}
+      {config.promos.some((entry) => entry.image) && <div className="home-config-image-previews">
+        {config.promos.map((entry, index) => entry.image && <div className="home-config-image-preview" key={index}><ImagePreview image={entry.image} aspect="square" /></div>)}
+      </div>}
     </Panel>
 
     <Panel><div className="panel-heading"><h3>商品区</h3><div className="home-config-panel-actions"><Button disabled={config.sections.length >= 6} onClick={() => setConfig((old) => ({ ...old, sections: [...old.sections, blankSection()] }))}>新增商品区</Button>{panelSaveButton('sections')}</div></div>{feedback('sections')}
       {config.sections.map((section, sectionIndex) => <div className="home-config-entry" key={section.id}>
-        <div className="home-config-entry-head"><strong>商品区 {sectionIndex + 1}</strong><div><Button size="small" variant="text" disabled={sectionIndex === 0} onClick={() => swapSections(sectionIndex, -1)}>上移</Button><Button size="small" variant="text" disabled={sectionIndex === config.sections.length - 1} onClick={() => swapSections(sectionIndex, 1)}>下移</Button><Button size="small" variant="text" disabled={config.sections.length <= 1} onClick={() => setConfig((old) => ({ ...old, sections: old.sections.filter((item) => item.id !== section.id) }))}>删除</Button></div></div>
+        <div className="home-config-entry-head"><strong>商品区 {sectionIndex + 1}</strong><Button size="small" variant="text" disabled={config.sections.length <= 1} onClick={() => setConfig((old) => ({ ...old, sections: old.sections.filter((item) => item.id !== section.id) }))}>删除</Button></div>
         <Field label="标题"><Input value={section.title} onChange={(value) => updateSection(sectionIndex, { title: value })} placeholder="商品区标题" /></Field>
         <div className="home-config-product-grid">{section.productIds.map((id, productIndex) => <Field key={productIndex} label={`商品 ${productIndex + 1}`}>{productSelect(id, (value) => updateSection(sectionIndex, { productIds: section.productIds.map((old, i) => i === productIndex ? value : old) }))}</Field>)}</div>
       </div>)}

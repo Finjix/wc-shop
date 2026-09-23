@@ -35,6 +35,7 @@ export interface Product {
   description?: string;
   primaryImage?: string;
   images?: string[];
+  detailImages?: string[];
   categoryId?: Id;
   categoryIds?: Id[];
   minSalePrice?: number | string;
@@ -140,8 +141,6 @@ export interface ProductDraft {
   title: string;
   categoryId: string;
   primaryImage: string;
-  images: string[];
-  minSalePrice: string;
-  specList: string;
+  detailImages: string[];
   [key: string]: unknown;
 }

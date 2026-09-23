@@ -37,8 +37,17 @@ Page({
   },
 
   handleSuccess(e) {
+    const selected = (e.detail.files || []).filter((file) => file && file.type !== 'video');
+    const invalid = selected.find((file) => !/\.(jpe?g|png|webp)(?:\?|$)/i.test(file.url || file.tempFilePath || file.path || file.name || ''));
+    if (invalid) {
+      Toast({ context: this, selector: '#t-toast', message: '只能上传 JPG、PNG 或 WebP 图片', icon: '' });
+    }
+    const oversized = selected.find((file) => Number(file.size) > 10 * 1024 * 1024);
+    if (oversized) {
+      Toast({ context: this, selector: '#t-toast', message: '图片不能超过 10MB', icon: '' });
+    }
     this.setData(
-      { uploadFiles: (e.detail.files || []).filter((file) => file && file.type !== 'video') },
+      { uploadFiles: selected.filter((file) => /\.(jpe?g|png|webp)(?:\?|$)/i.test(file.url || file.tempFilePath || file.path || file.name || '') && Number(file.size) <= 10 * 1024 * 1024) },
       () => this.updateButtonStatus(),
     );
   },

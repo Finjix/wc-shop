@@ -45,7 +45,7 @@ wx.cloud.callFunction({
 - `orders.preview/create/list/count/businessTime/detail/cancel/confirmReceived/delete`
 - `comments.list/count/create`
 - `afterSales.reasons/preview/list/detail/create/confirmReceived/submitTracking`
-- `storage.tempUrls`
+- `storage.tempUrls`、`storage.processImage`
 
 `scope: 'admin'`：
 
@@ -57,9 +57,9 @@ wx.cloud.callFunction({
 - `comments.list/get/updateStatus/delete`
 - `afterSales.list/get/updateStatus`
 - `settings.list/get/upsert`
-- `storage.tempUrls`
+- `storage.tempUrls`、`storage.processImage`
 
-商品图片、SKU 图片、首页轮播图和评论图片字段保存 CloudBase `fileId` 或经过 CloudBase SDK 生成的临时 URL。函数只负责解析临时 URL；实际文件上传应由已认证的小程序/Web SDK 直接上传到云存储，不能把 Secret 放进前端。
+商品图片、SKU 图片、首页轮播图和评论图片字段保存 CloudBase `fileId`。客户端先将 JPG、PNG 或 WebP 图片上传到 `pending/`，再调用 `storage.processImage`；云函数校验原图不超过 10MB，非 WebP 转为 WebP，最短边超过 1080 像素时等比缩小至 1080 像素，并返回正式文件 ID。本地后台的 `/upload` 执行相同处理。云端安装依赖需包含 Sharp 的 Linux 原生包。
 
 ## 订单和库存边界
 

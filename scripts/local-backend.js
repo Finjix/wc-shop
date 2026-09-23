@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
+const { processImageBuffer } = require('../cloudfunctions/.build/shared/image-upload');
 
 const { fail, ok, runEndpoint } = require('../cloudfunctions/.build/shared/response');
 const { errorFrom } = require('../cloudfunctions/.build/shared/errors');
@@ -279,11 +280,6 @@ function safeRelativePart(value, fallback = 'uploads') {
   return segments.length ? segments.join('/') : fallback;
 }
 
-function safeFileName(value) {
-  const basename = path.basename(String(value || 'upload.bin'));
-  return basename.replace(/[^a-zA-Z0-9._-]/g, '_') || 'upload.bin';
-}
-
 function splitMultipart(buffer, boundary) {
   const separator = Buffer.from(`--${boundary}`);
   const parts = [];
@@ -346,13 +342,14 @@ async function saveUpload(request) {
     fileName = parsed.fileName;
   }
   if (!file || !file.length) throw errorFrom('INVALID_ARGUMENT');
+  const image = await processImageBuffer(file, fileName);
   const folder = safeRelativePart(fields.folder, 'uploads');
-  const name = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeFileName(fileName)}`;
+  const name = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.webp`;
   const relative = `${folder}/${name}`;
   const destination = path.resolve(filesRoot, relative);
   if (!destination.startsWith(`${path.resolve(filesRoot)}${path.sep}`)) throw errorFrom('FORBIDDEN');
   fs.mkdirSync(path.dirname(destination), { recursive: true });
-  fs.writeFileSync(destination, file);
+  fs.writeFileSync(destination, image);
   return { fileID: `local://${relative}` };
 }
 

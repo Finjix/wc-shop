@@ -29,7 +29,7 @@
       />
     </view>
 
-    <view class="home-safety-banner"><text>{{bannerText}}</text></view>
+    <view class="home-safety-banner" wx:if="{{bannerText}}"><text>{{bannerText}}</text></view>
 
     <view class="home-promo-cards" wx:if="{{promos.length}}">
       <view

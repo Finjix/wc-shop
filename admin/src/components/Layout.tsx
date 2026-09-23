@@ -5,14 +5,14 @@ import { useAuth } from '../auth/AuthProvider';
 export type AdminOutletContext = { setUnsavedChanges: (value: boolean) => void };
 
 const navItems = [
-  { to: '/overview', label: '概览', icon: '⌂' },
-  { to: '/home-content', label: '首页内容', icon: '✦' },
-  { to: '/products', label: '商品', icon: '▦' },
-  { to: '/categories', label: '分类', icon: '◫' },
-  { to: '/skus', label: 'SKU / 库存', icon: '◇' },
-  { to: '/orders', label: '订单', icon: '▣' },
-  { to: '/comments', label: '评论', icon: '✎' },
-  { to: '/after-sales', label: '售后', icon: '↩' },
+  { to: '/overview', label: '概览' },
+  { to: '/home-content', label: '首页内容' },
+  { to: '/products', label: '商品' },
+  { to: '/categories', label: '分类' },
+  { to: '/skus', label: 'SKU / 库存' },
+  { to: '/orders', label: '订单' },
+  { to: '/comments', label: '评论' },
+  { to: '/after-sales', label: '售后' },
 ];
 
 export function AdminLayout() {
@@ -36,7 +36,6 @@ export function AdminLayout() {
               className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               onClick={() => setOpen(false)}
             >
-              <span className="nav-icon">{item.icon}</span>
               {item.label}
             </NavLink>
           ))}

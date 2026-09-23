@@ -22,6 +22,8 @@ const ERRORS = Object.freeze({
   IDEMPOTENCY_CONFLICT: ['IDEMPOTENCY_CONFLICT', '该请求正在处理或已使用不同参数提交'],
   DATABASE_ERROR: ['DATABASE_ERROR', '数据服务暂时不可用'],
   STORAGE_ERROR: ['STORAGE_ERROR', '文件服务暂时不可用'],
+  IMAGE_FORMAT: ['IMAGE_FORMAT', '只能上传 JPG、PNG 或 WebP 图片'],
+  IMAGE_TOO_LARGE: ['IMAGE_TOO_LARGE', '图片不能超过 10MB'],
   INTERNAL_ERROR: ['INTERNAL_ERROR', '服务暂时不可用'],
 });
 

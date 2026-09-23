@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin, Tag } from 'tdesign-react';
 import { adminApi } from '../lib/api';
 import type { AfterSale, Category, Comment, Order, Product, ProductDraft, Sku } from '../types';
-import { EmptyState, EmptyTable, ErrorState, Field, LoadingState, Panel, Table, formatDate, formatMoney, readList } from '../components/Ui';
+import { EmptyState, EmptyTable, ErrorState, Field, ImageFilePicker, LoadingState, Panel, Table, formatDate, formatMoney, readList } from '../components/Ui';
 
 function useResource<T>(action: string, payload: Record<string, unknown> = {}, refreshKey = 0) {
   const [data, setData] = useState<T | null>(null);
@@ -242,8 +242,7 @@ export function OverviewPage() {
     {error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
     {!loading && !error && <>
       <div className="metric-grid">
-        <Metric label="商品总数" value={value(['productCount', 'products'])} />
-        <Metric label="订单总数" value={value(['orderCount', 'orders'])} />
+        <Metric label="待发货" value={value(['pendingShipmentCount'])} />
         <Metric label="待处理售后" value={value(['pendingAfterSaleCount', 'afterSalePending', 'pendingAfterSales'])} />
       </div>
     </>}
@@ -251,12 +250,49 @@ export function OverviewPage() {
 }
 
 const emptyProduct: ProductDraft = {
-  title: '', categoryId: '', primaryImage: '', images: [],
-  minSalePrice: '', specList: '',
+  title: '', categoryId: '', primaryImage: '', detailImages: [],
 };
+
+interface VariantDraft { skuId?: string; name: string; price: string }
+const emptyVariant = (): VariantDraft => ({ name: '', price: '' });
+
+function variantName(sku: Sku, product: Product) {
+  const info = Array.isArray(sku.specInfo) ? sku.specInfo : [];
+  const groups = Array.isArray(product.specList) ? product.specList as Record<string, unknown>[] : [];
+  return info.map((entry) => {
+    const value = entry as Record<string, unknown>;
+    const group = groups.find((item) => String(item.specId) === String(value.specId));
+    const options = Array.isArray(group?.specValueList) ? group.specValueList as Record<string, unknown>[] : [];
+    const option = options.find((item) => String(item.specValueId) === String(value.specValueId));
+    return String(option?.specValue || value.specValue || value.specValueId || '').trim();
+  }).filter(Boolean).join(' / ') || '默认规格';
+}
+
+function productDetailImages(product: Product) {
+  const cover = product.primaryImage || product.images?.[0];
+  const images = product.detailImages?.length ? product.detailImages : product.images?.filter((image) => image !== cover) || [];
+  return images.slice(0, 6);
+}
 
 function isRenderableImageSource(value: unknown): value is string {
   return typeof value === 'string' && /^(https?:|data:|blob:)/i.test(value);
+}
+
+function needsTempImageUrl(value: unknown): value is string {
+  return typeof value === 'string' && /^(cloud|local):\/\//i.test(value);
+}
+
+function ProductImagePreview({ fileID, alt }: { fileID: string; alt: string }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    let active = true;
+    setSrc(isRenderableImageSource(fileID) ? fileID : '');
+    if (needsTempImageUrl(fileID)) {
+      void adminApi.getTempFileUrl(fileID).then((url) => { if (active) setSrc(url); }).catch(() => { if (active) setSrc(''); });
+    }
+    return () => { active = false; };
+  }, [fileID]);
+  return src ? <img className="product-image-preview" src={src} alt={alt} /> : <span className="product-image-filename">{fileID}</span>;
 }
 
 export function ProductsPage() {
@@ -264,7 +300,13 @@ export function ProductsPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [draft, setDraft] = useState<ProductDraft>(emptyProduct);
-  const [uploading, setUploading] = useState(false);
+  const [variants, setVariants] = useState<VariantDraft[]>([emptyVariant()]);
+  const [saveError, setSaveError] = useState('');
+  const editorRequest = useRef(0);
+  const [variantsLoading, setVariantsLoading] = useState(false);
+  const [uploading, setUploading] = useState('');
+  const [detailUploadProgress, setDetailUploadProgress] = useState('');
+  const detailInputRef = useRef<HTMLInputElement>(null);
   const { data, loading, error } = useResource<unknown>('products.list', { page: 1, pageSize: 50 }, refreshKey);
   const categories = useResource<unknown>('categories.list', { page: 1, pageSize: 100 });
   const { busy, run } = useAction();
@@ -275,7 +317,7 @@ export function ProductsPage() {
     let active = true;
     const fileIDs = Array.from(new Set(rows
       .map((product) => product.primaryImage)
-      .filter((fileID): fileID is string => typeof fileID === 'string' && fileID.startsWith('cloud://'))));
+      .filter(needsTempImageUrl)));
     if (fileIDs.length === 0) {
       setImageUrls({});
       return () => { active = false; };
@@ -291,49 +333,102 @@ export function ProductsPage() {
     });
     return () => { active = false; };
   }, [rows]);
-  const openEditor = (product?: Product) => {
+  const openEditor = async (product?: Product) => {
+    const request = ++editorRequest.current;
+    setSaveError('');
     setEditorOpen(true);
     setEditing(product || null);
+    setVariants([emptyVariant()]);
+    setVariantsLoading(Boolean(product));
+    setUploading('');
+    setDetailUploadProgress('');
     setDraft(product ? {
       ...emptyProduct,
       title: product.title || '',
       categoryId: String(product.categoryId || product.categoryIds?.[0] || ''),
-      primaryImage: product.primaryImage || '', images: product.images || [],
-      minSalePrice: String(product.minSalePrice ?? ''),
-      specList: JSON.stringify(product.specList || [], null, 2),
+      primaryImage: product.primaryImage || product.images?.[0] || '',
+      detailImages: productDetailImages(product),
     } : emptyProduct);
+    if (product) {
+      try {
+        const refs = Array.from(new Set([product._id, product.spuId].filter(Boolean).map(String)));
+        const results = await Promise.all(refs.map((ref) => adminApi.call<unknown>('skus.list', { productId: ref })));
+        if (request !== editorRequest.current) return;
+        const existing = Array.from(new Map(results.flatMap((result) => readList<Sku>(result)).map((sku) => [String(sku._id || sku.skuId), sku])).values())
+          .filter((sku) => sku.status !== 'inactive');
+        setVariants(existing.length ? existing.map((sku) => ({
+          skuId: String(sku._id || sku.skuId),
+          name: variantName(sku, product),
+          price: Number.isFinite(Number(sku.salePrice ?? sku.price)) ? (Number(sku.salePrice ?? sku.price) / 100).toFixed(2) : '',
+        })) : [emptyVariant()]);
+      } catch (err) {
+        if (request !== editorRequest.current) return;
+        setEditorOpen(false);
+        await MessagePlugin.error(err instanceof Error ? err.message : '读取商品规格失败');
+      } finally {
+        if (request === editorRequest.current) setVariantsLoading(false);
+      }
+    }
   };
   const setValue = (key: keyof ProductDraft, value: string | boolean | string[]) => setDraft((old) => ({ ...old, [key]: value }));
-  const upload = async (file?: File) => {
+  const uploadCover = async (file?: File) => {
     if (!file) return;
-    setUploading(true);
+    const request = editorRequest.current;
+    setUploading('cover');
     try {
       const fileID = await adminApi.upload(file);
-      setDraft((old) => ({ ...old, primaryImage: old.primaryImage || fileID, images: [...old.images, fileID] }));
-      await MessagePlugin.success('图片已上传，保存商品后会写入商品记录。');
+      if (request !== editorRequest.current) return;
+      setDraft((old) => ({ ...old, primaryImage: fileID }));
+      await MessagePlugin.success('图片已上传');
     } catch (err) {
       await MessagePlugin.error(err instanceof Error ? err.message : '图片上传失败');
-    } finally { setUploading(false); }
+    } finally { if (request === editorRequest.current) setUploading(''); }
+  };
+  const uploadDetails = async (files: File[]) => {
+    if (!files.length || uploading) return;
+    if (draft.detailImages.length + files.length > 6) { await MessagePlugin.warning('商品详情图最多 6 张'); return; }
+    const request = editorRequest.current;
+    setUploading('details');
+    try {
+      for (const [index, file] of files.entries()) {
+        setDetailUploadProgress(`${index + 1}/${files.length}`);
+        const fileID = await adminApi.upload(file);
+        if (request !== editorRequest.current) return;
+        setDraft((old) => ({ ...old, detailImages: [...old.detailImages, fileID] }));
+      }
+      await MessagePlugin.success('详情图片已上传');
+    } catch (err) {
+      await MessagePlugin.error(err instanceof Error ? err.message : '详情图片上传失败');
+    } finally {
+      if (request === editorRequest.current) { setUploading(''); setDetailUploadProgress(''); }
+    }
   };
   const save = async () => {
-    if (!draft.title.trim()) { await MessagePlugin.warning('请填写商品名称'); return; }
-    let specList: unknown[] = [];
-    try {
-      specList = JSON.parse(draft.specList || '[]') as unknown[];
-      if (!Array.isArray(specList)) throw new Error('规格必须是数组');
-    } catch (err) {
-      await MessagePlugin.warning(err instanceof Error ? `规格配置格式错误：${err.message}` : '规格配置必须是合法 JSON 数组');
-      return;
+    if (variantsLoading || uploading) return;
+    setSaveError('');
+    const fail = async (message: string) => { setSaveError(message); await MessagePlugin.warning(message); };
+    if (!draft.title.trim()) { await fail('请填写商品名称'); return; }
+    const cleaned = variants.map((variant) => ({ ...variant, name: variant.name.trim(), price: variant.price.trim() }));
+    if (!cleaned.length) { await fail('请至少添加 1 种商品规格和价格'); return; }
+    if (cleaned.some((variant) => !variant.name || !/^\d+(?:\.\d{1,2})?$/.test(variant.price) || !Number.isSafeInteger(Math.round(Number(variant.price) * 100)) || Number(variant.price) <= 0)) {
+      await fail('请为每个规格填写名称和大于 0 的价格（元，最多两位小数）'); return;
     }
+    if (new Set(cleaned.map((variant) => variant.name)).size !== cleaned.length) { await fail('规格名称不能重复'); return; }
+    if (!draft.primaryImage) { await fail('请上传商品封面图片'); return; }
+    if (!draft.detailImages.some(Boolean)) { await fail('请至少上传 1 张商品详情图片'); return; }
     const { categoryId, ...productDraft } = draft;
-    await run('products.save', {
+    try { await run('products.save', {
       ...(editing ? { id: editing._id || editing.spuId } : {}),
       ...productDraft,
-      specList,
+      images: [draft.primaryImage],
+      detailImages: draft.detailImages.filter(Boolean),
+      variants: cleaned.map((variant) => ({ skuId: variant.skuId, name: variant.name, salePrice: Math.round(Number(variant.price) * 100) })),
       categoryIds: categoryId ? [categoryId] : [],
-    }, '商品已保存');
-    setEditing(null); setDraft(emptyProduct); setEditorOpen(false); setRefreshKey((key) => key + 1);
+    }, '商品已保存'); }
+    catch (error) { setSaveError(error instanceof Error ? error.message : '商品保存失败'); return; }
+    setEditing(null); setDraft(emptyProduct); setVariants([emptyVariant()]); setEditorOpen(false); setRefreshKey((key) => key + 1);
   };
+  const cancelEditor = () => { editorRequest.current += 1; setSaveError(''); setEditing(null); setDraft(emptyProduct); setEditorOpen(false); };
   return <>
     <div className="page-actions"><Button theme="primary" onClick={() => openEditor()}>新建商品</Button></div>
     {loading && <LoadingState />}{error && <ErrorState message={error} />}
@@ -347,13 +442,38 @@ export function ProductsPage() {
         return <tr key={String(product._id || product.spuId)}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong><small>ID：{String(product._id || product.spuId || '—')}</small></div></div></td><td>{String(product.categoryName || product.categoryId || product.categoryIds?.[0] || '—')}</td><td>{formatMoney(product.minSalePrice)}</td><td><Tag theme={status === 'active' ? 'success' : 'default'} variant="light">{productStatusLabels[status] || status || '—'}</Tag></td><td><Button variant="text" onClick={() => openEditor(product)}>编辑</Button></td></tr>;
       })}
     </tbody></Table></Panel>}
-    {editorOpen ? <Panel className="editor-panel"><div className="panel-heading"><h3>{editing ? '编辑商品' : '新建商品'}</h3><Button variant="text" onClick={() => { setEditing(null); setDraft(emptyProduct); setEditorOpen(false); }}>关闭</Button></div><div className="form-grid">
+    {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions"><Button variant="outline" onClick={cancelEditor}>取消</Button><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存商品</Button></div><div className="panel-heading"><h3>{editing ? '编辑商品' : '新建商品'}</h3></div>{saveError && <p className="home-config-feedback home-config-feedback-error" role="alert">{saveError}</p>}<div className="form-grid">
        <Field label="商品名称"><Input value={draft.title} onChange={(value) => setValue('title', value)} placeholder="请输入商品名称" /></Field>
        <Field label="分类"><select value={draft.categoryId} onChange={(event) => setValue('categoryId', event.target.value)}><option value="">请选择分类</option>{categoryRows.map((category) => <option key={String(category._id || category.id)} value={String(category._id || category.id)}>{category.name}</option>)}</select></Field>
-       <Field label="商品起售价（分）" hint="用于商品列表展示；SKU 实际成交价在 SKU / 库存管理中维护。"><Input value={draft.minSalePrice} onChange={(value) => setValue('minSalePrice', value)} placeholder="例如 29900" /></Field>
-       <Field label="规格配置" hint="例如：[{&quot;specId&quot;:&quot;color&quot;,&quot;title&quot;:&quot;颜色&quot;,&quot;specValueList&quot;:[{&quot;specValueId&quot;:&quot;red&quot;,&quot;specValue&quot;:&quot;红色&quot;}]}]"><textarea value={draft.specList} onChange={(event) => setValue('specList', event.target.value)} rows={6} placeholder="没有规格可留空；有规格时需填写 JSON 数组" /></Field>
-       <Field label="商品图片" hint="上传结果为 CloudBase fileID，会随商品保存。"><input type="file" accept="image/*" onChange={(event) => void upload(event.target.files?.[0])} disabled={uploading} />{uploading && <small>正在上传...</small>}<div className="file-list">{draft.images.map((image) => <code key={image}>{image}</code>)}</div></Field>
-    </div><div className="form-actions"><Button theme="primary" loading={busy} onClick={() => void save()}>保存商品</Button><Button variant="outline" onClick={() => { setEditing(null); setDraft(emptyProduct); setEditorOpen(false); }}>取消</Button></div></Panel> : null}
+       <div className="variant-field"><strong>商品规格与价格</strong>{variantsLoading && <small>正在读取已有规格…</small>}
+         {variants.map((variant, index) => <div className="variant-row" key={variant.skuId || `new-${index}`}>
+           <Input value={variant.name} onChange={(value) => setVariants((old) => old.map((item, i) => i === index ? { ...item, name: value } : item))} placeholder="规格，例如：小份" />
+           <Input value={variant.price} onChange={(value) => setVariants((old) => old.map((item, i) => i === index ? { ...item, price: value } : item))} placeholder="价格（元），例如：29.90" />
+           <Button variant="text" disabled={variants.length === 1} onClick={() => setVariants((old) => old.filter((_, i) => i !== index))}>删除</Button>
+         </div>)}
+         <Button variant="outline" onClick={() => setVariants((old) => [...old, emptyVariant()])}>添加规格</Button>
+       </div>
+         <Field label="封面图片（显示比例 1:1）" fileUpload>
+         <ImageFilePicker onSelect={(file) => void uploadCover(file)} disabled={Boolean(uploading)} />
+         {uploading === 'cover' && <small>正在上传...</small>}
+         {draft.primaryImage && <div className="product-image-item product-cover-preview"><ProductImagePreview fileID={draft.primaryImage} alt="商品封面预览" /><Button variant="text" onClick={() => setDraft((old) => ({ ...old, primaryImage: '' }))}>移除</Button></div>}
+       </Field>
+       <div className="product-detail-images">
+         <div className="product-detail-image-heading"><strong>商品详情图片（最多 6 张）</strong></div>
+         {draft.detailImages.length > 0 && <div className="product-detail-image-grid">
+           {draft.detailImages.map((image, index) => <div className="product-detail-image-card" key={`${image}-${index}`}>
+             <ProductImagePreview fileID={image} alt={`详情图 ${index + 1} 预览`} />
+             <div className="product-detail-image-card-actions"><span>第 {index + 1} 张</span><Button variant="text" disabled={Boolean(uploading)} onClick={() => setDraft((old) => ({ ...old, detailImages: old.detailImages.filter((_, i) => i !== index) }))}>删除</Button></div>
+           </div>)}
+         </div>}
+         <div className="product-detail-image-upload"><div className="image-file-picker">
+           <button type="button" disabled={draft.detailImages.length >= 6 || Boolean(uploading)} onClick={() => detailInputRef.current?.click()}>选择文件</button>
+           <span>{draft.detailImages.length ? `已上传 ${draft.detailImages.length} 张` : '未选择文件'}</span>
+           <input ref={detailInputRef} className="image-file-picker-input" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple disabled={Boolean(uploading)} aria-label="选择商品详情图片"
+             onChange={(event) => { const files = Array.from(event.target.files || []); event.target.value = ''; void uploadDetails(files); }} />
+         </div>{uploading === 'details' && <small>正在上传详情图片 {detailUploadProgress}</small>}</div>
+       </div>
+    </div></Panel> : null}
   </>;
 }
 
@@ -469,7 +589,7 @@ export function SkuPage() {
       <Field label="销售价（分）"><Input value={draft.salePrice} onChange={(value) => setValue('salePrice', value)} placeholder="例如 29900" /></Field>
       <Field label="初始库存"><Input value={draft.stockQuantity} onChange={(value) => setValue('stockQuantity', value)} placeholder="例如 100" /></Field>
       <Field label="SKU 状态"><select value={draft.status} onChange={(event) => setValue('status', event.target.value)}><option value="active">出售中</option><option value="inactive">已下架</option></select></Field>
-      <Field label="SKU 图片" hint="可选；未填写时前端使用商品主图。"><input type="file" accept="image/*" onChange={(event) => void upload(event.target.files?.[0])} disabled={uploading} />{uploading && <small>正在上传...</small>}<Input value={draft.skuImage} onChange={(value) => setValue('skuImage', value)} placeholder="可填写 URL 或 fileID" /></Field>
+      <Field label="SKU 图片" hint="可选；未填写时前端使用商品主图。" fileUpload><ImageFilePicker onSelect={(file) => void upload(file)} disabled={uploading} />{uploading && <small>正在上传...</small>}<Input value={draft.skuImage} onChange={(value) => setValue('skuImage', value)} placeholder="可填写 URL 或 fileID" /></Field>
       <Field label="规格信息" hint="需与商品规格配置的 specId / specValueId 对应。"><textarea value={draft.specInfo} onChange={(event) => setValue('specInfo', event.target.value)} rows={6} placeholder="例如：[{&quot;specId&quot;:&quot;color&quot;,&quot;specValueId&quot;:&quot;red&quot;}]" /></Field>
     </div><div className="form-actions"><Button theme="primary" loading={busy} onClick={() => void save()}>{editing ? '保存 SKU' : '创建 SKU'}</Button><Button variant="outline" onClick={reset}>取消</Button></div></Panel>}
     <Panel className="toolbar"><Input value={query} onChange={setQuery} placeholder="搜索 SKU、商品或规格" /><Button onClick={() => setRefreshKey((key) => key + 1)}>刷新</Button></Panel>{loading && <LoadingState />}{error && <ErrorState message={error} />}{!loading && !error && <Panel><Table><thead><tr><th>SKU</th><th>商品</th><th>规格</th><th>售价</th><th>库存</th><th>状态</th><th>调整库存</th><th>操作</th></tr></thead><tbody>{filtered.length === 0 && <EmptyTable colSpan={8} />}{filtered.map((row) => <tr key={String(row._id || row.skuId)}><td>{String(row.skuId || row._id || '—')}</td><td>{String(row.productTitle || row.title || productFor(row.productId || row.spuId)?.title || row.spuId || row.productId || '—')}</td><td>{formatSpecInfo(row.specInfo)}</td><td>{formatMoney(row.price ?? row.salePrice)}</td><td className={Number(row.stockQuantity) <= Number(row.safeStockQuantity || 0) ? 'warning-text' : ''}>{String(row.stockQuantity ?? '—')}</td><td><select value={String(row.status || 'active')} onChange={(event) => void updateStatus(row, event.target.value)} disabled={busy}><option value="active">出售中</option><option value="inactive">已下架</option></select></td><td><div className="inline-action"><Input value={stock} onChange={setStock} placeholder="目标库存" /><Button size="small" loading={busy} onClick={() => void updateStock(row)}>保存</Button></div></td><td><Button variant="text" onClick={() => openEditor(row)}>编辑</Button></td></tr>)}</tbody></Table></Panel>}

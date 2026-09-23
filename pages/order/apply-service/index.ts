@@ -407,8 +407,10 @@ Page({
 
   handleSuccess(e) {
     const { files } = e.detail;
+    const valid = (files || []).filter((file) => /\.(jpe?g|png|webp)(?:\?|$)/i.test(file.url || file.tempFilePath || file.path || file.name || '') && Number(file.size) <= 10 * 1024 * 1024);
+    if (valid.length !== (files || []).length) Toast({ context: this, selector: '#t-toast', message: '只能上传 10MB 内的 JPG、PNG 或 WebP 图片', icon: '' });
     this.setData({
-      'serviceFrom.rightsImageUrls': files,
+      'serviceFrom.rightsImageUrls': valid,
     });
   },
 

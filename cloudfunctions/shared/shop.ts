@@ -9,6 +9,7 @@ const { getDoc, list, listData, affected, withTransaction } = require('./db');
 const { HOME_CONFIG_SLOT, productIds } = require('./home-config');
 const { requireUser } = require('./auth');
 const { getTempFileURLs } = require('./storage');
+const { processStagedImage } = require('./image-upload');
 const {
   assert, string, optionalString, integer, object, array, page, clone,
 } = require('./validation');
@@ -905,7 +906,11 @@ async function shopEndpoint(event, context, runtime, action, data) {
   if (action === 'home.get') return readHome(runtime, data);
   if (action === 'storage.tempUrls') {
     requireUser(event, context, runtime);
-    return getTempFileURLs(runtime, data.fileList, { allowedPrefixes: ['admin/products/', 'products/', 'comments/', 'after-sales/', 'user/comments/', 'user/after-sales/', 'home/', 'public/'] });
+    return getTempFileURLs(runtime, data.fileList, { allowedPrefixes: ['admin/products/', 'products/', 'comments/', 'after-sales/', 'user/comments/', 'user/after-sales/', 'user/avatars/', 'home/', 'public/'] });
+  }
+  if (action === 'storage.processImage') {
+    requireUser(event, context, runtime);
+    return processStagedImage(runtime, data.fileID, ['user/comments', 'user/after-sales', 'user/avatars']);
   }
   if (action === 'user.me' || action === 'user.update') return getOrCreateUser(runtime, requireUser(event, context, runtime), data);
   if (action.startsWith('searchHistory.')) return searchHistoryAction(runtime, event, context, data, action);

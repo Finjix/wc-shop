@@ -15,7 +15,9 @@ export async function fetchGood(ID = '') {
   return {
     ...resolvedDetails,
     spuId: resolvedDetails.spuId || resolvedDetails._id || ID,
-    desc: Array.isArray(resolvedDetails.desc) ? resolvedDetails.desc : [],
+    desc: Array.isArray(resolvedDetails.detailImages) && resolvedDetails.detailImages.length
+      ? resolvedDetails.detailImages
+      : Array.isArray(resolvedDetails.desc) ? resolvedDetails.desc : [],
     specList: Array.isArray(resolvedDetails.specList) ? resolvedDetails.specList : [],
     skuList: Array.isArray(resolvedDetails.skuList) ? resolvedDetails.skuList : [],
   };

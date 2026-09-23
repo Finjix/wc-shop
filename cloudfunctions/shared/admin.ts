@@ -1,10 +1,12 @@
 // @ts-nocheck
 
+const crypto = require('crypto');
 const { COLLECTIONS, STATUS, ORDER_STATUS, AFTER_SALE_STATUS } = require('./constants');
 const { errorFrom } = require('./errors');
 const { requireAdmin } = require('./auth');
 const { getDoc, list, affected, withTransaction } = require('./db');
 const { getTempFileURLs } = require('./storage');
+const { processStagedImage } = require('./image-upload');
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
 const { skuPrice, skuStock } = require('./shop');
 const { HOME_CONFIG_SLOT, validateHomeConfig, productIds } = require('./home-config');
@@ -64,11 +66,82 @@ async function syncProductPrices(runtime, sku) {
   await products.doc(product._id || String(reference)).update({ ...pricePatch, updatedAt: now() });
 }
 
+async function saveProductWithVariants(runtime, data) {
+  assert(Array.isArray(data.variants) && data.variants.length > 0 && data.variants.length <= 100, { field: 'variants' });
+  const variants = data.variants.map((item) => {
+    assert(item && typeof item === 'object' && !Array.isArray(item), { field: 'variants' });
+    return {
+      skuId: item.skuId ? string(item.skuId, 'skuId', { max: 128 }) : '',
+      name: string(item.name, 'name', { max: 80 }),
+      salePrice: integer(item.salePrice, 'salePrice', { min: 1 }),
+    };
+  });
+  assert(new Set(variants.map((item) => item.name)).size === variants.length, { field: 'variants.name' });
+  assert(new Set(variants.filter((item) => item.skuId).map((item) => item.skuId)).size === variants.filter((item) => item.skuId).length, { field: 'variants.skuId' });
+  const productId = data.id ? string(data.id, 'id', { max: 128 }) : crypto.randomUUID();
+  const products = col(runtime, COLLECTIONS.products);
+  const current = data.id ? await getDoc(products, productId, true) : null;
+  const refs = current ? Array.from(new Set([current._id, current.spuId].filter(Boolean).map(String))) : [];
+  const skuBatches = [];
+  for (const ref of refs) {
+    skuBatches.push(await list(col(runtime, COLLECTIONS.skus), { where: { productId: ref }, includeTotal: false }));
+    skuBatches.push(await list(col(runtime, COLLECTIONS.skus), { where: { spuId: ref }, includeTotal: false }));
+  }
+  const existingSkus = Array.from(new Map(skuBatches.flatMap((batch) => batch.items).map((sku) => [String(sku._id || sku.skuId), sku])).values());
+  const existingById = new Map(existingSkus.map((sku) => [String(sku._id || sku.skuId), sku]));
+  variants.forEach((variant) => assert(!variant.skuId || existingById.has(variant.skuId), { field: 'variants.skuId' }));
+  const timestamp = now();
+  const prices = variants.map((item) => item.salePrice);
+  const specList = [{ specId: 'spec', title: '规格', specValueList: variants.map((item) => ({ specValueId: item.skuId || `sku_${crypto.randomUUID()}`, specValue: item.name })) }];
+  const patch = {
+    ...allowedFields(data, ['title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'tags', 'description']),
+    specList,
+    minSalePrice: Math.min(...prices),
+    maxSalePrice: Math.max(...prices),
+    updatedAt: timestamp,
+  };
+  patch.title = string(patch.title, 'title', { max: 200 });
+  patch.primaryImage = string(patch.primaryImage, 'primaryImage', { max: 1024 });
+  assert(Array.isArray(patch.detailImages) && patch.detailImages.length >= 1 && patch.detailImages.length <= 6, { field: 'detailImages', min: 1, max: 6 });
+  patch.detailImages = patch.detailImages.map((image) => string(image, 'detailImages[]', { max: 1024 }));
+  patch.images = [patch.primaryImage];
+  const result = await withTransaction(runtime.db, async (tx) => {
+    const txProducts = tx.collection(COLLECTIONS.products);
+    const txSkus = tx.collection(COLLECTIONS.skus);
+    if (current) await txProducts.doc(productId).update(patch);
+    else await txProducts.doc(productId).set({ _id: productId, spuId: productId, status: STATUS.active, createdAt: timestamp, ...patch });
+    const kept = new Set();
+    for (let index = 0; index < variants.length; index += 1) {
+      const variant = variants[index];
+      const old = variant.skuId ? existingById.get(variant.skuId) : null;
+      const skuId = old ? String(old._id || old.skuId) : specList[0].specValueList[index].specValueId;
+      specList[0].specValueList[index].specValueId = skuId;
+      kept.add(skuId);
+      const skuPatch = { productId, spuId: current?.spuId || productId, specInfo: [{ specId: 'spec', specValueId: skuId }], salePrice: variant.salePrice, status: STATUS.active, updatedAt: timestamp };
+      if (old) await txSkus.doc(skuId).update(skuPatch);
+      else await txSkus.doc(skuId).set({ _id: skuId, skuId, stockQuantity: 0, soldQuantity: 0, createdAt: timestamp, ...skuPatch });
+    }
+    for (const old of existingSkus) {
+      const skuId = String(old._id || old.skuId);
+      if (!kept.has(skuId) && old.status !== STATUS.inactive) await txSkus.doc(skuId).update({ status: STATUS.inactive, updatedAt: timestamp });
+    }
+    return { ...(current || {}), _id: productId, spuId: current?.spuId || productId, ...patch };
+  });
+  return result;
+}
+
 async function catalogAction(runtime, data, action) {
   const name = action.startsWith('categories.') ? COLLECTIONS.categories : action.startsWith('products.') ? COLLECTIONS.products : COLLECTIONS.skus;
   const entity = action.split('.')[0];
   const collection = col(runtime, name);
   if (action.endsWith('.list')) {
+    if (entity === 'skus' && (data.productId || data.spuId)) {
+      const ref = string(data.productId || data.spuId, 'productId', { max: 128 });
+      const byProduct = await list(collection, { where: { productId: ref }, includeTotal: false });
+      const bySpu = await list(collection, { where: { spuId: ref }, includeTotal: false });
+      const items = Array.from(new Map([...byProduct.items, ...bySpu.items].map((item) => [String(item._id || item.skuId), item])).values());
+      return { items: items.map((item) => ({ ...item, price: item.price ?? item.salePrice })), page: 1, pageSize: items.length, total: items.length };
+    }
     const where = {};
     if (data.status) where.status = string(data.status, 'status', { max: 40 });
     if (data.productId || data.spuId) where.productId = string(data.productId || data.spuId, 'productId', { max: 128 });
@@ -277,6 +350,7 @@ async function dashboardSummary(runtime) {
       commentCount: comments.length,
       afterSaleCount: afterSales.length,
       pendingOrderCount: orders.filter((order) => order.status === STATUS.pendingPayment).length,
+      pendingShipmentCount: orders.filter((order) => order.status === STATUS.paid).length,
       pendingAfterSaleCount: afterSales.filter((item) => item.status === STATUS.pendingReview).length,
     },
   };
@@ -379,13 +453,19 @@ function normalizeAdminAction(action, data) {
 }
 
 async function adminEndpoint(event, context, runtime, action, data) {
+  const isVariantSave = action === 'products.save';
   const normalized = normalizeAdminAction(action, data);
   action = normalized.action;
   data = normalized.data;
-  const auth = await requireAdmin(runtime.db, event, context, scopeFor(action), runtime);
+  const uploadScope = action === 'storage.processImage'
+    ? /^cloud:\/\/[^/]+\/pending\/home\//.test(String(data.fileID || '')) ? 'content' : 'catalog'
+    : scopeFor(action);
+  const auth = await requireAdmin(runtime.db, event, context, uploadScope, runtime);
+  if (isVariantSave) return saveProductWithVariants(runtime, data);
   if (action === 'dashboard.summary') return dashboardSummary(runtime);
   if (action === 'auth.me') return { uid: auth.identity.uid, roles: auth.roles, member: auth.member };
   if (action === 'storage.tempUrls') return getTempFileURLs(runtime, data.fileList);
+  if (action === 'storage.processImage') return processStagedImage(runtime, data.fileID, ['admin/products', 'home']);
   if (action.startsWith('categories.') || action.startsWith('products.') || action.startsWith('skus.')) return catalogAction(runtime, data, action);
   if (action === 'inventory.adjust') return inventoryAdjust(runtime, data);
   if (action.startsWith('home.')) return homeAction(runtime, data, action);

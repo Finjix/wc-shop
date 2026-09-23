@@ -117,7 +117,8 @@
     </view>
     <view class="service-from-group__grid">
       <t-upload
-        media-type="{{['image','video']}}"
+        media-type="{{['image']}}"
+        sizeLimit="{{10485760}}"
         files="{{serviceFrom.rightsImageUrls}}"
         bind:remove="handleRemove"
         bind:success="handleSuccess"

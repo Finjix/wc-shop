@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 const assert = require('assert');
+const sharp = require('sharp');
 
 const { getIdentity, requireUser } = require('../shared/auth');
 const { resultData, listData, getDoc, withTransaction } = require('../shared/db');
@@ -8,6 +9,35 @@ const { normalizeOrderItems, shopEndpoint } = require('../shared/shop');
 const { adminEndpoint } = require('../shared/admin');
 const { page } = require('../shared/validation');
 const { validateHomeConfig, DEFAULT_SEARCH_TEXT, DEFAULT_BANNER_TEXT } = require('../shared/home-config');
+const { processImageBuffer, processStagedImage, MAX_IMAGE_BYTES } = require('../shared/image-upload');
+
+async function testImageUploads() {
+  const png = await sharp({ create: { width: 1200, height: 1500, channels: 3, background: '#c87a2b' } }).png().toBuffer();
+  const converted = await processImageBuffer(png, 'photo.png');
+  const metadata = await sharp(converted).metadata();
+  assert.strictEqual(metadata.format, 'webp');
+  assert.deepStrictEqual([metadata.width, metadata.height], [1080, 1350]);
+  const jpeg = await sharp({ create: { width: 480, height: 240, channels: 3, background: '#9d9d9d' } }).jpeg().toBuffer();
+  assert.strictEqual((await sharp(await processImageBuffer(jpeg, 'photo.jpg')).metadata()).format, 'webp');
+  const webp = await sharp({ create: { width: 300, height: 500, channels: 3, background: '#3467ab' } }).webp().toBuffer();
+  assert.strictEqual(await processImageBuffer(webp, 'photo.webp'), webp);
+  const largeWebp = await sharp({ create: { width: 1300, height: 2600, channels: 3, background: '#3467ab' } }).webp().toBuffer();
+  const resizedWebp = await sharp(await processImageBuffer(largeWebp, 'large.webp')).metadata();
+  assert.deepStrictEqual([resizedWebp.width, resizedWebp.height], [1080, 2160]);
+  await assert.rejects(() => processImageBuffer(png, 'photo.gif'), appError('IMAGE_FORMAT'));
+  await assert.rejects(() => processImageBuffer(png, 'photo.jpg'), appError('IMAGE_FORMAT'));
+  await assert.rejects(() => processImageBuffer(Buffer.alloc(MAX_IMAGE_BYTES + 1), 'photo.png'), appError('IMAGE_TOO_LARGE'));
+  const calls = [];
+  const runtime = { app: {
+    downloadFile: async ({ fileID }) => { calls.push(['download', fileID]); return { fileContent: png }; },
+    uploadFile: async ({ cloudPath, fileContent }) => { calls.push(['upload', cloudPath]); assert.strictEqual((await sharp(fileContent).metadata()).format, 'webp'); return { fileID: `cloud://test/${cloudPath}` }; },
+    deleteFile: async ({ fileList }) => { calls.push(['delete', fileList[0]]); },
+  } };
+  const result = await processStagedImage(runtime, 'cloud://test/pending/user/comments/photo.png', ['user/comments']);
+  assert.match(result.fileID, /^cloud:\/\/test\/user\/comments\/.+\.webp$/);
+  assert.deepStrictEqual(calls.map((call) => call[0]), ['download', 'upload', 'delete']);
+  await assert.rejects(() => processStagedImage(runtime, 'cloud://test/pending/admin/products/photo.png', ['user/comments']), appError('FORBIDDEN'));
+}
 
 function appError(code) {
   return (error) => error && error.code === code;
@@ -137,6 +167,59 @@ async function testPageNumIsAcceptedAsPage() {
   assert.deepStrictEqual(page({ pageNum: '4', pageSize: 5 }), { page: 4, pageSize: 5 });
 }
 
+async function testSimpleProductVariantsSetCoverPriceAndSkus() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
+  const context = { auth: { uid: 'admin-1' } };
+  const created = await adminEndpoint({}, context, runtime, 'products.save', {
+    title: '规格商品', primaryImage: 'cover.jpg', detailImages: ['detail-1.jpg', 'detail-2.jpg'],
+    variants: [{ name: '大份', salePrice: 3900 }, { name: '小份', salePrice: 1900 }],
+  });
+  assert.strictEqual(created.minSalePrice, 1900);
+  assert.strictEqual(created.maxSalePrice, 3900);
+  assert.deepStrictEqual(created.images, ['cover.jpg']);
+  assert.deepStrictEqual(created.detailImages, ['detail-1.jpg', 'detail-2.jpg']);
+  const requiredFields = { title: '规格商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'], variants: [{ name: '小份', salePrice: 1900 }] };
+  for (const invalid of [
+    { ...requiredFields, title: '' },
+    { ...requiredFields, variants: [] },
+    { ...requiredFields, variants: [{ name: '小份', salePrice: 0 }] },
+    { ...requiredFields, primaryImage: '' },
+    { ...requiredFields, detailImages: [] },
+  ]) {
+    await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.save', invalid), appError('INVALID_ARGUMENT'));
+  }
+  await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.save', { title: '规格商品' }), appError('INVALID_ARGUMENT'));
+  await assert.rejects(
+    () => adminEndpoint({}, context, runtime, 'products.save', {
+      id: created._id, title: '规格商品', primaryImage: 'cover.jpg', detailImages: [],
+      variants: [{ name: '小份', salePrice: 1900 }],
+    }),
+    appError('INVALID_ARGUMENT'),
+  );
+  await assert.rejects(
+    () => adminEndpoint({}, context, runtime, 'products.save', {
+      id: created._id, title: '规格商品', primaryImage: 'cover.jpg', detailImages: Array(7).fill('detail.jpg'),
+      variants: [{ name: '小份', salePrice: 1900 }],
+    }),
+    appError('INVALID_ARGUMENT'),
+  );
+  assert.strictEqual(created.specList[0].specValueList.length, 2);
+  const skus = Object.values(runtime.records.skus).filter((sku) => sku.productId === created._id);
+  assert.strictEqual(skus.length, 2);
+  const small = skus.find((sku) => sku.salePrice === 1900);
+  assert.strictEqual(small.specInfo[0].specValueId, created.specList[0].specValueList[1].specValueId);
+  const updated = await adminEndpoint({}, context, runtime, 'products.save', {
+    id: created._id, title: '规格商品', primaryImage: 'new-cover.jpg', detailImages: ['detail-1.jpg'],
+    variants: [{ skuId: small._id, name: '小份', salePrice: 2400 }],
+  });
+  assert.strictEqual(updated.minSalePrice, 2400);
+  assert.deepStrictEqual(updated.images, ['new-cover.jpg']);
+  assert.deepStrictEqual(updated.detailImages, ['detail-1.jpg']);
+  assert.strictEqual(runtime.records.skus[small._id].salePrice, 2400);
+  assert.strictEqual(runtime.records.skus[skus.find((sku) => sku._id !== small._id)._id].status, 'inactive');
+}
+
 async function testMergedSkuQuantityIsCapped() {
   const duplicateItems = Array.from({ length: 50 }, () => ({ skuId: 'sku-a', quantity: 999 }));
   assert.throws(
@@ -232,6 +315,8 @@ async function testHomeConfigLimitsAndLegacyResponse() {
     sections: [{ id: 'featured', title: '精选', productIds: Array(6).fill('product-1') }],
   };
   assert.strictEqual(validateHomeConfig(config).sections[0].productIds.length, 6);
+  assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [{ image: 'cloud://home/banner.webp', productId: '' }], promos: [{ image: 'cloud://home/promo.webp', productId: '' }, blankLink] }).banners[0], { image: 'cloud://home/banner.webp', productId: '' });
+  assert.strictEqual(validateHomeConfig({ ...config, bannerText: '' }).bannerText, '');
   assert.throws(() => validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: ['product-1'] }] }), appError('INVALID_ARGUMENT'));
   assert.throws(() => validateHomeConfig({ ...config, sections: [] }), appError('INVALID_ARGUMENT'));
   assert.throws(() => validateHomeConfig({ ...config, sections: Array(7).fill(config.sections[0]) }), appError('INVALID_ARGUMENT'));
@@ -271,6 +356,8 @@ async function testHomeConfigLimitsAndLegacyResponse() {
 }
 
 const cases = [
+  { name: 'image uploads validate format, size, conversion and staging', run: testImageUploads },
+  { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
   {
     name: 'event.userInfo is not trusted as identity',
     run: testTrustedIdentityDoesNotComeFromEventUserInfo,

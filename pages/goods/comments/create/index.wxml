@@ -29,6 +29,7 @@
     <view class="upload-container">
       <t-upload
         media-type="{{['image']}}"
+        sizeLimit="{{10485760}}"
         files="{{uploadFiles}}"
         max="4"
         bind:remove="handleRemove"

@@ -116,6 +116,14 @@ export async function request<T = unknown>(action: string, data: Record<string, 
 }
 
 export async function uploadCloudFile(localPath: string, folder: 'comments' | 'after-sales' | 'avatars' = 'comments') {
+  if (!localPath || !/\.(jpe?g|png|webp)(?:\?|$)/i.test(localPath)) {
+    throw new ApiError('只能上传 JPG、PNG 或 WebP 图片', undefined, 'IMAGE_FORMAT');
+  }
+  const fileInfo = await new Promise<{ size: number }>((resolve, reject) => {
+    (wx as any).getFileInfo({ filePath: localPath, success: resolve, fail: reject });
+  });
+  if (fileInfo.size > 10 * 1024 * 1024) throw new ApiError('图片不能超过 10MB', undefined, 'IMAGE_TOO_LARGE');
+  if (!fileInfo.size) throw new ApiError('图片文件为空', undefined, 'IMAGE_FORMAT');
   if (useLocalBackend) {
     return new Promise<string>((resolve, reject) => {
       wx.uploadFile({
@@ -140,11 +148,16 @@ export async function uploadCloudFile(localPath: string, folder: 'comments' | 'a
   if (!cloudEnvId || !cloud?.uploadFile) {
     throw new ApiError('CloudBase 环境未初始化，无法上传文件。', undefined, 'CLOUD_NOT_INITIALIZED');
   }
-  if (!localPath) throw new ApiError('上传文件路径为空。', undefined, 'INVALID_FILE');
   const extension = localPath.split('?')[0].split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-  const cloudPath = `user/${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+  const cloudPath = `pending/user/${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
   const result = await cloud.uploadFile({ cloudPath, filePath: localPath });
-  return result.fileID;
+  try {
+    const processed = await request<{ fileID: string }>('storage.processImage', { fileID: result.fileID });
+    return processed.fileID;
+  } catch (error) {
+    try { await cloud.deleteFile({ fileList: [result.fileID] }); } catch { /* Keep the original upload error. */ }
+    throw error;
+  }
 }
 
 export async function getTempFileUrl(fileID: string) {

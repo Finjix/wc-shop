@@ -5,15 +5,13 @@ import { addSearchHistory } from '../../services/good/fetchSearchHistory';
 import { getApiErrorMessage } from '../../utils/api';
 import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
 
-const DEFAULT_BANNER_TEXT = '急速发货 | 品质保证 | 退货无忧';
-
 Page({
   data: {
     swiperSlides: [],
     swiperProductIds: [],
     promos: [],
     featuredSections: [],
-    bannerText: DEFAULT_BANNER_TEXT,
+    bannerText: '',
     pageLoading: false,
     current: 0,
     autoplay: true,
@@ -70,11 +68,11 @@ Page({
       const promos = Array.from({ length: 2 }, (_, index) => {
         const entry = config.promos?.[index] || {};
         const product = products[entry.productId];
-        if (!entry.image || !product) return null;
+        if (!entry.image || (entry.productId && !product)) return null;
         return {
           id: index,
           image: entry.image,
-          productId: String(product.spuId || product._id),
+          productId: product ? String(product.spuId || product._id) : '',
         };
       }).filter(Boolean);
       const featuredSections = Array.isArray(config.sections) && config.sections.length
@@ -98,7 +96,7 @@ Page({
         swiperProductIds: slides.map((item) => item.productId),
         promos,
         featuredSections,
-        bannerText: config.bannerText || DEFAULT_BANNER_TEXT,
+        bannerText: config.bannerText || '',
         pageLoading: false,
       });
     } catch (error) {

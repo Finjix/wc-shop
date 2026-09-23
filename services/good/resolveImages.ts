@@ -3,7 +3,7 @@
 import { getTempFileUrl } from '../../utils/api';
 
 function resolveImage(value) {
-  if (typeof value !== 'string' || !value.startsWith('cloud://')) return Promise.resolve(value || '');
+  if (typeof value !== 'string' || !/^(cloud|local):\/\//i.test(value)) return Promise.resolve(value || '');
   return getTempFileUrl(value).catch(() => value);
 }
 

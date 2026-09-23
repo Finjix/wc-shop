@@ -85,7 +85,7 @@ function imagePath(image) {
 
 async function uploadAfterSaleImage(image) {
   const path = imagePath(image);
-  if (!path || /^(cloud:|https?:|data:|wxfile:)/i.test(path)) return path;
+  if (!path || /^(cloud:|local:|data:|https?:\/\/(?!tmp\/))/i.test(path)) return path;
   return uploadCloudFile(path, 'after-sales');
 }
 

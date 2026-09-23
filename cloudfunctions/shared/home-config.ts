@@ -10,7 +10,7 @@ function imageLink(value, field) {
   const item = object(value, field);
   const image = typeof item.image === 'string' ? item.image.trim() : '';
   const productId = typeof item.productId === 'string' ? item.productId.trim() : '';
-  assert((!image && !productId) || (image && productId), { field });
+  assert(!productId || image, { field });
   assert(image.length <= 1024 && productId.length <= 128, { field });
   return { image, productId };
 }
@@ -36,7 +36,7 @@ function validateHomeConfig(value) {
   });
   return {
     searchText: string(input.searchText, 'searchText', { max: 120 }),
-    bannerText: string(input.bannerText, 'bannerText', { max: 160 }),
+    bannerText: typeof input.bannerText === 'string' && !input.bannerText.trim() ? '' : string(input.bannerText, 'bannerText', { max: 160 }),
     banners: banners.map((item, index) => imageLink(item, `banners.${index}`)),
     promos: promos.map((item, index) => imageLink(item, `promos.${index}`)),
     sections: normalizedSections,
