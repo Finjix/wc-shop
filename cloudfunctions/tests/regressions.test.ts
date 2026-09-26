@@ -315,6 +315,7 @@ async function testHomeConfigLimitsAndLegacyResponse() {
     sections: [{ id: 'featured', title: '精选', productIds: Array(6).fill('product-1') }],
   };
   assert.strictEqual(validateHomeConfig(config).sections[0].productIds.length, 6);
+  assert.strictEqual(validateHomeConfig({ ...config, searchText: '' }).searchText, '');
   assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [{ image: 'cloud://home/banner.webp', productId: '' }], promos: [{ image: 'cloud://home/promo.webp', productId: '' }, blankLink] }).banners[0], { image: 'cloud://home/banner.webp', productId: '' });
   assert.strictEqual(validateHomeConfig({ ...config, bannerText: '' }).bannerText, '');
   assert.throws(() => validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: ['product-1'] }] }), appError('INVALID_ARGUMENT'));
@@ -344,6 +345,11 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   const loaded = await shopEndpoint({}, {}, writable, 'home.get', {});
   assert.strictEqual(loaded.config.sections[0].productIds.length, 6);
   assert.strictEqual(loaded.productsById['product-1'].title, '测试商品');
+  const cleared = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
+    id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: { ...config, searchText: '' },
+  });
+  assert.strictEqual(cleared.payload.searchText, '');
+  assert.strictEqual((await shopEndpoint({}, {}, writable, 'home.get', {})).config.searchText, '');
   writable.records.products['product-1'].status = 'inactive';
   const afterRemoval = await shopEndpoint({}, {}, writable, 'home.get', {});
   assert.strictEqual(afterRemoval.productsById['product-1'], undefined, 'unavailable products are omitted');

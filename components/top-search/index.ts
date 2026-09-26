@@ -30,7 +30,7 @@ Component({
     },
     marqueeText: {
       type: String,
-      value: '欢迎光临番薯鞋店！',
+      value: '',
     },
   },
 
@@ -46,8 +46,8 @@ Component({
       try {
         const result = await request('home.get', {});
         const text = result?.config?.searchText;
-        if (typeof text === 'string' && text.trim()) this.setData({ marqueeText: text.trim() });
-      } catch { /* 离线时沿用默认文案 */ }
+        this.setData({ marqueeText: typeof text === 'string' && text.trim() !== '欢迎光临番薯鞋店！' ? text.trim() : '' });
+      } catch { /* 离线时保留当前显示状态 */ }
     },
     focusSearch() {
       this.triggerEvent('focus');

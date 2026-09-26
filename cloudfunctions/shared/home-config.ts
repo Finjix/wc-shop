@@ -35,7 +35,7 @@ function validateHomeConfig(value) {
     return { id, title, productIds: productIds.map((item, productIndex) => string(item, `sections.${index}.productIds.${productIndex}`, { max: 128 })) };
   });
   return {
-    searchText: string(input.searchText, 'searchText', { max: 120 }),
+    searchText: typeof input.searchText === 'string' && !input.searchText.trim() ? '' : string(input.searchText, 'searchText', { max: 120 }),
     bannerText: typeof input.bannerText === 'string' && !input.bannerText.trim() ? '' : string(input.bannerText, 'bannerText', { max: 160 }),
     banners: banners.map((item, index) => imageLink(item, `banners.${index}`)),
     promos: promos.map((item, index) => imageLink(item, `promos.${index}`)),

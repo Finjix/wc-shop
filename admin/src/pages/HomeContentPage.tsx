@@ -235,7 +235,6 @@ export function HomeContentPage() {
       await MessagePlugin.error(message);
       return false;
     };
-    if (!config.searchText.trim()) return fail('顶部搜索栏：请填写滚动文字');
     if (config.banners.length < 1 || config.banners.length > 6) return fail('轮播图：请保留一至六张');
     for (const [kind, entries] of [['轮播图', config.banners], ['图片入口', config.promos]] as const) {
       for (const [index, entry] of entries.entries()) {
