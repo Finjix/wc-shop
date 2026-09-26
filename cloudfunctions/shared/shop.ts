@@ -106,12 +106,17 @@ function publicSku(sku) {
 }
 
 async function readCategories(runtime, data) {
-  const result = await list(collection(runtime, COLLECTIONS.categories), {
-    where: { status: STATUS.active },
-    orderBy: { field: 'sort', direction: 'asc' },
-  });
-  const items = result.items.map((item) => pick(item, ['_id', 'id', 'groupId', 'name', 'parentId', 'level', 'sort', 'icon', 'description']));
-  return { items, total: result.total === undefined ? items.length : result.total };
+  const rows = [];
+  while (true) {
+    const result = await list(collection(runtime, COLLECTIONS.categories), {
+      where: { status: STATUS.active }, skip: rows.length, limit: 100,
+      orderBy: { field: '_id', direction: 'asc' }, includeTotal: false,
+    });
+    rows.push(...result.items);
+    if (result.items.length < 100) break;
+  }
+  const items = rows.map((item) => pick(item, ['_id', 'id', 'groupId', 'name', 'parentId', 'level', 'sort', 'image', 'icon', 'description', 'createdAt']));
+  return { items, total: items.length };
 }
 
 async function readProducts(runtime, data) {

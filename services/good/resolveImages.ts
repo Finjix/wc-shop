@@ -21,6 +21,16 @@ export function resolveGoodsListImages(items = []) {
   }));
 }
 
+export function resolveCategoryListImages(list = []) {
+  return Promise.all(list.map(async (parent) => ({
+    ...parent,
+    children: await Promise.all((parent.children || []).map(async (child) => ({
+      ...child,
+      image: await resolveImage(child.image),
+    }))),
+  })));
+}
+
 export async function resolveProductDetailImages(product = {}) {
   const [primaryImage, images, detailImages, desc, skuList] = await Promise.all([
     resolveImage(product.primaryImage),

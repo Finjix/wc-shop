@@ -100,6 +100,10 @@ async function saveProductWithVariants(runtime, data) {
     maxSalePrice: Math.max(...prices),
     updatedAt: timestamp,
   };
+  if (patch.categoryIds !== undefined) {
+    patch.categoryIds = await validProductCategoryIds(runtime, patch.categoryIds);
+    patch.categoryId = null;
+  }
   patch.title = string(patch.title, 'title', { max: 200 });
   patch.primaryImage = string(patch.primaryImage, 'primaryImage', { max: 1024 });
   assert(Array.isArray(patch.detailImages) && patch.detailImages.length >= 1 && patch.detailImages.length <= 6, { field: 'detailImages', min: 1, max: 6 });
@@ -128,6 +132,86 @@ async function saveProductWithVariants(runtime, data) {
     return { ...(current || {}), _id: productId, spuId: current?.spuId || productId, ...patch };
   });
   return result;
+}
+
+async function allMatching(collection, where) {
+  const items = [];
+  while (true) {
+    const batch = await list(collection, { where, skip: items.length, limit: 100, includeTotal: false });
+    items.push(...batch.items);
+    if (batch.items.length < 100) return items;
+  }
+}
+
+async function validProductCategoryIds(runtime, value) {
+  assert(Array.isArray(value) && value.length <= 1, { field: 'categoryIds', max: 1 });
+  if (!value.length) return [];
+  const id = string(value[0], 'categoryIds.0', { max: 128 });
+  const category = await getDoc(col(runtime, COLLECTIONS.categories), id, false);
+  const parent = category?.parentId ? await getDoc(col(runtime, COLLECTIONS.categories), String(category.parentId), false) : null;
+  assert(category?.status === STATUS.active && parent?.status === STATUS.active && !parent.parentId, { field: 'categoryIds.0' });
+  return [id];
+}
+
+async function categoryAction(runtime, data, action, collection) {
+  if (action === 'categories.reorder') {
+    assert(Array.isArray(data.ids) && data.ids.length > 0 && data.ids.length <= 1000, { field: 'ids' });
+    const ids = data.ids.map((id) => string(id, 'ids', { max: 128 }));
+    assert(new Set(ids).size === ids.length, { field: 'ids' });
+    const parentId = data.parentId ? string(data.parentId, 'parentId', { max: 128 }) : null;
+    const siblings = await allMatching(collection, { parentId, status: STATUS.active });
+    assert(siblings.length === ids.length && siblings.every((item) => ids.includes(String(item._id || item.id))), { field: 'ids' });
+    const updatedAt = now();
+    for (const [sort, id] of ids.entries()) await collection.doc(id).update({ sort, updatedAt });
+    return { ids };
+  }
+  if (action.endsWith('.create') || action.endsWith('.update')) {
+    const existing = action.endsWith('.update')
+      ? await getDoc(collection, string(data.id || data.categoryId, 'id', { max: 128 }), true)
+      : null;
+    const parentId = data.parentId === undefined ? existing?.parentId || null : data.parentId ? string(data.parentId, 'parentId', { max: 128 }) : null;
+    const parent = parentId ? await getDoc(collection, parentId, false) : null;
+    if (parentId) assert(parent?.status === STATUS.active && !parent.parentId && String(parent._id || parent.id) !== String(existing?._id || existing?.id), { field: 'parentId' });
+    if (existing) assert(Boolean(existing.parentId) === Boolean(parentId), { field: 'parentId' });
+    const name = string(data.name === undefined ? existing?.name : data.name, 'name', { max: 80 });
+    const siblings = await allMatching(collection, { parentId, status: STATUS.active });
+    assert(!siblings.some((item) => String(item._id || item.id) !== String(existing?._id || '') && item.name === name), { field: 'name' });
+    const sort = existing?.sort ?? (siblings.length ? Math.max(...siblings.map((item) => Number(item.sort) || 0)) + 1 : 0);
+    const image = data.image === undefined ? existing?.image || '' : data.image ? string(data.image, 'image', { max: 512 }) : '';
+    assert(!image || Boolean(parentId), { field: 'image' });
+    const patch = { name, parentId, level: parentId ? 2 : 1, sort, image, updatedAt: now() };
+    if (existing) {
+      await collection.doc(String(existing._id || existing.id)).update(patch);
+      return { ...existing, ...patch };
+    }
+    const item = { ...patch, status: STATUS.active, createdAt: patch.updatedAt };
+    const result = await collection.add(item);
+    return { ...item, _id: result.id || result._id };
+  }
+  if (!action.endsWith('.delete')) throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
+  const id = string(data.id || data.categoryId, 'id', { max: 128 });
+  const existing = await getDoc(collection, id, true);
+  const descendants = !existing.parentId ? await allMatching(collection, { parentId: id }) : [];
+  const ids = [id, ...descendants.map((item) => String(item._id || item.id))];
+  const products = col(runtime, COLLECTIONS.products);
+  const affectedProducts = new Map();
+  for (const categoryId of ids) {
+    for (const product of await allMatching(products, { categoryIds: categoryId })) {
+      affectedProducts.set(String(product._id || product.spuId), product);
+    }
+    for (const product of await allMatching(products, { categoryId })) {
+      affectedProducts.set(String(product._id || product.spuId), product);
+    }
+  }
+  for (const [productId, product] of affectedProducts) {
+    await products.doc(productId).update({
+      categoryIds: (product.categoryIds || []).filter((categoryId) => !ids.includes(String(categoryId))),
+      ...(ids.includes(String(product.categoryId)) ? { categoryId: null } : {}),
+      updatedAt: now(),
+    });
+  }
+  for (const categoryId of ids) await collection.doc(categoryId).update({ status: STATUS.inactive, updatedAt: now() });
+  return { ...existing, status: STATUS.inactive, _id: id, removedIds: ids };
 }
 
 async function catalogAction(runtime, data, action) {
@@ -166,6 +250,7 @@ async function catalogAction(runtime, data, action) {
     const id = string(data[`${entity.slice(0, -1)}Id`] || data.id || data.spuId || data.skuId, 'id', { max: 128 });
     return getDoc(collection, id, true);
   }
+  if (entity === 'categories') return categoryAction(runtime, data, action, collection);
   if (action.endsWith('.create')) {
     const timestamp = now();
     let item;
@@ -174,6 +259,10 @@ async function catalogAction(runtime, data, action) {
     else item = { ...allowedFields(data, ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity']), status: statusValue(data.status, STATUS.active), stockQuantity: integer(data.stockQuantity === undefined ? 0 : data.stockQuantity, 'stockQuantity', { min: 0 }), soldQuantity: integer(data.soldQuantity === undefined ? 0 : data.soldQuantity, 'soldQuantity', { min: 0 }) };
     item.createdAt = timestamp;
     item.updatedAt = timestamp;
+    if (entity === 'products' && item.categoryIds !== undefined) {
+      item.categoryIds = await validProductCategoryIds(runtime, item.categoryIds);
+      item.categoryId = null;
+    }
     const result = await collection.add(item);
     item._id = result.id || result._id;
     if (entity === 'skus') await syncProductPrices(runtime, item);
@@ -193,6 +282,10 @@ async function catalogAction(runtime, data, action) {
       ? ['spuId', 'title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList', 'status']
       : ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity', 'status'];
   const patch = allowedFields(data, fields);
+  if (entity === 'products' && patch.categoryIds !== undefined) {
+    patch.categoryIds = await validProductCategoryIds(runtime, patch.categoryIds);
+    patch.categoryId = null;
+  }
   if (patch.status) patch.status = statusValue(patch.status);
   if (entity === 'skus') {
     if (patch.status && ![STATUS.active, STATUS.inactive].includes(patch.status)) throw errorFrom('INVALID_ARGUMENT', { field: 'status' });
@@ -465,7 +558,7 @@ async function adminEndpoint(event, context, runtime, action, data) {
   if (action === 'dashboard.summary') return dashboardSummary(runtime);
   if (action === 'auth.me') return { uid: auth.identity.uid, roles: auth.roles, member: auth.member };
   if (action === 'storage.tempUrls') return getTempFileURLs(runtime, data.fileList);
-  if (action === 'storage.processImage') return processStagedImage(runtime, data.fileID, ['admin/products', 'home']);
+  if (action === 'storage.processImage') return processStagedImage(runtime, data.fileID, ['admin/products', 'admin/categories', 'home']);
   if (action.startsWith('categories.') || action.startsWith('products.') || action.startsWith('skus.')) return catalogAction(runtime, data, action);
   if (action === 'inventory.adjust') return inventoryAdjust(runtime, data);
   if (action.startsWith('home.')) return homeAction(runtime, data, action);

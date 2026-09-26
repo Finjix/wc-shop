@@ -2,8 +2,9 @@
 
 import { request } from '../../utils/api';
 import { normalizeCategoryList } from './normalize';
+import { resolveCategoryListImages } from './resolveImages';
 
-export function getCategoryList() {
-  return request('categories.list').then(normalizeCategoryList);
+export async function getCategoryList() {
+  return resolveCategoryListImages(normalizeCategoryList(await request('categories.list')));
 }
 // @ts-nocheck

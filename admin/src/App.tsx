@@ -1,7 +1,8 @@
 import { createHashRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom';
 import { useAuth } from './auth/AuthProvider';
 import { AdminLayout } from './components/Layout';
-import { AfterSalesPage, CategoriesPage, CommentsPage, HomeContentPage, OrderDetailPage, OrdersPage, OverviewPage, ProductsPage, SkuPage } from './pages/Pages';
+import { AfterSalesPage, CommentsPage, HomeContentPage, OrderDetailPage, OrdersPage, OverviewPage, ProductsPage, SkuPage } from './pages/Pages';
+import { CategoriesPage } from './pages/CategoriesPage';
 import { LoginPage } from './pages/LoginPage';
 import { LoadingState } from './components/Ui';
 

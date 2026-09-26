@@ -1,30 +1,34 @@
 <view class="wrap">
   <view class="category-header">
-    <view
-      class="category-custom-nav"
-      style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"
-    ></view>
-    <top-search
-      top="{{searchTop}}"
-      left="{{searchLeft}}"
-      width="{{searchWidth}}"
-      value="{{searchValue}}"
-      focus="{{searchFocus}}"
-      search-background="#f5f5f5"
-      bind:focus="handleSearchFocus"
-      bind:blur="handleSearchBlur"
-      bind:change="handleSearchChange"
-      bind:submit="handleSearchSubmit"
-    />
+    <view class="category-custom-nav" style="height: {{customNavHeight}}px; padding-top: {{statusBarHeight}}px;"></view>
+    <top-search top="{{searchTop}}" left="{{searchLeft}}" width="{{searchWidth}}" value="{{searchValue}}" focus="{{searchFocus}}" search-background="#f5f5f5" bind:focus="handleSearchFocus" bind:blur="handleSearchBlur" bind:change="handleSearchChange" bind:submit="handleSearchSubmit" />
   </view>
   <view class="category-state" wx:if="{{categoryLoading}}">加载中...</view>
   <view class="category-state" wx:elif="{{categoryError}}">{{categoryError}}</view>
-  <goods-category
-    wx:if="{{list.length}}"
-    style="height: {{categoryHeight}}px;"
-    level="{{3}}"
-    custom-class="goods-category-class"
-    category="{{list}}"
-    bind:changeCategory="onChange"
-  />
+  <view class="category-state" wx:elif="{{!list.length}}">暂无分类</view>
+  <view class="category-main" style="height: {{categoryHeight}}px;" wx:else>
+    <scroll-view class="category-sidebar" scroll-y>
+      <view wx:for="{{list}}" wx:key="_id" data-index="{{index}}" bindtap="selectParent" class="category-parent {{activeParentIndex === index ? 'active' : ''}}">{{item.name}}</view>
+    </scroll-view>
+    <view class="category-right">
+      <scroll-view class="category-products" scroll-y>
+        <view class="category-empty" wx:if="{{!list[activeParentIndex].children.length}}">暂无二级分类</view>
+        <view class="category-section" wx:for="{{goodsSections}}" wx:for-item="section" wx:key="id">
+          <image class="category-section-banner" wx:if="{{section.image}}" src="{{section.image}}" mode="widthFix" lazy-load />
+          <view class="category-section-title" wx:else>{{section.name}}</view>
+          <view class="category-product-grid" wx:if="{{section.goodsList.length}}">
+            <view class="category-product-card" wx:for="{{section.goodsList}}" wx:for-item="goods" wx:key="spuId" data-id="{{goods.spuId || goods._id}}" bindtap="openGoods">
+              <image class="category-product-image" wx:if="{{goods.thumb}}" src="{{goods.thumb}}" mode="aspectFill" lazy-load />
+              <view class="category-product-image category-product-image-empty" wx:else></view>
+              <view class="category-product-name">{{goods.title}}</view>
+              <price wr-class="category-product-price" price="{{goods.price || 0}}" />
+            </view>
+          </view>
+          <view class="category-section-empty" wx:if="{{section.loaded && !section.goodsList.length}}">暂无商品</view>
+        </view>
+        <view class="category-status" wx:if="{{goodsLoading}}">加载中...</view>
+        <view class="category-status" wx:if="{{goodsError}}" bindtap="retryGoods">{{goodsError}}，点击重试</view>
+      </scroll-view>
+    </view>
+  </view>
 </view>

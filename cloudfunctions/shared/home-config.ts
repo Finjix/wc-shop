@@ -31,7 +31,7 @@ function validateHomeConfig(value) {
     sectionIds.add(id);
     const title = string(section.title, `sections.${index}.title`, { max: 80 });
     const productIds = array(section.productIds, `sections.${index}.productIds`);
-    assert(productIds.length === 6, { field: `sections.${index}.productIds`, count: 6 });
+    assert([2, 4, 6].includes(productIds.length), { field: `sections.${index}.productIds`, min: 2, max: 6 });
     return { id, title, productIds: productIds.map((item, productIndex) => string(item, `sections.${index}.productIds.${productIndex}`, { max: 128 })) };
   });
   return {

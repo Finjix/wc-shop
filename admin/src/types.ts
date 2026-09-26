@@ -54,6 +54,7 @@ export interface Category {
   name: string;
   parentId?: Id | null;
   sort?: number;
+  image?: string;
   enabled?: boolean;
   [key: string]: unknown;
 }

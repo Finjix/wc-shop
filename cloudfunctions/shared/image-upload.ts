@@ -31,7 +31,7 @@ async function processImageBuffer(input, filename) {
 }
 
 async function processStagedImage(runtime, fileID, allowedFolders) {
-  const match = /^cloud:\/\/[^/]+\/pending\/(admin\/products|home|user\/comments|user\/after-sales|user\/avatars)\/([a-zA-Z0-9._-]+\.(?:jpe?g|png|webp))$/i.exec(String(fileID || ''));
+  const match = /^cloud:\/\/[^/]+\/pending\/(admin\/products|admin\/categories|home|user\/comments|user\/after-sales|user\/avatars)\/([a-zA-Z0-9._-]+\.(?:jpe?g|png|webp))$/i.exec(String(fileID || ''));
   if (!match || !allowedFolders.includes(match[1])) throw errorFrom('FORBIDDEN');
   const folder = match[1];
   const stagedName = match[2];

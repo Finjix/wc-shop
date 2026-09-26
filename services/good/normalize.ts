@@ -37,9 +37,17 @@ export function normalizeSearchResult(result) {
 }
 
 export function normalizeCategoryList(result) {
-  if (Array.isArray(result)) return result;
-  if (!result || typeof result !== 'object') return [];
-  return result.list || result.items || result.categories || result.categoryList || [];
+  const rows = Array.isArray(result) ? result : result && typeof result === 'object'
+    ? result.list || result.items || result.categories || result.categoryList || [] : [];
+  if (!Array.isArray(rows)) return [];
+  const active = rows.filter((item) => item && item.status !== 'inactive');
+  const parents = active.filter((item) => !item.parentId);
+  const sort = (left, right) => (Number(left.sort) || 0) - (Number(right.sort) || 0)
+    || String(left.createdAt || left._id || left.id).localeCompare(String(right.createdAt || right._id || right.id));
+  return parents.sort(sort).map((parent) => ({
+    ...parent,
+    children: active.filter((item) => item.parentId && String(item.parentId) === String(parent._id || parent.id)).sort(sort),
+  }));
 }
 
 export function normalizeHomeContent(result) {

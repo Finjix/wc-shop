@@ -3,7 +3,7 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
-    "goods-category": "./components/goods-category/index",
-    "top-search": "/components/top-search/index"
+    "top-search": "/components/top-search/index",
+    "price": "/components/price/index"
   }
 }

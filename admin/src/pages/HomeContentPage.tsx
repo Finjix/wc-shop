@@ -25,7 +25,7 @@ type HomeRecord = { _id?: string; slot?: string; type?: string; image?: string; 
 type SaveSource = 'search' | 'banners' | 'bannerText' | 'promos' | 'sections';
 
 const blankLink = (): ImageLink => ({ image: '', productId: '' });
-const blankSection = (): ProductSection => ({ id: `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title: '', productIds: Array(6).fill('') });
+const blankSection = (): ProductSection => ({ id: `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title: '', productIds: ['', ''] });
 const defaultConfig = (): HomeConfig => ({
   searchText: '',
   bannerText: '',
@@ -227,6 +227,12 @@ export function HomeContentPage() {
   const updateSection = (index: number, change: Partial<ProductSection>) => setConfig((old) => ({
     ...old, sections: old.sections.map((section, itemIndex) => itemIndex === index ? { ...section, ...change } : section),
   }));
+  const resizeSectionProducts = (index: number, count: 2 | -2) => setConfig((old) => ({
+    ...old,
+    sections: old.sections.map((section, itemIndex) => itemIndex === index && section.productIds.length + count >= 2 && section.productIds.length + count <= 6
+      ? { ...section, productIds: count > 0 ? [...section.productIds, '', ''] : section.productIds.slice(0, -2) }
+      : section),
+  }));
 
   const save = async (source: SaveSource = 'search'): Promise<boolean> => {
     setSaveFeedback(null);
@@ -245,8 +251,9 @@ export function HomeContentPage() {
     if (config.sections.length < 1 || config.sections.length > 6) return fail('商品区：请保留一至六个');
     for (const [index, section] of config.sections.entries()) {
       if (!section.title.trim()) return fail(`商品区 ${index + 1}：请填写标题`);
+      if (![2, 4, 6].includes(section.productIds.length)) return fail(`商品区 ${index + 1}：商品数量须为二、四或六个`);
       const missingProduct = section.productIds.findIndex((id) => !id.trim());
-      if (missingProduct !== -1 || section.productIds.length !== 6) return fail(`商品区 ${index + 1}：请选择商品 ${missingProduct === -1 ? section.productIds.length + 1 : missingProduct + 1}`);
+      if (missingProduct !== -1) return fail(`商品区 ${index + 1}：请选择商品 ${missingProduct + 1}`);
     }
     for (const [index, entry] of config.banners.entries()) if (entry.productId && known[entry.productId] === null) return fail(`轮播图 ${index + 1}：跳转商品已下架或删除，请重新选择`);
     for (const [index, entry] of config.promos.entries()) if (entry.productId && known[entry.productId] === null) return fail(`${index === 0 ? '左侧' : '右侧'}图片入口：跳转商品已下架或删除，请重新选择`);
@@ -308,7 +315,7 @@ export function HomeContentPage() {
 
     <Panel><div className="panel-heading"><h3>商品区</h3><div className="home-config-panel-actions"><Button disabled={config.sections.length >= 6} onClick={() => setConfig((old) => ({ ...old, sections: [...old.sections, blankSection()] }))}>新增商品区</Button>{panelSaveButton('sections')}</div></div>{feedback('sections')}
       {config.sections.map((section, sectionIndex) => <div className="home-config-entry" key={section.id}>
-        <div className="home-config-entry-head"><strong>商品区 {sectionIndex + 1}</strong><Button size="small" variant="text" disabled={config.sections.length <= 1} onClick={() => setConfig((old) => ({ ...old, sections: old.sections.filter((item) => item.id !== section.id) }))}>删除</Button></div>
+        <div className="home-config-entry-head"><strong>商品区 {sectionIndex + 1}</strong><div><Button size="small" variant="text" disabled={section.productIds.length >= 6} onClick={() => resizeSectionProducts(sectionIndex, 2)}>增加商品</Button><Button size="small" variant="text" disabled={section.productIds.length <= 2} onClick={() => resizeSectionProducts(sectionIndex, -2)}>减少商品</Button><Button size="small" variant="text" disabled={config.sections.length <= 1} onClick={() => setConfig((old) => ({ ...old, sections: old.sections.filter((item) => item.id !== section.id) }))}>删除</Button></div></div>
         <Field label="标题"><Input value={section.title} onChange={(value) => updateSection(sectionIndex, { title: value })} placeholder="商品区标题" /></Field>
         <div className="home-config-product-grid">{section.productIds.map((id, productIndex) => <Field key={productIndex} label={`商品 ${productIndex + 1}`}>{productSelect(id, (value) => updateSection(sectionIndex, { productIds: section.productIds.map((old, i) => i === productIndex ? value : old) }))}</Field>)}</div>
       </div>)}

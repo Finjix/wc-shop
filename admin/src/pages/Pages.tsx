@@ -308,10 +308,12 @@ export function ProductsPage() {
   const [detailUploadProgress, setDetailUploadProgress] = useState('');
   const detailInputRef = useRef<HTMLInputElement>(null);
   const { data, loading, error } = useResource<unknown>('products.list', { page: 1, pageSize: 50 }, refreshKey);
-  const categories = useResource<unknown>('categories.list', { page: 1, pageSize: 100 });
+  const categories = useResource<unknown>('categories.list', { page: 1, pageSize: 100, status: 'active' });
   const { busy, run } = useAction();
   const rows = useMemo(() => readList<Product>(data), [data]);
   const categoryRows = readList<Category>(categories.data);
+  const categoryParents = categoryRows.filter((category) => !category.parentId);
+  const selectableCategoryIds = new Set(categoryRows.filter((category) => category.parentId && categoryParents.some((parent) => String(parent._id || parent.id) === String(category.parentId))).map((category) => String(category._id || category.id)));
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   useEffect(() => {
     let active = true;
@@ -345,7 +347,7 @@ export function ProductsPage() {
     setDraft(product ? {
       ...emptyProduct,
       title: product.title || '',
-      categoryId: String(product.categoryId || product.categoryIds?.[0] || ''),
+      categoryId: String(product.categoryIds?.[0] || product.categoryId || ''),
       primaryImage: product.primaryImage || product.images?.[0] || '',
       detailImages: productDetailImages(product),
     } : emptyProduct);
@@ -439,12 +441,14 @@ export function ProductsPage() {
         const resolvedImage = imageUrls[fileID];
         const imageSource = isRenderableImageSource(resolvedImage) ? resolvedImage : isRenderableImageSource(fileID) ? fileID : '';
         const status = productStatusOf(product);
-        return <tr key={String(product._id || product.spuId)}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong><small>ID：{String(product._id || product.spuId || '—')}</small></div></div></td><td>{String(product.categoryName || product.categoryId || product.categoryIds?.[0] || '—')}</td><td>{formatMoney(product.minSalePrice)}</td><td><Tag theme={status === 'active' ? 'success' : 'default'} variant="light">{productStatusLabels[status] || status || '—'}</Tag></td><td><Button variant="text" onClick={() => openEditor(product)}>编辑</Button></td></tr>;
+        const categoryId = String(product.categoryIds?.[0] || product.categoryId || '');
+        const categoryName = categoryRows.find((category) => String(category._id || category.id) === categoryId)?.name;
+        return <tr key={String(product._id || product.spuId)}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong><small>ID：{String(product._id || product.spuId || '—')}</small></div></div></td><td>{categoryName || (categoryId ? '原分类不可用' : '无类别')}</td><td>{formatMoney(product.minSalePrice)}</td><td><Tag theme={status === 'active' ? 'success' : 'default'} variant="light">{productStatusLabels[status] || status || '—'}</Tag></td><td><Button variant="text" onClick={() => openEditor(product)}>编辑</Button></td></tr>;
       })}
     </tbody></Table></Panel>}
     {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions"><Button variant="outline" onClick={cancelEditor}>取消</Button><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存商品</Button></div><div className="panel-heading"><h3>{editing ? '编辑商品' : '新建商品'}</h3></div>{saveError && <p className="home-config-feedback home-config-feedback-error" role="alert">{saveError}</p>}<div className="form-grid">
        <Field label="商品名称"><Input value={draft.title} onChange={(value) => setValue('title', value)} placeholder="请输入商品名称" /></Field>
-       <Field label="分类"><select value={draft.categoryId} onChange={(event) => setValue('categoryId', event.target.value)}><option value="">请选择分类</option>{categoryRows.map((category) => <option key={String(category._id || category.id)} value={String(category._id || category.id)}>{category.name}</option>)}</select></Field>
+       <Field label="二级分类"><select value={draft.categoryId} onChange={(event) => setValue('categoryId', event.target.value)}><option value="">无类别</option>{draft.categoryId && !selectableCategoryIds.has(draft.categoryId) && <option value={draft.categoryId}>原分类不可用，请重新选择</option>}{categoryParents.map((parent) => <optgroup key={String(parent._id || parent.id)} label={parent.name}>{categoryRows.filter((category) => String(category.parentId || '') === String(parent._id || parent.id)).map((category) => <option key={String(category._id || category.id)} value={String(category._id || category.id)}>{category.name}</option>)}</optgroup>)}</select></Field>
        <div className="variant-field"><strong>商品规格与价格</strong>{variantsLoading && <small>正在读取已有规格…</small>}
          {variants.map((variant, index) => <div className="variant-row" key={variant.skuId || `new-${index}`}>
            <Input value={variant.name} onChange={(value) => setVariants((old) => old.map((item, i) => i === index ? { ...item, name: value } : item))} placeholder="规格，例如：小份" />
@@ -475,13 +479,6 @@ export function ProductsPage() {
        </div>
     </div></Panel> : null}
   </>;
-}
-
-export function CategoriesPage() {
-  const [refreshKey, setRefreshKey] = useState(0); const [name, setName] = useState(''); const [parentId, setParentId] = useState('');
-  const { data, loading, error } = useResource<unknown>('categories.list', { page: 1, pageSize: 100 }, refreshKey); const rows = readList<Category>(data); const { busy, run } = useAction();
-  const save = async () => { if (!name.trim()) { await MessagePlugin.warning('请输入分类名称'); return; } await run('categories.save', { name, parentId: parentId || null }, '分类已保存'); setName(''); setParentId(''); setRefreshKey((key) => key + 1); };
-  return <><Panel className="quick-form"><Field label="分类名称"><Input value={name} onChange={setName} placeholder="例如：日用百货" /></Field><Field label="父分类 ID"><Input value={parentId} onChange={setParentId} placeholder="顶级分类可留空" /></Field><Button theme="primary" loading={busy} onClick={() => void save()}>新增分类</Button></Panel>{loading && <LoadingState />}{error && <ErrorState message={error} />}{!loading && !error && <Panel><Table><thead><tr><th>名称</th><th>父分类</th><th>排序</th><th>状态</th></tr></thead><tbody>{rows.length === 0 && <EmptyTable colSpan={4} />}{rows.map((row) => <tr key={String(row._id || row.id)}><td><strong>{row.name}</strong></td><td>{String(row.parentId || '顶级')}</td><td>{String(row.sort ?? '—')}</td><td>{row.enabled === false ? '停用' : '启用'}</td></tr>)}</tbody></Table></Panel>}</>;
 }
 
 interface SkuDraft {
