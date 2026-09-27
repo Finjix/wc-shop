@@ -95,6 +95,8 @@ function makeRuntime() {
         writes.push({ operation: 'add', collection: name, id });
         return { id };
       },
+      async get() { return { data: Object.values(bucket).slice(0, 20) }; },
+      async count() { return { total: Object.keys(bucket).length }; },
       doc(id) {
         const key = String(id);
         return {
@@ -232,8 +234,11 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   assert.strictEqual(runtime.records.skus[removedSkuId].status, 'inactive');
   await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'inactive' });
   assert.strictEqual(runtime.records.products[created._id].status, 'inactive');
-  assert.strictEqual(runtime.records.skus[small._id].status, 'inactive');
+  assert.strictEqual(runtime.records.skus[small._id].status, 'active');
+  assert.strictEqual(runtime.records.skus[removedSkuId].status, 'inactive');
   await assert.rejects(() => shopEndpoint({}, {}, runtime, 'products.detail', { productId: created._id }));
+  assert.deepStrictEqual((await shopEndpoint({}, {}, runtime, 'skus.list', { productId: created._id })).items, []);
+  assert.deepStrictEqual((await shopEndpoint({}, {}, runtime, 'skus.list', {})).items.map((sku) => sku._id), ['sku-new']);
   await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'active' });
   assert.strictEqual(runtime.records.products[created._id].status, 'active');
   assert.strictEqual(runtime.records.skus[small._id].status, 'active');
@@ -260,6 +265,19 @@ async function testProductSaveManagesSkuInventoryStatusAndImages() {
   const byName = Object.fromEntries(created.specList[0].specValueList.map((item) => [item.specValue, item.specValueId]));
   assert.strictEqual(runtime.records.skus[byName['小份']].stockQuantity, 8);
   assert.strictEqual(runtime.records.skus[byName['小份']].skuImage, 'small.webp');
+  assert.strictEqual(runtime.records.skus[byName['暂停售卖']].status, 'inactive');
+  await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'inactive' });
+  await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'active' });
+  assert.strictEqual(runtime.records.skus[byName['小份']].status, 'active');
+  assert.strictEqual(runtime.records.skus[byName['暂停售卖']].status, 'inactive');
+  await adminEndpoint({}, context, runtime, 'products.save', {
+    ...base, id: created._id,
+    variants: [
+      { skuId: byName['小份'], name: '小份', salePrice: 1900, status: 'active' },
+      { skuId: byName['大份'], name: '大份', salePrice: 3900, status: 'active' },
+      { skuId: byName['暂停售卖'], name: '暂停售卖', salePrice: 900, status: 'inactive' },
+    ],
+  });
   assert.strictEqual(runtime.records.skus[byName['暂停售卖']].status, 'inactive');
   const publicDetail = await shopEndpoint({}, {}, runtime, 'products.detail', { productId: created._id });
   assert.strictEqual(publicDetail.product.minSalePrice, 1900);
@@ -390,6 +408,28 @@ async function testOrderCreationUsesDocumentOnlyTransaction() {
   assert.strictEqual(runtime.writes.some((write) => write.operation === 'update' && write.collection === 'skus'), true);
 }
 
+async function testOrderCreationRechecksProductStatus() {
+  const runtime = makeRuntime();
+  const originalTransaction = runtime.db.runTransaction.bind(runtime.db);
+  runtime.db.runTransaction = (worker) => {
+    runtime.records.products['product-1'].status = 'inactive';
+    return originalTransaction(worker);
+  };
+  await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'orders.create', {
+    requestKey: 'status-race', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+  }), appError('SKU_UNAVAILABLE'));
+  assert.deepStrictEqual(runtime.records.orders, {});
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
+}
+
+async function testDashboardProductCountUsesCountQuery() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
+  for (let index = 0; index < 25; index += 1) runtime.records.products[`extra-${index}`] = { _id: `extra-${index}` };
+  const result = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'dashboard.summary', {});
+  assert.strictEqual(result.metrics.productCount, 26);
+}
+
 async function testHomeConfigLimitsAndLegacyResponse() {
   const blankLink = { image: '', productId: '' };
   const config = {
@@ -482,6 +522,11 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
   assert.strictEqual(child.level, 2);
   assert.strictEqual(child.parentId, parent._id);
   assert.strictEqual(child.image, 'cloud://test/admin/categories/cover.webp');
+  assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [child._id]);
+  await adminEndpoint({}, context, runtime, 'products.save', {
+    id: 'product-1', title: '修改后的商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'],
+    categoryIds: [child._id], variants: [{ skuId: 'sku-new', name: '规格', salePrice: 100, status: 'active' }],
+  });
   await assert.rejects(() => adminEndpoint({}, context, runtime, 'categories.save', { name: '错误图片', parentId: null, image: 'cloud://test/admin/categories/cover.webp' }), appError('INVALID_ARGUMENT'));
   const renamedChild = await adminEndpoint({}, context, runtime, 'categories.save', { id: child._id, name: '男士皮鞋' });
   assert.strictEqual(renamedChild.image, child.image);
@@ -489,7 +534,8 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
   assert.strictEqual(clearedChild.image, '');
   await assert.rejects(() => adminEndpoint({}, context, runtime, 'categories.save', { name: '三级', parentId: child._id }), appError('INVALID_ARGUMENT'));
   await assert.rejects(() => adminEndpoint({}, context, runtime, 'categories.save', { name: '无效', parentId: 'missing' }), appError('INVALID_ARGUMENT'));
-  await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.update', { id: 'product-1', categoryIds: [parent._id] }), appError('INVALID_ARGUMENT'));
+  await adminEndpoint({}, context, runtime, 'products.update', { id: 'product-1', categoryIds: [parent._id] });
+  assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [child._id]);
   await adminEndpoint({}, context, runtime, 'products.update', { id: 'product-1', categoryIds: [child._id] });
   runtime.records.products['product-1'].categoryId = child._id;
   assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [child._id]);
@@ -511,11 +557,21 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
   runtime.records.categories.orphan = { _id: 'orphan', name: '旧分类', parentId: 'missing', status: 'active' };
   const repaired = await adminEndpoint({}, context, runtime, 'categories.save', { id: 'orphan', name: '旧分类', parentId: nextParent._id });
   assert.strictEqual(repaired.parentId, nextParent._id);
+  assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [repaired._id]);
   const nextChild = await adminEndpoint({}, context, runtime, 'categories.save', { name: '鞋垫', parentId: nextParent._id });
+  runtime.records.products['product-1'].categoryIds = [nextParent._id]; // 模拟旧数据仍挂在一级分类
+  runtime.records.products['legacy-product'] = { _id: 'legacy-product', categoryId: nextParent._id, categoryIds: [] };
   const lastChild = await adminEndpoint({}, context, runtime, 'categories.save', { name: '鞋带', parentId: nextParent._id });
+  assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [repaired._id]);
+  assert.deepStrictEqual(runtime.records.products['legacy-product'].categoryIds, [repaired._id]);
+  assert.strictEqual(runtime.records.products['legacy-product'].categoryId, null);
+  await adminEndpoint({}, context, runtime, 'products.update', { id: 'product-1', categoryIds: [nextParent._id] });
+  assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [repaired._id]);
   await adminEndpoint({}, context, runtime, 'categories.reorder', { parentId: nextParent._id, ids: [lastChild._id, repaired._id, nextChild._id] });
   assert.strictEqual(runtime.records.categories[lastChild._id].sort, 0);
   assert.strictEqual(runtime.records.categories[nextChild._id].sort, 2);
+  await adminEndpoint({}, context, runtime, 'products.update', { id: 'product-1', categoryIds: [nextParent._id] });
+  assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [repaired._id]);
   await assert.rejects(() => adminEndpoint({}, context, runtime, 'categories.reorder', { parentId: nextParent._id, ids: [nextParent._id, lastChild._id] }), appError('INVALID_ARGUMENT'));
   await adminEndpoint({}, context, runtime, 'products.update', { id: 'product-1', categoryIds: [nextChild._id] });
   await adminEndpoint({}, context, runtime, 'categories.delete', { id: nextChild._id });
@@ -553,6 +609,8 @@ const cases = [
     name: 'order creation uses document-only transaction operations',
     run: testOrderCreationUsesDocumentOnlyTransaction,
   },
+  { name: 'order creation rechecks product status inside transaction', run: testOrderCreationRechecksProductStatus },
+  { name: 'dashboard product count is not limited to the first page', run: testDashboardProductCountUsesCountQuery },
   { name: 'home configuration limits and legacy response', run: testHomeConfigLimitsAndLegacyResponse },
   { name: 'two-level categories validate hierarchy and clear products on deletion', run: testTwoLevelCategoriesAndCascadeDeletion },
 ];

@@ -256,9 +256,10 @@ interface VariantDraft {
   stock: string;
   originalStock?: number;
   stockDirty?: boolean;
+  status: 'active' | 'inactive';
   skuImage: string;
 }
-const emptyVariant = (): VariantDraft => ({ localId: crypto.randomUUID(), name: '', price: '', stock: '', skuImage: '' });
+const emptyVariant = (): VariantDraft => ({ localId: crypto.randomUUID(), name: '', price: '', stock: '', status: 'active', skuImage: '' });
 
 function variantName(sku: Sku, product: Product) {
   const info = Array.isArray(sku.specInfo) ? sku.specInfo : [];
@@ -455,6 +456,7 @@ export function ProductsPage() {
           stock: String(Math.max(0, variantStock(sku))),
           originalStock: variantStock(sku),
           stockDirty: false,
+          status: sku.status === 'inactive' ? 'inactive' : 'active',
           skuImage: String(sku.skuImage || ''),
         })) : [emptyVariant()]);
       } catch (err) {
@@ -526,6 +528,7 @@ export function ProductsPage() {
       await fail('库存必须是 0 到 100000000 的整数'); return;
     }
     if (new Set(cleaned.map((variant) => variant.name)).size !== cleaned.length) { await fail('规格名称不能重复'); return; }
+    if (!cleaned.some((variant) => variant.status === 'active')) { await fail('请至少保留 1 个出售中的规格'); return; }
     if (!draft.primaryImage) { await fail('请上传商品封面图片'); return; }
     if (!draft.detailImages.some(Boolean)) { await fail('请至少上传 1 张商品详情图片'); return; }
     const { categoryId, ...productDraft } = draft;
@@ -538,6 +541,7 @@ export function ProductsPage() {
         skuId: variant.skuId,
         name: variant.name,
         salePrice: Math.round(Number(variant.price) * 100),
+        status: variant.status,
         skuImage: variant.skuImage,
         ...(!variant.skuId || variant.stockDirty
           ? { stockQuantity: Number(variant.stock), ...(variant.skuId ? { expectedStockQuantity: variant.originalStock } : {}) }
@@ -588,6 +592,7 @@ export function ProductsPage() {
              <label><span>规格名称</span><Input value={variant.name} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, name: value } : item))} placeholder="例如：小份" /></label>
              <label><span>售价（元）</span><Input value={variant.price} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, price: value } : item))} placeholder="例如：29.90" /></label>
              <label><span>库存</span><Input value={variant.stock} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, stock: value, stockDirty: true } : item))} placeholder="0" /></label>
+             <label><span>状态</span><select value={variant.status} onChange={(event) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, status: event.target.value as 'active' | 'inactive' } : item))}><option value="active">出售中</option><option value="inactive">已下架</option></select></label>
              <Button variant="text" disabled={variants.length === 1} onClick={() => setVariants((old) => old.filter((item) => item.localId !== variant.localId))}>删除</Button>
            </div>
            <div className="variant-image"><span>SKU 图片（可选）</span><ImageFilePicker onSelect={(file) => void uploadVariantImage(variant.localId, file)} disabled={Boolean(uploading)} />{uploading === `sku:${variant.localId}` && <small>正在上传...</small>}

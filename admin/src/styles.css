@@ -136,9 +136,10 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .variant-field > strong { color: #333; font-size: 12px; }
 .variant-field > small { color: var(--subtle); font-size: 10px; }
 .variant-row { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 3px; }
-.variant-main { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.variant-main { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(110px, .8fr) auto; gap: 8px; align-items: end; }
 .variant-main label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .variant-main label > span, .variant-image > span { color: #333; font-size: 11px; font-weight: 600; }
+.variant-main select { min-height: 32px; }
 .variant-image { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .variant-image .product-image-item { width: 100%; }
 .product-image-item { display: flex; align-items: center; gap: 8px; max-width: 100%; }

@@ -160,6 +160,28 @@ async function allMatching(collection, where) {
   }
 }
 
+async function firstActiveChildId(runtime, parentId) {
+  const children = await allMatching(col(runtime, COLLECTIONS.categories), { parentId, status: STATUS.active });
+  children.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || ''))
+    || String(a._id || a.id).localeCompare(String(b._id || b.id)));
+  return children.length ? String(children[0]._id || children[0].id) : '';
+}
+
+async function moveParentProductsToFirstChild(runtime, parentId) {
+  const firstChildId = await firstActiveChildId(runtime, parentId);
+  if (!firstChildId) return;
+  const products = col(runtime, COLLECTIONS.products);
+  const matches = [
+    ...await allMatching(products, { categoryIds: parentId }),
+    ...await allMatching(products, { categoryId: parentId }),
+  ];
+  for (const product of new Map(matches.map((item) => [String(item._id || item.spuId), item])).values()) {
+    const currentId = product.categoryIds?.[0] || product.categoryId;
+    if (String(currentId) !== parentId) continue;
+    await products.doc(String(product._id || product.spuId)).update({ categoryIds: [firstChildId], categoryId: null, updatedAt: now() });
+  }
+}
+
 async function validProductCategoryIds(runtime, value) {
   assert(Array.isArray(value) && value.length <= 1, { field: 'categoryIds', max: 1 });
   if (!value.length) return [];
@@ -171,8 +193,8 @@ async function validProductCategoryIds(runtime, value) {
     const parent = await getDoc(categories, String(category.parentId), false);
     assert(parent?.status === STATUS.active && !parent.parentId, { field: 'categoryIds.0' });
   } else {
-    const children = await allMatching(categories, { parentId: id, status: STATUS.active });
-    assert(children.length === 0, { field: 'categoryIds.0' });
+    const firstChildId = await firstActiveChildId(runtime, id);
+    if (firstChildId) return [firstChildId];
   }
   return [id];
 }
@@ -206,10 +228,12 @@ async function categoryAction(runtime, data, action, collection) {
     const patch = { name, parentId, level: parentId ? 2 : 1, sort, image, updatedAt: now() };
     if (existing) {
       await collection.doc(String(existing._id || existing.id)).update(patch);
+      if (parentId) await moveParentProductsToFirstChild(runtime, parentId);
       return { ...existing, ...patch };
     }
     const item = { ...patch, status: STATUS.active, createdAt: patch.updatedAt };
     const result = await collection.add(item);
+    if (parentId) await moveParentProductsToFirstChild(runtime, parentId);
     return { ...item, _id: result.id || result._id };
   }
   if (!action.endsWith('.delete')) throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
@@ -318,24 +342,7 @@ async function catalogAction(runtime, data, action) {
     if (patch.stockQuantity !== undefined) patch.stockQuantity = integer(patch.stockQuantity, 'stockQuantity', { min: 0 });
   }
   patch.updatedAt = now();
-  if (entity === 'products' && patch.status && patch.status !== existing.status) {
-    const refs = Array.from(new Set([existing._id, existing.spuId].filter(Boolean).map(String)));
-    const batches = [];
-    for (const ref of refs) {
-      batches.push(await allMatching(col(runtime, COLLECTIONS.skus), { productId: ref }));
-      batches.push(await allMatching(col(runtime, COLLECTIONS.skus), { spuId: ref }));
-    }
-    const skus = Array.from(new Map(batches.flat().map((sku) => [String(sku._id || sku.skuId), sku])).values());
-    const configuredIds = new Set((Array.isArray(existing.specList) ? existing.specList : []).flatMap((group) =>
-      Array.isArray(group?.specValueList) ? group.specValueList.map((item) => String(item.specValueId)) : []));
-    const managedSkus = Array.isArray(existing.specList) ? skus.filter((sku) => configuredIds.has(String(sku._id || sku.skuId))) : skus;
-    await withTransaction(runtime.db, async (tx) => {
-      await tx.collection(COLLECTIONS.products).doc(id).update(patch);
-      for (const sku of managedSkus) {
-        if (sku.status !== patch.status) await tx.collection(COLLECTIONS.skus).doc(String(sku._id || sku.skuId)).update({ status: patch.status, updatedAt: patch.updatedAt });
-      }
-    });
-  } else await collection.doc(id).update(patch);
+  await collection.doc(id).update(patch);
   if (entity === 'skus') await syncProductPrices(runtime, { ...existing, ...patch, _id: id });
   return { ...existing, ...patch, _id: id };
 }
@@ -472,12 +479,14 @@ async function adminOrderAction(runtime, data, action) {
 }
 
 async function dashboardSummary(runtime) {
-  const names = [COLLECTIONS.products, COLLECTIONS.orders, COLLECTIONS.comments, COLLECTIONS.afterSales];
-  const entries = await Promise.all(names.map((name) => list(col(runtime, name), {})));
-  const [products, orders, comments, afterSales] = entries.map((entry) => entry.items);
+  const [productCount, ...entries] = await Promise.all([
+    col(runtime, COLLECTIONS.products).count(),
+    ...[COLLECTIONS.orders, COLLECTIONS.comments, COLLECTIONS.afterSales].map((name) => list(col(runtime, name), {})),
+  ]);
+  const [orders, comments, afterSales] = entries.map((entry) => entry.items);
   return {
     metrics: {
-      productCount: products.length,
+      productCount: productCount.total,
       orderCount: orders.length,
       commentCount: comments.length,
       afterSaleCount: afterSales.length,

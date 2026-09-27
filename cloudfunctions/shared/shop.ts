@@ -168,13 +168,23 @@ async function readSkus(runtime, data) {
   const ref = data.productId || data.spuId;
   if (ref) {
     const id = string(ref, 'productId', { max: 128 });
+    if (!await getActiveProduct(runtime, id, false)) return { items: [], total: 0 };
     const byProduct = await list(collection(runtime, COLLECTIONS.skus), { where: { status: STATUS.active, productId: id } });
     const bySpu = await list(collection(runtime, COLLECTIONS.skus), { where: { status: STATUS.active, spuId: id } });
     const items = Array.from(new Map([...byProduct.items, ...bySpu.items].map((sku) => [String(sku._id || sku.skuId), sku])).values());
     return { items: items.map(publicSku), total: items.length };
   }
   const result = await list(collection(runtime, COLLECTIONS.skus), { where: { status: STATUS.active } });
-  return { items: result.items.map(publicSku), total: result.total === undefined ? result.items.length : result.total };
+  const activeProducts = new Map();
+  const resolved = await Promise.all(result.items.map(async (sku) => {
+    const productId = productIdForSku(sku);
+    if (!productId) return null;
+    if (!activeProducts.has(productId)) activeProducts.set(productId, getActiveProduct(runtime, productId, false));
+    const product = await activeProducts.get(productId);
+    return product ? sku : null;
+  }));
+  const visible = resolved.filter(Boolean);
+  return { items: visible.map(publicSku), total: visible.length };
 }
 
 async function readHome(runtime, data) {
@@ -570,6 +580,8 @@ async function createOrder(runtime, event, context, data) {
       return race;
     }
     for (const item of draft.items) {
+      const product = await getDoc(tx.collection(COLLECTIONS.products), item.productId, true);
+      if (product.status !== STATUS.active) throw errorFrom('SKU_UNAVAILABLE');
       const skuDocumentId = item.skuSnapshot?._id || item.skuId;
       const sku = await getDoc(tx.collection(COLLECTIONS.skus), skuDocumentId, true);
       if (!sku || sku.status !== STATUS.active) throw errorFrom('SKU_UNAVAILABLE');
