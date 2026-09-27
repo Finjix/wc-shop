@@ -228,7 +228,18 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   assert.deepStrictEqual(updated.images, ['new-cover.jpg']);
   assert.deepStrictEqual(updated.detailImages, ['detail-1.jpg']);
   assert.strictEqual(runtime.records.skus[small._id].salePrice, 2400);
-  assert.strictEqual(runtime.records.skus[skus.find((sku) => sku._id !== small._id)._id].status, 'inactive');
+  const removedSkuId = skus.find((sku) => sku._id !== small._id)._id;
+  assert.strictEqual(runtime.records.skus[removedSkuId].status, 'inactive');
+  await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'inactive' });
+  assert.strictEqual(runtime.records.products[created._id].status, 'inactive');
+  assert.strictEqual(runtime.records.skus[small._id].status, 'inactive');
+  await assert.rejects(() => shopEndpoint({}, {}, runtime, 'products.detail', { productId: created._id }));
+  await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'active' });
+  assert.strictEqual(runtime.records.products[created._id].status, 'active');
+  assert.strictEqual(runtime.records.skus[small._id].status, 'active');
+  assert.strictEqual(runtime.records.skus[removedSkuId].status, 'inactive');
+  assert.strictEqual(runtime.records.products[created._id].minSalePrice, 2400);
+  await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'invalid' }), appError('INVALID_ARGUMENT'));
 }
 
 async function testProductSaveManagesSkuInventoryStatusAndImages() {
@@ -464,6 +475,8 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
   runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   const context = { auth: { uid: 'admin-1' } };
   const parent = await adminEndpoint({}, context, runtime, 'categories.save', { name: '鞋靴', parentId: null });
+  await adminEndpoint({}, context, runtime, 'products.update', { id: 'product-1', categoryIds: [parent._id] });
+  assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [parent._id]);
   const child = await adminEndpoint({}, context, runtime, 'categories.save', { name: '皮鞋', parentId: parent._id, image: 'cloud://test/admin/categories/cover.webp' });
   assert.strictEqual(parent.level, 1);
   assert.strictEqual(child.level, 2);
@@ -493,6 +506,8 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
   assert.deepStrictEqual((await shopEndpoint({}, {}, runtime, 'categories.list', {})).items, []);
 
   const nextParent = await adminEndpoint({}, context, runtime, 'categories.save', { name: '配件', parentId: null });
+  await adminEndpoint({}, context, runtime, 'products.update', { id: 'product-1', categoryIds: [nextParent._id] });
+  assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [nextParent._id]);
   runtime.records.categories.orphan = { _id: 'orphan', name: '旧分类', parentId: 'missing', status: 'active' };
   const repaired = await adminEndpoint({}, context, runtime, 'categories.save', { id: 'orphan', name: '旧分类', parentId: nextParent._id });
   assert.strictEqual(repaired.parentId, nextParent._id);

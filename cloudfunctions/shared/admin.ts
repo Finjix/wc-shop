@@ -164,9 +164,16 @@ async function validProductCategoryIds(runtime, value) {
   assert(Array.isArray(value) && value.length <= 1, { field: 'categoryIds', max: 1 });
   if (!value.length) return [];
   const id = string(value[0], 'categoryIds.0', { max: 128 });
-  const category = await getDoc(col(runtime, COLLECTIONS.categories), id, false);
-  const parent = category?.parentId ? await getDoc(col(runtime, COLLECTIONS.categories), String(category.parentId), false) : null;
-  assert(category?.status === STATUS.active && parent?.status === STATUS.active && !parent.parentId, { field: 'categoryIds.0' });
+  const categories = col(runtime, COLLECTIONS.categories);
+  const category = await getDoc(categories, id, false);
+  assert(category?.status === STATUS.active, { field: 'categoryIds.0' });
+  if (category.parentId) {
+    const parent = await getDoc(categories, String(category.parentId), false);
+    assert(parent?.status === STATUS.active && !parent.parentId, { field: 'categoryIds.0' });
+  } else {
+    const children = await allMatching(categories, { parentId: id, status: STATUS.active });
+    assert(children.length === 0, { field: 'categoryIds.0' });
+  }
   return [id];
 }
 
@@ -304,13 +311,31 @@ async function catalogAction(runtime, data, action) {
     patch.categoryId = null;
   }
   if (patch.status) patch.status = statusValue(patch.status);
+  if (entity === 'products' && patch.status && ![STATUS.active, STATUS.inactive].includes(patch.status)) throw errorFrom('INVALID_ARGUMENT', { field: 'status' });
   if (entity === 'skus') {
     if (patch.status && ![STATUS.active, STATUS.inactive].includes(patch.status)) throw errorFrom('INVALID_ARGUMENT', { field: 'status' });
     if (patch.salePrice !== undefined) patch.salePrice = integer(patch.salePrice, 'salePrice', { min: 0 });
     if (patch.stockQuantity !== undefined) patch.stockQuantity = integer(patch.stockQuantity, 'stockQuantity', { min: 0 });
   }
   patch.updatedAt = now();
-  await collection.doc(id).update(patch);
+  if (entity === 'products' && patch.status && patch.status !== existing.status) {
+    const refs = Array.from(new Set([existing._id, existing.spuId].filter(Boolean).map(String)));
+    const batches = [];
+    for (const ref of refs) {
+      batches.push(await allMatching(col(runtime, COLLECTIONS.skus), { productId: ref }));
+      batches.push(await allMatching(col(runtime, COLLECTIONS.skus), { spuId: ref }));
+    }
+    const skus = Array.from(new Map(batches.flat().map((sku) => [String(sku._id || sku.skuId), sku])).values());
+    const configuredIds = new Set((Array.isArray(existing.specList) ? existing.specList : []).flatMap((group) =>
+      Array.isArray(group?.specValueList) ? group.specValueList.map((item) => String(item.specValueId)) : []));
+    const managedSkus = Array.isArray(existing.specList) ? skus.filter((sku) => configuredIds.has(String(sku._id || sku.skuId))) : skus;
+    await withTransaction(runtime.db, async (tx) => {
+      await tx.collection(COLLECTIONS.products).doc(id).update(patch);
+      for (const sku of managedSkus) {
+        if (sku.status !== patch.status) await tx.collection(COLLECTIONS.skus).doc(String(sku._id || sku.skuId)).update({ status: patch.status, updatedAt: patch.updatedAt });
+      }
+    });
+  } else await collection.doc(id).update(patch);
   if (entity === 'skus') await syncProductPrices(runtime, { ...existing, ...patch, _id: id });
   return { ...existing, ...patch, _id: id };
 }

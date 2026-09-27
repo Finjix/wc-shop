@@ -3,7 +3,6 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
-    "top-search": "/components/top-search/index",
-    "price": "/components/price/index"
+    "top-search": "/components/top-search/index"
   }
 }

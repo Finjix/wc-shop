@@ -48,7 +48,8 @@ Page({
       return;
     }
     if (this.data.goodsLoading) return;
-    const children = this.data.list[this.data.activeParentIndex]?.children || [];
+    const parent = this.data.list[this.data.activeParentIndex];
+    const children = parent ? [parent, ...(parent.children || [])] : [];
     if (!children.length || this.goodsChildIndex >= children.length) return;
     const requestId = this.goodsRequestId;
     let sections = [...this.data.goodsSections];
@@ -58,7 +59,7 @@ Page({
         const childIndex = this.goodsChildIndex;
         const child = children[childIndex];
         if (!sections[childIndex]) {
-          sections = [...sections, { id: String(child._id || child.id), name: child.name, image: child.image || '', goodsList: [], loaded: false }];
+          sections = [...sections, { id: String(child._id || child.id), name: child.name, image: child.image || '', isParent: childIndex === 0, goodsList: [], loaded: false }];
           this.setData({ goodsSections: sections });
         }
         const result = await fetchGoodsList({ categoryId: String(child._id || child.id), pageNum: this.goodsPage, pageSize: 100 });

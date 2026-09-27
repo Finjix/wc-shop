@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin, Tag } from 'tdesign-react';
 import { adminApi, ApiError } from '../lib/api';
-import type { AfterSale, Category, Comment, Order, Product, ProductDraft, Sku } from '../types';
+import type { AfterSale, Category, Comment, ListResult, Order, Product, ProductDraft, Sku } from '../types';
 import { EmptyState, EmptyTable, ErrorState, Field, ImageFilePicker, LoadingState, Panel, Table, formatDate, formatMoney, readList } from '../components/Ui';
 
 function useResource<T>(action: string, payload: Record<string, unknown> = {}, refreshKey = 0) {
@@ -46,11 +46,6 @@ function useAction() {
 function Metric({ label, value, note }: { label: string; value: string; note?: string }) {
   return <div className="metric"><span>{label}</span><strong>{value}</strong>{note && <small>{note}</small>}</div>;
 }
-
-const productStatusLabels: Record<string, string> = {
-  active: '出售中',
-  inactive: '已下架',
-};
 
 const orderStatusLabels: Record<string, string> = {
   pending_payment: '待支付',
@@ -238,12 +233,12 @@ export function OverviewPage() {
     return found === undefined ? '—' : String(found);
   };
   return <>
+    <h1 className="overview-title">盛途优品后台管理系统 v260927</h1>
     {loading && <LoadingState />}
     {error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
     {!loading && !error && <>
       <div className="metric-grid">
-        <Metric label="待发货" value={value(['pendingShipmentCount'])} />
-        <Metric label="待处理售后" value={value(['pendingAfterSaleCount', 'afterSalePending', 'pendingAfterSales'])} />
+        <Metric label="商品总数" value={value(['productCount'])} />
       </div>
     </>}
   </>;
@@ -261,10 +256,9 @@ interface VariantDraft {
   stock: string;
   originalStock?: number;
   stockDirty?: boolean;
-  status: 'active' | 'inactive';
   skuImage: string;
 }
-const emptyVariant = (): VariantDraft => ({ localId: crypto.randomUUID(), name: '', price: '', stock: '99', status: 'active', skuImage: '' });
+const emptyVariant = (): VariantDraft => ({ localId: crypto.randomUUID(), name: '', price: '', stock: '', skuImage: '' });
 
 function variantName(sku: Sku, product: Product) {
   const info = Array.isArray(sku.specInfo) ? sku.specInfo : [];
@@ -312,8 +306,60 @@ function ProductImagePreview({ fileID, alt }: { fileID: string; alt: string }) {
   return src ? <img className="product-image-preview" src={src} alt={alt} /> : <span className="product-image-filename">{fileID}</span>;
 }
 
+type CategoryOption = { id: string; label: string };
+const CATEGORY_PICKER_PAGE_SIZE = 12;
+
+function CategoryPicker({ value, onChange, options, disabled }: {
+  value: string;
+  onChange: (id: string) => void;
+  options: CategoryOption[];
+  disabled: boolean;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  useEffect(() => { if (listRef.current) listRef.current.scrollTop = 0; }, [page, query]);
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, [open]);
+  const choices = [{ id: '', label: '无类别' }, ...options];
+  const visible = choices.filter((item) => item.label.toLowerCase().includes(query.trim().toLowerCase()));
+  const pageCount = Math.max(1, Math.ceil(visible.length / CATEGORY_PICKER_PAGE_SIZE));
+  const pageItems = visible.slice((page - 1) * CATEGORY_PICKER_PAGE_SIZE, page * CATEGORY_PICKER_PAGE_SIZE);
+  const select = (id: string) => { onChange(id); setOpen(false); setQuery(''); setPage(1); };
+  return <div className="home-product-picker product-category-picker" ref={rootRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+    <button type="button" className="home-product-picker-trigger" disabled={disabled} aria-expanded={open} onClick={() => { setQuery(''); setPage(1); setOpen((current) => !current); }}>
+      <span>{choices.find((item) => item.id === value)?.label || '原分类不可用，请重新选择'}</span>
+      <span aria-hidden="true">⌄</span>
+    </button>
+    {open && <div className="home-product-picker-menu">
+      <input autoFocus type="search" value={query} placeholder="搜索类别" aria-label="搜索类别" onChange={(event) => { setQuery(event.target.value); setPage(1); }} onKeyDown={(event) => {
+        if (event.key === 'Escape') setOpen(false);
+        if (event.key === 'Enter' && pageItems.length) { event.preventDefault(); select(pageItems[0].id); }
+      }} />
+      <div className="home-product-picker-list" ref={listRef}>
+        {pageItems.map((item) => <button type="button" key={item.id} onClick={() => select(item.id)}>{item.label}</button>)}
+      </div>
+      <div className="home-product-picker-footer">
+        <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>上一页</button>
+        <span>{page} / {pageCount}</span>
+        <button type="button" disabled={page >= pageCount} onClick={() => setPage((current) => current + 1)}>下一页</button>
+      </div>
+    </div>}
+  </div>;
+}
+
 export function ProductsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [statusChangingId, setStatusChangingId] = useState('');
+  const statusChangeRef = useRef(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [draft, setDraft] = useState<ProductDraft>(emptyProduct);
@@ -325,12 +371,34 @@ export function ProductsPage() {
   const [detailUploadProgress, setDetailUploadProgress] = useState('');
   const detailInputRef = useRef<HTMLInputElement>(null);
   const { data, loading, error } = useResource<unknown>('products.list', { page: 1, pageSize: 50 }, refreshKey);
-  const categories = useResource<unknown>('categories.list', { page: 1, pageSize: 100, status: 'active' });
+  const [categoryRows, setCategoryRows] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState('');
+  useEffect(() => {
+    let active = true;
+    const loadCategories = async () => {
+      const items: Category[] = [];
+      for (let page = 1; ; page += 1) {
+        const result = await adminApi.call<ListResult<Category>>('categories.list', { page, pageSize: 100, status: 'active' });
+        items.push(...result.items);
+        if (result.items.length < 100 || items.length >= (result.total || Infinity)) break;
+      }
+      if (active) setCategoryRows(items);
+    };
+    void loadCategories().catch((err: unknown) => { if (active) setCategoriesError(err instanceof Error ? err.message : '分类读取失败'); })
+      .finally(() => { if (active) setCategoriesLoading(false); });
+    return () => { active = false; };
+  }, []);
   const { busy, run } = useAction();
   const rows = useMemo(() => readList<Product>(data), [data]);
-  const categoryRows = readList<Category>(categories.data);
-  const categoryParents = categoryRows.filter((category) => !category.parentId);
-  const selectableCategoryIds = new Set(categoryRows.filter((category) => category.parentId && categoryParents.some((parent) => String(parent._id || parent.id) === String(category.parentId))).map((category) => String(category._id || category.id)));
+  const categoryIdOf = (category: Category) => String(category._id || category.id);
+  const categorySort = (a: Category, b: Category) => Number(a.sort || 0) - Number(b.sort || 0) || categoryIdOf(a).localeCompare(categoryIdOf(b));
+  const categoryOptions = categoryRows.filter((category) => !category.parentId).sort(categorySort).flatMap((parent) => {
+    const children = categoryRows.filter((category) => String(category.parentId || '') === categoryIdOf(parent)).sort(categorySort);
+    return children.length
+      ? children.map((child) => ({ id: categoryIdOf(child), label: `${parent.name}-${child.name}` }))
+      : [{ id: categoryIdOf(parent), label: parent.name }];
+  });
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   useEffect(() => {
     let active = true;
@@ -387,7 +455,6 @@ export function ProductsPage() {
           stock: String(Math.max(0, variantStock(sku))),
           originalStock: variantStock(sku),
           stockDirty: false,
-          status: sku.status === 'inactive' ? 'inactive' as const : 'active' as const,
           skuImage: String(sku.skuImage || ''),
         })) : [emptyVariant()]);
       } catch (err) {
@@ -458,7 +525,6 @@ export function ProductsPage() {
     if (cleaned.some((variant) => !/^\d+$/.test(variant.stock.trim()) || !Number.isSafeInteger(Number(variant.stock)) || Number(variant.stock) > 100000000)) {
       await fail('库存必须是 0 到 100000000 的整数'); return;
     }
-    if (!cleaned.some((variant) => variant.status === 'active')) { await fail('请至少保留 1 个出售中的规格'); return; }
     if (new Set(cleaned.map((variant) => variant.name)).size !== cleaned.length) { await fail('规格名称不能重复'); return; }
     if (!draft.primaryImage) { await fail('请上传商品封面图片'); return; }
     if (!draft.detailImages.some(Boolean)) { await fail('请至少上传 1 张商品详情图片'); return; }
@@ -472,7 +538,6 @@ export function ProductsPage() {
         skuId: variant.skuId,
         name: variant.name,
         salePrice: Math.round(Number(variant.price) * 100),
-        status: variant.status,
         skuImage: variant.skuImage,
         ...(!variant.skuId || variant.stockDirty
           ? { stockQuantity: Number(variant.stock), ...(variant.skuId ? { expectedStockQuantity: variant.originalStock } : {}) }
@@ -484,31 +549,45 @@ export function ProductsPage() {
     setEditing(null); setDraft(emptyProduct); setVariants([emptyVariant()]); setEditorOpen(false); setRefreshKey((key) => key + 1);
   };
   const cancelEditor = () => { editorRequest.current += 1; setSaveError(''); setEditing(null); setDraft(emptyProduct); setEditorOpen(false); };
+  const toggleProductStatus = async (product: Product) => {
+    if (statusChangeRef.current || busy) return;
+    const id = String(product._id || product.spuId);
+    const nextStatus = productStatusOf(product) === 'active' ? 'inactive' : 'active';
+    if (nextStatus === 'inactive' && !window.confirm(`确定下架商品“${product.title}”吗？下架后小程序中将无法购买该商品。`)) return;
+    statusChangeRef.current = true;
+    setStatusChangingId(id);
+    try {
+      await adminApi.call('products.update', { id, status: nextStatus });
+      setRefreshKey((key) => key + 1);
+      await MessagePlugin.success(nextStatus === 'active' ? '商品已上架' : '商品已下架');
+    } catch (err) {
+      await MessagePlugin.error(err instanceof Error ? err.message : '商品状态更新失败');
+    } finally { statusChangeRef.current = false; setStatusChangingId(''); }
+  };
   return <>
     <div className="page-actions"><Button theme="primary" onClick={() => openEditor()}>新建商品</Button></div>
     {loading && <LoadingState />}{error && <ErrorState message={error} />}
-    {!loading && !error && <Panel><Table><thead><tr><th>商品</th><th>分类</th><th>销售价</th><th>状态</th><th>操作</th></tr></thead><tbody>
-      {rows.length === 0 && <EmptyTable colSpan={5} />}
+    {!loading && !error && <Panel><Table><thead><tr><th>商品</th><th>分类</th><th>起售价</th><th>操作</th></tr></thead><tbody>
+      {rows.length === 0 && <EmptyTable colSpan={4} />}
       {rows.map((product) => {
         const fileID = String(product.primaryImage || '');
         const resolvedImage = imageUrls[fileID];
         const imageSource = isRenderableImageSource(resolvedImage) ? resolvedImage : isRenderableImageSource(fileID) ? fileID : '';
         const status = productStatusOf(product);
         const categoryId = String(product.categoryIds?.[0] || product.categoryId || '');
-        const categoryName = categoryRows.find((category) => String(category._id || category.id) === categoryId)?.name;
-        return <tr key={String(product._id || product.spuId)}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong><small>ID：{String(product._id || product.spuId || '—')}</small></div></div></td><td>{categoryName || (categoryId ? '原分类不可用' : '无类别')}</td><td>{formatMoney(product.minSalePrice)}</td><td><Tag theme={status === 'active' ? 'success' : 'default'} variant="light">{productStatusLabels[status] || status || '—'}</Tag></td><td><Button variant="text" onClick={() => openEditor(product)}>编辑</Button></td></tr>;
+        const categoryName = categoryOptions.find((category) => category.id === categoryId)?.label || categoryRows.find((category) => categoryIdOf(category) === categoryId)?.name;
+        return <tr key={String(product._id || product.spuId)} className={status === 'active' ? '' : 'product-list-inactive'}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong></div></div></td><td>{categoryName || (categoryId ? '原分类不可用' : '无类别')}</td><td>{formatMoney(product.minSalePrice)}</td><td><div className="product-list-actions"><Button variant="text" className="product-list-edit" disabled={Boolean(statusChangingId)} onClick={() => openEditor(product)}>编辑</Button><Button variant="text" className="product-list-edit" loading={statusChangingId === String(product._id || product.spuId)} disabled={Boolean(statusChangingId) || busy} onClick={() => void toggleProductStatus(product)}>{status === 'active' ? '下架' : '上架'}</Button></div></td></tr>;
       })}
     </tbody></Table></Panel>}
-    {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions"><Button variant="outline" onClick={cancelEditor}>取消</Button><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存商品</Button></div><div className="panel-heading"><h3>{editing ? '编辑商品' : '新建商品'}</h3></div>{saveError && <p className="home-config-feedback home-config-feedback-error" role="alert">{saveError}</p>}<div className="form-grid">
+    {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions"><Button variant="outline" onClick={cancelEditor}>取消</Button><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存商品</Button></div>{saveError && <p className="home-config-feedback home-config-feedback-error" role="alert">{saveError}</p>}<div className="form-grid">
        <Field label="商品名称"><Input value={draft.title} onChange={(value) => setValue('title', value)} placeholder="请输入商品名称" /></Field>
-       <Field label="二级分类"><select value={draft.categoryId} onChange={(event) => setValue('categoryId', event.target.value)}><option value="">无类别</option>{draft.categoryId && !selectableCategoryIds.has(draft.categoryId) && <option value={draft.categoryId}>原分类不可用，请重新选择</option>}{categoryParents.map((parent) => <optgroup key={String(parent._id || parent.id)} label={parent.name}>{categoryRows.filter((category) => String(category.parentId || '') === String(parent._id || parent.id)).map((category) => <option key={String(category._id || category.id)} value={String(category._id || category.id)}>{category.name}</option>)}</optgroup>)}</select></Field>
+       <Field label="分类" fileUpload hint={categoriesError || (categoriesLoading ? '分类加载中...' : undefined)}><CategoryPicker value={draft.categoryId} onChange={(id) => setValue('categoryId', id)} options={categoryOptions} disabled={categoriesLoading || Boolean(categoriesError)} /></Field>
        <div className="variant-field"><strong>商品规格</strong>{variantsLoading && <small>正在读取已有规格…</small>}
          {variants.map((variant) => <div className="variant-row" key={variant.localId}>
            <div className="variant-main">
              <label><span>规格名称</span><Input value={variant.name} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, name: value } : item))} placeholder="例如：小份" /></label>
              <label><span>售价（元）</span><Input value={variant.price} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, price: value } : item))} placeholder="例如：29.90" /></label>
              <label><span>库存</span><Input value={variant.stock} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, stock: value, stockDirty: true } : item))} placeholder="0" /></label>
-             <label><span>状态</span><select value={variant.status} onChange={(event) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, status: event.target.value as 'active' | 'inactive' } : item))}><option value="active">出售中</option><option value="inactive">已下架</option></select></label>
              <Button variant="text" disabled={variants.length === 1} onClick={() => setVariants((old) => old.filter((item) => item.localId !== variant.localId))}>删除</Button>
            </div>
            <div className="variant-image"><span>SKU 图片（可选）</span><ImageFilePicker onSelect={(file) => void uploadVariantImage(variant.localId, file)} disabled={Boolean(uploading)} />{uploading === `sku:${variant.localId}` && <small>正在上传...</small>}
@@ -517,11 +596,11 @@ export function ProductsPage() {
          </div>)}
          <Button variant="outline" onClick={() => setVariants((old) => [...old, emptyVariant()])}>添加规格</Button>
        </div>
-         <Field label="封面图片（显示比例 1:1）" fileUpload>
+       <div className="product-cover-field"><Field label="封面图片（1:1）" fileUpload>
          <ImageFilePicker onSelect={(file) => void uploadCover(file)} disabled={Boolean(uploading)} />
          {uploading === 'cover' && <small>正在上传...</small>}
-         {draft.primaryImage && <div className="product-image-item product-cover-preview"><ProductImagePreview fileID={draft.primaryImage} alt="商品封面预览" /><Button variant="text" onClick={() => setDraft((old) => ({ ...old, primaryImage: '' }))}>移除</Button></div>}
-       </Field>
+         {draft.primaryImage && <div className="product-image-item product-cover-preview"><ProductImagePreview fileID={draft.primaryImage} alt="商品封面预览" /></div>}
+       </Field></div>
        <div className="product-detail-images">
          <div className="product-detail-image-heading"><strong>商品详情图片（最多 6 张）</strong></div>
          {draft.detailImages.length > 0 && <div className="product-detail-image-grid">

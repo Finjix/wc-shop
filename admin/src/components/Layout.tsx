@@ -6,12 +6,9 @@ export type AdminOutletContext = { setUnsavedChanges: (value: boolean) => void }
 
 const navItems = [
   { to: '/overview', label: '概览' },
-  { to: '/home-content', label: '首页内容' },
   { to: '/products', label: '商品' },
+  { to: '/home-content', label: '首页内容' },
   { to: '/categories', label: '分类' },
-  { to: '/orders', label: '订单' },
-  { to: '/comments', label: '评论' },
-  { to: '/after-sales', label: '售后' },
 ];
 
 export function AdminLayout() {
