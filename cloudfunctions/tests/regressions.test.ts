@@ -231,6 +231,69 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   assert.strictEqual(runtime.records.skus[skus.find((sku) => sku._id !== small._id)._id].status, 'inactive');
 }
 
+async function testProductSaveManagesSkuInventoryStatusAndImages() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
+  const context = { auth: { uid: 'admin-1' } };
+  const base = { title: '统一管理商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
+  const created = await adminEndpoint({}, context, runtime, 'products.save', {
+    ...base,
+    variants: [
+      { name: '小份', salePrice: 1900, stockQuantity: 8, skuImage: 'small.webp', status: 'active' },
+      { name: '大份', salePrice: 3900, stockQuantity: 5, status: 'active' },
+      { name: '暂停售卖', salePrice: 900, stockQuantity: 2, status: 'inactive' },
+    ],
+  });
+  assert.strictEqual(created.minSalePrice, 1900);
+  assert.strictEqual(created.maxSalePrice, 3900);
+  const byName = Object.fromEntries(created.specList[0].specValueList.map((item) => [item.specValue, item.specValueId]));
+  assert.strictEqual(runtime.records.skus[byName['小份']].stockQuantity, 8);
+  assert.strictEqual(runtime.records.skus[byName['小份']].skuImage, 'small.webp');
+  assert.strictEqual(runtime.records.skus[byName['暂停售卖']].status, 'inactive');
+  const publicDetail = await shopEndpoint({}, {}, runtime, 'products.detail', { productId: created._id });
+  assert.strictEqual(publicDetail.product.minSalePrice, 1900);
+  assert.deepStrictEqual(publicDetail.skus.map((sku) => sku.stockQuantity).sort(), [5, 8]);
+
+  runtime.records.skus[byName['大份']].stockQuantity = 4; // 模拟编辑期间下单扣库存
+  const updated = await adminEndpoint({}, context, runtime, 'products.save', {
+    ...base, id: created._id,
+    variants: [
+      { skuId: byName['小份'], name: '小份', salePrice: 2200, stockQuantity: 7, expectedStockQuantity: 8, skuImage: '', status: 'active' },
+      { skuId: byName['大份'], name: '大份', salePrice: 3900, status: 'inactive' },
+    ],
+  });
+  assert.strictEqual(updated.minSalePrice, 2200);
+  assert.strictEqual(updated.maxSalePrice, 2200);
+  assert.strictEqual(runtime.records.skus[byName['小份']].stockQuantity, 7);
+  assert.strictEqual(runtime.records.skus[byName['小份']].skuImage, '');
+  assert.strictEqual(runtime.records.skus[byName['大份']].stockQuantity, 4);
+  assert.strictEqual(runtime.records.skus[byName['大份']].status, 'inactive');
+  assert.strictEqual(runtime.records.skus[byName['暂停售卖']].status, 'inactive');
+
+  const reactivated = await adminEndpoint({}, context, runtime, 'products.save', {
+    ...base, id: created._id,
+    variants: [
+      { skuId: byName['小份'], name: '小份', salePrice: 2200, status: 'active' },
+      { skuId: byName['大份'], name: '大份', salePrice: 1800, status: 'active' },
+    ],
+  });
+  assert.strictEqual(reactivated.minSalePrice, 1800);
+  assert.strictEqual(runtime.records.skus[byName['大份']].stockQuantity, 4);
+  assert.strictEqual(runtime.records.skus[byName['大份']].status, 'active');
+
+  const writesBeforeConflict = runtime.writes.length;
+  await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.save', {
+    ...base, id: created._id,
+    variants: [{ skuId: byName['小份'], name: '小份', salePrice: 2200, stockQuantity: 6, expectedStockQuantity: 8 }],
+  }), appError('CONFLICT'));
+  assert.strictEqual(runtime.writes.length, writesBeforeConflict);
+  assert.strictEqual(runtime.records.skus[byName['小份']].stockQuantity, 7);
+  await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.save', {
+    ...base, id: created._id,
+    variants: [{ skuId: byName['小份'], name: '小份', salePrice: 2200, status: 'inactive' }],
+  }), appError('INVALID_ARGUMENT'));
+}
+
 async function testMergedSkuQuantityIsCapped() {
   const duplicateItems = Array.from({ length: 50 }, () => ({ skuId: 'sku-a', quantity: 999 }));
   assert.throws(
@@ -326,19 +389,19 @@ async function testHomeConfigLimitsAndLegacyResponse() {
     sections: [{ id: 'featured', title: '精选', productIds: Array(6).fill('product-1') }],
   };
   assert.strictEqual(validateHomeConfig(config).sections[0].productIds.length, 6);
-  for (const count of [2, 4]) {
+  for (const count of [0, 1, 2, 3, 4]) {
     assert.strictEqual(validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: Array(count).fill('product-1') }] }).sections[0].productIds.length, count);
   }
   assert.strictEqual(validateHomeConfig({ ...config, searchText: '' }).searchText, '');
   assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [{ image: 'cloud://home/banner.webp', productId: '' }], promos: [{ image: 'cloud://home/promo.webp', productId: '' }, blankLink] }).banners[0], { image: 'cloud://home/banner.webp', productId: '' });
   assert.strictEqual(validateHomeConfig({ ...config, bannerText: '' }).bannerText, '');
-  assert.throws(() => validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: ['product-1'] }] }), appError('INVALID_ARGUMENT'));
-  assert.throws(() => validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: Array(3).fill('product-1') }] }), appError('INVALID_ARGUMENT'));
+  assert.deepStrictEqual(validateHomeConfig({ ...config, sections: [{ ...config.sections[0], title: '', productIds: ['', 'product-1'] }] }).sections[0], { id: 'featured', title: '', productIds: ['', 'product-1'] });
+  assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [{ image: '', productId: 'product-1' }] }).banners[0], { image: '', productId: 'product-1' });
   assert.throws(() => validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: Array(8).fill('product-1') }] }), appError('INVALID_ARGUMENT'));
-  assert.throws(() => validateHomeConfig({ ...config, sections: [] }), appError('INVALID_ARGUMENT'));
+  assert.deepStrictEqual(validateHomeConfig({ ...config, sections: [] }).sections, []);
   assert.throws(() => validateHomeConfig({ ...config, sections: Array(7).fill(config.sections[0]) }), appError('INVALID_ARGUMENT'));
   assert.strictEqual(validateHomeConfig({ ...config, banners: Array(6).fill(blankLink) }).banners.length, 6);
-  assert.throws(() => validateHomeConfig({ ...config, banners: [] }), appError('INVALID_ARGUMENT'));
+  assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [] }).banners, []);
   assert.throws(() => validateHomeConfig({ ...config, banners: Array(7).fill(blankLink) }), appError('INVALID_ARGUMENT'));
 
   const runtime = makeRuntime();
@@ -361,7 +424,7 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   const loaded = await shopEndpoint({}, {}, writable, 'home.get', {});
   assert.strictEqual(loaded.config.sections[0].productIds.length, 6);
   assert.strictEqual(loaded.productsById['product-1'].title, '测试商品');
-  for (const count of [2, 4]) {
+  for (const count of [0, 1, 2, 3, 4]) {
     const smallerConfig = { ...config, sections: [{ ...config.sections[0], productIds: Array(count).fill('product-1') }] };
     await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
       id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: smallerConfig,
@@ -376,12 +439,24 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   writable.records.products['product-1'].status = 'inactive';
   const afterRemoval = await shopEndpoint({}, {}, writable, 'home.get', {});
   assert.strictEqual(afterRemoval.productsById['product-1'], undefined, 'unavailable products are omitted');
-  await assert.rejects(
-    () => adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
-      id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: config,
-    }),
-    appError('INVALID_ARGUMENT'),
-  );
+  const unfinished = { ...config, banners: [{ image: '', productId: 'product-1' }], sections: [{ id: 'featured', title: '', productIds: ['', 'product-1'] }] };
+  const savedUnfinished = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
+    id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: unfinished,
+  });
+  assert.deepStrictEqual(savedUnfinished.payload, unfinished);
+  const unfinishedHome = await shopEndpoint({}, {}, writable, 'home.get', {});
+  assert.deepStrictEqual(unfinishedHome.config, unfinished);
+  assert.strictEqual(unfinishedHome.productsById['product-1'], undefined);
+  const entirelyBlank = {
+    searchText: '', bannerText: '', banners: [blankLink], promos: [blankLink, blankLink],
+    sections: [{ id: 'empty', title: '', productIds: ['', ''] }],
+  };
+  await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
+    id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: entirelyBlank,
+  });
+  const blankHome = await shopEndpoint({}, {}, writable, 'home.get', {});
+  assert.deepStrictEqual(blankHome.config, entirelyBlank);
+  assert.deepStrictEqual(blankHome.productsById, {});
 }
 
 async function testTwoLevelCategoriesAndCascadeDeletion() {
@@ -436,6 +511,7 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
 const cases = [
   { name: 'image uploads validate format, size, conversion and staging', run: testImageUploads },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
+  { name: 'product save manages SKU inventory, status, images and conflicts', run: testProductSaveManagesSkuInventoryStatusAndImages },
   {
     name: 'event.userInfo is not trusted as identity',
     run: testTrustedIdentityDoesNotComeFromEventUserInfo,

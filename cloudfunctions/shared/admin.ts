@@ -9,7 +9,7 @@ const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
 const { skuPrice, skuStock } = require('./shop');
-const { HOME_CONFIG_SLOT, validateHomeConfig, productIds } = require('./home-config');
+const { HOME_CONFIG_SLOT, validateHomeConfig } = require('./home-config');
 
 function now() { return new Date().toISOString(); }
 function col(runtime, name) { return runtime.db.collection(name); }
@@ -70,14 +70,23 @@ async function saveProductWithVariants(runtime, data) {
   assert(Array.isArray(data.variants) && data.variants.length > 0 && data.variants.length <= 100, { field: 'variants' });
   const variants = data.variants.map((item) => {
     assert(item && typeof item === 'object' && !Array.isArray(item), { field: 'variants' });
+    const status = item.status === undefined ? STATUS.active : string(item.status, 'status');
+    assert(status === STATUS.active || status === STATUS.inactive, { field: 'variants.status' });
+    assert(item.skuImage === undefined || (typeof item.skuImage === 'string' && item.skuImage.length <= 1024), { field: 'variants.skuImage' });
     return {
       skuId: item.skuId ? string(item.skuId, 'skuId', { max: 128 }) : '',
       name: string(item.name, 'name', { max: 80 }),
       salePrice: integer(item.salePrice, 'salePrice', { min: 1 }),
+      status,
+      skuImage: item.skuImage === undefined ? undefined : item.skuImage.trim(),
+      stockQuantity: item.stockQuantity === undefined ? undefined : integer(item.stockQuantity, 'stockQuantity', { min: 0, max: 100000000 }),
+      expectedStockQuantity: item.expectedStockQuantity === undefined ? undefined : integer(item.expectedStockQuantity, 'expectedStockQuantity', { min: -1, max: 100000000 }),
     };
   });
   assert(new Set(variants.map((item) => item.name)).size === variants.length, { field: 'variants.name' });
   assert(new Set(variants.filter((item) => item.skuId).map((item) => item.skuId)).size === variants.filter((item) => item.skuId).length, { field: 'variants.skuId' });
+  assert(variants.some((item) => item.status === STATUS.active), { field: 'variants.status' });
+  variants.forEach((item) => assert(item.stockQuantity === undefined || !item.skuId || item.expectedStockQuantity !== undefined, { field: 'variants.expectedStockQuantity' }));
   const productId = data.id ? string(data.id, 'id', { max: 128 }) : crypto.randomUUID();
   const products = col(runtime, COLLECTIONS.products);
   const current = data.id ? await getDoc(products, productId, true) : null;
@@ -91,7 +100,7 @@ async function saveProductWithVariants(runtime, data) {
   const existingById = new Map(existingSkus.map((sku) => [String(sku._id || sku.skuId), sku]));
   variants.forEach((variant) => assert(!variant.skuId || existingById.has(variant.skuId), { field: 'variants.skuId' }));
   const timestamp = now();
-  const prices = variants.map((item) => item.salePrice);
+  const prices = variants.filter((item) => item.status === STATUS.active).map((item) => item.salePrice);
   const specList = [{ specId: 'spec', title: '规格', specValueList: variants.map((item) => ({ specValueId: item.skuId || `sku_${crypto.randomUUID()}`, specValue: item.name })) }];
   const patch = {
     ...allowedFields(data, ['title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'tags', 'description']),
@@ -112,6 +121,11 @@ async function saveProductWithVariants(runtime, data) {
   const result = await withTransaction(runtime.db, async (tx) => {
     const txProducts = tx.collection(COLLECTIONS.products);
     const txSkus = tx.collection(COLLECTIONS.skus);
+    for (const variant of variants) {
+      if (!variant.skuId || variant.stockQuantity === undefined) continue;
+      const latest = await getDoc(txSkus, variant.skuId, true);
+      if (skuStock(latest) !== variant.expectedStockQuantity) throw errorFrom('CONFLICT', { field: 'stockQuantity', skuId: variant.skuId });
+    }
     if (current) await txProducts.doc(productId).update(patch);
     else await txProducts.doc(productId).set({ _id: productId, spuId: productId, status: STATUS.active, createdAt: timestamp, ...patch });
     const kept = new Set();
@@ -121,9 +135,12 @@ async function saveProductWithVariants(runtime, data) {
       const skuId = old ? String(old._id || old.skuId) : specList[0].specValueList[index].specValueId;
       specList[0].specValueList[index].specValueId = skuId;
       kept.add(skuId);
-      const skuPatch = { productId, spuId: current?.spuId || productId, specInfo: [{ specId: 'spec', specValueId: skuId }], salePrice: variant.salePrice, status: STATUS.active, updatedAt: timestamp };
-      if (old) await txSkus.doc(skuId).update(skuPatch);
-      else await txSkus.doc(skuId).set({ _id: skuId, skuId, stockQuantity: 0, soldQuantity: 0, createdAt: timestamp, ...skuPatch });
+      const skuPatch = { productId, spuId: current?.spuId || productId, specInfo: [{ specId: 'spec', specValueId: skuId }], salePrice: variant.salePrice, status: variant.status, updatedAt: timestamp };
+      if (variant.skuImage !== undefined) skuPatch.skuImage = variant.skuImage;
+      if (old) {
+        if (variant.stockQuantity !== undefined) skuPatch.stockQuantity = variant.stockQuantity;
+        await txSkus.doc(skuId).update(skuPatch);
+      } else await txSkus.doc(skuId).set({ _id: skuId, skuId, stockQuantity: variant.stockQuantity ?? 0, skuImage: variant.skuImage || '', soldQuantity: 0, createdAt: timestamp, ...skuPatch });
     }
     for (const old of existingSkus) {
       const skuId = String(old._id || old.skuId);
@@ -331,9 +348,6 @@ async function homeAction(runtime, data, action) {
   if (key === HOME_CONFIG_SLOT || patch.slot === HOME_CONFIG_SLOT) {
     assert(key === HOME_CONFIG_SLOT && patch.slot === HOME_CONFIG_SLOT && patch.type === 'pageConfig', { field: 'slot' });
     patch.payload = validateHomeConfig(patch.payload);
-    const ids = productIds(patch.payload);
-    const products = await Promise.all(ids.map((id) => getDoc(col(runtime, COLLECTIONS.products), id, false)));
-    products.forEach((product, index) => assert(product && product.status === STATUS.active, { field: 'productId', id: ids[index] }));
   }
   if (!existing) {
     const item = { _id: key, ...patch, status: statusValue(patch.status, STATUS.active), createdAt: now() };

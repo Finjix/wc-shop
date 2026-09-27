@@ -123,7 +123,13 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .variant-field { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .variant-field > strong { color: #333; font-size: 12px; }
 .variant-field > small { color: var(--subtle); font-size: 10px; }
-.variant-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; width: 100%; align-items: center; }
+.variant-row { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 3px; }
+.variant-main { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(110px, .8fr) auto; gap: 8px; align-items: end; }
+.variant-main label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.variant-main label > span, .variant-image > span { color: #333; font-size: 11px; font-weight: 600; }
+.variant-main select { min-height: 32px; }
+.variant-image { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.variant-image .product-image-item { width: 100%; }
 .product-image-item { display: flex; align-items: center; gap: 8px; max-width: 100%; }
 .product-image-preview { width: 88px; height: 88px; object-fit: cover; border: 1px solid var(--line); border-radius: 3px; }
 .product-cover-preview .product-image-preview { width: 180px; height: auto; aspect-ratio: 1 / 1; object-fit: contain; background: var(--surface-muted); }
@@ -249,6 +255,7 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
   .sidebar { width: 210px; flex-basis: 210px; }
   .page-content { padding: 24px 22px 48px; }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .variant-main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 1050px) {
   .category-manager-columns { grid-template-columns: minmax(0, 1fr); }
@@ -275,7 +282,7 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
   .toolbar select { width: 100%; }
   .form-grid, .detail-grid { grid-template-columns: 1fr; }
   .product-detail-image-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .variant-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .variant-main > .t-button { justify-self: start; }
   .form-grid .field:nth-child(7), .form-grid .field:nth-child(8), .form-grid .field:last-child { grid-column: auto; }
   .login-page { padding: 24px 19px; }
   .login-card { width: min(400px, 100%); }

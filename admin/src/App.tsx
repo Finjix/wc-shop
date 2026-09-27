@@ -1,7 +1,7 @@
 import { createHashRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom';
 import { useAuth } from './auth/AuthProvider';
 import { AdminLayout } from './components/Layout';
-import { AfterSalesPage, CommentsPage, HomeContentPage, OrderDetailPage, OrdersPage, OverviewPage, ProductsPage, SkuPage } from './pages/Pages';
+import { AfterSalesPage, CommentsPage, HomeContentPage, OrderDetailPage, OrdersPage, OverviewPage, ProductsPage } from './pages/Pages';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { LoginPage } from './pages/LoginPage';
 import { LoadingState } from './components/Ui';
@@ -24,8 +24,8 @@ const router = createHashRouter([
         { path: 'overview', element: <OverviewPage /> },
         { path: 'products', element: <ProductsPage /> },
         { path: 'categories', element: <CategoriesPage /> },
-        { path: 'skus', element: <SkuPage /> },
-        { path: 'inventory', element: <Navigate to="/skus" replace /> },
+        { path: 'skus', element: <Navigate to="/products" replace /> },
+        { path: 'inventory', element: <Navigate to="/products" replace /> },
         { path: 'home-content', element: <HomeContentPage /> },
         { path: 'orders', element: <OrdersPage /> },
         { path: 'orders/:orderNo', element: <OrderDetailPage /> },

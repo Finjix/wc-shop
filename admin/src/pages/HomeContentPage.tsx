@@ -123,7 +123,7 @@ function ProductSelect({ value, onChange, known, onKnown }: {
         {value && <button type="button" onClick={() => { onChange(''); setOpen(false); }}>清除选择</button>}
       </div>
     </div>}
-    {value && selected === null && <small className="home-config-warning">此商品已下架或删除，请重新选择。</small>}
+    {value && selected === null && <small className="home-config-warning">此商品已下架或删除，前台不会显示。</small>}
   </div>;
 }
 
@@ -241,26 +241,6 @@ export function HomeContentPage() {
       await MessagePlugin.error(message);
       return false;
     };
-    if (config.banners.length < 1 || config.banners.length > 6) return fail('轮播图：请保留一至六张');
-    for (const [kind, entries] of [['轮播图', config.banners], ['图片入口', config.promos]] as const) {
-      for (const [index, entry] of entries.entries()) {
-        const place = kind === '图片入口' ? `${index === 0 ? '左侧' : '右侧'}图片入口` : `轮播图 ${index + 1}`;
-        if (!entry.image.trim() && entry.productId.trim()) return fail(`${place}：请上传封面图片`);
-      }
-    }
-    if (config.sections.length < 1 || config.sections.length > 6) return fail('商品区：请保留一至六个');
-    for (const [index, section] of config.sections.entries()) {
-      if (!section.title.trim()) return fail(`商品区 ${index + 1}：请填写标题`);
-      if (![2, 4, 6].includes(section.productIds.length)) return fail(`商品区 ${index + 1}：商品数量须为二、四或六个`);
-      const missingProduct = section.productIds.findIndex((id) => !id.trim());
-      if (missingProduct !== -1) return fail(`商品区 ${index + 1}：请选择商品 ${missingProduct + 1}`);
-    }
-    for (const [index, entry] of config.banners.entries()) if (entry.productId && known[entry.productId] === null) return fail(`轮播图 ${index + 1}：跳转商品已下架或删除，请重新选择`);
-    for (const [index, entry] of config.promos.entries()) if (entry.productId && known[entry.productId] === null) return fail(`${index === 0 ? '左侧' : '右侧'}图片入口：跳转商品已下架或删除，请重新选择`);
-    for (const [sectionIndex, section] of config.sections.entries()) {
-      const missingProduct = section.productIds.findIndex((id) => known[id] === null);
-      if (missingProduct !== -1) return fail(`商品区 ${sectionIndex + 1}：商品 ${missingProduct + 1} 已下架或删除，请重新选择`);
-    }
     const snapshot = JSON.stringify(config);
     setSaving(true);
     try {

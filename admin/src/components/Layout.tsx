@@ -9,7 +9,6 @@ const navItems = [
   { to: '/home-content', label: '首页内容' },
   { to: '/products', label: '商品' },
   { to: '/categories', label: '分类' },
-  { to: '/skus', label: 'SKU / 库存' },
   { to: '/orders', label: '订单' },
   { to: '/comments', label: '评论' },
   { to: '/after-sales', label: '售后' },
