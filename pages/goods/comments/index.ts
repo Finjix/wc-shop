@@ -4,8 +4,8 @@ import { fetchComments } from '../../../services/comments/fetchComments';
 import { fetchCommentsCount } from '../../../services/comments/fetchCommentsCount';
 import { fetchOrderComment } from '../../../services/comments/fetchOrderComment';
 import { getApiErrorMessage } from '../../../utils/api';
+import { formatTime } from '../../../utils/util';
 import Toast from 'tdesign-miniprogram/toast/index';
-import dayjs from 'dayjs';
 
 const layoutMap = { 0: 'vertical' };
 
@@ -54,10 +54,12 @@ Page({
   },
 
   showError(message) {
+    const errorMessage = message || '评论加载失败，请稍后重试';
+    this.setData({ loadError: errorMessage });
     Toast({
       context: this,
       selector: '#t-toast',
-      message: message || '评论加载失败，请稍后重试',
+      message: errorMessage,
       icon: '',
     });
   },
@@ -100,7 +102,7 @@ Page({
       ? sortCommentsByLatest(pageList)
       : pageList;
     displayPageList.forEach((item) => {
-      if (item.commentTime) item.commentTime = dayjs(Number(item.commentTime)).format('YYYY/MM/DD');
+      if (item.commentTime) item.commentTime = formatTime(item.commentTime, 'YYYY/MM/DD');
     });
     const totalCount = Number(data.totalCount || 0);
     const nextList = reset ? displayPageList : commentList.concat(displayPageList);

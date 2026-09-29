@@ -14,7 +14,6 @@ Component({
     src: {
       type: String,
     },
-    title: String,
     show: {
       type: Boolean,
       value: false,

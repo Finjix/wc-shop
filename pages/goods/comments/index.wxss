@@ -75,3 +75,11 @@ page {
   padding-left: 20rpx;
   padding-right: 20rpx;
 }
+
+.comments-empty {
+  padding: 120rpx 32rpx;
+  color: #999;
+  font-size: 28rpx;
+  line-height: 40rpx;
+  text-align: center;
+}

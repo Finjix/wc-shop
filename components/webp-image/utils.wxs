@@ -43,6 +43,16 @@ function imageMogr(url, options) {
     return url;
   } //强制转https
 
+  if (
+    url.indexOf('http://127.0.0.1:') === 0 ||
+    url.indexOf('http://127.0.0.1/') === 0 ||
+    url.indexOf('http://localhost:') === 0 ||
+    url.indexOf('http://localhost/') === 0
+  ) {
+    // 本地联调图片由开发机服务提供，必须保留 HTTP 地址并跳过 CDN 图片处理参数。
+    return url;
+  }
+
   if (url.indexOf('http://') === 0) {
     url = url.replace('http://', 'https://');
   } else if (url.indexOf('//') === 0) {

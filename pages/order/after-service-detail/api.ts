@@ -1,7 +1,7 @@
 // @ts-nocheck
 
-import dayjs from 'dayjs';
 import { request } from '../../../utils/api';
+import { formatTime } from '../../../utils/util';
 import {
   normalizeLogistics,
   normalizeOrderItem,
@@ -9,7 +9,7 @@ import {
   normalizeServiceType,
 } from './contract';
 
-export const formatTime = (date, template) => dayjs(date).format(template);
+export { formatTime };
 
 export function getRightsDetail({ rightsNo }) {
   return request('afterSales.detail', { rightsNo }).then((result) => {

@@ -173,6 +173,12 @@ Page({
     return normalizedTree;
   },
 
+  getSkuStockQuantity(sku) {
+    const stock = sku?.stockQuantity ?? sku?.stock ?? sku?.stockInfo?.stockQuantity;
+    const quantity = Number(stock);
+    return Number.isFinite(quantity) ? Math.max(0, quantity) : 0;
+  },
+
   selectSpecsName(selectSpecsName) {
     if (selectSpecsName) {
       this.setData({
@@ -362,15 +368,16 @@ Page({
         const salePrice = (item.priceInfo || []).find((price) => price.priceType === 1);
         skuArray.push({
           skuId: item.skuId,
-          quantity: Math.max(0, Number(item.stockInfo ? item.stockInfo.stockQuantity : 0)),
+          quantity: this.getSkuStockQuantity(item),
           price: salePrice ? salePrice.price : minSalePrice,
           skuImage: item.skuImage,
           specInfo: item.specInfo,
         });
       });
+      const totalStockQuantity = skuArray.reduce((total, item) => total + item.quantity, 0);
       this.setData({
         details,
-        isStock: details.spuStockQuantity > 0,
+        isStock: totalStockQuantity > 0,
         minSalePrice: minSalePrice ? parseInt(minSalePrice) : 0,
         skuArray: skuArray,
         primaryImage,
@@ -433,7 +440,7 @@ Page({
   /** 跳转到评价列表 */
   navToCommentsListPage() {
     wx.navigateTo({
-      url: `/pages/goods/comments/index?spuId=${this.data.spuId}`,
+      url: `/pages/goods/comments/index?spuId=${encodeURIComponent(this.data.spuId || '')}`,
     });
   },
 

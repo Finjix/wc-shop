@@ -5,6 +5,7 @@
   "usingComponents": {
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-tag": "tdesign-miniprogram/tag/tag",
+    "t-toast": "tdesign-miniprogram/toast/toast",
     "comments-card": "./components/comments-card/index",
     "t-load-more": "/components/load-more/index"
   }

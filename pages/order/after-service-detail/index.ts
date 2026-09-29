@@ -128,7 +128,7 @@ Page({
         })), // 退款明细
         refundRequestAmount: rights.refundRequestAmount ?? rights.refundAmount, // 申请退款金额
         payTraceNo: serviceRaw.rightsRefund?.traceNo, // 交易流水号
-        createTime: formatTime(parseFloat(`${rights.createTime || rights.createdAt}`), 'YYYY-MM-DD HH:mm'), // 申请时间
+        createTime: formatTime(rights.createTime || rights.createdAt, 'YYYY-MM-DD HH:mm'), // 申请时间
         logisticsNo: logisticsVO.logisticsNo, // 退货物流单号
         logisticsCompanyName: logisticsVO.logisticsCompanyName, // 退货物流公司
         logisticsCompanyCode: logisticsVO.logisticsCompanyCode, // 退货物流公司

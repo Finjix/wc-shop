@@ -40,7 +40,7 @@
         <view class="goods-name">{{details.title}}</view>
       </view>
     </view>
-    <view wx:if="{{ commentsStatistics.commentCount > 0 }}" class="comments-wrap">
+    <view class="comments-wrap">
       <view class="comments-head" bindtap="navToCommentsListPage">
         <view class="comments-title-wrap">
           <view class="comments-title-label">商品评价</view>
@@ -74,7 +74,6 @@
 <goods-specs-popup
   id="goodsSpecsPopup"
   show="{{isSpuSelectPopupShow}}"
-  title="{{details.title || ''}}"
   src="{{specImg ? specImg : primaryImage}}"
   specList="{{details.specList || []}}"
   skuList="{{skuArray}}"
@@ -87,8 +86,5 @@
   isStock="{{isStock}}"
   outOperateStatus="{{outOperateStatus}}"
 >
-  <view slot="goods-price">
-    <view class="popup-sku__price" />
-  </view>
 </goods-specs-popup>
 <t-toast id="t-toast" />

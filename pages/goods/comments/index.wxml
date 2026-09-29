@@ -80,7 +80,9 @@
 	  failedColor="#FA550F"
 	/>
 </view>
+<view class="comments-empty" wx:if="{{loadError}}">{{loadError}}</view>
 </block>
 </view>
 </scroll-view>
 </view>
+<t-toast id="t-toast" />

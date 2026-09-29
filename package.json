@@ -19,7 +19,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "dayjs": "^1.9.3",
     "tdesign-miniprogram": "1.9.5",
     "tslib": "^1.11.1"
   },
