@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin, Tag } from 'tdesign-react';
-import { adminApi, ApiError } from '../lib/api';
+import { adminApi } from '../lib/api';
+import { variantName } from '../lib/sku';
 import type { AfterSale, Category, Comment, ListResult, Order, Product, ProductDraft, Sku } from '../types';
-import { EmptyState, EmptyTable, ErrorState, Field, ImageFilePicker, LoadingState, Panel, Table, formatDate, formatMoney, readList } from '../components/Ui';
+import { EmptyState, EmptyTable, ErrorState, Field, ImageFilePicker, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
 
 function useResource<T>(action: string, payload: Record<string, unknown> = {}, refreshKey = 0) {
   const [data, setData] = useState<T | null>(null);
@@ -248,37 +249,17 @@ const emptyProduct: ProductDraft = {
   title: '', categoryId: '', primaryImage: '', detailImages: [],
 };
 
+const PRODUCT_LIST_PAGE_SIZE = 6;
+
 interface VariantDraft {
   localId: string;
   skuId?: string;
   name: string;
   price: string;
-  stock: string;
-  originalStock?: number;
-  stockDirty?: boolean;
   status: 'active' | 'inactive';
   skuImage: string;
 }
-const emptyVariant = (): VariantDraft => ({ localId: crypto.randomUUID(), name: '', price: '', stock: '', status: 'active', skuImage: '' });
-
-function variantName(sku: Sku, product: Product) {
-  const info = Array.isArray(sku.specInfo) ? sku.specInfo : [];
-  const groups = Array.isArray(product.specList) ? product.specList as Record<string, unknown>[] : [];
-  return info.map((entry) => {
-    const value = entry as Record<string, unknown>;
-    const group = groups.find((item) => String(item.specId) === String(value.specId));
-    const options = Array.isArray(group?.specValueList) ? group.specValueList as Record<string, unknown>[] : [];
-    const option = options.find((item) => String(item.specValueId) === String(value.specValueId));
-    return String(option?.specValue || value.specValue || value.specValueId || '').trim();
-  }).filter(Boolean).join(' / ') || '默认规格';
-}
-
-function variantStock(sku: Sku) {
-  const stockInfo = sku.stockInfo as { stockQuantity?: unknown } | undefined;
-  const source = sku.stockQuantity ?? sku.stock ?? stockInfo?.stockQuantity;
-  const value = Number(source);
-  return source !== undefined && Number.isSafeInteger(value) && value >= 0 ? value : -1;
-}
+const emptyVariant = (): VariantDraft => ({ localId: crypto.randomUUID(), name: '', price: '', status: 'active', skuImage: '' });
 
 function productDetailImages(product: Product) {
   const cover = product.primaryImage || product.images?.[0];
@@ -358,20 +339,30 @@ function CategoryPicker({ value, onChange, options, disabled }: {
 }
 
 export function ProductsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const routeEditProductId = searchParams.get('edit') || '';
   const [refreshKey, setRefreshKey] = useState(0);
+  const [productQueryInput, setProductQueryInput] = useState('');
+  const [productQuery, setProductQuery] = useState('');
+  const [productPage, setProductPage] = useState(1);
   const [statusChangingId, setStatusChangingId] = useState('');
+  const [deletingProductId, setDeletingProductId] = useState('');
   const statusChangeRef = useRef(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [draft, setDraft] = useState<ProductDraft>(emptyProduct);
   const [variants, setVariants] = useState<VariantDraft[]>([emptyVariant()]);
-  const [saveError, setSaveError] = useState('');
   const editorRequest = useRef(0);
   const [variantsLoading, setVariantsLoading] = useState(false);
   const [uploading, setUploading] = useState('');
   const [detailUploadProgress, setDetailUploadProgress] = useState('');
+  const [routeEditLoading, setRouteEditLoading] = useState(false);
   const detailInputRef = useRef<HTMLInputElement>(null);
-  const { data, loading, error } = useResource<unknown>('products.list', { page: 1, pageSize: 50 }, refreshKey);
+  const { data, loading, error } = useResource<unknown>('products.list', {
+    page: productPage,
+    pageSize: PRODUCT_LIST_PAGE_SIZE,
+    query: productQuery || undefined,
+  }, refreshKey);
   const [categoryRows, setCategoryRows] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState('');
@@ -392,6 +383,15 @@ export function ProductsPage() {
   }, []);
   const { busy, run } = useAction();
   const rows = useMemo(() => readList<Product>(data), [data]);
+  const total = readTotal(data, rows.length);
+  const pageCount = Math.max(1, Math.ceil(total / PRODUCT_LIST_PAGE_SIZE));
+  useEffect(() => {
+    if (productPage > pageCount) setProductPage(pageCount);
+  }, [pageCount, productPage]);
+  const searchProducts = () => {
+    setProductPage(1);
+    setProductQuery(productQueryInput.trim());
+  };
   const categoryIdOf = (category: Category) => String(category._id || category.id);
   const categorySort = (a: Category, b: Category) => Number(a.sort || 0) - Number(b.sort || 0) || categoryIdOf(a).localeCompare(categoryIdOf(b));
   const categoryOptions = categoryRows.filter((category) => !category.parentId).sort(categorySort).flatMap((parent) => {
@@ -423,7 +423,6 @@ export function ProductsPage() {
   }, [rows]);
   const openEditor = async (product?: Product) => {
     const request = ++editorRequest.current;
-    setSaveError('');
     setEditorOpen(true);
     setEditing(product || null);
     setVariants([emptyVariant()]);
@@ -453,9 +452,6 @@ export function ProductsPage() {
           skuId: String(sku._id || sku.skuId),
           name: variantName(sku, product),
           price: Number.isFinite(Number(sku.salePrice ?? sku.price)) ? (Number(sku.salePrice ?? sku.price) / 100).toFixed(2) : '',
-          stock: String(Math.max(0, variantStock(sku))),
-          originalStock: variantStock(sku),
-          stockDirty: false,
           status: sku.status === 'inactive' ? 'inactive' : 'active',
           skuImage: String(sku.skuImage || ''),
         })) : [emptyVariant()]);
@@ -468,6 +464,27 @@ export function ProductsPage() {
       }
     }
   };
+  useEffect(() => {
+    if (!routeEditProductId) {
+      setRouteEditLoading(false);
+      return;
+    }
+    let active = true;
+    setRouteEditLoading(true);
+    void (async () => {
+      try {
+        const product = await adminApi.call<Product>('products.get', { id: routeEditProductId });
+        if (active) await openEditor(product);
+      } catch (err) {
+        if (!active) return;
+        await MessagePlugin.error(err instanceof Error ? err.message : '读取商品失败');
+        setSearchParams({}, { replace: true });
+      } finally {
+        if (active) setRouteEditLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [routeEditProductId]);
   const setValue = (key: keyof ProductDraft, value: string | boolean | string[]) => setDraft((old) => ({ ...old, [key]: value }));
   const uploadCover = async (file?: File) => {
     if (!file) return;
@@ -516,16 +533,12 @@ export function ProductsPage() {
   };
   const save = async () => {
     if (variantsLoading || uploading) return;
-    setSaveError('');
-    const fail = async (message: string) => { setSaveError(message); await MessagePlugin.warning(message); };
+    const fail = async (message: string) => { await MessagePlugin.warning(message); };
     if (!draft.title.trim()) { await fail('请填写商品名称'); return; }
     const cleaned = variants.map((variant) => ({ ...variant, name: variant.name.trim(), price: variant.price.trim() }));
     if (!cleaned.length) { await fail('请至少添加 1 种商品规格和价格'); return; }
     if (cleaned.some((variant) => !variant.name || !/^\d+(?:\.\d{1,2})?$/.test(variant.price) || !Number.isSafeInteger(Math.round(Number(variant.price) * 100)) || Number(variant.price) <= 0)) {
       await fail('请为每个规格填写名称和大于 0 的价格（元，最多两位小数）'); return;
-    }
-    if (cleaned.some((variant) => !/^\d+$/.test(variant.stock.trim()) || !Number.isSafeInteger(Number(variant.stock)) || Number(variant.stock) > 100000000)) {
-      await fail('库存必须是 0 到 100000000 的整数'); return;
     }
     if (new Set(cleaned.map((variant) => variant.name)).size !== cleaned.length) { await fail('规格名称不能重复'); return; }
     if (!cleaned.some((variant) => variant.status === 'active')) { await fail('请至少保留 1 个出售中的规格'); return; }
@@ -543,18 +556,25 @@ export function ProductsPage() {
         salePrice: Math.round(Number(variant.price) * 100),
         status: variant.status,
         skuImage: variant.skuImage,
-        ...(!variant.skuId || variant.stockDirty
-          ? { stockQuantity: Number(variant.stock), ...(variant.skuId ? { expectedStockQuantity: variant.originalStock } : {}) }
-          : {}),
       })),
       categoryIds: categoryId ? [categoryId] : [],
     }, '商品已保存'); }
-    catch (error) { setSaveError(error instanceof ApiError && error.code === 'CONFLICT' ? '库存已变化，请刷新商品后重新编辑' : error instanceof Error ? error.message : '商品保存失败'); return; }
-    setEditing(null); setDraft(emptyProduct); setVariants([emptyVariant()]); setEditorOpen(false); setRefreshKey((key) => key + 1);
+    catch (error) {
+      await MessagePlugin.error(error instanceof Error ? error.message : '商品保存失败');
+      return;
+    }
+    setEditing(null); setDraft(emptyProduct); setVariants([emptyVariant()]); setEditorOpen(false); setProductPage(1); setRefreshKey((key) => key + 1);
+    if (routeEditProductId) setSearchParams({}, { replace: true });
   };
-  const cancelEditor = () => { editorRequest.current += 1; setSaveError(''); setEditing(null); setDraft(emptyProduct); setEditorOpen(false); };
+  const cancelEditor = () => {
+    editorRequest.current += 1;
+    setEditing(null);
+    setDraft(emptyProduct);
+    setEditorOpen(false);
+    if (routeEditProductId) setSearchParams({}, { replace: true });
+  };
   const toggleProductStatus = async (product: Product) => {
-    if (statusChangeRef.current || busy) return;
+    if (statusChangeRef.current || busy || deletingProductId) return;
     const id = String(product._id || product.spuId);
     const nextStatus = productStatusOf(product) === 'active' ? 'inactive' : 'active';
     if (nextStatus === 'inactive' && !window.confirm(`确定下架商品“${product.title}”吗？下架后小程序中将无法购买该商品。`)) return;
@@ -568,22 +588,54 @@ export function ProductsPage() {
       await MessagePlugin.error(err instanceof Error ? err.message : '商品状态更新失败');
     } finally { statusChangeRef.current = false; setStatusChangingId(''); }
   };
+  const deleteProduct = async (product: Product) => {
+    if (statusChangeRef.current || busy || deletingProductId) return;
+    const id = String(product._id || product.spuId);
+    if (!window.confirm(`确定删除商品“${product.title}”吗？删除后商品会从管理列表和小程序中移除，且无法直接恢复。`)) return;
+    statusChangeRef.current = true;
+    setDeletingProductId(id);
+    try {
+      await adminApi.call('products.delete', { id });
+      setRefreshKey((key) => key + 1);
+      await MessagePlugin.success('商品已删除');
+    } catch (err) {
+      await MessagePlugin.error(err instanceof Error ? err.message : '商品删除失败');
+    } finally {
+      statusChangeRef.current = false;
+      setDeletingProductId('');
+    }
+  };
   return <>
-    <div className="page-actions"><Button theme="primary" onClick={() => openEditor()}>新建商品</Button></div>
-    {loading && <LoadingState />}{error && <ErrorState message={error} />}
-    {!loading && !error && <Panel><Table><thead><tr><th>商品</th><th>分类</th><th>起售价</th><th>操作</th></tr></thead><tbody>
-      {rows.length === 0 && <EmptyTable colSpan={4} />}
+    <div className="page-actions product-page-actions">
+      <div className="product-page-search">
+        <Input value={productQueryInput} onChange={setProductQueryInput} onEnter={(_value, { e }) => { e.preventDefault(); searchProducts(); }} placeholder="搜索商品名称" aria-label="搜索商品名称" />
+        <Button theme="primary" onClick={searchProducts}>搜索</Button>
+      </div>
+      <Button theme="primary" onClick={() => openEditor()}>新建商品</Button>
+    </div>
+    {(loading || routeEditLoading) && <LoadingState />}{!routeEditLoading && error && <ErrorState message={error} />}
+    {!loading && !routeEditLoading && !error && <Panel className="product-list-panel"><Table><thead><tr><th>商品</th><th>操作</th></tr></thead><tbody>
+      {rows.length === 0 && <tr><td colSpan={2}><EmptyState title={productQuery ? '没有找到相关商品' : '暂无商品'} /></td></tr>}
       {rows.map((product) => {
         const fileID = String(product.primaryImage || '');
         const resolvedImage = imageUrls[fileID];
         const imageSource = isRenderableImageSource(resolvedImage) ? resolvedImage : isRenderableImageSource(fileID) ? fileID : '';
         const status = productStatusOf(product);
-        const categoryId = String(product.categoryIds?.[0] || product.categoryId || '');
-        const categoryName = categoryOptions.find((category) => category.id === categoryId)?.label || categoryRows.find((category) => categoryIdOf(category) === categoryId)?.name;
-        return <tr key={String(product._id || product.spuId)} className={status === 'active' ? '' : 'product-list-inactive'}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong></div></div></td><td>{categoryName || (categoryId ? '原分类不可用' : '无类别')}</td><td>{formatMoney(product.minSalePrice)}</td><td><div className="product-list-actions"><Button variant="text" className="product-list-edit" disabled={Boolean(statusChangingId)} onClick={() => openEditor(product)}>编辑</Button><Button variant="text" className="product-list-edit" loading={statusChangingId === String(product._id || product.spuId)} disabled={Boolean(statusChangingId) || busy} onClick={() => void toggleProductStatus(product)}>{status === 'active' ? '下架' : '上架'}</Button></div></td></tr>;
+        const productId = String(product._id || product.spuId);
+        const productActionInProgress = Boolean(statusChangingId || deletingProductId);
+        return <tr key={productId} className={status === 'active' ? '' : 'product-list-inactive'}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong></div></div></td><td><div className="product-list-actions"><Button variant="text" className="product-list-edit" disabled={productActionInProgress || busy} onClick={() => openEditor(product)}>编辑</Button><Link className="product-list-sku-link" to={`/skus?productId=${encodeURIComponent(productId)}`}>SKU 库存</Link><Button variant="text" className="product-list-edit" loading={statusChangingId === productId} disabled={productActionInProgress || busy} onClick={() => void toggleProductStatus(product)}>{status === 'active' ? '下架' : '上架'}</Button><Button variant="text" className="product-list-delete" loading={deletingProductId === productId} disabled={productActionInProgress || busy} onClick={() => void deleteProduct(product)}>删除</Button></div></td></tr>;
       })}
-    </tbody></Table></Panel>}
-    {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions"><Button variant="outline" onClick={cancelEditor}>取消</Button><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存商品</Button></div>{saveError && <p className="home-config-feedback home-config-feedback-error" role="alert">{saveError}</p>}<div className="form-grid">
+    </tbody></Table>
+      <div className="product-list-pagination">
+        <span>共 {total} 个商品</span>
+        <div>
+          <Button variant="outline" disabled={productPage <= 1 || loading} onClick={() => setProductPage((page) => Math.max(1, page - 1))}>上一页</Button>
+          <span>{productPage} / {pageCount} 页</span>
+          <Button variant="outline" disabled={productPage >= pageCount || loading} onClick={() => setProductPage((page) => Math.min(pageCount, page + 1))}>下一页</Button>
+        </div>
+      </div>
+    </Panel>}
+    {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions"><Button variant="outline" onClick={cancelEditor}>取消</Button><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存商品</Button></div><div className="form-grid">
        <Field label="商品名称"><Input value={draft.title} onChange={(value) => setValue('title', value)} placeholder="请输入商品名称" /></Field>
        <Field label="分类" fileUpload hint={categoriesError || (categoriesLoading ? '分类加载中...' : undefined)}><CategoryPicker value={draft.categoryId} onChange={(id) => setValue('categoryId', id)} options={categoryOptions} disabled={categoriesLoading || Boolean(categoriesError)} /></Field>
        <div className="variant-field"><strong>商品规格</strong>{variantsLoading && <small>正在读取已有规格…</small>}
@@ -591,8 +643,6 @@ export function ProductsPage() {
            <div className="variant-main">
              <label><span>规格名称</span><Input value={variant.name} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, name: value } : item))} placeholder="例如：小份" /></label>
              <label><span>售价（元）</span><Input value={variant.price} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, price: value } : item))} placeholder="例如：29.90" /></label>
-             <label><span>库存</span><Input value={variant.stock} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, stock: value, stockDirty: true } : item))} placeholder="0" /></label>
-             <label><span>状态</span><select value={variant.status} onChange={(event) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, status: event.target.value as 'active' | 'inactive' } : item))}><option value="active">出售中</option><option value="inactive">已下架</option></select></label>
              <Button variant="text" disabled={variants.length === 1} onClick={() => setVariants((old) => old.filter((item) => item.localId !== variant.localId))}>删除</Button>
            </div>
            <div className="variant-image"><span>SKU 图片（可选）</span><ImageFilePicker onSelect={(file) => void uploadVariantImage(variant.localId, file)} disabled={Boolean(uploading)} />{uploading === `sku:${variant.localId}` && <small>正在上传...</small>}

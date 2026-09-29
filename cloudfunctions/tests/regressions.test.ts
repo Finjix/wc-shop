@@ -323,6 +323,57 @@ async function testProductSaveManagesSkuInventoryStatusAndImages() {
   }), appError('INVALID_ARGUMENT'));
 }
 
+async function testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
+  const context = { auth: { uid: 'admin-1' } };
+  const base = { title: '分开管理库存', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
+  const created = await adminEndpoint({}, context, runtime, 'products.save', {
+    ...base,
+    variants: [{ name: '标准', salePrice: 1000, status: 'active' }],
+  });
+  const skuId = created.specList[0].specValueList[0].specValueId;
+  assert.strictEqual(runtime.records.skus[skuId].stockQuantity, 999);
+
+  await adminEndpoint({}, context, runtime, 'inventory.adjust', { skuId, stockQuantity: 10, expectedStockQuantity: 999 });
+  assert.strictEqual(runtime.records.skus[skuId].stockQuantity, 10);
+  assert.strictEqual((await shopEndpoint({}, {}, runtime, 'products.detail', { productId: created._id })).skus[0].stockQuantity, 10);
+
+  await adminEndpoint({}, context, runtime, 'products.save', {
+    ...base, id: created._id,
+    variants: [{ skuId, name: '标准版', salePrice: 1200, status: 'active' }],
+  });
+  assert.strictEqual(runtime.records.skus[skuId].stockQuantity, 10);
+
+  runtime.records.skus[skuId].stockQuantity = 9; // 模拟管理员读取后发生销售
+  const writesBeforeConflict = runtime.writes.length;
+  await assert.rejects(() => adminEndpoint({}, context, runtime, 'inventory.adjust', {
+    skuId, stockQuantity: 8, expectedStockQuantity: 10,
+  }), appError('CONFLICT'));
+  assert.strictEqual(runtime.writes.length, writesBeforeConflict);
+  assert.strictEqual(runtime.records.skus[skuId].stockQuantity, 9);
+  await adminEndpoint({}, context, runtime, 'inventory.adjust', { skuId, stockQuantity: 8, expectedStockQuantity: 9 });
+  assert.strictEqual(runtime.records.skus[skuId].stockQuantity, 8);
+}
+
+async function testProductSkuListAndSaveReadEveryVariant() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
+  const context = { auth: { uid: 'admin-1' } };
+  const variants = Array.from({ length: 100 }, (_, index) => {
+    const skuId = `sku-${index}`;
+    runtime.records.skus[skuId] = { _id: skuId, skuId, productId: 'product-1', spuId: 'product-1', status: 'active', stockQuantity: index, salePrice: 1000 };
+    return { skuId, name: `规格 ${index}`, salePrice: 1000, status: 'active' };
+  });
+  const listed = await adminEndpoint({}, context, runtime, 'skus.list', { productId: 'product-1' });
+  assert.strictEqual(listed.items.length, 101);
+  await adminEndpoint({}, context, runtime, 'products.save', {
+    id: 'product-1', title: '测试商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'], variants,
+  });
+  assert.strictEqual(runtime.records.skus['sku-99'].stockQuantity, 99);
+  assert.strictEqual(runtime.records.skus['sku-99'].status, 'active');
+}
+
 async function testMergedSkuQuantityIsCapped() {
   const duplicateItems = Array.from({ length: 50 }, () => ({ skuId: 'sku-a', quantity: 999 }));
   assert.throws(
@@ -583,6 +634,8 @@ const cases = [
   { name: 'image uploads validate format, size, conversion and staging', run: testImageUploads },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
   { name: 'product save manages SKU inventory, status, images and conflicts', run: testProductSaveManagesSkuInventoryStatusAndImages },
+  { name: 'SKU inventory is set separately and stale updates conflict', run: testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt },
+  { name: 'product SKU list and save read every variant', run: testProductSkuListAndSaveReadEveryVariant },
   {
     name: 'event.userInfo is not trusted as identity',
     run: testTrustedIdentityDoesNotComeFromEventUserInfo,

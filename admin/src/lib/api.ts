@@ -88,6 +88,9 @@ async function localLogin(username: string, password: string) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
+  if (response.status === 401) {
+    throw new ApiError('用户名或密码错误，请重试。', String(response.status), 'UNAUTHENTICATED');
+  }
   const result = await response.json() as ApiEnvelope<{ uid: string; username: string }>;
   const session = unwrap(result, String(response.status));
   window.localStorage.setItem(localSessionKey, JSON.stringify(session));

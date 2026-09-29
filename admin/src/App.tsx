@@ -4,6 +4,7 @@ import { AdminLayout } from './components/Layout';
 import { AfterSalesPage, CommentsPage, HomeContentPage, OrderDetailPage, OrdersPage, OverviewPage, ProductsPage } from './pages/Pages';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { LoginPage } from './pages/LoginPage';
+import { SkuInventoryPage } from './pages/SkuInventoryPage';
 import { LoadingState } from './components/Ui';
 
 function ProtectedRoute() {
@@ -24,8 +25,8 @@ const router = createHashRouter([
         { path: 'overview', element: <OverviewPage /> },
         { path: 'products', element: <ProductsPage /> },
         { path: 'categories', element: <CategoriesPage /> },
-        { path: 'skus', element: <Navigate to="/products" replace /> },
-        { path: 'inventory', element: <Navigate to="/products" replace /> },
+        { path: 'skus', element: <SkuInventoryPage /> },
+        { path: 'inventory', element: <Navigate to="/skus" replace /> },
         { path: 'home-content', element: <HomeContentPage /> },
         { path: 'orders', element: <OrdersPage /> },
         { path: 'orders/:orderNo', element: <OrderDetailPage /> },

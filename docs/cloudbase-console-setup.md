@@ -96,7 +96,7 @@ npm run package:deploy
 - 上传 `dist/<version>/wc-shop-function.zip`；压缩包根目录必须直接有 `index.js`。
 - 启用静态网站托管，上传 `dist/<version>/wc-shop-admin-static.zip`；压缩包根目录必须直接有 `index.html`。
 
-部署完成后，先打开后台验证登录和 `admin.me`，再创建第一条分类，并在商品页填写商品、规格与库存，最后用小程序验证商品列表、购物车、结算和待支付订单。
+部署完成后，先打开后台验证登录和 `admin.me`，再创建第一条分类，在商品页填写商品和规格（新规格初始库存为 999，可在侧栏的 SKU 库存页调整）。最后用小程序验证商品列表、购物车、结算和待支付订单。
 
 ## 6. 首阶段验收边界
 

@@ -93,10 +93,10 @@ async function saveProductWithVariants(runtime, data) {
   const refs = current ? Array.from(new Set([current._id, current.spuId].filter(Boolean).map(String))) : [];
   const skuBatches = [];
   for (const ref of refs) {
-    skuBatches.push(await list(col(runtime, COLLECTIONS.skus), { where: { productId: ref }, includeTotal: false }));
-    skuBatches.push(await list(col(runtime, COLLECTIONS.skus), { where: { spuId: ref }, includeTotal: false }));
+    skuBatches.push(await allMatching(col(runtime, COLLECTIONS.skus), { productId: ref }));
+    skuBatches.push(await allMatching(col(runtime, COLLECTIONS.skus), { spuId: ref }));
   }
-  const existingSkus = Array.from(new Map(skuBatches.flatMap((batch) => batch.items).map((sku) => [String(sku._id || sku.skuId), sku])).values());
+  const existingSkus = Array.from(new Map(skuBatches.flat().map((sku) => [String(sku._id || sku.skuId), sku])).values());
   const existingById = new Map(existingSkus.map((sku) => [String(sku._id || sku.skuId), sku]));
   variants.forEach((variant) => assert(!variant.skuId || existingById.has(variant.skuId), { field: 'variants.skuId' }));
   const timestamp = now();
@@ -140,7 +140,7 @@ async function saveProductWithVariants(runtime, data) {
       if (old) {
         if (variant.stockQuantity !== undefined) skuPatch.stockQuantity = variant.stockQuantity;
         await txSkus.doc(skuId).update(skuPatch);
-      } else await txSkus.doc(skuId).set({ _id: skuId, skuId, stockQuantity: variant.stockQuantity ?? 0, skuImage: variant.skuImage || '', soldQuantity: 0, createdAt: timestamp, ...skuPatch });
+      } else await txSkus.doc(skuId).set({ _id: skuId, skuId, stockQuantity: variant.stockQuantity ?? 999, skuImage: variant.skuImage || '', soldQuantity: 0, createdAt: timestamp, ...skuPatch });
     }
     for (const old of existingSkus) {
       const skuId = String(old._id || old.skuId);
@@ -269,22 +269,50 @@ async function catalogAction(runtime, data, action) {
   if (action.endsWith('.list')) {
     if (entity === 'skus' && (data.productId || data.spuId)) {
       const ref = string(data.productId || data.spuId, 'productId', { max: 128 });
-      const byProduct = await list(collection, { where: { productId: ref }, includeTotal: false });
-      const bySpu = await list(collection, { where: { spuId: ref }, includeTotal: false });
-      const items = Array.from(new Map([...byProduct.items, ...bySpu.items].map((item) => [String(item._id || item.skuId), item])).values());
+      const byProduct = await allMatching(collection, { productId: ref });
+      const bySpu = await allMatching(collection, { spuId: ref });
+      const items = Array.from(new Map([...byProduct, ...bySpu].map((item) => [String(item._id || item.skuId), item])).values());
       return { items: items.map((item) => ({ ...item, price: item.price ?? item.salePrice })), page: 1, pageSize: items.length, total: items.length };
     }
     const where = {};
     if (data.status) where.status = string(data.status, 'status', { max: 40 });
     if (data.productId || data.spuId) where.productId = string(data.productId || data.spuId, 'productId', { max: 128 });
     if (data.categoryId) where.categoryIds = string(data.categoryId, 'categoryId', { max: 128 });
+    if (entity === 'products' && runtime.db.command?.neq) where.deletedByAdmin = runtime.db.command.neq(true);
     const keyword = data.query ? string(data.query, 'query', { max: 80 }) : '';
     if (keyword && typeof runtime.db.RegExp === 'function') {
       const field = entity === 'skus' ? 'skuId' : entity === 'products' ? 'title' : 'name';
       where[field] = runtime.db.RegExp({ regexp: escapeRegExp(keyword), options: 'i' });
     }
-    const result = await listCollection(runtime, name, data, where);
-    if (keyword && typeof runtime.db.RegExp !== 'function') {
+    const fallbackProductList = entity === 'products' && !runtime.db.command?.neq;
+    let result;
+    if (fallbackProductList) {
+      const paging = page(data);
+      let items = (await allMatching(collection, where)).filter((item) => !item.deletedByAdmin);
+      if (keyword && typeof runtime.db.RegExp !== 'function') {
+        const lowered = keyword.toLowerCase();
+        items = items.filter((item) => `${item.title || ''} ${item.name || ''} ${item.skuId || ''} ${item.spuId || ''}`.toLowerCase().includes(lowered));
+      }
+      const orderField = data.orderBy || 'updatedAt';
+      const direction = data.direction === 'asc' ? 1 : -1;
+      items.sort((a, b) => {
+        const left = a[orderField];
+        const right = b[orderField];
+        const comparison = typeof left === 'number' && typeof right === 'number'
+          ? left - right
+          : String(left ?? '').localeCompare(String(right ?? ''), undefined, { numeric: true });
+        return comparison * direction;
+      });
+      result = {
+        items: items.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize),
+        page: paging.page,
+        pageSize: paging.pageSize,
+        total: items.length,
+      };
+    } else {
+      result = await listCollection(runtime, name, data, where);
+    }
+    if (keyword && typeof runtime.db.RegExp !== 'function' && !fallbackProductList) {
       const lowered = keyword.toLowerCase();
       result.items = result.items.filter((item) => `${item.title || ''} ${item.name || ''} ${item.skuId || ''} ${item.spuId || ''}`.toLowerCase().includes(lowered));
       result.total = result.items.length;
@@ -304,7 +332,7 @@ async function catalogAction(runtime, data, action) {
     let item;
     if (entity === 'categories') item = { ...allowedFields(data, ['name', 'parentId', 'level', 'sort', 'icon', 'description']), status: statusValue(data.status, STATUS.active) };
     else if (entity === 'products') item = { ...allowedFields(data, ['spuId', 'title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList']), status: statusValue(data.status, STATUS.active) };
-    else item = { ...allowedFields(data, ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity']), status: statusValue(data.status, STATUS.active), stockQuantity: integer(data.stockQuantity === undefined ? 0 : data.stockQuantity, 'stockQuantity', { min: 0 }), soldQuantity: integer(data.soldQuantity === undefined ? 0 : data.soldQuantity, 'soldQuantity', { min: 0 }) };
+    else item = { ...allowedFields(data, ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity']), status: statusValue(data.status, STATUS.active), stockQuantity: integer(data.stockQuantity === undefined ? 999 : data.stockQuantity, 'stockQuantity', { min: 0 }), soldQuantity: integer(data.soldQuantity === undefined ? 0 : data.soldQuantity, 'soldQuantity', { min: 0 }) };
     item.createdAt = timestamp;
     item.updatedAt = timestamp;
     if (entity === 'products' && item.categoryIds !== undefined) {
@@ -319,6 +347,22 @@ async function catalogAction(runtime, data, action) {
   const id = string(data[`${entity.slice(0, -1)}Id`] || data.id || data.spuId || data.skuId, 'id', { max: 128 });
   const existing = await getDoc(collection, id, true);
   if (action.endsWith('.delete')) {
+    if (entity === 'products') {
+      const timestamp = now();
+      await collection.doc(id).update({ status: STATUS.inactive, deletedByAdmin: true, updatedAt: timestamp });
+      const refs = Array.from(new Set([id, existing._id, existing.spuId].filter(Boolean).map(String)));
+      const relatedSkus = [];
+      for (const ref of refs) {
+        relatedSkus.push(...await allMatching(col(runtime, COLLECTIONS.skus), { productId: ref }));
+        relatedSkus.push(...await allMatching(col(runtime, COLLECTIONS.skus), { spuId: ref }));
+      }
+      for (const sku of new Map(relatedSkus.map((item) => [String(item._id || item.skuId), item])).values()) {
+        if (sku.status !== STATUS.inactive) {
+          await col(runtime, COLLECTIONS.skus).doc(String(sku._id || sku.skuId)).update({ status: STATUS.inactive, updatedAt: timestamp });
+        }
+      }
+      return { ...existing, status: STATUS.inactive, deletedByAdmin: true, _id: id };
+    }
     await collection.doc(id).update({ status: STATUS.inactive, updatedAt: now() });
     if (entity === 'skus') await syncProductPrices(runtime, { ...existing, status: STATUS.inactive });
     return { ...existing, status: STATUS.inactive, _id: id };
@@ -351,6 +395,7 @@ async function inventoryAdjust(runtime, data) {
   const skuId = string(data.skuId, 'skuId', { max: 128 });
   const delta = data.delta === undefined ? undefined : integer(data.delta, 'delta', { min: -1000000, max: 1000000 });
   const target = data.stockQuantity === undefined ? undefined : integer(data.stockQuantity, 'stockQuantity', { min: 0, max: 100000000 });
+  const expected = data.expectedStockQuantity === undefined ? undefined : integer(data.expectedStockQuantity, 'expectedStockQuantity', { min: -1, max: 100000000 });
   assert(delta !== undefined || target !== undefined, { field: 'delta|stockQuantity' });
   const direct = await getDoc(col(runtime, COLLECTIONS.skus), skuId, false);
   const fallback = direct ? null : await col(runtime, COLLECTIONS.skus).where({ skuId }).limit(1).get();
@@ -360,6 +405,7 @@ async function inventoryAdjust(runtime, data) {
   return withTransaction(runtime.db, async (tx) => {
     const sku = await getDoc(tx.collection(COLLECTIONS.skus), documentId, true);
     const current = skuStock(sku);
+    if (expected !== undefined && current !== expected) throw errorFrom('CONFLICT', { field: 'stockQuantity', skuId });
     const next = target === undefined ? current + delta : target;
     if (next < 0) throw errorFrom('OUT_OF_STOCK');
     const update = { stockQuantity: next, updatedAt: now() };

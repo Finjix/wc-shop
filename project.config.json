@@ -3,8 +3,8 @@
   "packOptions": {
     "ignore": [
       {
-        "type": "folder",
-        "value": "admin"
+        "value": "admin",
+        "type": "folder"
       }
     ],
     "include": []
@@ -46,7 +46,9 @@
     "disableUseStrict": false,
     "minifyWXML": true,
     "showES6CompileOption": false,
-    "useCompilerPlugins": ["typescript"],
+    "useCompilerPlugins": [
+      "typescript"
+    ],
     "ignoreUploadUnusedFiles": true,
     "useStaticServer": true,
     "compileWorklet": false,

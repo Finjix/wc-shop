@@ -8,7 +8,7 @@ import { ErrorState, Field, ImageFilePicker, LoadingState, Panel } from '../comp
 
 const SLOT = 'home.page-config';
 const CONTENT_PLACEHOLDER = '请输入内容';
-const PRODUCT_PICKER_PAGE_SIZE = 12;
+const PRODUCT_PICKER_PAGE_SIZE = 6;
 const LEGACY_SEARCH_TEXT = '欢迎光临番薯鞋店！';
 const LEGACY_BANNER_TEXT = '急速发货 | 品质保证 | 退货无忧';
 const OLD_BANNER_TEXT = '急速发货 | 品质保证 | 售后无忧';

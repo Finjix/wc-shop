@@ -84,7 +84,7 @@ export function CategoriesPage() {
   const create = (level: 'parent' | 'child') => {
     const name = (level === 'parent' ? newParentName : newChildName).trim();
     if (!name) { void MessagePlugin.warning('请输入分类名称'); return; }
-    if (level === 'child' && !parent) { void MessagePlugin.warning('请先新增一级分类'); return; }
+    if (level === 'child' && !parent) { void MessagePlugin.warning('请先新增一级类别'); return; }
     const parentId = level === 'parent' ? null : idOf(parent);
     if (rows.some((item) => (item.parentId || null) === parentId && item.name === name)) { void MessagePlugin.warning('同级分类名称不能重复'); return; }
     const id = `draft-category-${Date.now()}-${++draftIdRef.current}`;
@@ -103,7 +103,7 @@ export function CategoriesPage() {
     setRows((old) => old.map((row) => idOf(row) === idOf(target) ? { ...row, name } : row));
   };
   const remove = (target: Category) => {
-    const message = target.parentId ? '保存后，关联商品将变为无类别。' : '保存后，其二级分类也会删除，关联商品将变为无类别。';
+    const message = target.parentId ? '保存后，关联商品将变为无类别。' : '保存后，其二级类别也会删除，关联商品将变为无类别。';
     if (busy || !window.confirm(`确定删除分类“${target.name}”吗？${message}`)) return;
     setRows((old) => old.filter((row) => idOf(row) !== idOf(target) && String(row.parentId || '') !== idOf(target)));
     if (selectedParentId === idOf(target)) setSelectedParentId('');
@@ -111,7 +111,7 @@ export function CategoriesPage() {
     setReparentingId('');
   };
   const reparent = (target: Category) => {
-    if (!newParentId) { void MessagePlugin.warning('请选择一级分类'); return; }
+    if (!newParentId) { void MessagePlugin.warning('请选择一级类别'); return; }
     if (rows.some((item) => idOf(item) !== idOf(target) && item.parentId === newParentId && item.name === target.name)) { void MessagePlugin.warning('同级分类名称不能重复'); return; }
     setRows((old) => old.map((row) => idOf(row) === idOf(target) ? { ...row, parentId: newParentId } : row));
     setSelectedParentId(newParentId);
@@ -223,8 +223,8 @@ export function CategoriesPage() {
     <div className="page-actions"><Button theme="primary" loading={busy} disabled={!dirty || busy || Boolean(uploadingId)} onClick={() => void save()}>保存</Button></div>
     <div className="category-manager-columns">
       <Panel>
-        <div className="panel-heading"><h3>一级分类</h3></div>
-        <div className="category-manager-add category-manager-add-primary"><div className="category-manager-name-input"><Input value={newParentName} onChange={setNewParentName} placeholder="例如：鞋靴" aria-label="一级分类名称" /></div><Button theme="primary" loading={busy} onClick={() => void create('parent')}>新增一级分类</Button></div>
+        <div className="panel-heading"><h3>一级类别</h3></div>
+        <div className="category-manager-add category-manager-add-primary"><div className="category-manager-name-input"><Input value={newParentName} onChange={setNewParentName} placeholder="例如：鞋靴" aria-label="一级类别名称" /></div><Button theme="primary" loading={busy} onClick={() => void create('parent')}>新增一级类别</Button></div>
         <div className="category-manager-parent-list">
           {parents.map((item, index) => <div key={idOf(item)} className={`category-manager-parent ${idOf(parent) === idOf(item) ? 'category-manager-selected' : ''}`}>
             {editingId === idOf(item) ? nameCell(item) : <button type="button" className="category-manager-parent-select" aria-pressed={idOf(parent) === idOf(item)} onClick={() => { setSelectedParentId(idOf(item)); setEditingId(''); }}><strong>{item.name}</strong></button>}
@@ -234,8 +234,8 @@ export function CategoriesPage() {
         </div>
       </Panel>
       <Panel>
-        <div className="panel-heading"><h3>二级分类</h3></div>
-        <div className="category-manager-add category-manager-add-primary"><div className="category-manager-name-input"><Input value={newChildName} onChange={setNewChildName} placeholder={parent ? `添加到${parent.name}` : '请先新增一级分类'} disabled={!parent} aria-label="二级分类名称" /></div><Button theme="primary" loading={busy} disabled={!parent} onClick={() => void create('child')}>新增二级分类</Button></div>
+        <div className="panel-heading"><h3>二级类别</h3></div>
+        <div className="category-manager-add category-manager-add-primary"><div className="category-manager-name-input"><Input value={newChildName} onChange={setNewChildName} placeholder={parent ? `添加到${parent.name}` : '请先新增一级类别'} disabled={!parent} aria-label="二级类别名称" /></div><Button theme="primary" loading={busy} disabled={!parent} onClick={() => void create('child')}>新增二级类别</Button></div>
         <div className="category-manager-parent-list">
           {children.map((item, index) => <div key={idOf(item)} className="category-manager-parent category-manager-child-item">
             <div className="category-manager-child-name">{nameCell(item)}</div>
@@ -250,7 +250,7 @@ export function CategoriesPage() {
             </div>}
           </div>)}
         </div>
-        <input ref={imageInputRef} className="image-file-picker-input" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" aria-label="选择二级分类图片" onChange={(event) => {
+        <input ref={imageInputRef} className="image-file-picker-input" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" aria-label="选择二级类别图片" onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = '';
           if (file && imageTargetRef.current) void uploadImage(imageTargetRef.current, file);
@@ -258,7 +258,7 @@ export function CategoriesPage() {
         }} />
       </Panel>
     </div>
-    {orphans.length > 0 && <Panel><div className="panel-heading"><h3>待整理分类</h3></div><p className="category-manager-note">这些分类的父分类已不存在。请选择新的一级分类，或删除。</p>
+    {orphans.length > 0 && <Panel><div className="panel-heading"><h3>待整理分类</h3></div><p className="category-manager-note">这些分类的父分类已不存在。请选择新的一级类别，或删除。</p>
       <Table minWidth={640}><thead><tr><th>分类名称</th><th>原父分类 ID</th><th>操作</th></tr></thead><tbody>
         {orphans.map((item) => <tr key={idOf(item)}><td>{item.name}</td><td>{String(item.parentId)}</td><td><div className="category-manager-actions">{reparentingId === idOf(item) ? <><select value={newParentId} onChange={(event) => setNewParentId(event.target.value)}>{parents.map((parentItem) => <option key={idOf(parentItem)} value={idOf(parentItem)}>{parentItem.name}</option>)}</select><Button size="small" theme="primary" disabled={busy} onClick={() => reparent(item)}>确定归属</Button><Button size="small" variant="text" onClick={() => setReparentingId('')}>取消</Button></> : <Button size="small" variant="text" disabled={busy || !parents.length} onClick={() => { setReparentingId(idOf(item)); setNewParentId(idOf(parent || parents[0])); }}>重新归属</Button>}<Button size="small" variant="text" disabled={busy} onClick={() => remove(item)}>删除</Button></div></td></tr>)}
       </tbody></Table>
