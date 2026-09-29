@@ -6,7 +6,7 @@
 
 - `pages/`、`services/`、`components/`：TypeScript 小程序页面、组件和业务适配层。
 - `cloudfunctions/`：`wc-shop-function` 统一 CloudBase 云函数，按 `shop` / `admin` scope 分流。
-- `admin/`：React + TypeScript + Vite 静态管理后台；商品页管理规格、价格、状态及 SKU 图片，独立 SKU 页管理库存，另有分类、订单、评论、售后和首页内容。
+- `admin/`：React + TypeScript + Vite 静态管理后台；商品页管理商品上下架、规格、价格及 SKU 图片，独立 SKU 页管理库存，不单独上下架 SKU；另有分类、订单、评论、售后和首页内容。
 - `docs/cloudbase-migration.md`：环境、数据库、权限和部署清单。
 
 ## 本地检查

@@ -69,7 +69,6 @@ export interface Sku {
   price?: number | string;
   salePrice?: number | string;
   linePrice?: number | string;
-  status?: string;
   stockQuantity?: number;
   safeStockQuantity?: number;
   soldQuantity?: number;

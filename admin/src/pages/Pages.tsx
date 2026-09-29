@@ -256,10 +256,9 @@ interface VariantDraft {
   skuId?: string;
   name: string;
   price: string;
-  status: 'active' | 'inactive';
   skuImage: string;
 }
-const emptyVariant = (): VariantDraft => ({ localId: crypto.randomUUID(), name: '', price: '', status: 'active', skuImage: '' });
+const emptyVariant = (): VariantDraft => ({ localId: crypto.randomUUID(), name: '', price: '', skuImage: '' });
 
 function productDetailImages(product: Product) {
   const cover = product.primaryImage || product.images?.[0];
@@ -445,14 +444,15 @@ export function ProductsPage() {
           const values = (group as { specValueList?: { specValueId?: string }[] }).specValueList;
           return Array.isArray(values) ? values.map((value) => String(value.specValueId || '')) : [];
         }));
-        const existing = Array.from(new Map(results.flatMap((result) => readList<Sku>(result)).map((sku) => [String(sku._id || sku.skuId), sku])).values())
-          .filter((sku) => sku.status !== 'inactive' || configuredIds.has(String(sku._id || sku.skuId)));
+        const allSkus = Array.from(new Map(results.flatMap((result) => readList<Sku>(result)).map((sku) => [String(sku._id || sku.skuId), sku])).values());
+        const existing = Array.isArray(product.specList)
+          ? allSkus.filter((sku) => [sku._id, sku.skuId].filter(Boolean).some((id) => configuredIds.has(String(id))))
+          : allSkus;
         setVariants(existing.length ? existing.map((sku) => ({
           localId: String(sku._id || sku.skuId),
           skuId: String(sku._id || sku.skuId),
           name: variantName(sku, product),
           price: Number.isFinite(Number(sku.salePrice ?? sku.price)) ? (Number(sku.salePrice ?? sku.price) / 100).toFixed(2) : '',
-          status: sku.status === 'inactive' ? 'inactive' : 'active',
           skuImage: String(sku.skuImage || ''),
         })) : [emptyVariant()]);
       } catch (err) {
@@ -541,7 +541,6 @@ export function ProductsPage() {
       await fail('请为每个规格填写名称和大于 0 的价格（元，最多两位小数）'); return;
     }
     if (new Set(cleaned.map((variant) => variant.name)).size !== cleaned.length) { await fail('规格名称不能重复'); return; }
-    if (!cleaned.some((variant) => variant.status === 'active')) { await fail('请至少保留 1 个出售中的规格'); return; }
     if (!draft.primaryImage) { await fail('请上传商品封面图片'); return; }
     if (!draft.detailImages.some(Boolean)) { await fail('请至少上传 1 张商品详情图片'); return; }
     const { categoryId, ...productDraft } = draft;
@@ -554,7 +553,6 @@ export function ProductsPage() {
         skuId: variant.skuId,
         name: variant.name,
         salePrice: Math.round(Number(variant.price) * 100),
-        status: variant.status,
         skuImage: variant.skuImage,
       })),
       categoryIds: categoryId ? [categoryId] : [],

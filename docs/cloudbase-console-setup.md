@@ -37,7 +37,7 @@ adminMembers
 
 ```text
 products: status + sort, status + updatedAt, categoryIds
-skus: productId + status, skuId
+skus: productId, skuId
 categories: status + sort
 addresses: userId + isDefault, userId + updatedAt
 orders: userId + createdAt, userId + status + createdAt, orderNo, requestKey + userId

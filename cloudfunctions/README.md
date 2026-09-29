@@ -64,7 +64,7 @@ wx.cloud.callFunction({
 ## 订单和库存边界
 
 - 金额单位统一为整数“分”，订单服务端重新读取 SKU 价格，绝不信任客户端传来的金额或商品快照。
-- `orders.create` 只接受 `{ skuId, quantity }`，校验 SKU `status === "active"`、关联商品 `status === "active"` 和库存后才创建订单。
+- `orders.create` 只接受 `{ skuId, quantity }`，校验 SKU 仍属于商品规格、关联商品 `status === "active"` 和库存后才创建订单；上下架由商品状态控制。
 - 创建订单使用文档数据库事务；事务内只通过已解析的 SKU 文档 `_id` 重新读取和更新库存，不使用事务不支持的 `where` 查询，库存不足或写冲突会回滚整个订单。
 - 订单保存 `productSnapshot`、`skuSnapshot`、`addressSnapshot`；首阶段状态固定为 `pending_payment`，`payment` 固定为 `null`，不返回模拟支付结果。
 - `requestKey`/`idempotencyKey` 是创建订单的必填字段；同一用户和 key 使用不同参数会返回 `IDEMPOTENCY_CONFLICT`。
@@ -78,7 +78,7 @@ wx.cloud.callFunction({
 建议在 CloudBase 数据库中建立以下索引（均为非唯一，除非控制台明确支持并确认现有数据无重复）：
 
 - `products`: `status + sort`、`status + updatedAt`、`categoryIds`
-- `skus`: `productId + status`、`skuId`
+- `skus`: `productId`、`skuId`
 - `categories`: `status + sort`
 - `addresses`: `userId + isDefault`、`userId + updatedAt`
 - `orders`: `userId + createdAt`、`userId + status + createdAt`、`orderNo`、`requestKey + userId`
@@ -91,7 +91,7 @@ wx.cloud.callFunction({
 主要字段：
 
 - `products`: `title`, `primaryImage`, `images`, `categoryIds`, `status`, `sort`, `minSalePrice`, `maxSalePrice`
-- `skus`: `productId`, `skuId`, `specInfo`, `salePrice`, `status`, `stockQuantity`, `soldQuantity`
+- `skus`: `productId`, `skuId`, `specInfo`, `salePrice`, `stockQuantity`, `soldQuantity`
 - `addresses/carts`: 均带 `userId`；购物车文档 `_id` 推荐直接使用 UID
 - `orders`: `userId`, `status`, `paymentStatus`, `items`, `addressSnapshot`, `subtotal`, `shippingFee`, `totalAmount`, `requestHash`
 - `adminMembers`: `_id`/`uid`, `roles`, `status`, `enabled`

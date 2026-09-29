@@ -23,6 +23,12 @@ function allowedFields(source, fields) {
   }, {});
 }
 
+function withoutSkuStatus(value) {
+  if (!value) return value;
+  const { status, ...sku } = value;
+  return sku;
+}
+
 function listOptions(data, baseWhere) {
   const paging = page(data);
   return {
@@ -55,11 +61,16 @@ async function syncProductPrices(runtime, sku) {
   const refs = Array.from(new Set([product._id, product.spuId].filter(Boolean).map(String)));
   const batches = [];
   for (const ref of refs) {
-    batches.push(await list(col(runtime, COLLECTIONS.skus), { where: { status: STATUS.active, productId: ref } }));
-    batches.push(await list(col(runtime, COLLECTIONS.skus), { where: { status: STATUS.active, spuId: ref } }));
+    batches.push(await allMatching(col(runtime, COLLECTIONS.skus), { productId: ref }));
+    batches.push(await allMatching(col(runtime, COLLECTIONS.skus), { spuId: ref }));
   }
-  const activeSkus = Array.from(new Map(batches.flatMap((batch) => batch.items).map((item) => [String(item._id || item.skuId), item])).values());
-  const prices = activeSkus.map((item) => skuPrice(item)).filter((value) => Number.isFinite(value) && value > 0);
+  const hasConfiguredSpec = Array.isArray(product.specList);
+  const configuredIds = new Set((hasConfiguredSpec ? product.specList : []).flatMap((group) =>
+    (Array.isArray(group.specValueList) ? group.specValueList : []).map((value) => String(value.specValueId || ''))));
+  const skus = Array.from(new Map(batches.flat().map((item) => [String(item._id || item.skuId), item])).values())
+    .filter((item) => !item.deletedByAdmin)
+    .filter((item) => !hasConfiguredSpec || [item._id, item.skuId].filter(Boolean).some((id) => configuredIds.has(String(id))));
+  const prices = skus.map((item) => skuPrice(item)).filter((value) => Number.isFinite(value) && value > 0);
   const pricePatch = prices.length
     ? { minSalePrice: Math.min(...prices), maxSalePrice: Math.max(...prices) }
     : { minSalePrice: 0, maxSalePrice: 0 };
@@ -70,14 +81,11 @@ async function saveProductWithVariants(runtime, data) {
   assert(Array.isArray(data.variants) && data.variants.length > 0 && data.variants.length <= 100, { field: 'variants' });
   const variants = data.variants.map((item) => {
     assert(item && typeof item === 'object' && !Array.isArray(item), { field: 'variants' });
-    const status = item.status === undefined ? STATUS.active : string(item.status, 'status');
-    assert(status === STATUS.active || status === STATUS.inactive, { field: 'variants.status' });
     assert(item.skuImage === undefined || (typeof item.skuImage === 'string' && item.skuImage.length <= 1024), { field: 'variants.skuImage' });
     return {
       skuId: item.skuId ? string(item.skuId, 'skuId', { max: 128 }) : '',
       name: string(item.name, 'name', { max: 80 }),
       salePrice: integer(item.salePrice, 'salePrice', { min: 1 }),
-      status,
       skuImage: item.skuImage === undefined ? undefined : item.skuImage.trim(),
       stockQuantity: item.stockQuantity === undefined ? undefined : integer(item.stockQuantity, 'stockQuantity', { min: 0, max: 100000000 }),
       expectedStockQuantity: item.expectedStockQuantity === undefined ? undefined : integer(item.expectedStockQuantity, 'expectedStockQuantity', { min: -1, max: 100000000 }),
@@ -85,7 +93,6 @@ async function saveProductWithVariants(runtime, data) {
   });
   assert(new Set(variants.map((item) => item.name)).size === variants.length, { field: 'variants.name' });
   assert(new Set(variants.filter((item) => item.skuId).map((item) => item.skuId)).size === variants.filter((item) => item.skuId).length, { field: 'variants.skuId' });
-  assert(variants.some((item) => item.status === STATUS.active), { field: 'variants.status' });
   variants.forEach((item) => assert(item.stockQuantity === undefined || !item.skuId || item.expectedStockQuantity !== undefined, { field: 'variants.expectedStockQuantity' }));
   const productId = data.id ? string(data.id, 'id', { max: 128 }) : crypto.randomUUID();
   const products = col(runtime, COLLECTIONS.products);
@@ -100,7 +107,7 @@ async function saveProductWithVariants(runtime, data) {
   const existingById = new Map(existingSkus.map((sku) => [String(sku._id || sku.skuId), sku]));
   variants.forEach((variant) => assert(!variant.skuId || existingById.has(variant.skuId), { field: 'variants.skuId' }));
   const timestamp = now();
-  const prices = variants.filter((item) => item.status === STATUS.active).map((item) => item.salePrice);
+  const prices = variants.map((item) => item.salePrice);
   const specList = [{ specId: 'spec', title: '规格', specValueList: variants.map((item) => ({ specValueId: item.skuId || `sku_${crypto.randomUUID()}`, specValue: item.name })) }];
   const patch = {
     ...allowedFields(data, ['title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'tags', 'description']),
@@ -135,7 +142,7 @@ async function saveProductWithVariants(runtime, data) {
       const skuId = old ? String(old._id || old.skuId) : specList[0].specValueList[index].specValueId;
       specList[0].specValueList[index].specValueId = skuId;
       kept.add(skuId);
-      const skuPatch = { productId, spuId: current?.spuId || productId, specInfo: [{ specId: 'spec', specValueId: skuId }], salePrice: variant.salePrice, status: variant.status, updatedAt: timestamp };
+      const skuPatch = { productId, spuId: current?.spuId || productId, specInfo: [{ specId: 'spec', specValueId: skuId }], salePrice: variant.salePrice, deletedByAdmin: false, updatedAt: timestamp };
       if (variant.skuImage !== undefined) skuPatch.skuImage = variant.skuImage;
       if (old) {
         if (variant.stockQuantity !== undefined) skuPatch.stockQuantity = variant.stockQuantity;
@@ -144,7 +151,7 @@ async function saveProductWithVariants(runtime, data) {
     }
     for (const old of existingSkus) {
       const skuId = String(old._id || old.skuId);
-      if (!kept.has(skuId) && old.status !== STATUS.inactive) await txSkus.doc(skuId).update({ status: STATUS.inactive, updatedAt: timestamp });
+      if (!kept.has(skuId) && !old.deletedByAdmin) await txSkus.doc(skuId).update({ deletedByAdmin: true, updatedAt: timestamp });
     }
     return { ...(current || {}), _id: productId, spuId: current?.spuId || productId, ...patch };
   });
@@ -158,6 +165,23 @@ async function allMatching(collection, where) {
     items.push(...batch.items);
     if (batch.items.length < 100) return items;
   }
+}
+
+async function removeSkuFromProductSpec(runtime, sku) {
+  const reference = sku && (sku.productId || sku.spuId);
+  if (!reference) return;
+  const products = col(runtime, COLLECTIONS.products);
+  const direct = await getDoc(products, String(reference), false);
+  const fallback = direct ? null : await products.where({ spuId: String(reference) }).limit(1).get();
+  const product = direct || fallback?.data?.[0];
+  if (!product || !Array.isArray(product.specList)) return;
+  const skuIds = new Set([sku._id, sku.skuId].filter(Boolean).map(String));
+  const specList = product.specList.map((group) => ({
+    ...group,
+    specValueList: (Array.isArray(group.specValueList) ? group.specValueList : [])
+      .filter((value) => !skuIds.has(String(value.specValueId || ''))),
+  }));
+  await products.doc(String(product._id || reference)).update({ specList, updatedAt: now() });
 }
 
 async function firstActiveChildId(runtime, parentId) {
@@ -271,11 +295,12 @@ async function catalogAction(runtime, data, action) {
       const ref = string(data.productId || data.spuId, 'productId', { max: 128 });
       const byProduct = await allMatching(collection, { productId: ref });
       const bySpu = await allMatching(collection, { spuId: ref });
-      const items = Array.from(new Map([...byProduct, ...bySpu].map((item) => [String(item._id || item.skuId), item])).values());
-      return { items: items.map((item) => ({ ...item, price: item.price ?? item.salePrice })), page: 1, pageSize: items.length, total: items.length };
+      const items = Array.from(new Map([...byProduct, ...bySpu].map((item) => [String(item._id || item.skuId), item])).values())
+        .filter((item) => !item.deletedByAdmin);
+      return { items: items.map((item) => ({ ...withoutSkuStatus(item), price: item.price ?? item.salePrice })), page: 1, pageSize: items.length, total: items.length };
     }
     const where = {};
-    if (data.status) where.status = string(data.status, 'status', { max: 40 });
+    if (data.status && entity !== 'skus') where.status = string(data.status, 'status', { max: 40 });
     if (data.productId || data.spuId) where.productId = string(data.productId || data.spuId, 'productId', { max: 128 });
     if (data.categoryId) where.categoryIds = string(data.categoryId, 'categoryId', { max: 128 });
     if (entity === 'products' && runtime.db.command?.neq) where.deletedByAdmin = runtime.db.command.neq(true);
@@ -319,12 +344,13 @@ async function catalogAction(runtime, data, action) {
     }
     if (entity === 'products') result.items = result.items.map((item) => ({ ...item, isPutOnSale: item.status === STATUS.active }));
     if (entity === 'categories') result.items = result.items.map((item) => ({ ...item, enabled: item.status === STATUS.active }));
-    if (entity === 'skus') result.items = result.items.map((item) => ({ ...item, price: item.price ?? item.salePrice }));
+    if (entity === 'skus') result.items = result.items.filter((item) => !item.deletedByAdmin).map((item) => ({ ...withoutSkuStatus(item), price: item.price ?? item.salePrice }));
     return result;
   }
   if (action.endsWith('.get')) {
     const id = string(data[`${entity.slice(0, -1)}Id`] || data.id || data.spuId || data.skuId, 'id', { max: 128 });
-    return getDoc(collection, id, true);
+    const result = await getDoc(collection, id, true);
+    return entity === 'skus' ? withoutSkuStatus(result) : result;
   }
   if (entity === 'categories') return categoryAction(runtime, data, action, collection);
   if (action.endsWith('.create')) {
@@ -332,7 +358,7 @@ async function catalogAction(runtime, data, action) {
     let item;
     if (entity === 'categories') item = { ...allowedFields(data, ['name', 'parentId', 'level', 'sort', 'icon', 'description']), status: statusValue(data.status, STATUS.active) };
     else if (entity === 'products') item = { ...allowedFields(data, ['spuId', 'title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList']), status: statusValue(data.status, STATUS.active) };
-    else item = { ...allowedFields(data, ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity']), status: statusValue(data.status, STATUS.active), stockQuantity: integer(data.stockQuantity === undefined ? 999 : data.stockQuantity, 'stockQuantity', { min: 0 }), soldQuantity: integer(data.soldQuantity === undefined ? 0 : data.soldQuantity, 'soldQuantity', { min: 0 }) };
+    else item = { ...allowedFields(data, ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity']), stockQuantity: integer(data.stockQuantity === undefined ? 999 : data.stockQuantity, 'stockQuantity', { min: 0 }), soldQuantity: integer(data.soldQuantity === undefined ? 0 : data.soldQuantity, 'soldQuantity', { min: 0 }) };
     item.createdAt = timestamp;
     item.updatedAt = timestamp;
     if (entity === 'products' && item.categoryIds !== undefined) {
@@ -350,21 +376,15 @@ async function catalogAction(runtime, data, action) {
     if (entity === 'products') {
       const timestamp = now();
       await collection.doc(id).update({ status: STATUS.inactive, deletedByAdmin: true, updatedAt: timestamp });
-      const refs = Array.from(new Set([id, existing._id, existing.spuId].filter(Boolean).map(String)));
-      const relatedSkus = [];
-      for (const ref of refs) {
-        relatedSkus.push(...await allMatching(col(runtime, COLLECTIONS.skus), { productId: ref }));
-        relatedSkus.push(...await allMatching(col(runtime, COLLECTIONS.skus), { spuId: ref }));
-      }
-      for (const sku of new Map(relatedSkus.map((item) => [String(item._id || item.skuId), item])).values()) {
-        if (sku.status !== STATUS.inactive) {
-          await col(runtime, COLLECTIONS.skus).doc(String(sku._id || sku.skuId)).update({ status: STATUS.inactive, updatedAt: timestamp });
-        }
-      }
       return { ...existing, status: STATUS.inactive, deletedByAdmin: true, _id: id };
     }
+    if (entity === 'skus') {
+      await removeSkuFromProductSpec(runtime, existing);
+      await collection.doc(id).update({ deletedByAdmin: true, updatedAt: now() });
+      await syncProductPrices(runtime, existing);
+      return { ...withoutSkuStatus(existing), deletedByAdmin: true, _id: id };
+    }
     await collection.doc(id).update({ status: STATUS.inactive, updatedAt: now() });
-    if (entity === 'skus') await syncProductPrices(runtime, { ...existing, status: STATUS.inactive });
     return { ...existing, status: STATUS.inactive, _id: id };
   }
   if (!action.endsWith('.update')) throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
@@ -372,7 +392,7 @@ async function catalogAction(runtime, data, action) {
     ? ['name', 'parentId', 'level', 'sort', 'icon', 'description', 'status']
     : entity === 'products'
       ? ['spuId', 'title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList', 'status']
-      : ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity', 'status'];
+      : ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity'];
   const patch = allowedFields(data, fields);
   if (entity === 'products' && patch.categoryIds !== undefined) {
     patch.categoryIds = await validProductCategoryIds(runtime, patch.categoryIds);
@@ -381,14 +401,13 @@ async function catalogAction(runtime, data, action) {
   if (patch.status) patch.status = statusValue(patch.status);
   if (entity === 'products' && patch.status && ![STATUS.active, STATUS.inactive].includes(patch.status)) throw errorFrom('INVALID_ARGUMENT', { field: 'status' });
   if (entity === 'skus') {
-    if (patch.status && ![STATUS.active, STATUS.inactive].includes(patch.status)) throw errorFrom('INVALID_ARGUMENT', { field: 'status' });
     if (patch.salePrice !== undefined) patch.salePrice = integer(patch.salePrice, 'salePrice', { min: 0 });
     if (patch.stockQuantity !== undefined) patch.stockQuantity = integer(patch.stockQuantity, 'stockQuantity', { min: 0 });
   }
   patch.updatedAt = now();
   await collection.doc(id).update(patch);
   if (entity === 'skus') await syncProductPrices(runtime, { ...existing, ...patch, _id: id });
-  return { ...existing, ...patch, _id: id };
+  return entity === 'skus' ? { ...withoutSkuStatus(existing), ...patch, _id: id } : { ...existing, ...patch, _id: id };
 }
 
 async function inventoryAdjust(runtime, data) {
@@ -411,7 +430,7 @@ async function inventoryAdjust(runtime, data) {
     const update = { stockQuantity: next, updatedAt: now() };
     const result = await tx.collection(COLLECTIONS.skus).doc(documentId).update(update);
     if (affected(result) !== 1) throw errorFrom('CONFLICT');
-    return { ...sku, ...update, stockQuantity: next, _id: documentId };
+    return { ...withoutSkuStatus(sku), ...update, stockQuantity: next, _id: documentId };
   });
 }
 

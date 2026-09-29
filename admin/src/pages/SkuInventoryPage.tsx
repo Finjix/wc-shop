@@ -19,7 +19,9 @@ function visibleSkus(product: Product, skus: Sku[]) {
     const values = (group as { specValueList?: { specValueId?: string }[] }).specValueList;
     return Array.isArray(values) ? values.map((value) => String(value.specValueId || '')) : [];
   }));
-  return skus.filter((sku) => sku.status !== 'inactive' || configuredIds.has(String(sku._id || sku.skuId)));
+  return Array.isArray(product.specList)
+    ? skus.filter((sku) => [sku._id, sku.skuId].filter(Boolean).some((id) => configuredIds.has(String(id))))
+    : skus;
 }
 
 function SkuStockRow({ sku, product, draft, disabled, onChange }: {

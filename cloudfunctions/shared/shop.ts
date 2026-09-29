@@ -50,6 +50,19 @@ function skuStock(sku) {
 
 function productIdForSku(sku) { return sku.productId || sku.spuId || sku.productRef; }
 
+function productSkuIds(product) {
+  if (!Array.isArray(product?.specList)) return null;
+  return new Set(product.specList.flatMap((group) =>
+    (Array.isArray(group.specValueList) ? group.specValueList : []).map((value) => String(value.specValueId || ''))));
+}
+
+function skuBelongsToProduct(product, sku) {
+  if (sku.deletedByAdmin) return false;
+  const configuredIds = productSkuIds(product);
+  if (configuredIds === null) return true;
+  return [sku._id, sku.skuId].filter(Boolean).some((id) => configuredIds.has(String(id)));
+}
+
 function pick(source, fields) {
   return fields.reduce((result, field) => {
     if (source && source[field] !== undefined) result[field] = clone(source[field]);
@@ -59,13 +72,12 @@ function pick(source, fields) {
 
 function escapeRegExp(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
-async function getActiveSku(runtime, skuId, required) {
+async function getSku(runtime, skuId, required) {
   const sku = await findDoc(runtime, COLLECTIONS.skus, skuId, 'skuId');
   if (!sku) {
     if (required) throw errorFrom('SKU_UNAVAILABLE');
     return null;
   }
-  if (sku.status !== STATUS.active) throw errorFrom('SKU_UNAVAILABLE');
   if (!sku._id && !sku.skuId) throw errorFrom('SKU_UNAVAILABLE');
   return sku;
 }
@@ -98,7 +110,7 @@ function publicSku(sku) {
   const result = pick(sku, [
     '_id', 'skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice',
     'stockQuantity', 'stockInfo', 'priceInfo', 'weight', 'volume', 'soldQuantity', 'safeStockQuantity',
-    'status', 'createdAt', 'updatedAt',
+    'createdAt', 'updatedAt',
   ]);
   result.price = skuPrice(sku);
   result.stockQuantity = skuStock(sku);
@@ -157,10 +169,11 @@ async function readProductDetail(runtime, data) {
   const refs = Array.from(new Set([product._id, product.spuId].filter(Boolean).map(String)));
   const batches = [];
   for (const ref of refs) {
-    batches.push(await list(collection(runtime, COLLECTIONS.skus), { where: { status: STATUS.active, productId: ref } }));
-    batches.push(await list(collection(runtime, COLLECTIONS.skus), { where: { status: STATUS.active, spuId: ref } }));
+    batches.push(await list(collection(runtime, COLLECTIONS.skus), { where: { productId: ref } }));
+    batches.push(await list(collection(runtime, COLLECTIONS.skus), { where: { spuId: ref } }));
   }
-  const skus = Array.from(new Map(batches.flatMap((batch) => batch.items).map((sku) => [String(sku._id || sku.skuId), sku])).values());
+  const skus = Array.from(new Map(batches.flatMap((batch) => batch.items).map((sku) => [String(sku._id || sku.skuId), sku])).values())
+    .filter((sku) => skuBelongsToProduct(product, sku));
   return { product: publicProduct(product), skus: skus.map(publicSku) };
 }
 
@@ -168,20 +181,22 @@ async function readSkus(runtime, data) {
   const ref = data.productId || data.spuId;
   if (ref) {
     const id = string(ref, 'productId', { max: 128 });
-    if (!await getActiveProduct(runtime, id, false)) return { items: [], total: 0 };
-    const byProduct = await list(collection(runtime, COLLECTIONS.skus), { where: { status: STATUS.active, productId: id } });
-    const bySpu = await list(collection(runtime, COLLECTIONS.skus), { where: { status: STATUS.active, spuId: id } });
-    const items = Array.from(new Map([...byProduct.items, ...bySpu.items].map((sku) => [String(sku._id || sku.skuId), sku])).values());
+    const product = await getActiveProduct(runtime, id, false);
+    if (!product) return { items: [], total: 0 };
+    const byProduct = await list(collection(runtime, COLLECTIONS.skus), { where: { productId: id } });
+    const bySpu = await list(collection(runtime, COLLECTIONS.skus), { where: { spuId: id } });
+    const items = Array.from(new Map([...byProduct.items, ...bySpu.items].map((sku) => [String(sku._id || sku.skuId), sku])).values())
+      .filter((sku) => skuBelongsToProduct(product, sku));
     return { items: items.map(publicSku), total: items.length };
   }
-  const result = await list(collection(runtime, COLLECTIONS.skus), { where: { status: STATUS.active } });
+  const result = await list(collection(runtime, COLLECTIONS.skus), {});
   const activeProducts = new Map();
   const resolved = await Promise.all(result.items.map(async (sku) => {
     const productId = productIdForSku(sku);
     if (!productId) return null;
     if (!activeProducts.has(productId)) activeProducts.set(productId, getActiveProduct(runtime, productId, false));
     const product = await activeProducts.get(productId);
-    return product ? sku : null;
+    return product && skuBelongsToProduct(product, sku) ? sku : null;
   }));
   const visible = resolved.filter(Boolean);
   return { items: visible.map(publicSku), total: visible.length };
@@ -388,7 +403,7 @@ async function cartAction(runtime, event, context, data, action) {
         const sku = await findDoc(runtime, COLLECTIONS.skus, item.skuId, 'skuId');
         const product = sku && await findDoc(runtime, COLLECTIONS.products, productIdForSku(sku), 'spuId');
         const quantity = valueNumber(item.quantity, 0);
-        if (sku && sku.status === STATUS.active && product && product.status === STATUS.active && skuStock(sku) >= quantity) validItems.push(item);
+        if (sku && product && product.status === STATUS.active && skuBelongsToProduct(product, sku) && skuStock(sku) >= quantity) validItems.push(item);
       }
       return validItems;
     });
@@ -418,8 +433,9 @@ async function cartAction(runtime, event, context, data, action) {
     const oldSkuId = string(data.oldSkuId, 'oldSkuId', { max: 128 });
     const newSkuId = string(data.newSkuId, 'newSkuId', { max: 128 });
     const quantity = integer(data.quantity, 'quantity', { min: 1, max: 999 });
-    const sku = await getActiveSku(runtime, newSkuId, true);
+    const sku = await getSku(runtime, newSkuId, true);
     const product = await getActiveProduct(runtime, productIdForSku(sku), true);
+    if (!skuBelongsToProduct(product, sku)) throw errorFrom('SKU_UNAVAILABLE');
     if (skuStock(sku) >= 0 && quantity > skuStock(sku)) throw errorFrom('OUT_OF_STOCK');
     const replacement = {
       skuId: newSkuId,
@@ -443,8 +459,9 @@ async function cartAction(runtime, event, context, data, action) {
   }
   const skuId = string(data.skuId, 'skuId', { max: 128 });
   const quantity = integer(data.quantity, 'quantity', { min: 1, max: 999 });
-  const sku = await getActiveSku(runtime, skuId, true);
+  const sku = await getSku(runtime, skuId, true);
   const product = await getActiveProduct(runtime, productIdForSku(sku), true);
+  if (!skuBelongsToProduct(product, sku)) throw errorFrom('SKU_UNAVAILABLE');
   return present(await save((items) => {
     const itemIndex = items.findIndex((item) => String(item.skuId) === skuId);
     const nextQuantity = action === 'cart.update' || action === 'cart.updateQuantity'
@@ -506,8 +523,9 @@ async function orderDraft(runtime, identity, data, source) {
   if (address.userId !== identity.uid) throw errorFrom('FORBIDDEN');
   const resolved = [];
   for (const input of items) {
-    const sku = await getActiveSku(runtime, input.skuId, true);
+    const sku = await getSku(runtime, input.skuId, true);
     const product = await getActiveProduct(runtime, productIdForSku(sku), true);
+    if (!skuBelongsToProduct(product, sku)) throw errorFrom('SKU_UNAVAILABLE');
     const stock = skuStock(sku);
     if (stock < input.quantity) throw errorFrom('OUT_OF_STOCK', { skuId: input.skuId });
     const unitPrice = skuPrice(sku);
@@ -584,7 +602,7 @@ async function createOrder(runtime, event, context, data) {
       if (product.status !== STATUS.active) throw errorFrom('SKU_UNAVAILABLE');
       const skuDocumentId = item.skuSnapshot?._id || item.skuId;
       const sku = await getDoc(tx.collection(COLLECTIONS.skus), skuDocumentId, true);
-      if (!sku || sku.status !== STATUS.active) throw errorFrom('SKU_UNAVAILABLE');
+      if (!sku || !skuBelongsToProduct(product, sku)) throw errorFrom('SKU_UNAVAILABLE');
       const stock = skuStock(sku);
       if (stock < item.quantity) throw errorFrom('OUT_OF_STOCK', { skuId: item.skuId });
       const payload = {

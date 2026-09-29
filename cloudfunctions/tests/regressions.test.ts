@@ -59,7 +59,6 @@ function makeRuntime() {
         _id: 'sku-new',
         skuId: 'sku-new',
         productId: 'product-1',
-        status: 'active',
         stockQuantity: 10,
         price: 100,
       },
@@ -231,23 +230,23 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   assert.deepStrictEqual(updated.detailImages, ['detail-1.jpg']);
   assert.strictEqual(runtime.records.skus[small._id].salePrice, 2400);
   const removedSkuId = skus.find((sku) => sku._id !== small._id)._id;
-  assert.strictEqual(runtime.records.skus[removedSkuId].status, 'inactive');
+  assert.strictEqual(runtime.records.skus[removedSkuId].deletedByAdmin, true);
   await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'inactive' });
   assert.strictEqual(runtime.records.products[created._id].status, 'inactive');
-  assert.strictEqual(runtime.records.skus[small._id].status, 'active');
-  assert.strictEqual(runtime.records.skus[removedSkuId].status, 'inactive');
+  assert.strictEqual(runtime.records.skus[small._id].deletedByAdmin, false);
+  assert.strictEqual(runtime.records.skus[removedSkuId].deletedByAdmin, true);
   await assert.rejects(() => shopEndpoint({}, {}, runtime, 'products.detail', { productId: created._id }));
   assert.deepStrictEqual((await shopEndpoint({}, {}, runtime, 'skus.list', { productId: created._id })).items, []);
   assert.deepStrictEqual((await shopEndpoint({}, {}, runtime, 'skus.list', {})).items.map((sku) => sku._id), ['sku-new']);
   await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'active' });
   assert.strictEqual(runtime.records.products[created._id].status, 'active');
-  assert.strictEqual(runtime.records.skus[small._id].status, 'active');
-  assert.strictEqual(runtime.records.skus[removedSkuId].status, 'inactive');
+  assert.strictEqual(runtime.records.skus[small._id].deletedByAdmin, false);
+  assert.strictEqual(runtime.records.skus[removedSkuId].deletedByAdmin, true);
   assert.strictEqual(runtime.records.products[created._id].minSalePrice, 2400);
   await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'invalid' }), appError('INVALID_ARGUMENT'));
 }
 
-async function testProductSaveManagesSkuInventoryStatusAndImages() {
+async function testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus() {
   const runtime = makeRuntime();
   runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   const context = { auth: { uid: 'admin-1' } };
@@ -255,60 +254,56 @@ async function testProductSaveManagesSkuInventoryStatusAndImages() {
   const created = await adminEndpoint({}, context, runtime, 'products.save', {
     ...base,
     variants: [
-      { name: '小份', salePrice: 1900, stockQuantity: 8, skuImage: 'small.webp', status: 'active' },
-      { name: '大份', salePrice: 3900, stockQuantity: 5, status: 'active' },
-      { name: '暂停售卖', salePrice: 900, stockQuantity: 2, status: 'inactive' },
-    ],
+      { name: '小份', salePrice: 1900, stockQuantity: 8, skuImage: 'small.webp' },
+      { name: '大份', salePrice: 3900, stockQuantity: 5 },
+      { name: '第三种规格', salePrice: 900, stockQuantity: 2 },
+  ],
   });
-  assert.strictEqual(created.minSalePrice, 1900);
+  assert.strictEqual(created.minSalePrice, 900);
   assert.strictEqual(created.maxSalePrice, 3900);
   const byName = Object.fromEntries(created.specList[0].specValueList.map((item) => [item.specValue, item.specValueId]));
   assert.strictEqual(runtime.records.skus[byName['小份']].stockQuantity, 8);
   assert.strictEqual(runtime.records.skus[byName['小份']].skuImage, 'small.webp');
-  assert.strictEqual(runtime.records.skus[byName['暂停售卖']].status, 'inactive');
   await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'inactive' });
   await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'active' });
-  assert.strictEqual(runtime.records.skus[byName['小份']].status, 'active');
-  assert.strictEqual(runtime.records.skus[byName['暂停售卖']].status, 'inactive');
   await adminEndpoint({}, context, runtime, 'products.save', {
     ...base, id: created._id,
     variants: [
-      { skuId: byName['小份'], name: '小份', salePrice: 1900, status: 'active' },
-      { skuId: byName['大份'], name: '大份', salePrice: 3900, status: 'active' },
-      { skuId: byName['暂停售卖'], name: '暂停售卖', salePrice: 900, status: 'inactive' },
+      { skuId: byName['小份'], name: '小份', salePrice: 1900 },
+      { skuId: byName['大份'], name: '大份', salePrice: 3900 },
+      { skuId: byName['第三种规格'], name: '第三种规格', salePrice: 900 },
     ],
   });
-  assert.strictEqual(runtime.records.skus[byName['暂停售卖']].status, 'inactive');
   const publicDetail = await shopEndpoint({}, {}, runtime, 'products.detail', { productId: created._id });
-  assert.strictEqual(publicDetail.product.minSalePrice, 1900);
-  assert.deepStrictEqual(publicDetail.skus.map((sku) => sku.stockQuantity).sort(), [5, 8]);
+  assert.strictEqual(publicDetail.product.minSalePrice, 900);
+  assert.deepStrictEqual(publicDetail.skus.map((sku) => sku.stockQuantity).sort(), [2, 5, 8]);
 
   runtime.records.skus[byName['大份']].stockQuantity = 4; // 模拟编辑期间下单扣库存
   const updated = await adminEndpoint({}, context, runtime, 'products.save', {
     ...base, id: created._id,
     variants: [
-      { skuId: byName['小份'], name: '小份', salePrice: 2200, stockQuantity: 7, expectedStockQuantity: 8, skuImage: '', status: 'active' },
-      { skuId: byName['大份'], name: '大份', salePrice: 3900, status: 'inactive' },
+      { skuId: byName['小份'], name: '小份', salePrice: 2200, stockQuantity: 7, expectedStockQuantity: 8, skuImage: '' },
+      { skuId: byName['大份'], name: '大份', salePrice: 3900 },
     ],
   });
   assert.strictEqual(updated.minSalePrice, 2200);
-  assert.strictEqual(updated.maxSalePrice, 2200);
+  assert.strictEqual(updated.maxSalePrice, 3900);
   assert.strictEqual(runtime.records.skus[byName['小份']].stockQuantity, 7);
   assert.strictEqual(runtime.records.skus[byName['小份']].skuImage, '');
   assert.strictEqual(runtime.records.skus[byName['大份']].stockQuantity, 4);
-  assert.strictEqual(runtime.records.skus[byName['大份']].status, 'inactive');
-  assert.strictEqual(runtime.records.skus[byName['暂停售卖']].status, 'inactive');
+  assert.strictEqual(runtime.records.skus[byName['大份']].deletedByAdmin, false);
+  assert.strictEqual(runtime.records.skus[byName['第三种规格']].deletedByAdmin, true);
 
   const reactivated = await adminEndpoint({}, context, runtime, 'products.save', {
     ...base, id: created._id,
     variants: [
-      { skuId: byName['小份'], name: '小份', salePrice: 2200, status: 'active' },
-      { skuId: byName['大份'], name: '大份', salePrice: 1800, status: 'active' },
+      { skuId: byName['小份'], name: '小份', salePrice: 2200 },
+      { skuId: byName['大份'], name: '大份', salePrice: 1800 },
     ],
   });
   assert.strictEqual(reactivated.minSalePrice, 1800);
   assert.strictEqual(runtime.records.skus[byName['大份']].stockQuantity, 4);
-  assert.strictEqual(runtime.records.skus[byName['大份']].status, 'active');
+  assert.strictEqual(runtime.records.skus[byName['大份']].deletedByAdmin, false);
 
   const writesBeforeConflict = runtime.writes.length;
   await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.save', {
@@ -317,10 +312,6 @@ async function testProductSaveManagesSkuInventoryStatusAndImages() {
   }), appError('CONFLICT'));
   assert.strictEqual(runtime.writes.length, writesBeforeConflict);
   assert.strictEqual(runtime.records.skus[byName['小份']].stockQuantity, 7);
-  await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.save', {
-    ...base, id: created._id,
-    variants: [{ skuId: byName['小份'], name: '小份', salePrice: 2200, status: 'inactive' }],
-  }), appError('INVALID_ARGUMENT'));
 }
 
 async function testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt() {
@@ -330,7 +321,7 @@ async function testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt()
   const base = { title: '分开管理库存', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
   const created = await adminEndpoint({}, context, runtime, 'products.save', {
     ...base,
-    variants: [{ name: '标准', salePrice: 1000, status: 'active' }],
+    variants: [{ name: '标准', salePrice: 1000 }],
   });
   const skuId = created.specList[0].specValueList[0].specValueId;
   assert.strictEqual(runtime.records.skus[skuId].stockQuantity, 999);
@@ -341,7 +332,7 @@ async function testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt()
 
   await adminEndpoint({}, context, runtime, 'products.save', {
     ...base, id: created._id,
-    variants: [{ skuId, name: '标准版', salePrice: 1200, status: 'active' }],
+    variants: [{ skuId, name: '标准版', salePrice: 1200 }],
   });
   assert.strictEqual(runtime.records.skus[skuId].stockQuantity, 10);
 
@@ -362,8 +353,8 @@ async function testProductSkuListAndSaveReadEveryVariant() {
   const context = { auth: { uid: 'admin-1' } };
   const variants = Array.from({ length: 100 }, (_, index) => {
     const skuId = `sku-${index}`;
-    runtime.records.skus[skuId] = { _id: skuId, skuId, productId: 'product-1', spuId: 'product-1', status: 'active', stockQuantity: index, salePrice: 1000 };
-    return { skuId, name: `规格 ${index}`, salePrice: 1000, status: 'active' };
+    runtime.records.skus[skuId] = { _id: skuId, skuId, productId: 'product-1', spuId: 'product-1', stockQuantity: index, salePrice: 1000 };
+    return { skuId, name: `规格 ${index}`, salePrice: 1000 };
   });
   const listed = await adminEndpoint({}, context, runtime, 'skus.list', { productId: 'product-1' });
   assert.strictEqual(listed.items.length, 101);
@@ -371,7 +362,7 @@ async function testProductSkuListAndSaveReadEveryVariant() {
     id: 'product-1', title: '测试商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'], variants,
   });
   assert.strictEqual(runtime.records.skus['sku-99'].stockQuantity, 99);
-  assert.strictEqual(runtime.records.skus['sku-99'].status, 'active');
+  assert.strictEqual(runtime.records.skus['sku-99'].deletedByAdmin, false);
 }
 
 async function testMergedSkuQuantityIsCapped() {
@@ -576,7 +567,7 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
   assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [child._id]);
   await adminEndpoint({}, context, runtime, 'products.save', {
     id: 'product-1', title: '修改后的商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'],
-    categoryIds: [child._id], variants: [{ skuId: 'sku-new', name: '规格', salePrice: 100, status: 'active' }],
+    categoryIds: [child._id], variants: [{ skuId: 'sku-new', name: '规格', salePrice: 100 }],
   });
   await assert.rejects(() => adminEndpoint({}, context, runtime, 'categories.save', { name: '错误图片', parentId: null, image: 'cloud://test/admin/categories/cover.webp' }), appError('INVALID_ARGUMENT'));
   const renamedChild = await adminEndpoint({}, context, runtime, 'categories.save', { id: child._id, name: '男士皮鞋' });
@@ -633,7 +624,7 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
 const cases = [
   { name: 'image uploads validate format, size, conversion and staging', run: testImageUploads },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
-  { name: 'product save manages SKU inventory, status, images and conflicts', run: testProductSaveManagesSkuInventoryStatusAndImages },
+  { name: 'product save manages SKU inventory and images without SKU status', run: testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus },
   { name: 'SKU inventory is set separately and stale updates conflict', run: testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt },
   { name: 'product SKU list and save read every variant', run: testProductSkuListAndSaveReadEveryVariant },
   {
