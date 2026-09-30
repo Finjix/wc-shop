@@ -325,7 +325,7 @@ Page({
         this.createRequestId = null;
         clearPendingGoodsRequestList();
         const orderNo = res?.data?.orderNo;
-        const totalPaid = encodeURIComponent(settleDetailData.totalPayAmount || '0');
+        const totalPaid = encodeURIComponent(res.data.totalAmount ?? settleDetailData.totalPayAmount ?? '0');
         if (orderNo) {
           wx.redirectTo({
             url: `/pages/order/pay-result/index?totalPaid=${totalPaid}&orderNo=${encodeURIComponent(orderNo)}`,
@@ -336,8 +336,13 @@ Page({
       })
       .catch((err) => {
         this.payLock = false;
-        this.createRequestId = null;
         const code = String(err?.code || '').toUpperCase();
+        // A lost response may follow a committed transaction. Retry the same key
+        // until success or a definitive validation rejection confirms no order exists.
+        if (['INVALID_ARGUMENT', 'ADDRESS_REQUIRED', 'ADDRESS_MISSING', 'EMPTY_CART', 'CART_EMPTY',
+          'OUT_OF_STOCK', 'SKU_UNAVAILABLE', 'FORBIDDEN', 'UNAUTHENTICATED'].includes(code)) {
+          this.createRequestId = null;
+        }
         if (['CONTAINS_INSUFFICIENT_GOODS', 'STOCK_INSUFFICIENT', 'OUT_OF_STOCK', 'TOTAL_AMOUNT_DIFFERENT'].includes(code)) {
           Toast({
             context: this,

@@ -3,9 +3,10 @@
 const assert = require('assert');
 const sharp = require('sharp');
 
-const { getIdentity, requireUser } = require('../shared/auth');
+const { getIdentity, requireUser, requireAdmin } = require('../shared/auth');
 const { resultData, listData, getDoc, withTransaction } = require('../shared/db');
-const { normalizeOrderItems, shopEndpoint } = require('../shared/shop');
+const { normalizeOrderItems, shopEndpoint, expirePendingOrders } = require('../shared/shop');
+const { isTimerInvocation } = require('../wc-shop-function/index');
 const { adminEndpoint } = require('../shared/admin');
 const { page } = require('../shared/validation');
 const { validateHomeConfig, DEFAULT_SEARCH_TEXT, DEFAULT_BANNER_TEXT } = require('../shared/home-config');
@@ -84,6 +85,7 @@ function makeRuntime() {
   };
   const writes = [];
   let nextId = 0;
+  let transactionTail = Promise.resolve();
 
   function collection(name) {
     const bucket = records[name] || (records[name] = {});
@@ -124,14 +126,30 @@ function makeRuntime() {
         };
       },
       where(query) {
-        const matches = () => Object.values(bucket).filter((value) => Object.entries(query).every(([field, expected]) => Array.isArray(value[field]) ? value[field].includes(expected) : value[field] === expected));
+        const matches = () => Object.values(bucket).filter((value) => Object.entries(query).every(([field, expected]) => {
+          const actual = value[field];
+          if (expected && expected.__op === 'in') return expected.value.includes(actual);
+          if (expected && expected.__op === 'neq') return actual !== expected.value;
+          if (expected && expected.__op === 'gte') return actual >= expected.value;
+          if (expected && expected.__op === 'lte') return actual <= expected.value;
+          return Array.isArray(actual) ? actual.includes(expected) : actual === expected;
+        }));
         let offset = 0;
         let max = Infinity;
+        let sorting;
         const builder = {
           limit(value) { max = value; return builder; },
           skip(value) { offset = value; return builder; },
-          orderBy() { return builder; },
-          async get() { return { data: matches().slice(offset, offset + max) }; },
+          orderBy(field, direction) { sorting = { field, direction }; return builder; },
+          async get() {
+            const rows = matches();
+            if (sorting) rows.sort((a, b) => {
+              const left = a[sorting.field], right = b[sorting.field];
+              const compare = typeof left === 'number' && typeof right === 'number' ? left - right : String(left || '').localeCompare(String(right || ''));
+              return compare * (sorting.direction === 'desc' ? -1 : 1);
+            });
+            return { data: rows.slice(offset, offset + max) };
+          },
           async count() { return { total: matches().length }; },
         };
         return builder;
@@ -143,8 +161,12 @@ function makeRuntime() {
     records,
     db: {
       collection,
-      async runTransaction(worker) {
-        return worker({
+      command: Object.fromEntries(['in', 'neq', 'gte', 'lte'].map((op) => [op, (value) => ({ __op: op, value })])),
+      runTransaction(worker) {
+        const result = transactionTail.then(async () => {
+          const snapshot = JSON.parse(JSON.stringify(records));
+          const writeCount = writes.length;
+          try { return await worker({
           collection(name) {
             const ref = collection(name);
             return {
@@ -152,7 +174,20 @@ function makeRuntime() {
               where() { throw new Error('where is not supported inside transactions'); },
             };
           },
+          }); } catch (error) {
+            for (const name of Object.keys(records)) {
+              if (!snapshot[name]) delete records[name];
+              else {
+                for (const id of Object.keys(records[name])) delete records[name][id];
+                Object.assign(records[name], snapshot[name]);
+              }
+            }
+            writes.length = writeCount;
+            throw error;
+          }
         });
+        transactionTail = result.catch(() => {});
+        return result;
       },
     },
     writes,
@@ -677,7 +712,170 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
   assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, []);
 }
 
+function receivedOrder(items = [{ productId: 'product-1', skuId: 'sku-new', quantity: 2, unitPrice: 100, amount: 200 }]) {
+  return { _id: 'order-1', orderNo: 'order-1', userId: 'user-1', status: 'received', items, totalAmount: items.reduce((sum, item) => sum + item.amount, 0) };
+}
+
+async function testOnlyActiveAdminsAreAllowed() {
+  const runtime = makeRuntime();
+  const member = { _id: 'admin-1', roles: ['admin'], status: 'active' };
+  runtime.records.adminMembers = { 'admin-1': member };
+  const context = { auth: { uid: 'admin-1' } };
+  await requireAdmin(runtime.db, {}, context, 'catalog');
+  for (const status of ['inactive', 'disabled', '', undefined]) {
+    member.status = status;
+    await assert.rejects(() => requireAdmin(runtime.db, {}, context, 'catalog'), appError('FORBIDDEN'));
+  }
+  member.status = 'active'; member.enabled = false;
+  await assert.rejects(() => requireAdmin(runtime.db, {}, context, 'catalog'), appError('FORBIDDEN'));
+}
+
+async function testOrderPricesAndSnapshotsAreConfirmedInTransaction() {
+  const runtime = makeRuntime();
+  const transaction = runtime.db.runTransaction;
+  runtime.db.runTransaction = (worker) => {
+    runtime.records.skus['sku-new'].salePrice = 900;
+    runtime.records.products['product-1'].title = '最新商品名称';
+    runtime.records.addresses['address-1'].detail = '最新地址';
+    return transaction(worker);
+  };
+  const created = await shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'orders.create', {
+    items: [{ skuId: 'sku-new', quantity: 2 }], addressId: 'address-1', requestKey: 'price-race',
+  });
+  assert.strictEqual(created.totalAmount, 1800);
+  assert.strictEqual(created.items[0].unitPrice, 900);
+  assert.strictEqual(created.items[0].productSnapshot.title, '最新商品名称');
+  assert.strictEqual(created.addressSnapshot.detail, '最新地址');
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 8);
+}
+
+async function testExpiryAndTimerAuthorization() {
+  const runtime = makeRuntime();
+  runtime.records.orders['order-1'] = { ...receivedOrder(), status: 'pending_payment', inventoryReserved: true, expiresAt: '2020-01-01T00:00:00.000Z' };
+  runtime.records.skus['sku-new'].stockQuantity = 8;
+  const detail = await shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'orders.detail', { orderId: 'order-1' });
+  assert.strictEqual(detail.status, 'cancelled');
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
+  await shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'orders.detail', { orderId: 'order-1' });
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
+  for (let i = 0; i < 105; i += 1) runtime.records.orders[`expired-${i}`] = {
+    ...receivedOrder([{ skuId: 'sku-new', productId: 'product-1', quantity: 1, unitPrice: 100, amount: 100 }]),
+    _id: `expired-${i}`, userId: `other-user-${i}`, status: 'pending_payment', inventoryReserved: true, expiresAt: '2020-01-01T00:00:00.000Z',
+  };
+  runtime.records.orders.future = { _id: 'future', userId: 'other-user', status: 'pending_payment', expiresAt: '2099-01-01T00:00:00.000Z' };
+  assert.strictEqual((await expirePendingOrders(runtime)).cancelled, 100);
+  assert.strictEqual((await expirePendingOrders(runtime)).cancelled, 5);
+  assert.strictEqual(runtime.records.orders.future.status, 'pending_payment');
+  assert.strictEqual(isTimerInvocation({ cloudbase: { getCloudbaseContext: () => ({ TRIGGER_SRC: 'timer' }) } }, {}), true);
+  assert.strictEqual(isTimerInvocation({ cloudbase: { getCloudbaseContext: () => ({}) } }, { event: { TRIGGER_SRC: 'timer' } }), false);
+}
+
+async function testCommentsAreAtomicPrivateAndQueryableByOwner() {
+  const runtime = makeRuntime();
+  runtime.records.orders['order-1'] = receivedOrder();
+  const context = { auth: { uid: 'user-1' } };
+  const input = { orderId: 'order-1', productId: 'product-1', content: '真实评价', images: ['cloud://test/user/comments/image.webp'] };
+  const results = await Promise.allSettled([
+    shopEndpoint({}, context, runtime, 'comments.create', input),
+    shopEndpoint({}, context, runtime, 'comments.create', input),
+  ]);
+  assert.strictEqual(results.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.strictEqual(Object.keys(runtime.records.comments).length, 1);
+  const mine = await shopEndpoint({}, context, runtime, 'comments.list', { orderId: 'order-1', mineOnly: true });
+  assert.strictEqual(mine.items[0].status, 'pending_review');
+  assert.strictEqual(mine.items[0].userId, 'user-1');
+  assert.strictEqual((await shopEndpoint({}, {}, runtime, 'comments.list', {})).items.length, 0);
+  runtime.records.comments[mine.items[0]._id].status = 'active';
+  const publicResult = await shopEndpoint({}, {}, runtime, 'comments.list', {});
+  for (const field of ['userId', 'orderId', 'orderNo']) assert.strictEqual(publicResult.items[0][field], undefined);
+  assert.strictEqual(publicResult.items[0].content, '真实评价');
+  await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'other-user' } }, runtime, 'comments.list', { orderId: 'order-1' }), appError('FORBIDDEN'));
+  assert.strictEqual((await shopEndpoint({}, context, runtime, 'orders.detail', { orderId: 'order-1' })).hasPendingComments, false);
+  assert.strictEqual((await shopEndpoint({}, context, runtime, 'orders.count', {})).items.find((item) => item.tabType === 50).orderNum, 0);
+}
+
+async function testReceivedOrdersAndPendingCommentPagination() {
+  const runtime = makeRuntime();
+  for (let i = 0; i < 12; i += 1) runtime.records.orders[`order-${i}`] = { ...receivedOrder(), _id: `order-${i}`, createdAt: String(i).padStart(2, '0') };
+  runtime.records.orders.shipped = { _id: 'shipped', userId: 'user-1', status: 'shipped' };
+  const context = { auth: { uid: 'user-1' } };
+  const received = await shopEndpoint({}, context, runtime, 'orders.list', { orderStatus: 50 });
+  assert.strictEqual(received.total, 12);
+  assert.strictEqual((await shopEndpoint({}, context, runtime, 'orders.list', { orderStatus: 40 })).items.length, 1);
+  for (let i = 4; i < 12; i += 1) runtime.records.comments[`comment-${i}`] = {
+    _id: `comment-${i}`, userId: 'user-1', orderId: `order-${i}`, productId: 'product-1', status: 'pending_review',
+  };
+  const pending = await shopEndpoint({}, context, runtime, 'orders.list', { orderStatus: 50, pendingCommentOnly: true, pageSize: 2 });
+  assert.strictEqual(pending.total, 4);
+  assert.strictEqual(pending.items.length, 2);
+  assert.strictEqual(pending.items[0]._id, 'order-3');
+  const counts = await shopEndpoint({}, context, runtime, 'orders.count', {});
+  assert.strictEqual(counts.items.find((item) => item.tabType === 50).orderNum, 4);
+}
+
+async function testImageFilterPrecedesCommentPagination() {
+  const runtime = makeRuntime();
+  runtime.records.comments = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`comment-${i}`, {
+    _id: `comment-${i}`, status: 'active', productId: 'product-1', createdAt: i, hasImage: i === 0, images: i === 0 ? ['cloud://image'] : [],
+  }]));
+  const result = await shopEndpoint({}, {}, runtime, 'comments.list', { productId: 'product-1', hasImage: true, page: 1, pageSize: 10 });
+  assert.strictEqual(result.items.length, 1);
+  assert.strictEqual(result.total, 1);
+  assert.strictEqual(result.items[0]._id, 'comment-0');
+}
+
+async function testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims() {
+  const runtime = makeRuntime();
+  const items = [
+    { productId: 'product-1', skuId: 'sku-A', quantity: 2, unitPrice: 100, amount: 200 },
+    { productId: 'product-1', skuId: 'sku-B', quantity: 3, unitPrice: 200, amount: 600 },
+  ];
+  runtime.records.orders['order-1'] = receivedOrder(items);
+  const context = { auth: { uid: 'user-1' } };
+  const input = { orderId: 'order-1', reason: '质量问题', rightsItem: [{ skuId: 'sku-B', rightsQuantity: 1 }], refundRequestAmount: 200 };
+  for (const invalid of [
+    { ...input, rightsItem: [{ skuId: 'unknown', rightsQuantity: 1 }] },
+    { ...input, rightsItem: [{ skuId: 'sku-B', rightsQuantity: 4 }] },
+    { ...input, refundRequestAmount: 201 },
+    { ...input, type: 'invalid' },
+  ]) await assert.rejects(() => shopEndpoint({}, context, runtime, 'afterSales.create', invalid), appError('INVALID_ARGUMENT'));
+  assert.strictEqual(Object.keys(runtime.records.afterSales || {}).length, 0);
+  const results = await Promise.allSettled([
+    shopEndpoint({}, context, runtime, 'afterSales.create', input),
+    shopEndpoint({}, context, runtime, 'afterSales.create', input),
+  ]);
+  assert.strictEqual(results.filter((result) => result.status === 'fulfilled').length, 1);
+  const saved = Object.values(runtime.records.afterSales)[0];
+  assert.strictEqual(saved.items[0].skuId, 'sku-B');
+  assert.strictEqual(saved.items[0].quantity, 1);
+  assert.strictEqual(saved.amount, 200);
+  saved.status = 'refunded';
+  const second = await shopEndpoint({}, context, runtime, 'afterSales.create', input);
+  runtime.records.afterSales[second._id].status = 'refunded';
+  await assert.rejects(() => shopEndpoint({}, context, runtime, 'afterSales.create', {
+    ...input, rightsItem: [{ skuId: 'sku-B', rightsQuantity: 2 }], refundRequestAmount: 400,
+  }), appError('INVALID_ARGUMENT'));
+}
+
+async function testDashboardCountsBeyondSdkQueryLimit() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
+  for (const name of ['orders', 'comments', 'afterSales']) runtime.records[name] = Object.fromEntries(Array.from({ length: 120 }, (_, i) => [`item-${i}`, {
+    _id: `item-${i}`, status: name === 'orders' ? 'pending_payment' : 'pending_review',
+  }]));
+  const dashboard = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'dashboard.summary', {});
+  for (const field of ['orderCount', 'commentCount', 'afterSaleCount', 'pendingOrderCount', 'pendingAfterSaleCount']) assert.strictEqual(dashboard.metrics[field], 120);
+}
+
 const cases = [
+  { name: 'only explicitly active administrators can access the backend', run: testOnlyActiveAdminsAreAllowed },
+  { name: 'order prices, product snapshots and addresses are confirmed in the transaction', run: testOrderPricesAndSnapshotsAreConfirmedInTransaction },
+  { name: 'expired details and timer batches release inventory with trusted trigger context', run: testExpiryAndTimerAuthorization },
+  { name: 'comments are atomic, public fields are restricted, and owners see pending reviews', run: testCommentsAreAtomicPrivateAndQueryableByOwner },
+  { name: 'received orders and pending comments use consistent tabs and pagination', run: testReceivedOrdersAndPendingCommentPagination },
+  { name: 'image filtering precedes comment pagination and total counting', run: testImageFilterPrecedesCommentPagination },
+  { name: 'after-sales validate SKU, quantity, amount and serialize concurrent claims', run: testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims },
+  { name: 'dashboard counts are complete beyond the SDK default query limit', run: testDashboardCountsBeyondSdkQueryLimit },
   { name: 'image uploads validate format, size, conversion and staging', run: testImageUploads },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
   { name: 'product save manages SKU inventory and images without SKU status', run: testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus },

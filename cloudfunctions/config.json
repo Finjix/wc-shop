@@ -1,0 +1,5 @@
+{
+  "triggers": [
+    { "name": "expire-pending-orders", "type": "timer", "config": "0 */5 * * * * *" }
+  ]
+}

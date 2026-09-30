@@ -93,4 +93,22 @@ async function withTransaction(db, worker) {
   }
 }
 
-module.exports = { resultData, listData, affected, getDoc, safeQuery, list, withTransaction };
+async function all(collection, where = {}) {
+  const items = [];
+  while (true) {
+    const batch = await list(collection, {
+      where, skip: items.length, limit: 100,
+      orderBy: { field: '_id', direction: 'asc' }, includeTotal: false,
+    });
+    items.push(...batch.items);
+    if (batch.items.length < 100) return items;
+  }
+}
+
+async function count(collection, where = {}) {
+  const ref = safeQuery(collection, where);
+  if (typeof ref.count === 'function') return Number((await ref.count()).total) || 0;
+  return (await all(collection, where)).length;
+}
+
+module.exports = { resultData, listData, affected, getDoc, safeQuery, list, all, count, withTransaction };

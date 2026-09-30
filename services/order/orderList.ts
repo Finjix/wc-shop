@@ -56,10 +56,16 @@ function pagingOf(parameter = {}) {
   };
 }
 
-function buttonsForStatus(orderStatus) {
+function buttonsForStatus(orderStatus, order, items) {
   if (orderStatus === 5) return [{ type: 2, name: '取消订单', primary: true }];
   if (orderStatus === 40) return [{ type: 3, name: '确认收货', primary: true }];
-  if (orderStatus === 50) return [{ type: 6, name: '评价', primary: true }];
+  if (orderStatus === 50) {
+    const commented = order.commentedProductIds || [];
+    const pending = items.some((item) => !commented.includes(item.spuId));
+    return order.hasPendingComments === false || !pending
+      ? [{ type: 10, name: '查看评价', primary: true }]
+      : [{ type: 6, name: '评价', primary: true }];
+  }
   return [];
 }
 
@@ -70,6 +76,8 @@ function visibleButtons(buttons = []) {
 export function normalizeOrder(order = {}) {
   const orderStatus = statusOf(order.orderStatus ?? order.status);
   const items = (order.orderItemVOs || order.items || order.goodsList || []).map(normalizeItem);
+  const address = order.addressSnapshot || {};
+  const logistics = order.logisticsVO || order.logistics || {};
   const providedButtons = visibleButtons(
     Array.isArray(order.buttonVOs) && order.buttonVOs.length ? order.buttonVOs : order.buttons,
   );
@@ -78,15 +86,25 @@ export function normalizeOrder(order = {}) {
     orderId: order.orderId ?? order.id ?? order._id,
     orderNo: order.orderNo || order.orderNumber,
     orderStatus,
+    commentableProductId: items.find((item) => !(order.commentedProductIds || []).includes(item.spuId))?.spuId,
     orderStatusName: order.orderStatusName || order.statusDesc || STATUS_LABELS[orderStatus] || '',
     paymentAmount: order.paymentAmount ?? order.amount ?? order.totalPayAmount ?? order.totalAmount ?? 0,
     totalAmount: order.totalAmount ?? order.goodsAmount ?? order.goodsAmountApp ?? 0,
-    freightFee: order.freightFee ?? order.deliveryFee ?? 0,
+    freightFee: order.freightFee ?? order.deliveryFee ?? order.shippingFee ?? 0,
     goodsAmountApp: order.goodsAmountApp ?? order.subtotal ?? order.totalAmount ?? 0,
     createTime: order.createTime || order.createdAt,
     orderItemVOs: items,
-    buttonVOs: providedButtons.length ? providedButtons : buttonsForStatus(orderStatus),
-    logisticsVO: { ...(order.logisticsVO || order.logistics || {}) },
+    buttonVOs: providedButtons.length ? providedButtons : buttonsForStatus(orderStatus, order, items),
+    logisticsVO: {
+      ...logistics,
+      receiverName: logistics.receiverName ?? address.receiver ?? address.name ?? '',
+      receiverPhone: logistics.receiverPhone ?? address.phone ?? '',
+      receiverProvince: logistics.receiverProvince ?? address.province ?? '',
+      receiverCity: logistics.receiverCity ?? address.city ?? '',
+      receiverArea: logistics.receiverArea ?? address.district ?? '',
+      receiverAddress: logistics.receiverAddress ?? address.detail ?? '',
+      logisticsNo: logistics.logisticsNo || logistics.trackingNo || order.tracking?.trackingNo || '',
+    },
   };
 }
 

@@ -216,15 +216,16 @@ Component({
 
     /** 添加订单评论 */
     onAddComment(order) {
-      const imgUrl = order?.goodsList?.[0]?.thumb;
-      const title = order?.goodsList?.[0]?.title;
-      const specs = order?.goodsList?.[0]?.specs;
+      const goods = (order.goodsList || []).find((item) => item.spuId === order.commentableProductId) || order?.goodsList?.[0];
+      const imgUrl = goods?.thumb;
+      const title = goods?.title;
+      const specs = goods?.specs;
       wx.navigateTo({
         url: `/pages/goods/comments/create/index?specs=${encodeURIComponent(
           specs || '',
         )}&title=${encodeURIComponent(title || '')}&orderNo=${encodeURIComponent(
           order?.orderNo || '',
-        )}&spuId=${encodeURIComponent(order?.goodsList?.[0]?.spuId || '')}&imgUrl=${encodeURIComponent(imgUrl || '')}`,
+        )}&spuId=${encodeURIComponent(goods?.spuId || '')}&imgUrl=${encodeURIComponent(imgUrl || '')}`,
       });
     },
 

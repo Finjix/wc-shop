@@ -1,10 +1,17 @@
 {
   "private": true,
   "engines": {
-    "node": ">=18"
+    "node": ">=20.9"
   },
   "dependencies": {
     "@cloudbase/node-sdk": "3.18.3",
-    "sharp": "^0.34.5"
+    "sharp": "0.35.5",
+    "lodash.set": "file:vendor/lodash-set",
+    "lodash.unset": "file:vendor/lodash-unset"
+  },
+  "overrides": {
+    "axios": "1.20.0",
+    "lodash.set": "$lodash.set",
+    "lodash.unset": "$lodash.unset"
   }
 }

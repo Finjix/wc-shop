@@ -18,7 +18,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function memberIsAllowed(member: AdminMember | null) {
-  if (!member || member.enabled === false || member.status === 'disabled') return false;
+  if (!member || member.enabled === false || member.status !== 'active') return false;
   const source = member.roles || member.role;
   const roles = Array.isArray(source) ? source : [source];
   return roles.some((role) => ['superadmin', 'admin', 'operations', 'inventory', 'customer_service', 'content'].includes(String(role)));

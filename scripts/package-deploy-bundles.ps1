@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-if ([string]::IsNullOrWhiteSpace($Version) -or $Version -notmatch '^[A-Za-z0-9._-]+$') {
+if ([string]::IsNullOrWhiteSpace($Version) -or $Version -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
   throw "Invalid output folder name: $Version"
 }
 
@@ -14,6 +14,12 @@ $adminRoot = Join-Path $repoRoot 'admin'
 $distRoot = Join-Path $repoRoot 'dist'
 $releaseRoot = Join-Path $distRoot $Version
 $stageRoot = Join-Path $distRoot ".package-staging-$Version"
+$resolvedDistRoot = [IO.Path]::GetFullPath($distRoot).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+foreach ($targetPath in @($releaseRoot, $stageRoot)) {
+  if (-not ([IO.Path]::GetFullPath($targetPath)).StartsWith($resolvedDistRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Packaging target escapes dist: $targetPath"
+  }
+}
 $envFile = Join-Path $adminRoot '.env.local'
 $cloudEnvId = $env:CLOUDBASE_ENV_ID
 if ([string]::IsNullOrWhiteSpace($cloudEnvId) -and (Test-Path -LiteralPath $envFile)) {
@@ -109,6 +115,8 @@ function Copy-FunctionPackage {
   New-Item -ItemType Directory -Path $stageFunction -Force | Out-Null
   Copy-Item -LiteralPath (Join-Path $cloudRoot 'package.json') -Destination $stage
   Copy-Item -LiteralPath (Join-Path $cloudRoot 'package-lock.json') -Destination $stage
+  Copy-Item -LiteralPath (Join-Path $cloudRoot 'config.json') -Destination $stage
+  Copy-Item -LiteralPath (Join-Path $cloudRoot 'vendor') -Destination $stage -Recurse
   Copy-Item -LiteralPath $compiledShared -Destination $stage -Recurse
   Copy-Item -LiteralPath $runtimeEntry -Destination (Join-Path $stageFunction 'index.js')
   Copy-Item -LiteralPath (Join-Path $cloudRoot $Entrypoint) -Destination (Join-Path $stage 'index.js')

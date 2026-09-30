@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { COLLECTIONS, STATUS, ORDER_STATUS, AFTER_SALE_STATUS } = require('./constants');
 const { errorFrom } = require('./errors');
 const { requireAdmin } = require('./auth');
-const { getDoc, list, affected, withTransaction } = require('./db');
+const { getDoc, list, count, affected, withTransaction } = require('./db');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
@@ -567,20 +567,20 @@ async function dashboardSummary(runtime) {
     }).filter(Boolean).join(' / ') || '默认规格';
     return [{ productId: String(product._id || product.spuId), title: product.title, skuId: String(sku._id || sku.skuId), specName, stockQuantity: stock }];
   }).sort((left, right) => left.stockQuantity - right.stockQuantity);
-  const entries = await Promise.all([
-    ...[COLLECTIONS.orders, COLLECTIONS.comments, COLLECTIONS.afterSales].map((name) => list(col(runtime, name), {})),
+  const [orderCount, commentCount, afterSaleCount, pendingOrderCount, pendingShipmentCount, pendingAfterSaleCount] = await Promise.all([
+    count(col(runtime, COLLECTIONS.orders)),
+    count(col(runtime, COLLECTIONS.comments)),
+    count(col(runtime, COLLECTIONS.afterSales)),
+    count(col(runtime, COLLECTIONS.orders), { status: STATUS.pendingPayment }),
+    count(col(runtime, COLLECTIONS.orders), { status: STATUS.paid }),
+    count(col(runtime, COLLECTIONS.afterSales), { status: STATUS.pendingReview }),
   ]);
-  const [orders, comments, afterSales] = entries.map((entry) => entry.items);
   return {
     inventoryWarnings,
     metrics: {
       productCount: products.filter((product) => !product.deletedByAdmin).length,
-      orderCount: orders.length,
-      commentCount: comments.length,
-      afterSaleCount: afterSales.length,
-      pendingOrderCount: orders.filter((order) => order.status === STATUS.pendingPayment).length,
-      pendingShipmentCount: orders.filter((order) => order.status === STATUS.paid).length,
-      pendingAfterSaleCount: afterSales.filter((item) => item.status === STATUS.pendingReview).length,
+      orderCount, commentCount, afterSaleCount,
+      pendingOrderCount, pendingShipmentCount, pendingAfterSaleCount,
     },
   };
 }

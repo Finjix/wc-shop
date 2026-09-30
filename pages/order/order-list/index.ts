@@ -84,6 +84,7 @@ Page({
       parameter: {
         pageSize: this.page.size,
         page: this.page.num,
+        pendingCommentOnly: this.data.pendingCommentOnly,
       },
     };
     if (requestStatus !== -1) params.parameter.orderStatus = requestStatus;
@@ -103,6 +104,7 @@ Page({
             return {
               id: order.orderId,
               orderNo: order.orderNo,
+              commentableProductId: order.commentableProductId,
               parentOrderNo: order.parentOrderNo,
               storeId: order.storeId,
               storeName: order.storeName,

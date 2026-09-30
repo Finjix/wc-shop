@@ -16,7 +16,9 @@
 - `dist/0830a/wc-shop-function.zip`：函数 Handler 填 `index.main`
 - `dist/0830a/wc-shop-admin-static.zip`：静态托管包，根目录直接包含 `index.html`
 
-不要把 `cloudfunctions/wc-shop-function` 文件夹直接压成 ZIP 后上传；控制台包必须使用脚本生成的 ZIP，使根目录直接包含 `index.js`。
+不要把 `cloudfunctions/wc-shop-function` 文件夹直接压成 ZIP 后上传；控制台包必须使用脚本生成的 ZIP，使根目录直接包含 `index.js`。包中还包含 `vendor/` 依赖适配器和 `config.json`。控制台部署后核对 `expire-pending-orders` 定时触发器已启用，周期为每 5 分钟，Cron 为 `0 */5 * * * * *`；仅上传代码不会保证触发器已创建。CLI 配置位于 `cloudbaserc.json`。
+
+依赖要求 Node.js >= 20.9。SDK 的旧版 Axios 通过 overrides 更新；其数据库依赖使用的 lodash.set/unset 通过本地适配器调用已更新的 lodash，并保留 callable/default 两种导出约定。升级 SDK 时应重新核对这些覆盖和依赖审计。
 
 函数内使用 `@cloudbase/node-sdk` 的 `cloudbase.init({})`。CloudBase 云函数运行时提供服务端身份，不读取 `SecretId`、`SecretKey`、API Key 或任何仓库外密钥。
 
@@ -68,7 +70,9 @@ wx.cloud.callFunction({
 - 创建订单使用文档数据库事务；事务内只通过已解析的 SKU 文档 `_id` 重新读取和更新库存，不使用事务不支持的 `where` 查询，库存不足或写冲突会回滚整个订单。
 - 订单保存 `productSnapshot`、`skuSnapshot`、`addressSnapshot`；首阶段状态固定为 `pending_payment`，`payment` 固定为 `null`，不返回模拟支付结果。
 - `requestKey`/`idempotencyKey` 是创建订单的必填字段；同一用户和 key 使用不同参数会返回 `IDEMPOTENCY_CONFLICT`。
-- 待支付订单记录 30 分钟 `expiresAt`，用户再次访问订单或创建订单时会清理已过期订单并恢复库存；生产环境仍建议配置定时触发器兜底。
+- 待支付订单记录 30 分钟 `expiresAt`，订单列表、详情和创建订单均会清理过期订单；定时触发器每次全局处理最多 100 条，后续触发继续清理，事务重读状态和截止时间，避免重复恢复库存。定时任务只信任 CloudBase 上下文的 `TRIGGER_SRC`。
+- 已收货、已完成订单映射前端状态 50；待评价查询只包含尚有商品未评价的订单。评价通过确定性文档 ID 和订单事务阻止重复提交，用户可查看自己尚未审核的评价，公开评价不返回用户及订单标识。
+- 售后按实际购买的 SKU 和申请数量计算金额上限，事务校验同商品的在途申请及累计已退款数量；首阶段仍不执行真实退款。
 - 取消仅允许待支付订单，并在同一事务中恢复库存及回退预占销量；发货和收货只能按状态机改变状态，支付、退款和物流第三方回调暂未实现。
 
 ## 集合结构与建议索引
@@ -81,8 +85,8 @@ wx.cloud.callFunction({
 - `skus`: `productId`、`skuId`
 - `categories`: `status + sort`
 - `addresses`: `userId + isDefault`、`userId + updatedAt`
-- `orders`: `userId + createdAt`、`userId + status + createdAt`、`orderNo`、`requestKey + userId`
-- `comments`: `productId + status + createdAt`、`orderId + userId`
+- `orders`: `userId + createdAt`、`userId + status + createdAt`、`status + expiresAt`、`orderNo`、`requestKey + userId`
+- `comments`: `productId + status + createdAt`、`productId + status + hasImage + createdAt`、`orderId + userId`
 - `afterSales`: `userId + createdAt`、`orderId + createdAt`、`status + updatedAt`
 - `homeContents`: `status + slot + sort`
 - `searchHistories`: `userId + updatedAt`、`userId + keyword`
@@ -93,7 +97,7 @@ wx.cloud.callFunction({
 - `products`: `title`, `primaryImage`, `images`, `categoryIds`, `status`, `sort`, `minSalePrice`, `maxSalePrice`
 - `skus`: `productId`, `skuId`, `specInfo`, `salePrice`, `stockQuantity`, `soldQuantity`
 - `addresses/carts`: 均带 `userId`；购物车文档 `_id` 推荐直接使用 UID
-- `orders`: `userId`, `status`, `paymentStatus`, `items`, `addressSnapshot`, `subtotal`, `shippingFee`, `totalAmount`, `requestHash`
+- `orders`: `userId`, `status`, `paymentStatus`, `items`, `addressSnapshot`, `subtotal`, `shippingFee`, `totalAmount`, `requestHash`, `commentedProductIds`, `hasPendingComments`, `afterSaleIds`
 - `adminMembers`: `_id`/`uid`, `roles`, `status`, `enabled`
 
 ## 状态枚举

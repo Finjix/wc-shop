@@ -112,6 +112,7 @@ export async function dispatchApplyService(params = {}) {
     reason: rights.reason || rights.rightsReasonDesc,
     description: params.description || params.refundMemo,
     images,
+    refundRequestAmount: rights.refundRequestAmount,
     rightsItem,
   }).then((result) => ({
     data: unwrapData(result),

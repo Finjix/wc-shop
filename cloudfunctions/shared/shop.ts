@@ -5,7 +5,7 @@ const {
   COLLECTIONS, STATUS,
 } = require('./constants');
 const { errorFrom } = require('./errors');
-const { getDoc, list, listData, affected, withTransaction } = require('./db');
+const { getDoc, list, all, count, listData, affected, withTransaction } = require('./db');
 const { HOME_CONFIG_SLOT, productIds } = require('./home-config');
 const { requireUser } = require('./auth');
 const { getTempFileURLs } = require('./storage');
@@ -522,6 +522,26 @@ function orderInput(data = {}) {
   return data;
 }
 
+function pricedOrderItem(product, sku, skuId, quantity) {
+  const unitPrice = skuPrice(sku);
+  const amount = unitPrice * quantity;
+  if (!Number.isSafeInteger(unitPrice) || unitPrice <= 0 || !Number.isSafeInteger(amount)) {
+    throw errorFrom('INVALID_ARGUMENT', { field: 'sku.price' });
+  }
+  return {
+    skuId, productId: product._id || product.spuId, quantity, unitPrice, amount,
+    productSnapshot: clone({ _id: product._id, spuId: product.spuId, title: product.title, primaryImage: product.primaryImage, images: product.images }),
+    skuSnapshot: clone({
+      _id: sku._id, skuId: sku.skuId, skuImage: sku.skuImage,
+      specInfo: (sku.specInfo || []).map((spec) => {
+        const group = (product.specList || []).find((item) => String(item.specId) === String(spec.specId));
+        const value = (group?.specValueList || []).find((item) => String(item.specValueId) === String(spec.specValueId));
+        return { ...spec, specTitle: spec.specTitle || group?.title || '', specValue: spec.specValue || value?.specValue || '' };
+      }),
+    }),
+  };
+}
+
 async function orderDraft(runtime, identity, data, source, requireAddress = true) {
   const input = orderInput(data);
   const items = normalizeOrderItems(source || input.items || input.goodsRequestList);
@@ -542,26 +562,7 @@ async function orderDraft(runtime, identity, data, source, requireAddress = true
     if (!skuBelongsToProduct(product, sku)) throw errorFrom('SKU_UNAVAILABLE');
     const stock = skuStock(sku);
     if (stock < input.quantity) throw errorFrom('OUT_OF_STOCK', { skuId: input.skuId });
-    const unitPrice = skuPrice(sku);
-    if (!Number.isSafeInteger(unitPrice) || unitPrice <= 0) throw errorFrom('INVALID_ARGUMENT', { field: 'sku.price' });
-    const amount = unitPrice * input.quantity;
-    if (!Number.isSafeInteger(amount)) throw errorFrom('INVALID_ARGUMENT', { field: 'items.amount' });
-    resolved.push({
-      skuId: input.skuId,
-      productId: product._id || product.spuId,
-      quantity: input.quantity,
-      unitPrice,
-      amount,
-      productSnapshot: clone({ _id: product._id, spuId: product.spuId, title: product.title, primaryImage: product.primaryImage, images: product.images }),
-      skuSnapshot: clone({
-        _id: sku._id, skuId: sku.skuId, skuImage: sku.skuImage,
-        specInfo: (sku.specInfo || []).map((spec) => {
-          const group = (product.specList || []).find((item) => String(item.specId) === String(spec.specId));
-          const value = (group?.specValueList || []).find((item) => String(item.specValueId) === String(spec.specValueId));
-          return { ...spec, specTitle: spec.specTitle || group?.title || '', specValue: spec.specValue || value?.specValue || '' };
-        }),
-      }),
-    });
+    resolved.push(pricedOrderItem(product, sku, input.skuId, input.quantity));
   }
   const subtotal = resolved.reduce((sum, item) => sum + item.amount, 0);
   if (!Number.isSafeInteger(subtotal)) throw errorFrom('INVALID_ARGUMENT', { field: 'totalAmount' });
@@ -619,6 +620,9 @@ async function createOrder(runtime, event, context, data) {
       if (race.requestHash && race.requestHash !== requestHash) throw errorFrom('IDEMPOTENCY_CONFLICT');
       return race;
     }
+    const confirmedItems = [];
+    const confirmedAddress = await getDoc(tx.collection(COLLECTIONS.addresses), addressId, true);
+    if (confirmedAddress.userId !== identity.uid) throw errorFrom('FORBIDDEN');
     for (const item of draft.items) {
       const product = await getDoc(tx.collection(COLLECTIONS.products), item.productId, true);
       if (product.status !== STATUS.active) throw errorFrom('SKU_UNAVAILABLE');
@@ -627,6 +631,7 @@ async function createOrder(runtime, event, context, data) {
       if (!sku || !skuBelongsToProduct(product, sku)) throw errorFrom('SKU_UNAVAILABLE');
       const stock = skuStock(sku);
       if (stock < item.quantity) throw errorFrom('OUT_OF_STOCK', { skuId: item.skuId });
+      confirmedItems.push(pricedOrderItem(product, sku, item.skuId, item.quantity));
       const payload = {
         stockQuantity: stock - item.quantity,
         soldQuantity: valueNumber(sku.soldQuantity, 0) + item.quantity,
@@ -635,6 +640,8 @@ async function createOrder(runtime, event, context, data) {
       const updateResult = await tx.collection(COLLECTIONS.skus).doc(skuDocumentId).update(payload);
       if (affected(updateResult) !== 1) throw errorFrom('OUT_OF_STOCK', { skuId: item.skuId });
     }
+    const subtotal = confirmedItems.reduce((sum, item) => sum + item.amount, 0);
+    if (!Number.isSafeInteger(subtotal)) throw errorFrom('INVALID_ARGUMENT', { field: 'totalAmount' });
     const timestamp = now();
     const order = {
       _id: orderId,
@@ -647,11 +654,13 @@ async function createOrder(runtime, event, context, data) {
       payment: null,
       inventoryReserved: true,
       expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-      items: draft.items,
-      addressSnapshot: draft.addressSnapshot,
-      subtotal: draft.subtotal,
+      items: confirmedItems,
+      addressSnapshot: clone(confirmedAddress),
+      subtotal,
       shippingFee: draft.shippingFee,
-      totalAmount: draft.totalAmount,
+      totalAmount: subtotal + draft.shippingFee,
+      hasPendingComments: true,
+      commentedProductIds: [],
       remark: optionalString(input.remark, 'remark', { max: 240 }) || '',
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -677,8 +686,8 @@ async function listOrders(runtime, event, context, data) {
   const statusGroups = {
     5: [STATUS.pendingPayment],
     10: [STATUS.paid],
-    40: [STATUS.shipped, STATUS.received],
-    50: [STATUS.completed],
+    40: [STATUS.shipped],
+    50: [STATUS.received, STATUS.completed],
     80: [STATUS.cancelled],
   };
   const where = { userId: identity.uid };
@@ -686,6 +695,14 @@ async function listOrders(runtime, event, context, data) {
   if (statuses && statuses.length === 1) where.status = statuses[0];
   else if (statuses && runtime.db.command?.in) where.status = runtime.db.command.in(statuses);
   if (runtime.db.command?.neq) where.deletedByUser = runtime.db.command.neq(true);
+  if (input.pendingCommentOnly || (statuses && statuses.length > 1 && !runtime.db.command?.in)) {
+    let rows = (await all(collection(runtime, COLLECTIONS.orders), where))
+      .filter((order) => !order.deletedByUser && (!statuses || statuses.includes(order.status)))
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')) || String(b._id).localeCompare(String(a._id)));
+    rows = await Promise.all(rows.map((order) => orderWithComments(runtime, order)));
+    if (input.pendingCommentOnly) rows = rows.filter((order) => [STATUS.received, STATUS.completed].includes(order.status) && order.hasPendingComments);
+    return { items: rows.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize), page: paging.page, pageNum: paging.page, pageSize: paging.pageSize, total: rows.length };
+  }
   const result = await list(collection(runtime, COLLECTIONS.orders), {
     where,
     orderBy: { field: 'createdAt', direction: 'desc' },
@@ -694,25 +711,30 @@ async function listOrders(runtime, event, context, data) {
   });
   let items = result.items.filter((item) => !item.deletedByUser);
   if (statuses && !(runtime.db.command?.in) && statuses.length > 1) items = items.filter((item) => statuses.includes(item.status));
+  items = await Promise.all(items.map((order) => orderWithComments(runtime, order)));
   return { items, page: paging.page, pageNum: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? items.length : result.total };
 }
 
 async function orderCount(runtime, event, context) {
   const identity = requireUser(event, context, runtime);
   await expirePendingOrders(runtime, identity.uid);
-  const groups = [[5, [STATUS.pendingPayment]], [10, [STATUS.paid]], [40, [STATUS.shipped, STATUS.received]], [50, [STATUS.completed]]];
+  const groups = [[5, [STATUS.pendingPayment]], [10, [STATUS.paid]], [40, [STATUS.shipped]], [50, [STATUS.received, STATUS.completed]]];
   const command = runtime.db.command;
   const items = await Promise.all(groups.map(async ([tabType, statuses]) => {
     const where = { userId: identity.uid };
-    where.status = statuses.length === 1 ? statuses[0] : command?.in ? command.in(statuses) : statuses[0];
+    if (statuses.length === 1) where.status = statuses[0];
+    else if (command?.in) where.status = command.in(statuses);
     if (command?.neq) where.deletedByUser = command.neq(true);
     const ref = collection(runtime, COLLECTIONS.orders).where(where);
-    if (typeof ref.count === 'function') {
+    if (typeof ref.count === 'function' && (statuses.length === 1 || command?.in) && tabType !== 50) {
       const result = await ref.count();
       return { tabType, orderNum: Number(result.total) || 0 };
     }
-    const result = await ref.limit(100).get();
-    const rows = listData(result).filter((item) => statuses.includes(item.status) && !item.deletedByUser);
+    const rows = (await all(collection(runtime, COLLECTIONS.orders), where)).filter((item) => statuses.includes(item.status) && !item.deletedByUser);
+    if (tabType === 50) {
+      const orders = await Promise.all(rows.map((order) => orderWithComments(runtime, order)));
+      return { tabType, orderNum: orders.filter((order) => order.hasPendingComments).length };
+    }
     return { tabType, orderNum: rows.length };
   }));
   return { items, counts: items };
@@ -722,16 +744,25 @@ async function orderDetail(runtime, event, context, data) {
   const identity = requireUser(event, context, runtime);
   const input = orderInput(data);
   const ref = string(input.orderId || input.orderNo, 'orderId', { max: 128 });
-  const order = await findDoc(runtime, COLLECTIONS.orders, ref, 'orderNo');
+  let order = await findDoc(runtime, COLLECTIONS.orders, ref, 'orderNo');
   if (!order) throw errorFrom('NOT_FOUND');
   if (order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
-  return order;
+  if (order.status === STATUS.pendingPayment && isExpired(order)) {
+    order = await cancelPendingOrder(runtime, order._id || order.orderNo, identity.uid, Date.now());
+  }
+  return orderWithComments(runtime, order);
 }
 
-async function cancelPendingOrder(runtime, id, userId) {
+function isExpired(order, deadline = Date.now()) {
+  const expiresAt = Date.parse(order.expiresAt);
+  return Number.isFinite(expiresAt) && expiresAt <= deadline;
+}
+
+async function cancelPendingOrder(runtime, id, userId, expiredBefore) {
   return withTransaction(runtime.db, async (tx) => {
     const txOrder = await getDoc(tx.collection(COLLECTIONS.orders), id, true);
     if (userId && txOrder.userId !== userId) throw errorFrom('FORBIDDEN');
+    if (expiredBefore !== undefined && (txOrder.status !== STATUS.pendingPayment || !isExpired(txOrder, expiredBefore))) return txOrder;
     if (txOrder.status !== STATUS.pendingPayment) throw errorFrom('ORDER_STATE_INVALID');
     const timestamp = now();
     if (txOrder.inventoryReserved !== false) {
@@ -754,20 +785,35 @@ async function cancelPendingOrder(runtime, id, userId) {
 }
 
 async function expirePendingOrders(runtime, userId) {
+  const currentTime = Date.now();
+  const where = { status: STATUS.pendingPayment };
+  if (userId) where.userId = userId;
+  if (runtime.db.command?.lte) where.expiresAt = runtime.db.command.lte(new Date(currentTime).toISOString());
   const result = await list(collection(runtime, COLLECTIONS.orders), {
-    where: { userId, status: STATUS.pendingPayment },
+    where,
     limit: 100,
+    orderBy: { field: 'expiresAt', direction: 'asc' },
     includeTotal: false,
   });
-  const currentTime = Date.now();
+  let cancelled = 0;
   for (const order of result.items) {
-    if (!order.expiresAt || Date.parse(order.expiresAt) > currentTime) continue;
+    if (!isExpired(order, currentTime)) continue;
     try {
-      await cancelPendingOrder(runtime, order._id || order.orderNo, userId);
+      const updated = await cancelPendingOrder(runtime, order._id || order.orderNo, userId, currentTime);
+      if (updated.status === STATUS.cancelled) cancelled += 1;
     } catch (error) {
       if (!['ORDER_STATE_INVALID', 'CONFLICT'].includes(error && error.code)) throw error;
     }
   }
+  return { cancelled };
+}
+
+async function orderWithComments(runtime, order) {
+  if (![STATUS.received, STATUS.completed].includes(order.status)) return order;
+  const comments = await all(collection(runtime, COLLECTIONS.comments), { userId: order.userId, orderId: order._id || order.orderNo });
+  const commentedProductIds = Array.from(new Set([...(order.commentedProductIds || []), ...comments.map((comment) => comment.productId)].filter(Boolean)));
+  const hasPendingComments = (order.items || []).some((item) => !commentedProductIds.includes(item.productId));
+  return { ...order, commentedProductIds, hasPendingComments };
 }
 
 async function updateOrderState(runtime, event, context, data, action) {
@@ -806,6 +852,7 @@ async function commentsAction(runtime, event, context, data, action) {
   const query = data.queryParameter && typeof data.queryParameter === 'object' ? { ...data, ...data.queryParameter } : data;
   if (action === 'comments.list') {
     const where = { status: STATUS.active };
+    let ownedQuery = false;
     if (query.productId || query.spuId) where.productId = string(query.productId || query.spuId, 'productId', { max: 128 });
     if (query.orderNo || query.orderId) {
       const identity = requireUser(event, context, runtime);
@@ -813,8 +860,15 @@ async function commentsAction(runtime, event, context, data, action) {
       const order = await findDoc(runtime, COLLECTIONS.orders, orderId, 'orderNo');
       if (!order || order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
       where.orderId = order._id || order.orderNo;
+      where.userId = identity.uid;
+      ownedQuery = true;
     }
-    if (query.mineOnly) where.userId = requireUser(event, context, runtime).uid;
+    if (query.mineOnly) {
+      where.userId = requireUser(event, context, runtime).uid;
+      ownedQuery = true;
+    }
+    if (ownedQuery) delete where.status;
+    if (query.hasImage) where.hasImage = true;
     if (query.commentLevel !== undefined && query.commentLevel !== '') {
       const level = Number(query.commentLevel);
       const command = runtime.db.command;
@@ -829,7 +883,9 @@ async function commentsAction(runtime, event, context, data, action) {
       skip: (paging.page - 1) * paging.pageSize,
       limit: paging.pageSize,
     });
-    const items = query.hasImage ? result.items.filter((item) => item.hasImage === true || (Array.isArray(item.images) && item.images.length > 0)) : result.items;
+    const items = ownedQuery ? result.items : result.items.map((item) => pick(item, [
+      '_id', 'productId', 'rating', 'content', 'images', 'hasImage', 'status', 'createdAt', 'updatedAt', 'reply',
+    ]));
     return { items, page: paging.page, pageNum: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? items.length : result.total };
   }
   if (action === 'comments.count') {
@@ -839,7 +895,7 @@ async function commentsAction(runtime, event, context, data, action) {
     const countWhere = async (extra) => {
       const ref = comments.where({ ...where, ...extra });
       if (typeof ref.count === 'function') return Number((await ref.count()).total) || 0;
-      return listData(await ref.limit(100).get()).length;
+      return count(comments, { ...where, ...extra });
     };
     const command = runtime.db.command;
     const [commentCount, goodCount, middleCount, badCount, hasImageCount] = await Promise.all([
@@ -876,9 +932,49 @@ async function commentsAction(runtime, event, context, data, action) {
   const timestamp = now();
   const rating = data.rating ?? data.commentScore;
   const comment = { userId: identity.uid, orderId: order._id || orderId, orderNo: order.orderNo || orderId, productId, rating: rating === undefined ? 5 : integer(Number(rating), 'rating', { min: 1, max: 5 }), content: text, images, hasImage: images.length > 0, status: STATUS.pendingReview, createdAt: timestamp, updatedAt: timestamp };
-  const result = await collection(runtime, COLLECTIONS.comments).add(comment);
-  comment._id = result.id || result._id;
-  return comment;
+  const id = `comment_${crypto.createHash('sha256').update(JSON.stringify([identity.uid, order._id || orderId, productId])).digest('hex').slice(0, 32)}`;
+  const annotated = await orderWithComments(runtime, order);
+  return withTransaction(runtime.db, async (tx) => {
+    const orders = tx.collection(COLLECTIONS.orders);
+    const current = await getDoc(orders, order._id || orderId, true);
+    if (current.userId !== identity.uid || ![STATUS.received, STATUS.completed].includes(current.status)) throw errorFrom('FORBIDDEN');
+    const comments = tx.collection(COLLECTIONS.comments);
+    if (await getDoc(comments, id, false)) throw errorFrom('CONFLICT', { field: 'comment' });
+    const commentedProductIds = Array.from(new Set([...(annotated.commentedProductIds || []), ...(current.commentedProductIds || [])]));
+    if (commentedProductIds.includes(productId)) throw errorFrom('CONFLICT', { field: 'comment' });
+    commentedProductIds.push(productId);
+    const saved = { ...comment, _id: id };
+    await comments.doc(id).set(saved);
+    await orders.doc(current._id || orderId).update({
+      commentedProductIds,
+      hasPendingComments: (current.items || []).some((item) => !commentedProductIds.includes(item.productId)),
+      updatedAt: timestamp,
+    });
+    return saved;
+  });
+}
+
+function requestedAfterSaleItems(order, data) {
+  const productRef = data.productId || data.spuId;
+  const ordered = order.items || [];
+  const source = data.rightsItem !== undefined ? array(data.rightsItem, 'rightsItem')
+    : data.skuId ? [{ skuId: data.skuId, rightsQuantity: data.rightsQuantity ?? data.quantity }]
+      : ordered.filter((item) => !productRef || [item.productId, item.spuId, item.productSnapshot?._id, item.productSnapshot?.spuId].includes(productRef))
+        .map((item) => ({ skuId: item.skuId, rightsQuantity: item.quantity }));
+  assert(source.length > 0 && source.length <= 50, { field: 'rightsItem' });
+  const seen = new Set();
+  return source.map((request) => {
+    object(request, 'rightsItem[]');
+    const skuId = string(request.skuId, 'rightsItem.skuId', { max: 128 });
+    const snapshot = ordered.find((item) => [item.skuId, item.skuSnapshot?._id, item.skuSnapshot?.skuId].includes(skuId));
+    assert(Boolean(snapshot), { field: 'rightsItem.skuId' });
+    assert(!seen.has(snapshot.skuId), { field: 'rightsItem.skuId' });
+    seen.add(snapshot.skuId);
+    const quantity = integer(request.rightsQuantity ?? request.quantity ?? snapshot.quantity, 'rightsQuantity', { min: 1, max: snapshot.quantity });
+    const amount = snapshot.unitPrice * quantity;
+    assert(Number.isSafeInteger(amount) && amount > 0, { field: 'refundAmount' });
+    return { ...clone(snapshot), quantity, rightsQuantity: quantity, amount };
+  });
 }
 
 async function afterSalesAction(runtime, event, context, data, action) {
@@ -901,14 +997,7 @@ async function afterSalesAction(runtime, event, context, data, action) {
     return item;
   }
   if (action === 'afterSales.confirmReceived') {
-    const orderId = string(data.orderId || data.orderNo, 'orderId', { max: 128 });
-    const orders = collection(runtime, COLLECTIONS.orders);
-    const order = await getDoc(orders, orderId, true);
-    if (order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
-    if (order.status !== STATUS.shipped) throw errorFrom('ORDER_STATE_INVALID');
-    const patch = { status: STATUS.received, updatedAt: now() };
-    await orders.doc(orderId).update(patch);
-    return { ...order, ...patch };
+    return updateOrderState(runtime, event, context, data, 'orders.confirmReceived');
   }
   if (action === 'afterSales.submitTracking') {
     const ref = string(data.afterSaleId || data.rightsNo, 'afterSaleId', { max: 128 });
@@ -937,22 +1026,50 @@ async function afterSalesAction(runtime, event, context, data, action) {
   }
   if (action !== 'afterSales.create') throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
   if (![STATUS.shipped, STATUS.received, STATUS.completed].includes(order.status)) throw errorFrom('ORDER_STATE_INVALID');
-  const timestamp = now();
-  const requestedProductId = data.productId || data.spuId;
-  const snapshot = (order.items || []).find((orderItem) => !requestedProductId || orderItem.productId === requestedProductId || orderItem.spuId === requestedProductId || orderItem.productSnapshot?.spuId === requestedProductId || orderItem.productSnapshot?._id === requestedProductId);
-  assert(Boolean(snapshot), { field: 'productId' });
-  const productId = string(snapshot.productId || snapshot.spuId || snapshot.productSnapshot?.spuId || snapshot.productSnapshot?._id, 'productId', { max: 128 });
-  const activeStatuses = [STATUS.pendingReview, STATUS.approved, STATUS.refunding];
-  const duplicateWhere = { userId: identity.uid, orderId: order._id || orderId, productId };
-  if (runtime.db.command?.in) duplicateWhere.status = runtime.db.command.in(activeStatuses);
-  const duplicate = await afterSales.where(duplicateWhere).limit(10).get();
-  if (listData(duplicate).some((entry) => activeStatuses.includes(entry.status))) throw errorFrom('CONFLICT', { field: 'afterSale' });
+  const reason = string(data.reason || data.rightsReasonDesc, 'reason', { max: 120 });
+  const description = optionalString(data.description || data.refundMemo, 'description', { max: 1000 }) || '';
+  const images = data.images === undefined ? [] : array(data.images, 'images').slice(0, 9).map((image) => string(image, 'images[]', { max: 1024 }));
   const rawType = data.type ?? data.rightsType ?? 'refund';
-  const type = Number.isFinite(Number(rawType)) ? Number(rawType) : String(rawType);
-  const item = { userId: identity.uid, rightsNo: `as_${crypto.randomUUID()}`, orderId: order._id || orderId, orderNo: order.orderNo || orderId, productId, type, reason: string(data.reason || data.rightsReasonDesc, 'reason', { max: 120 }), description: optionalString(data.description || data.refundMemo, 'description', { max: 1000 }) || '', images: Array.isArray(data.images) ? data.images.slice(0, 9) : [], items: [clone(snapshot)], status: STATUS.pendingReview, createdAt: timestamp, updatedAt: timestamp };
-  const result = await afterSales.add(item);
-  item._id = result.id || result._id;
-  return item;
+  const type = ({ refund: 20, only_refund: 20, return: 10, return_goods: 10 })[rawType] ?? Number(rawType);
+  assert([10, 20].includes(type), { field: 'type' });
+  const id = `as_${crypto.randomUUID()}`;
+  const legacy = await all(afterSales, { userId: identity.uid, orderId: order._id || orderId });
+  return withTransaction(runtime.db, async (tx) => {
+    const orders = tx.collection(COLLECTIONS.orders);
+    const current = await getDoc(orders, order._id || orderId, true);
+    if (current.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+    if (![STATUS.shipped, STATUS.received, STATUS.completed].includes(current.status)) throw errorFrom('ORDER_STATE_INVALID');
+    const items = requestedAfterSaleItems(current, data);
+    const productIds = Array.from(new Set(items.map((item) => item.productId)));
+    const txAfterSales = tx.collection(COLLECTIONS.afterSales);
+    // The order document serializes claims even when concurrent requests use different IDs.
+    const priorIds = Array.from(new Set([...legacy.map((item) => item._id), ...(current.afterSaleIds || [])].filter(Boolean)));
+    const refundedQuantities = new Map();
+    for (const priorId of priorIds) {
+      const prior = await getDoc(txAfterSales, priorId, false);
+      if (!prior) continue;
+      const priorProducts = [prior.productId, ...(prior.items || []).map((item) => item.productId)];
+      if ([STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(prior.status)
+        && productIds.some((productId) => priorProducts.includes(productId))) throw errorFrom('CONFLICT', { field: 'afterSale' });
+      if (prior.status === STATUS.refunded) {
+        for (const item of prior.items || []) refundedQuantities.set(item.skuId, (refundedQuantities.get(item.skuId) || 0) + item.quantity);
+      }
+    }
+    for (const item of items) {
+      const bought = (current.items || []).find((snapshot) => snapshot.skuId === item.skuId);
+      assert(item.quantity + (refundedQuantities.get(item.skuId) || 0) <= bought.quantity, { field: 'rightsQuantity' });
+    }
+    const maximum = items.reduce((sum, item) => sum + item.amount, 0);
+    assert(Number.isSafeInteger(maximum), { field: 'refundAmount' });
+    const amount = integer(data.refundRequestAmount ?? data.rights?.refundRequestAmount ?? maximum, 'refundRequestAmount', { min: 1, max: maximum });
+    const timestamp = now();
+    const item = { _id: id, rightsNo: id, userId: identity.uid, orderId: current._id || orderId, orderNo: current.orderNo || orderId,
+      productId: productIds[0], productIds, type, reason, description, images, items,
+      amount, refundRequestAmount: amount, status: STATUS.pendingReview, createdAt: timestamp, updatedAt: timestamp };
+    await txAfterSales.doc(id).set(item);
+    await orders.doc(current._id || orderId).update({ afterSaleIds: [...priorIds, id], updatedAt: timestamp });
+    return item;
+  });
 }
 
 async function shopEndpoint(event, context, runtime, action, data) {
@@ -985,4 +1102,4 @@ async function shopEndpoint(event, context, runtime, action, data) {
   throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
 }
 
-module.exports = { shopEndpoint, normalizeOrderItems, skuPrice, skuStock };
+module.exports = { shopEndpoint, normalizeOrderItems, skuPrice, skuStock, expirePendingOrders };

@@ -16,7 +16,8 @@
     "package:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-deploy-bundles.ps1",
     "check": "node config/eslintCheck.js && npm run typecheck && npm run typecheck:cloud && npm run build:admin",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
-    "test:loading": "node scripts/test-loading.cjs"
+    "test:loading": "node scripts/test-loading.cjs",
+    "test:cloud-dependencies": "node scripts/test-cloud-dependencies.cjs"
   },
   "author": "",
   "license": "ISC",

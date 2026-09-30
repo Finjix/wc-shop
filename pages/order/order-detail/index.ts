@@ -118,6 +118,7 @@ Page({
       const _order = {
         id: order.orderId,
         orderNo: order.orderNo,
+        commentableProductId: order.commentableProductId,
         parentOrderNo: order.parentOrderNo,
         storeId: order.storeId,
         storeName: order.storeName,
@@ -159,7 +160,7 @@ Page({
   composeAddress(order) {
     if (!order.logisticsVO) return '';
     return [
-      //order.logisticsVO.receiverProvince,
+      order.logisticsVO.receiverProvince,
       order.logisticsVO.receiverCity,
       order.logisticsVO.receiverCountry,
       order.logisticsVO.receiverArea,

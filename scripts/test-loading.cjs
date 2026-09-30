@@ -64,6 +64,21 @@ async function run() {
   const detail = await load('services/order/orderDetail.ts').fetchOrderDetail({ orderNo: 'o1' });
   assert.equal(list.data.orders[0].orderItemVOs[0].goodsPictureUrl, 'https://example.test/cover.webp');
   assert.equal(detail.data.orderItemVOs[0].goodsPictureUrl, 'https://example.test/cover.webp');
+  respond = async () => ({ status: 'received', hasPendingComments: false, items: [snapshot],
+    addressSnapshot: { receiver: '收货人', phone: '13800000000', province: '广东省', city: '深圳市', district: '南山区', detail: '测试街道' } });
+  const received = await load('services/order/orderDetail.ts').fetchOrderDetail({ orderNo: 'o1' });
+  assert.equal(received.data.orderStatus, 50);
+  assert.equal(received.data.logisticsVO.receiverProvince, '广东省');
+  assert.equal(received.data.logisticsVO.receiverAddress, '测试街道');
+  assert.equal(received.data.buttonVOs[0].type, 10);
+  load('pages/goods/comments/index.ts');
+  const commentsPage = instance(page);
+  commentsPage.data.spuId = 'p1';
+  const firstQuery = commentsPage.generalQueryData(true);
+  const nextQuery = commentsPage.generalQueryData(false);
+  assert.equal(firstQuery.pageSize, nextQuery.pageSize);
+  assert.equal(firstQuery.pageNum, 1);
+  assert.equal(nextQuery.pageNum, 2);
   respond = async (action) => action === 'afterSales.list'
     ? { items: [{ items: [snapshot] }] } : { items: [snapshot], images: ['cloud://proof.webp'] };
   const rights = await load('pages/order/after-service-detail/api.ts').getRightsDetail({ rightsNo: 'r1' });
@@ -78,6 +93,14 @@ async function run() {
   assert.equal(preview.data.goodsList[0].skuId, 's1');
   assert.equal(preview.data.goodsList[0].goodsInfo.skuImage, 'https://example.test/cover.webp');
   assert.equal(preview.data.refundableAmount, 200);
+  let submittedClaim;
+  respond = async (action, payload) => { assert.equal(action, 'afterSales.create'); submittedClaim = payload; return {}; };
+  await load('pages/order/apply-service/api.ts').dispatchApplyService({
+    rights: { orderNo: 'o1', rightsType: 20, refundRequestAmount: 100, rightsReasonDesc: '质量问题' },
+    rightsItem: [{ skuId: 's1', productId: 'p1', rightsQuantity: 1 }],
+  });
+  assert.equal(submittedClaim.refundRequestAmount, 100);
+  assert.equal(submittedClaim.rightsItem[0].rightsQuantity, 1);
   assert.equal(snapshot.productSnapshot.primaryImage, 'local://cover.webp');
   const goods = load('services/good/resolveImages.ts');
   const home = await goods.resolveHomeContentImages({ swiperImages: ['local://banner.webp'], items: [{ type: 'banner', cover: 'cloud://banner.webp' }] });

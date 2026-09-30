@@ -254,8 +254,11 @@ Page({
 
   onChangeReturnNum(e) {
     const { value } = e.detail;
+    const amount = Number(this.data.goodsInfo.paidAmountEach || 0) * Number(value);
     this.setData({
       'serviceFrom.returnNum': value,
+      'serviceFrom.amount.current': amount,
+      refundAmountText: priceFormat(amount, 2),
     });
   },
 

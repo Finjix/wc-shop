@@ -58,7 +58,7 @@
       </order-goods-card>
       <view class="pay-detail">
         <view class="pay-item">
-          <text>实付</text>
+          <text>{{order.orderStatus === 5 ? '应付' : '实付'}}</text>
           <price
             fill
             decimalSmaller

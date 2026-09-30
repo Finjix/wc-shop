@@ -42,7 +42,7 @@ async function requireAdmin(db, event, context, scope, runtime) {
   if (!identity) throw errorFrom('UNAUTHENTICATED');
   const member = await findAdminMember(db, identity.uid);
   const roles = member && (Array.isArray(member.roles) ? member.roles : [member.role]);
-  const active = member && member.status !== 'disabled' && member.enabled !== false;
+  const active = member && member.status === 'active' && member.enabled !== false;
   const allowed = scope ? (ADMIN_SCOPES[scope] || []) : ADMIN_ROLES;
   if (!member || !active || !roles.some((role) => ADMIN_ROLES.includes(role) && allowed.includes(role))) {
     throw errorFrom('FORBIDDEN');

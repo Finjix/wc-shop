@@ -92,8 +92,7 @@ Page({
     const queryParameter = { productId: spuId, spuId };
     if ([1, 2, 3].includes(Number(commentLevel))) queryParameter.commentLevel = Number(commentLevel);
     if (hasImage === '1') queryParameter.hasImage = true;
-    const params = { pageNum: 1, pageSize: 30, queryParameter };
-    return reset ? params : { ...params, pageNum: pageNum + 1, pageSize };
+    return { pageNum: reset ? 1 : pageNum + 1, pageSize, queryParameter };
   },
 
   setCommentResult(data, params, reset, commentList) {

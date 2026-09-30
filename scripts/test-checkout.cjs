@@ -60,6 +60,7 @@ function load(file) {
     wx: {
       navigateBack: () => navigation.push('back'),
       navigateTo: ({ url }) => navigation.push(url),
+      redirectTo: ({ url }) => navigation.push(url),
     },
     setTimeout: (callback) => callback(),
   }, { filename });
@@ -163,6 +164,32 @@ async function run() {
   assert.equal(page.goodsRequestList[0].skuId, 'sku-1');
   assert.equal(calls.at(-1).payload.addressId, 'address-1');
   console.log('PASS checkout previews without an address, preserves goods and server pricing, and requires an address before creating an order');
+
+  const originalRequest = mocks[path.join(root, 'utils/api.ts')].request;
+  const created = new Map();
+  const retryKeys = [];
+  mocks[path.join(root, 'utils/api.ts')].request = async (action, payload) => {
+    if (action !== 'orders.create') return originalRequest(action, payload);
+    retryKeys.push(payload.requestKey);
+    if (!created.has(payload.requestKey)) {
+      created.set(payload.requestKey, { orderNo: 'order-retry', totalAmount: 300 });
+      throw new Error('response lost after commit');
+    }
+    return created.get(payload.requestKey);
+  };
+  page.submitOrder();
+  await flush();
+  assert.equal(page.payLock, false);
+  assert.ok(page.createRequestId);
+  page.submitOrder();
+  await flush();
+  assert.equal(retryKeys.length, 2);
+  assert.equal(retryKeys[0], retryKeys[1]);
+  assert.equal(created.size, 1);
+  assert.equal(page.createRequestId, null);
+  assert.ok(navigation.at(-1).includes('totalPaid=300&orderNo=order-retry'));
+  mocks[path.join(root, 'utils/api.ts')].request = originalRequest;
+  console.log('PASS lost create response retries the same key and displays authoritative order amount');
 
   const cartService = load('services/cart/cart.ts');
   const cart = await cartService.fetchCartGroupData();

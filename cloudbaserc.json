@@ -9,7 +9,10 @@
       "runtime": "Nodejs20.19",
       "timeout": 60,
       "memorySize": 512,
-      "installDependency": true
+      "installDependency": true,
+      "triggers": [
+        { "name": "expire-pending-orders", "type": "timer", "config": "0 */5 * * * * *" }
+      ]
     }
   ]
 }
