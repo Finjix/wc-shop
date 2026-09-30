@@ -1,6 +1,7 @@
 // @ts-nocheck
 
-import { request } from '../../utils/api';
+import { getTempFileUrl, request } from '../../utils/api';
+import { normalizeAddress } from '../address/fetchAddress';
 
 let pendingGoodsRequestList = null;
 
@@ -74,7 +75,7 @@ export function clearPendingGoodsRequestList() {
   pendingGoodsRequestList = null;
 }
 
-function normalizePreview(response) {
+async function normalizePreview(response) {
   const data = dataOf(response) || {};
   const resolvedItems = Array.isArray(data.items) ? data.items : [];
   const fallbackStoreGoods = resolvedItems.length > 0
@@ -102,24 +103,28 @@ function normalizePreview(response) {
     ? data.storeGoodsList
     : fallbackStoreGoods;
   const totalGoodsCount = data.totalGoodsCount ?? data.goodsCount ?? resolvedItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  const address = data.userAddress || data.userAddressReq || data.addressSnapshot || null;
   return {
     data: {
       ...data,
       settleType: data.settleType === undefined ? 1 : data.settleType,
-      userAddress: data.userAddress || data.userAddressReq || data.addressSnapshot || null,
+      userAddress: address ? normalizeAddress(address) : null,
       totalGoodsCount,
       totalAmount: data.totalAmount ?? data.goodsAmount ?? '0',
       totalPayAmount: data.totalPayAmount ?? data.paymentAmount ?? data.totalAmount ?? '0',
       totalSalePrice: data.totalSalePrice ?? data.totalAmount ?? '0',
       totalDeliveryFee: data.totalDeliveryFee ?? data.deliveryFee ?? '0',
-      storeGoodsList: storeGoodsList.map((store) => ({
+      storeGoodsList: await Promise.all(storeGoodsList.map(async (store) => ({
         ...store,
-        skuDetailVos: (Array.isArray(store.skuDetailVos) ? store.skuDetailVos : []).map((goods) => ({
+        skuDetailVos: await Promise.all((Array.isArray(store.skuDetailVos) ? store.skuDetailVos : []).map(async (goods) => ({
           ...goods,
+          image: /^(cloud|local):\/\//i.test(goods.image || '')
+            ? await getTempFileUrl(goods.image).catch(() => goods.image)
+            : goods.image || '',
           skuSpecLst: Array.isArray(goods.skuSpecLst) ? goods.skuSpecLst : [],
           quantity: Number(goods.quantity ?? goods.buyQuantity) || 1,
-        })),
-      })),
+        }))),
+      }))),
       outOfStockGoodsList: Array.isArray(data.outOfStockGoodsList) ? data.outOfStockGoodsList : [],
       abnormalDeliveryGoodsList: Array.isArray(data.abnormalDeliveryGoodsList) ? data.abnormalDeliveryGoodsList : [],
       inValidGoodsList: Array.isArray(data.inValidGoodsList) ? data.inValidGoodsList : [],
@@ -131,7 +136,6 @@ export function fetchSettleDetail(params = {}) {
   const goodsRequestList = normalizeGoodsRequestList(params.goodsRequestList);
   if (!goodsRequestList.length) return Promise.reject(domainError('EMPTY_CART', '购物车为空，请先添加商品'));
   const payload = buildOrderPayload(params, goodsRequestList);
-  if (!payload.addressId) return Promise.reject(domainError('ADDRESS_REQUIRED', '请先添加收货地址'));
   return action('orders.preview', payload).then(normalizePreview);
 }
 

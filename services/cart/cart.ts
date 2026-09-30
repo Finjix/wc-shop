@@ -2,6 +2,7 @@
 
 import { request } from '../../utils/api';
 import { fetchGood } from '../good/fetchGood';
+import { resolveGoodsListImages } from '../good/resolveImages';
 
 const skuStockCache = new Map();
 
@@ -60,15 +61,17 @@ function normalizeGoods(goods = {}, store = {}, liveSku) {
     : null;
   const specInfo = liveSpecInfo || firstDefined(goods.specInfo, goods.specifications, snapshot.specInfo, []);
   const price = getSkuPrice(goods, snapshot, liveSku);
+  const image = liveSku?.skuImage || goods.image || snapshot.skuImage || goods.thumb || goods.primaryImage || goods.goodsPictureUrl || '';
   return {
     ...goods,
     storeId: goods.storeId ?? store.storeId,
     storeName: goods.storeName ?? store.storeName,
     spuId,
     skuId,
+    extKey: JSON.stringify([String(spuId), String(skuId)]),
     title: goods.title || goods.goodsName || '',
-    thumb: goods.thumb || goods.primaryImage || goods.goodsPictureUrl || goods.image || snapshot.skuImage || liveSku?.skuImage || '',
-    primaryImage: goods.primaryImage || goods.thumb || goods.goodsPictureUrl || goods.image || snapshot.skuImage || liveSku?.skuImage || '',
+    thumb: image,
+    primaryImage: image,
     price,
     unitPrice: goods.unitPrice ?? price,
     quantity: Math.max(1, Number(goods.quantity ?? goods.buyQuantity ?? goods.num) || 1),
@@ -128,7 +131,7 @@ function getStoreGoodsEntries(store) {
 }
 
 function loadSkuForGoods(goods) {
-  if (goods.stockKnown === true || goods.spuId === undefined || goods.spuId === null || goods.spuId === '') {
+  if (goods.spuId === undefined || goods.spuId === null || goods.spuId === '') {
     return Promise.resolve(null);
   }
   const key = String(goods.spuId);
@@ -137,8 +140,18 @@ function loadSkuForGoods(goods) {
     ? cached.promise
     : fetchGood(key).catch(() => null);
   if (!cached || cached.expiresAt <= Date.now()) skuStockCache.set(key, { expiresAt: Date.now() + 30000, promise: detailsPromise });
-  return detailsPromise.then((details) => (details?.skuList || [])
-    .find((sku) => String(sku.skuId ?? sku._id) === String(goods.skuId)) || null);
+  return detailsPromise.then((details) => {
+    const sku = (details?.skuList || []).find((item) => String(item.skuId ?? item._id) === String(goods.skuId));
+    if (!sku) return null;
+    return {
+      ...sku,
+      specInfo: (sku.specInfo || []).map((spec) => {
+        const group = (details.specList || []).find((item) => String(item.specId) === String(spec.specId));
+        const option = (group?.specValueList || []).find((item) => String(item.specValueId) === String(spec.specValueId));
+        return { ...spec, specTitle: group?.title || spec.specTitle || '', specValue: option?.specValue || spec.specValue || '' };
+      }),
+    };
+  });
 }
 
 async function hydrateCartStock(cart) {
@@ -180,10 +193,26 @@ function action(name, payload = {}) {
   return request(name, payload).then((response) => ({ data: dataOf(response) }));
 }
 
+async function resolveCartImages(cart) {
+  return {
+    ...cart,
+    storeGoods: await Promise.all((cart.storeGoods || []).map(async (store) => ({
+      ...store,
+      promotionGoodsList: await Promise.all((store.promotionGoodsList || []).map(async (promotion) => ({
+        ...promotion,
+        goodsPromotionList: await resolveGoodsListImages(promotion.goodsPromotionList),
+      }))),
+      shortageGoodsList: await resolveGoodsListImages(store.shortageGoodsList),
+    }))),
+    invalidGoodItems: await resolveGoodsListImages(cart.invalidGoodItems),
+  };
+}
+
 export function fetchCartGroupData(params = {}) {
   return action('cart.get', params)
     .then((response) => normalizeCart(response))
     .then(hydrateCartStock)
+    .then(resolveCartImages)
     .then((data) => ({ data }));
 }
 

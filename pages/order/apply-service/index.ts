@@ -156,8 +156,8 @@ Page({
       const preview = (res && res.data) || {};
       const previewAmount = Number(preview.refundableAmount || 0);
       const refundableAmount = previewAmount;
-      const previewGoods = this.isOrderLevel ? preview.goodsList || [] : [preview];
-      if ((!previewGoods.length && this.isOrderLevel) || (!refundableAmount && !previewGoods.length)) {
+      const previewGoods = preview.goodsList || [];
+      if (!previewGoods.length) {
         throw new Error('云端未返回可申请的订单数据');
       }
       const goodsInfoList = previewGoods.map((goods) => ({

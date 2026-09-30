@@ -13,6 +13,7 @@ Page({
     featuredSections: [],
     bannerText: '',
     pageLoading: false,
+    loadError: '',
     current: 0,
     autoplay: true,
     duration: '500',
@@ -49,10 +50,11 @@ Page({
   onPullDownRefresh() { this.loadHomePage(); },
 
   async loadHomePage() {
-    wx.stopPullDownRefresh();
-    this.setData({ pageLoading: true });
+    const version = this.loadVersion = (this.loadVersion || 0) + 1;
+    this.setData({ pageLoading: true, loadError: '' });
     try {
       const home = await fetchHomeContent();
+      if (this.loadVersion !== version) return;
       const config = home.config || {};
       const products = home.productsById || {};
       const legacyBanners = (home.items || []).filter((item) => item.type === 'banner');
@@ -98,10 +100,15 @@ Page({
         featuredSections,
         bannerText: config.bannerText || '',
         pageLoading: false,
+        loadError: '',
       });
     } catch (error) {
-      this.setData({ pageLoading: false });
-      wx.showToast({ title: getApiErrorMessage(error, '首页内容加载失败，请稍后重试'), icon: 'none' });
+      if (this.loadVersion !== version) return;
+      const loadError = getApiErrorMessage(error, '首页内容加载失败，请稍后重试');
+      this.setData({ pageLoading: false, loadError });
+      wx.showToast({ title: loadError, icon: 'none' });
+    } finally {
+      if (this.loadVersion === version) wx.stopPullDownRefresh();
     }
   },
 

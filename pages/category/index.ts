@@ -78,6 +78,11 @@ Page({
     }
   },
   retryGoods() { void this.loadGoods(false); },
+  openCategoryResults(event) {
+    const { categoryId, categoryName, isParent } = event.currentTarget.dataset;
+    if (!categoryId || isParent) return;
+    wx.navigateTo({ url: `/pages/goods/result/index?categoryId=${encodeURIComponent(String(categoryId))}&categoryName=${encodeURIComponent(categoryName || '')}` });
+  },
   openGoods(event) {
     const id = event.currentTarget.dataset.id;
     if (id) navigateToGoodsDetail(`/pages/goods/details/index?spuId=${encodeURIComponent(String(id))}`);

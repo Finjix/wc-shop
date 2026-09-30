@@ -94,6 +94,9 @@ export function normalizeOrderItem(item = {}) {
     || firstValue(skuSnapshot, ['skuId', '_id']);
   return {
     ...item,
+    goodsName: item.goodsName || item.title || productSnapshot.title || '',
+    goodsPictureUrl: item.goodsPictureUrl || item.thumb || item.skuImage || skuSnapshot.skuImage || productSnapshot.primaryImage || productSnapshot.images?.[0] || '',
+    specInfo: item.specInfo || item.specifications || skuSnapshot.specInfo || [],
     productId,
     spuId: firstValue(item, ['spuId', 'productId']) || productId,
     skuId,

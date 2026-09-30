@@ -10,7 +10,8 @@ var getFileExt = function (src) {
   var fileUrl = src.split('?')[0];
   var splitUlr = fileUrl.split('/');
   var filepath = splitUlr[splitUlr.length - 1];
-  return filepath.split('.')[1] || 'jpg';
+  var parts = filepath.split('.');
+  return (parts[parts.length - 1] || 'jpg').toLowerCase();
 };
 
 function isUrl(url) {
@@ -33,31 +34,13 @@ function rpx2px(rpx, screenWidth) {
 function imageMogr(url, options) {
   if (!isString(url) || !url) return '';
 
-  if (
-    url.indexOf('qlogo.cn') !== -1 ||
-    url.indexOf('wxfile://') === 0 ||
-    url.indexOf('http://tmp/wx') === 0 ||
-    url.indexOf('imageMogr2') !== -1
-  ) {
-    //qlogo.cn域名或者本地图片不做转换
-    return url;
-  } //强制转https
-
-  if (
-    url.indexOf('http://127.0.0.1:') === 0 ||
-    url.indexOf('http://127.0.0.1/') === 0 ||
-    url.indexOf('http://localhost:') === 0 ||
-    url.indexOf('http://localhost/') === 0
-  ) {
-    // 本地联调图片由开发机服务提供，必须保留 HTTP 地址并跳过 CDN 图片处理参数。
-    return url;
-  }
-
-  if (url.indexOf('http://') === 0) {
-    url = url.replace('http://', 'https://');
-  } else if (url.indexOf('//') === 0) {
-    url = 'https:' + url;
-  }
+  // Only unsigned Tencent COS objects support these processing parameters.
+  // Preserve local assets, temporary paths, third-party URLs and signed URLs.
+  var host = url.split('/')[2] || '';
+  if ((url.indexOf('http://') !== 0 && url.indexOf('https://') !== 0) ||
+    host.indexOf('.cos.') === -1 ||
+    host.slice(-13) !== '.myqcloud.com' ||
+    url.indexOf('?') !== -1 || url.indexOf('#') !== -1) return url;
 
   if (!options) return url;
 
@@ -141,7 +124,7 @@ function getSrc(options) {
     });
   }
 
-  return '';
+  return options.src;
 }
 
 module.exports = {

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { isPageNavigationEnabled } from '../../../../config/navigation';
 
 import Toast from 'tdesign-miniprogram/toast/index';
 import Dialog from 'tdesign-miniprogram/dialog/index';
@@ -136,6 +137,7 @@ Component({
     },
 
     onBuyAgain(order) {
+      if (!isPageNavigationEnabled('/pages/cart/index')) return;
       const goodsList = order.goodsList || [];
       if (!goodsList.length) return;
       Promise.all(goodsList.map((goods) => addGoodsToCart({

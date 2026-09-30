@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { getTempFileUrl } from '../../../../../../../utils/api';
+import { resolveImage } from '../../../../../../../utils/images';
 
 Component({
   /**
@@ -23,6 +23,7 @@ Component({
 
   observers: {
     resources: function (newVal) {
+      const version = this.resourceVersion = (this.resourceVersion || 0) + 1;
       const imageResources = Array.isArray(newVal)
         ? newVal.filter((resource) => resource && resource.type === 'image')
         : [];
@@ -35,14 +36,12 @@ Component({
         classType = 'multiple';
       }
 
-      this.setData({ classType, imageResources });
+      this.setData({ classType, imageResources: [] });
       Promise.all(imageResources.map(async (resource) => ({
         ...resource,
-        image: await getTempFileUrl(resource.fileID || resource.image || ''),
+        image: await resolveImage(resource.image || resource.fileID || ''),
       }))).then((resolvedResources) => {
-        this.setData({ imageResources: resolvedResources });
-      }).catch(() => {
-        // 预览链接解析失败时仍保留 fileID，避免评论卡片整体渲染失败。
+        if (this.resourceVersion === version) this.setData({ imageResources: resolvedResources });
       });
     },
   },

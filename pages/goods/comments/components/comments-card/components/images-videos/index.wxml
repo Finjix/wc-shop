@@ -5,6 +5,6 @@
 	  wx:for-item="resource"
 	  wx:key="*this"
 	>
-		  <t-image t-class="resource-item-{{classType}}" src="{{resource.image || resource.fileID}}" />
+		  <t-image t-class="resource-item-{{classType}}" src="{{resource.image}}" />
 	</view>
 </view>

@@ -1,5 +1,7 @@
 // @ts-nocheck
 
+import { resolveImage } from '../../utils/images';
+
 const systemInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
 Component({
   externalClasses: ['t-class', 't-class-load'],
@@ -37,6 +39,16 @@ Component({
     thumbHeight: 375,
     thumbWidth: 375,
     systemInfo,
+    displaySrc: '',
+  },
+  observers: {
+    src(value) {
+      const version = this.imageVersion = (this.imageVersion || 0) + 1;
+      this.setData({ displaySrc: /^(cloud|local):\/\//i.test(value) ? '' : value || '' });
+      resolveImage(value).then((displaySrc) => {
+        if (this.imageVersion === version) this.setData({ displaySrc });
+      });
+    },
   },
   lifetimes: {
     ready() {

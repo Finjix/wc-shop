@@ -39,7 +39,7 @@
                     classname="stepper-info"
                     value="{{goods.quantity}}"
                     min="{{1}}"
-                    max="{{999}}"
+                    max="{{goods.stockKnown ? (goods.stockQuantity > 0 ? (goods.stockQuantity < 99 ? goods.stockQuantity : 99) : 1) : 99}}"
                     data-goods="{{goods}}"
                     data-gi="{{gi}}"
                     data-si="{{si}}"

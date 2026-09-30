@@ -1,11 +1,12 @@
 // @ts-nocheck
 
 import { request, getApiErrorMessage } from '../../utils/api';
+import { resolveImage } from '../../utils/images';
 
 function resourceId(resource) {
   if (!resource) return '';
   if (typeof resource === 'string') return resource;
-  return resource.image || resource.fileID || resource.fileId || resource.url || resource.src || '';
+  return resource.fileID || resource.fileId || resource.image || resource.url || resource.src || '';
 }
 
 const COMMENT_STATUS_ALIASES = {
@@ -73,7 +74,7 @@ export function normalizeComment(comment) {
     commentScore: comment.commentScore ?? comment.rating ?? 0,
     commentTime: comment.commentTime || comment.createdAt || comment.createTime,
     commentResources: normalizeCommentResources(
-      comment.commentResources || comment.resources || comment.commentImageUrls,
+      comment.commentResources || comment.resources || comment.commentImageUrls || comment.images,
     ),
   };
 }
@@ -123,3 +124,16 @@ export function normalizeCommentPayload(payload = {}) {
 
 export { request, getApiErrorMessage };
 // @ts-nocheck
+
+export async function resolveCommentImages(comment) {
+  if (!comment) return null;
+  return { ...comment,
+    userHeadUrl: await resolveImage(comment.userHeadUrl || comment.avatarUrl || comment.avatar),
+    commentResources: await Promise.all((comment.commentResources || []).map(async (resource) => ({
+      ...resource, image: await resolveImage(resource.fileID || resource.image),
+    }))),
+  };
+}
+export async function resolveCommentListImages(list) {
+  return { ...list, pageList: await Promise.all(list.pageList.map(resolveCommentImages)) };
+}

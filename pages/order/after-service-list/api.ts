@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { request } from '../../../utils/api';
+import { resolveRightsImages } from '../../../utils/images';
 import {
   normalizeLogistics,
   normalizeOrderItem,
@@ -51,7 +52,7 @@ export function getRightsList({ parameter = {} } = {}) {
     ...(parameter.afterServiceStatus !== undefined && statusMap[parameter.afterServiceStatus]
       ? { status: statusMap[parameter.afterServiceStatus] }
       : {}),
-  }).then((result) => {
+  }).then(async (result) => {
     const data = unwrapData(result);
     const records = data.dataList || data.list || data.items || data.records || [];
     return {
@@ -61,7 +62,7 @@ export function getRightsList({ parameter = {} } = {}) {
         pageNum: Number(data.pageNum ?? data.page ?? pageNum) || pageNum,
         pageSize: Number(data.pageSize ?? pageSize) || pageSize,
         totalCount: Number(data.totalCount ?? data.total ?? records.length),
-        dataList: Array.isArray(records) ? records.map(normalizeRecord) : [],
+        dataList: Array.isArray(records) ? await Promise.all(records.map((record) => resolveRightsImages(normalizeRecord(record)))) : [],
         states: data.states || {},
       },
     };

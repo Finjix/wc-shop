@@ -59,13 +59,8 @@ export function priceFormat(price: number | string | null, fill = 0): number | s
  */
 export const cosThumb = (url: string, width: number, height = width) => {
   if (!url) return '';
-  if (url.indexOf('?') > -1 || url.indexOf('/') === 0 || url.indexOf('wxfile://') === 0) {
-    return url;
-  }
-
-  if (url.indexOf('http://') === 0) {
-    url = url.replace('http://', 'https://');
-  }
+  if (!/^https?:\/\/[^/]+\.cos\.[^/]+\.myqcloud\.com\//i.test(url)
+    || /[?#]/.test(url)) return url;
 
   return `${url}?imageMogr2/thumbnail/${~~width}x${~~height}`;
 };

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
+const { prepareLocalStorage } = require('./local-backend-storage.cjs');
 const { processImageBuffer } = require('../cloudfunctions/.build/shared/image-upload');
 
 const { fail, ok, runEndpoint } = require('../cloudfunctions/.build/shared/response');
@@ -16,8 +17,8 @@ const port = Number(process.env.LOCAL_BACKEND_PORT || 8787);
 const host = process.env.LOCAL_BACKEND_HOST || '127.0.0.1';
 const publicHost = host === '0.0.0.0' ? '127.0.0.1' : host;
 const baseUrl = `http://${publicHost}:${port}`;
-const dataFile = path.join(root, 'data', '.local-backend.json');
-const filesRoot = path.join(root, 'data', '.local-files');
+// Local runtime data stays in the project; exclude .local-data from mini-program packaging.
+const { dataFile, filesRoot } = prepareLocalStorage(root, process.env.LOCAL_BACKEND_DATA_DIR);
 const collectionNames = ['categories', 'products', 'skus', 'addresses', 'carts', 'orders', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings', 'adminMembers'];
 
 function clone(value) {

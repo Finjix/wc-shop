@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { isPageNavigationEnabled } from '../../../../config/navigation';
 
 Component({
   properties: {
@@ -43,6 +44,7 @@ Component({
     onCard(e) {
       const { item } = e.currentTarget.dataset;
       if (item === 'cart') {
+        if (!isPageNavigationEnabled('/pages/cart/index')) return;
         // 购物车
         wx.switchTab({ url: '/pages/cart/index' });
       } else if (item === 'orderSure') {

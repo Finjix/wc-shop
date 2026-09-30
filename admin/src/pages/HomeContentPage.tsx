@@ -110,7 +110,7 @@ function ProductSelect({ value, onChange, known, onKnown }: {
 
   return <div className="home-product-picker" ref={rootRef}>
     <button type="button" className="home-product-picker-trigger" aria-expanded={open} onClick={() => setOpen((old) => !old)}>
-      <span>{value ? `${selected?.title || value}${selected === null ? '（已下架或删除）' : ''}` : '请选择商品'}</span>
+      <span>{value ? `${selected?.title || value}${selected === null ? '（已下架或删除）' : ''}` : '无跳转'}</span>
       <span aria-hidden="true">⌄</span>
     </button>
     {open && <div className="home-product-picker-menu">

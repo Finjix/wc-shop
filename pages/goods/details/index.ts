@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { isPageNavigationEnabled } from '../../../config/navigation';
 
 import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchGood } from '../../../services/good/fetchGood';
@@ -84,6 +85,7 @@ Page({
   },
 
   buyItNow() {
+    if (!isPageNavigationEnabled('/pages/order/order-confirm/index')) return;
     this.showSkuSelectPopup(1);
   },
 
@@ -93,6 +95,7 @@ Page({
 
   toNav(e) {
     const { url } = e.detail;
+    if (!isPageNavigationEnabled(url)) return;
     wx.switchTab({
       url: url,
     });
@@ -249,11 +252,11 @@ Page({
           },
         );
       })
-      .catch(() => {
+      .catch((error) => {
         Toast({
           context: this,
           selector: '#t-toast',
-          message: '加入购物车失败，请重试',
+          message: getApiErrorMessage(error, '加入购物车失败，请重试'),
           icon: '',
           duration: 1000,
         });
@@ -299,6 +302,7 @@ Page({
   },
 
   gotoBuy(type) {
+    if (!isPageNavigationEnabled('/pages/order/order-confirm/index')) return;
     const { isAllSelectedSku } = this.data;
     if (!isAllSelectedSku) {
       Toast({

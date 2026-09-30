@@ -24,6 +24,8 @@ const router = createHashRouter([
         { index: true, element: <Navigate to="/overview" replace /> },
         { path: 'overview', element: <OverviewPage /> },
         { path: 'products', element: <ProductsPage /> },
+        { path: 'products/new', element: <ProductsPage key="new" editorMode /> },
+        { path: 'products/:productId/edit', element: <ProductsPage key="edit" editorMode /> },
         { path: 'categories', element: <CategoriesPage /> },
         { path: 'skus', element: <SkuInventoryPage /> },
         { path: 'inventory', element: <Navigate to="/skus" replace /> },

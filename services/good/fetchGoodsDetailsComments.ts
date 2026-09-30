@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { request } from '../../utils/api';
+import { fetchComments } from '../comments/fetchComments';
 
 export function getGoodsDetailsCommentsCount(spuId = '') {
   return request('comments.count', { spuId }).then((result) => {
@@ -20,9 +21,6 @@ export function getGoodsDetailsCommentsCount(spuId = '') {
 }
 
 export function getGoodsDetailsCommentList(spuId = '') {
-  return request('comments.list', { spuId }).then((result) => {
-    if (Array.isArray(result)) return result;
-    return result && (result.items || result.comments || result.list || result.commentList) || [];
-  });
+  return fetchComments({ spuId }).then((result) => result.pageList);
 }
 // @ts-nocheck

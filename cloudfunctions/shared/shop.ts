@@ -432,7 +432,7 @@ async function cartAction(runtime, event, context, data, action) {
   if (action === 'cart.replaceSku') {
     const oldSkuId = string(data.oldSkuId, 'oldSkuId', { max: 128 });
     const newSkuId = string(data.newSkuId, 'newSkuId', { max: 128 });
-    const quantity = integer(data.quantity, 'quantity', { min: 1, max: 999 });
+    const quantity = integer(data.quantity, 'quantity', { min: 1, max: 99 });
     const sku = await getSku(runtime, newSkuId, true);
     const product = await getActiveProduct(runtime, productIdForSku(sku), true);
     if (!skuBelongsToProduct(product, sku)) throw errorFrom('SKU_UNAVAILABLE');
@@ -455,10 +455,17 @@ async function cartAction(runtime, event, context, data, action) {
       image: sku.skuImage || product.primaryImage || '',
       updatedAt: now(),
     };
-    return present(await save((items) => [...items.filter((item) => String(item.skuId) !== oldSkuId && String(item.skuId) !== newSkuId), replacement]));
+    return present(await save((items) => {
+      if (!items.some((item) => String(item.skuId) === oldSkuId)) throw errorFrom('NOT_FOUND');
+      return items.flatMap((item) => {
+        if (String(item.skuId) === oldSkuId) return [replacement];
+        if (String(item.skuId) === newSkuId) return [];
+        return [item];
+      });
+    }));
   }
   const skuId = string(data.skuId, 'skuId', { max: 128 });
-  const quantity = integer(data.quantity, 'quantity', { min: 1, max: 999 });
+  const quantity = integer(data.quantity, 'quantity', { min: 1, max: 99 });
   const sku = await getSku(runtime, skuId, true);
   const product = await getActiveProduct(runtime, productIdForSku(sku), true);
   if (!skuBelongsToProduct(product, sku)) throw errorFrom('SKU_UNAVAILABLE');
@@ -467,6 +474,7 @@ async function cartAction(runtime, event, context, data, action) {
     const nextQuantity = action === 'cart.update' || action === 'cart.updateQuantity'
       ? quantity
       : quantity + (itemIndex >= 0 ? integer(items[itemIndex].quantity, 'quantity', { min: 1 }) : 0);
+    assert(nextQuantity <= 99, { field: 'quantity', max: 99 });
     if (skuStock(sku) < nextQuantity) throw errorFrom('OUT_OF_STOCK');
     const previous = itemIndex >= 0 ? items[itemIndex] : null;
     const cartItem = {
@@ -500,10 +508,10 @@ function normalizeOrderItems(value) {
   value.forEach((item) => {
     const input = object(item, 'items[]');
     const skuId = string(input.skuId, 'skuId', { max: 128 });
-    const quantity = integer(input.quantity, 'quantity', { min: 1, max: 999 });
+    const quantity = integer(input.quantity, 'quantity', { min: 1, max: 99 });
     merged.set(skuId, (merged.get(skuId) || 0) + quantity);
   });
-  merged.forEach((quantity) => assert(quantity <= 999, { field: 'quantity', max: 999 }));
+  merged.forEach((quantity) => assert(quantity <= 99, { field: 'quantity', max: 99 }));
   return Array.from(merged, ([skuId, quantity]) => ({ skuId, quantity }));
 }
 
@@ -514,13 +522,19 @@ function orderInput(data = {}) {
   return data;
 }
 
-async function orderDraft(runtime, identity, data, source) {
+async function orderDraft(runtime, identity, data, source, requireAddress = true) {
   const input = orderInput(data);
   const items = normalizeOrderItems(source || input.items || input.goodsRequestList);
   const addressInfo = input.userAddressReq || input.address || {};
-  const addressId = string(input.addressId || addressInfo.addressId || addressInfo.id || addressInfo._id, 'addressId', { max: 128 });
-  const address = await getDoc(collection(runtime, COLLECTIONS.addresses), addressId, true);
-  if (address.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+  const addressRef = input.addressId || addressInfo.addressId || addressInfo.id || addressInfo._id;
+  let address = null;
+  if (addressRef !== undefined && addressRef !== null && addressRef !== '') {
+    const addressId = string(addressRef, 'addressId', { max: 128 });
+    address = await getDoc(collection(runtime, COLLECTIONS.addresses), addressId, true);
+    if (address.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+  } else if (requireAddress) {
+    throw errorFrom('ADDRESS_REQUIRED');
+  }
   const resolved = [];
   for (const input of items) {
     const sku = await getSku(runtime, input.skuId, true);
@@ -539,7 +553,14 @@ async function orderDraft(runtime, identity, data, source) {
       unitPrice,
       amount,
       productSnapshot: clone({ _id: product._id, spuId: product.spuId, title: product.title, primaryImage: product.primaryImage, images: product.images }),
-      skuSnapshot: clone({ _id: sku._id, skuId: sku.skuId, specInfo: sku.specInfo, skuImage: sku.skuImage }),
+      skuSnapshot: clone({
+        _id: sku._id, skuId: sku.skuId, skuImage: sku.skuImage,
+        specInfo: (sku.specInfo || []).map((spec) => {
+          const group = (product.specList || []).find((item) => String(item.specId) === String(spec.specId));
+          const value = (group?.specValueList || []).find((item) => String(item.specValueId) === String(spec.specValueId));
+          return { ...spec, specTitle: spec.specTitle || group?.title || '', specValue: spec.specValue || value?.specValue || '' };
+        }),
+      }),
     });
   }
   const subtotal = resolved.reduce((sum, item) => sum + item.amount, 0);
@@ -553,7 +574,8 @@ async function previewOrder(runtime, event, context, data) {
   const cart = input.useCart ? await getCart(runtime, identity) : null;
   const items = cart ? cart.items : (input.items || input.goodsRequestList);
   const source = cart ? cart.items.filter((item) => item.isSelected).map((item) => ({ skuId: item.skuId, quantity: item.quantity })) : items;
-  return orderDraft(runtime, identity, input, source);
+  // Only preview may omit an address; order creation always requires an owned address.
+  return orderDraft(runtime, identity, input, source, false);
 }
 
 function orderIdFor(userId, requestKey) {

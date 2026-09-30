@@ -13,6 +13,10 @@
 
 <scroll-view class="home-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
   <view class="home-scroll-content">
+    <view wx:if="{{loadError}}" class="home-load-error">
+      <text>{{loadError}}</text>
+      <button size="mini" bind:tap="loadHomePage">重新加载</button>
+    </view>
     <view class="swiper-wrap" wx:if="{{swiperSlides.length}}">
       <t-swiper
         t-class="home-swiper"

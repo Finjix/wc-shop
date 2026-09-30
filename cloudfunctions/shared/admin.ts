@@ -544,14 +544,37 @@ async function adminOrderAction(runtime, data, action) {
 }
 
 async function dashboardSummary(runtime) {
-  const [productCount, ...entries] = await Promise.all([
-    col(runtime, COLLECTIONS.products).count(),
+  const [products, skus] = await Promise.all([
+    allMatching(col(runtime, COLLECTIONS.products), {}),
+    allMatching(col(runtime, COLLECTIONS.skus), {}),
+  ]);
+  const productById = new Map();
+  products.filter((product) => !product.deletedByAdmin).forEach((product) => {
+    [product._id, product.spuId].filter(Boolean).forEach((id) => productById.set(String(id), product));
+  });
+  const inventoryWarnings = skus.flatMap((sku) => {
+    const product = productById.get(String(sku.productId || sku.spuId));
+    const stock = skuStock(sku);
+    if (!product || stock < 0 || stock > 3) return [];
+    if (Array.isArray(product.specList)) {
+      const ids = product.specList.flatMap((group) => (group.specValueList || []).map((option) => String(option.specValueId)));
+      if (![sku._id, sku.skuId].some((id) => id && ids.includes(String(id)))) return [];
+    }
+    const specName = (sku.specInfo || []).map((spec) => {
+      const group = (product.specList || []).find((item) => String(item.specId) === String(spec.specId));
+      const option = (group?.specValueList || []).find((item) => String(item.specValueId) === String(spec.specValueId));
+      return option?.specValue || spec.specValue || '';
+    }).filter(Boolean).join(' / ') || '默认规格';
+    return [{ productId: String(product._id || product.spuId), title: product.title, skuId: String(sku._id || sku.skuId), specName, stockQuantity: stock }];
+  }).sort((left, right) => left.stockQuantity - right.stockQuantity);
+  const entries = await Promise.all([
     ...[COLLECTIONS.orders, COLLECTIONS.comments, COLLECTIONS.afterSales].map((name) => list(col(runtime, name), {})),
   ]);
   const [orders, comments, afterSales] = entries.map((entry) => entry.items);
   return {
+    inventoryWarnings,
     metrics: {
-      productCount: productCount.total,
+      productCount: products.filter((product) => !product.deletedByAdmin).length,
       orderCount: orders.length,
       commentCount: comments.length,
       afterSaleCount: afterSales.length,

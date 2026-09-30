@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { request } from '../../utils/api';
+import { resolveOrderImages } from '../../utils/images';
 
 const STATUS_LABELS = { 5: '待支付', 10: '待发货', 40: '待收货', 50: '已完成', 80: '已取消' };
 
@@ -101,14 +102,14 @@ export function fetchOrders(params = {}) {
     payload.orderStatus = requestedStatus;
   }
   delete payload.pageNum;
-  return request('orders.list', payload).then((response) => {
+  return request('orders.list', payload).then(async (response) => {
     const data = dataOf(response) || {};
     const orders = data.orders || data.list || data.items || [];
     const responsePage = Number(data.page ?? data.pageNum) || paging.page;
     return {
       data: {
         ...data,
-        orders: Array.isArray(orders) ? orders.map(normalizeOrder) : [],
+        orders: Array.isArray(orders) ? await Promise.all(orders.map((order) => resolveOrderImages(normalizeOrder(order)))) : [],
         page: responsePage,
         pageNum: responsePage,
         pageSize: Number(data.pageSize) || paging.pageSize,

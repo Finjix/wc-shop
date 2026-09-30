@@ -10,6 +10,7 @@ import {
 import { fetchCartGroupData } from '../../../services/cart/cart';
 import { fetchDeliveryAddress } from '../../../services/address/fetchAddress';
 import { getAddressPromise } from '../../../services/address/list';
+import { getApiErrorMessage } from '../../../utils/api';
 
 function getSelectedGoodsFromCart(cartGroupData) {
   const result = [];
@@ -135,9 +136,9 @@ Page({
         });
         this.initData(res.data);
       },
-      () => {
+      (error) => {
         //接口异常处理
-        this.handleError();
+        this.handleError(getApiErrorMessage(error, '结算异常，请稍后重试'));
       },
     );
   },
@@ -146,9 +147,7 @@ Page({
     const data = this.handleResToGoodsCard(resData);
     this.userAddressReq = resData.userAddress;
 
-    if (resData.userAddress) {
-      this.setData({ userAddress: resData.userAddress });
-    }
+    this.setData({ userAddress: resData.userAddress || null });
     const goodsCount = (data.storeGoodsList || []).reduce(
       (count, store) => count + (store.skuDetailVos || []).length,
       0,

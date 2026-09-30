@@ -1,11 +1,6 @@
 // @ts-nocheck
 
-import { getTempFileUrl } from '../../utils/api';
-
-function resolveImage(value) {
-  if (typeof value !== 'string' || !/^(cloud|local):\/\//i.test(value)) return Promise.resolve(value || '');
-  return getTempFileUrl(value).catch(() => value);
-}
+import { resolveImage, resolveImageList } from '../../utils/images';
 
 export function resolveGoodsListImages(items = []) {
   return Promise.all((Array.isArray(items) ? items : []).map(async (item) => {
@@ -15,8 +10,8 @@ export function resolveGoodsListImages(items = []) {
     ]);
     return {
       ...item,
-      thumb: thumb || primaryImage || item.thumb || item.primaryImage || '',
-      primaryImage: primaryImage || thumb || item.primaryImage || item.thumb || '',
+      thumb: thumb || primaryImage || '',
+      primaryImage: primaryImage || thumb || '',
     };
   }));
 }
@@ -24,6 +19,7 @@ export function resolveGoodsListImages(items = []) {
 export function resolveCategoryListImages(list = []) {
   return Promise.all(list.map(async (parent) => ({
     ...parent,
+    image: await resolveImage(parent.image),
     children: await Promise.all((parent.children || []).map(async (child) => ({
       ...child,
       image: await resolveImage(child.image),
@@ -44,7 +40,7 @@ export async function resolveProductDetailImages(product = {}) {
   ]);
   return {
     ...product,
-    primaryImage: primaryImage || images[0] || product.primaryImage || '',
+    primaryImage: primaryImage || images[0] || '',
     images,
     detailImages,
     desc,
@@ -56,7 +52,8 @@ export async function resolveHomeContentImages(result = {}) {
   const items = Array.isArray(result.items)
     ? await Promise.all(result.items.map(async (item) => ({
       ...item,
-      image: await resolveImage(item.image),
+      image: await resolveImage(item.image || item.imageUrl || item.cover),
+      goodsList: await resolveGoodsListImages(item.goodsList || item.products || (item.product ? [item.product] : [])),
       content: item.type === 'banner' ? await resolveImage(item.content) : item.content,
     })))
     : result.items;
@@ -71,5 +68,10 @@ export async function resolveHomeContentImages(result = {}) {
     const [resolved] = await resolveGoodsListImages([product]);
     return [id, resolved];
   }));
-  return { ...result, items, config, productsById: Object.fromEntries(productEntries) };
+  return { ...result, items, config, productsById: Object.fromEntries(productEntries),
+    productItems: result.productItems ? await resolveGoodsListImages(result.productItems) : undefined,
+    imgSrcs: await resolveImageList(result.imgSrcs),
+    swiperImages: await resolveImageList(result.swiperImages),
+    bannerImages: await resolveImageList(result.bannerImages),
+  };
 }

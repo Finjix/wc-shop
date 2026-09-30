@@ -2,6 +2,7 @@
 
 import { request } from '../../../utils/api';
 import { uploadCloudFile } from '../../../utils/api';
+import { resolveImage } from '../../../utils/images';
 import { normalizeOrderItem, normalizeServiceType } from '../after-service-detail/contract';
 
 function unwrapData(result) {
@@ -10,23 +11,23 @@ function unwrapData(result) {
   return data || {};
 }
 
-function normalizePreview(data) {
+function normalizePreview(data, params = {}) {
   const source = data || {};
-  const rawItems = source.goodsList || source.items || source.products || [];
+  const allItems = source.goodsList || source.items || source.products || [];
+  const rawItems = params.skuId && Array.isArray(allItems)
+    ? allItems.filter((item) => String(normalizeOrderItem(item).skuId) === String(params.skuId)) : allItems;
   const goodsList = Array.isArray(rawItems)
     ? rawItems.map((item) => ({
       ...normalizeOrderItem(item),
-      spuId: item.spuId || item.productId,
-      skuId: item.skuId || item.sku,
       numOfSku: item.numOfSku ?? item.quantity ?? item.buyQuantity ?? 0,
       numOfSkuAvailable: item.numOfSkuAvailable ?? item.availableQuantity ?? item.quantity ?? item.buyQuantity ?? 0,
-      refundableAmount: item.refundableAmount ?? item.itemRefundAmount ?? item.itemPaymentAmount ?? item.amount ?? 0,
-      paidAmountEach: item.paidAmountEach ?? item.price ?? item.goodsPaymentPrice ?? 0,
+      refundableAmount: item.refundableAmount ?? item.itemRefundAmount ?? item.itemPaymentAmount ?? item.amount ?? (Number(item.unitPrice || 0) * Number(item.quantity || 0)),
+      paidAmountEach: item.paidAmountEach ?? item.unitPrice ?? item.price ?? item.goodsPaymentPrice ?? 0,
       boughtQuantity: item.boughtQuantity ?? item.quantity ?? item.buyQuantity ?? 0,
       goodsInfo: item.goodsInfo || {
-        goodsName: item.goodsName || item.title,
-        skuImage: item.skuImage || item.goodsPictureUrl || item.image,
-        specInfo: item.specInfo || item.specifications || [],
+        goodsName: normalizeOrderItem(item).goodsName,
+        skuImage: normalizeOrderItem(item).goodsPictureUrl,
+        specInfo: normalizeOrderItem(item).specInfo,
       },
     }))
     : [];
@@ -60,9 +61,13 @@ export function fetchRightsPreview(params = {}) {
     ...params,
     orderId: params.orderId || params.orderNo,
     productId: params.productId || params.spuId,
-  }).then((result) => ({
-    data: normalizePreview(unwrapData(result)),
-  }));
+  }).then(async (result) => {
+    const data = normalizePreview(unwrapData(result), params);
+    data.goodsList = await Promise.all(data.goodsList.map(async (item) => ({ ...item,
+      goodsInfo: { ...item.goodsInfo, skuImage: await resolveImage(item.goodsInfo.skuImage) },
+    })));
+    return { data };
+  });
 }
 
 export function fetchApplyReasonList(params = {}) {

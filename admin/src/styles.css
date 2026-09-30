@@ -59,6 +59,15 @@ a { color: var(--text); text-decoration: none; }
 .menu-button { display: none; background: transparent; border: 0; font-size: 20px; color: var(--ink); padding: 0; }
 .page-content { max-width: 1320px; padding: 28px 30px 56px; margin: auto; }
 .overview-title { margin: 0 0 20px; color: var(--ink); font-size: 22px; font-weight: 650; }
+.overview-page { display: flex; flex-direction: column; min-height: calc(100dvh - 84px); gap: 20px; }
+.overview-page .overview-title { margin-bottom: 0; }
+.overview-page .overview-inventory-warnings { margin-top: auto; }
+.overview-inventory-warnings { height: 430px; box-sizing: border-box; display: flex; flex-direction: column; }
+.overview-inventory-warning-body { flex: 1; min-height: 0; overflow: auto; }
+.overview-inventory-warning-body > .empty-state { height: 100%; min-height: 0; box-sizing: border-box; }
+.overview-inventory-warnings table { table-layout: fixed; }
+.overview-inventory-warnings td { height: 44px; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overview-inventory-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 14px; font-size: 12px; }
 .page-actions { display: flex; justify-content: flex-end; margin-bottom: 20px; }
 .product-page-actions { justify-content: space-between; align-items: center; }
 .product-page-search { display: flex; align-items: center; gap: 8px; flex: 0 1 440px; min-width: 0; }
@@ -326,3 +335,11 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 }
 
 *, *::before, *::after { border-radius: 0 !important; }
+.admin-shell img { cursor: zoom-in; }
+.image-lightbox { position: fixed; inset: 0; z-index: 10000; background: rgba(0, 0, 0, .92); color: #fff; display: flex; }
+.image-lightbox-toolbar { position: absolute; top: 16px; right: 16px; z-index: 1; }
+.image-lightbox-toolbar button { background: #333; color: #fff; border: 1px solid #777; padding: 7px 14px; cursor: pointer; }
+.image-lightbox-toolbar button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.image-lightbox-stage { flex: 1; min-width: 0; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: grab; touch-action: none; user-select: none; }
+.image-lightbox-stage.dragging { cursor: grabbing; }
+.image-lightbox-stage img { max-width: 90%; max-height: 90%; object-fit: contain; flex-shrink: 0; cursor: inherit; }

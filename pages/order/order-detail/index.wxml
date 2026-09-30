@@ -11,8 +11,12 @@
   bindrefresh="onPullDownRefresh_"
   t-class-indicator="t-class-indicator"
 >
+  <view wx:if="{{loadError}}" style="padding: 32rpx; text-align: center;">
+    <text>{{loadError}}</text>
+    <button size="mini" bindtap="init">重新加载</button>
+  </view>
   <!-- 页面内容 -->
-  <view class="order-detail">
+  <view wx:if="{{!loadError}}" class="order-detail">
     <view class="header">
       <!-- 物流 -->
       <view

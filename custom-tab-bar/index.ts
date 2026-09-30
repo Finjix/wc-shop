@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { isPageNavigationEnabled } from '../config/navigation';
 
 import TabMenu from './data';
 Component({
@@ -12,6 +13,7 @@ Component({
       const selectedIndex = event.detail.value;
       const selectedItem = this.data.list[selectedIndex];
       if (!selectedItem) return;
+      if (!isPageNavigationEnabled(selectedItem.url)) return;
       if (selectedItem.disabled) return;
       if (selectedItem.special) {
         wx.showToast({

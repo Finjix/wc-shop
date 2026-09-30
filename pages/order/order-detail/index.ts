@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { formatTime } from '../../../utils/util';
+import { getApiErrorMessage } from '../../../utils/api';
 import { OrderButtonTypes, OrderStatus } from '../config';
 import { fetchBusinessTime, fetchOrderDetail } from '../../../services/order/orderDetail';
 import { getAddressPromise } from '../../../services/address/list';
@@ -10,6 +11,7 @@ Page({
   data: {
     pullDownRefreshing: false,
     pageLoading: true,
+    loadError: '',
     order: {}, // 后台返回的原始数据
     _order: {}, // 内部使用和提供给 order-card 的数据
     storeDetail: {},
@@ -39,14 +41,14 @@ Page({
 
   // 页面初始化，会展示pageLoading
   init() {
-    this.setData({ pageLoading: true });
+    this.setData({ pageLoading: true, loadError: '' });
     this.getStoreDetail();
-    this.getDetail()
+    return this.getDetail()
       .then(() => {
         this.setData({ pageLoading: false });
       })
       .catch((e) => {
-        console.error(e);
+        this.setData({ pageLoading: false, loadError: getApiErrorMessage(e, '订单加载失败，请重试') });
       });
   },
 
@@ -173,6 +175,8 @@ Page({
         storeTel: res.data.telphone,
       };
       this.setData({ storeDetail });
+    }).catch((error) => {
+      wx.showToast({ title: getApiErrorMessage(error, '店铺联系信息加载失败'), icon: 'none' });
     });
   },
 

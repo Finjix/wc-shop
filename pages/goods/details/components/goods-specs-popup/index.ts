@@ -11,6 +11,8 @@ Component({
   },
 
   properties: {
+    title: { type: String, value: '' },
+    price: { type: null, value: 0 },
     src: {
       type: String,
     },
@@ -26,20 +28,14 @@ Component({
       type: Array,
       value: [],
       observer(skuList) {
-        if (skuList && skuList.length > 0) {
-          if (this.initStatus) {
-            this.initData();
-          }
-        }
+        this.initData();
       },
     },
     specList: {
       type: Array,
       value: [],
       observer(specList) {
-        if (specList && specList.length > 0) {
-          this.initData();
-        }
+        this.initData();
       },
     },
     outOperateStatus: {
@@ -66,6 +62,7 @@ Component({
   selectSpecObj: {},
 
   data: {
+    viewSpecList: [],
     buyNum: 1,
     isAllSelectedSku: false,
     stockQuantity: 0,
@@ -74,12 +71,20 @@ Component({
   methods: {
     initData() {
       const { skuList } = this.properties;
-      const { specList } = this.properties;
+      const sourceSpecs = this.properties.specList;
+      const signature = JSON.stringify({ skuList, specList: sourceSpecs.map((group) => ({
+        ...group,
+        specValueList: group.specValueList.map(({ isSelected, hasStockObj, ...option }) => option),
+      })) });
+      if (this.specDataSignature === signature) return;
+      this.specDataSignature = signature;
+      const specList = sourceSpecs.map((group) => ({ ...group, specValueList: group.specValueList.map((option) => ({ ...option })) }));
       specList.forEach((item) => {
         if (item.specValueList.length > 0) {
           item.specValueList.forEach((subItem) => {
             const obj = this.checkSkuStockQuantity(subItem.specValueId, skuList);
             subItem.hasStockObj = obj;
+            subItem.isSelected = false;
           });
         }
       });
@@ -87,13 +92,28 @@ Component({
       specList.forEach((item) => {
         selectedSku[item.specId] = '';
       });
+      if (skuList.length === 1) {
+        specList.forEach((item) => {
+          const spec = (skuList[0].specInfo || []).find((entry) => String(entry.specId) === String(item.specId));
+          const option = item.specValueList.find((entry) => String(entry.specValueId) === String(spec?.specValueId));
+          if (option) {
+            selectedSku[item.specId] = option.specValueId;
+            option.isSelected = true;
+          }
+        });
+      }
+      const isAllSelectedSku = skuList.length > 0 && this.isAllSelected(specList, selectedSku);
       this.setData({
-        specList,
-        stockQuantity: this.getCompatibleStockQuantity(selectedSku),
+        viewSpecList: specList,
+        isAllSelectedSku,
+        stockQuantity: isAllSelectedSku ? this.getCompatibleStockQuantity(selectedSku) : 0,
       });
       this.selectSpecObj = {};
-      this.selectedSku = {};
+      this.selectedSku = selectedSku;
       this.initStatus = true;
+      Promise.resolve().then(() => {
+        if (this.specDataSignature === signature) this.triggerEvent('change', { specList, selectedSku, isAllSelectedSku });
+      });
     },
 
     checkSkuStockQuantity(specValueId, skuList) {
@@ -119,7 +139,8 @@ Component({
 
     chooseSpecValueId(specValueId, specId) {
       const { selectSpecObj } = this;
-      const { skuList, specList } = this.properties;
+      const { skuList } = this.properties;
+      const specList = this.data.viewSpecList;
       if (selectSpecObj[specId]) {
         selectSpecObj[specId] = [];
         this.selectSpecObj = selectSpecObj;
@@ -207,7 +228,7 @@ Component({
         });
       }
       this.setData({
-        specList,
+        viewSpecList: specList,
       });
     },
 
@@ -268,7 +289,7 @@ Component({
       }
 
       let { selectedSku } = this;
-      const { specList } = this.properties;
+      const specList = this.data.viewSpecList;
       selectedSku =
         selectedSku[specId] === id ? { ...this.selectedSku, [specId]: '' } : { ...this.selectedSku, [specId]: id };
       specList.forEach((item) => {
@@ -287,9 +308,9 @@ Component({
         });
       }
       this.setData({
-        specList,
+        viewSpecList: specList,
         isAllSelectedSku,
-        stockQuantity: this.getCompatibleStockQuantity(selectedSku),
+        stockQuantity: isAllSelectedSku ? this.getCompatibleStockQuantity(selectedSku) : 0,
       });
       this.selectedSku = selectedSku;
       this.triggerEvent('change', {
@@ -343,6 +364,7 @@ Component({
     },
 
     handleBuyNumChange(e) {
+      if (!this.data.isAllSelectedSku || !this.properties.isStock || this.data.stockQuantity <= 0) return;
       const { value } = e.detail;
       this.setData({
         buyNum: value,

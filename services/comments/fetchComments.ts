@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { request, normalizeCommentList } from './api';
+import { request, normalizeCommentList, resolveCommentListImages } from './api';
 
 /** 获取商品评论 */
 export function fetchComments(params = {}) {
@@ -13,7 +13,7 @@ export function fetchComments(params = {}) {
     pageSize: params.pageSize || 20,
   };
   return request('comments.list', payload).then((result) =>
-    normalizeCommentList(result, payload),
+    resolveCommentListImages(normalizeCommentList(result, payload)),
   );
 }
 // @ts-nocheck

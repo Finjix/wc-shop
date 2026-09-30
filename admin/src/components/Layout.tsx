@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import { ImageLightbox } from './ImageLightbox';
 
 export type AdminOutletContext = { setUnsavedChanges: (value: boolean) => void };
 
 const navItems = [
   { to: '/overview', label: '概览' },
-  { to: '/home-content', label: '首页内容' },
+  { to: '/home-content', label: '首页' },
   { to: '/products', label: '商品' },
-  { to: '/skus', label: 'SKU 库存' },
+  { to: '/skus', label: '库存' },
   { to: '/categories', label: '分类' },
 ];
 
@@ -23,6 +24,7 @@ export function AdminLayout() {
 
   return (
     <div className="admin-shell">
+      <ImageLightbox />
       <div className={`sidebar-backdrop ${open ? 'visible' : ''}`} onClick={() => setOpen(false)} />
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <nav className="side-nav">

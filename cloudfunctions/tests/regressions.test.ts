@@ -96,6 +96,7 @@ function makeRuntime() {
       },
       async get() { return { data: Object.values(bucket).slice(0, 20) }; },
       async count() { return { total: Object.keys(bucket).length }; },
+      limit(value) { return this.where({}).limit(value); },
       doc(id) {
         const key = String(id);
         return {
@@ -366,7 +367,9 @@ async function testProductSkuListAndSaveReadEveryVariant() {
 }
 
 async function testMergedSkuQuantityIsCapped() {
-  const duplicateItems = Array.from({ length: 50 }, () => ({ skuId: 'sku-a', quantity: 999 }));
+  assert.deepStrictEqual(normalizeOrderItems([{ skuId: 'sku-a', quantity: 99 }]), [{ skuId: 'sku-a', quantity: 99 }]);
+  assert.throws(() => normalizeOrderItems([{ skuId: 'sku-a', quantity: 100 }]), appError('INVALID_ARGUMENT'));
+  const duplicateItems = [{ skuId: 'sku-a', quantity: 50 }, { skuId: 'sku-a', quantity: 50 }];
   assert.throws(
     () => normalizeOrderItems(duplicateItems),
     appError('INVALID_ARGUMENT'),
@@ -400,6 +403,16 @@ async function testReplaceSkuUsesItsOwnParameterContract() {
     { oldSkuId: 'sku-old', newSkuId: 'sku-new', quantity: 1 },
   );
   assert.deepStrictEqual(result.items.map((item) => item.skuId), ['sku-new']);
+  for (const skuIds of [
+    ['sku-before', 'sku-old', 'sku-after'],
+    ['sku-new', 'sku-before', 'sku-old', 'sku-after'],
+    ['sku-before', 'sku-old', 'sku-after', 'sku-new'],
+  ]) {
+    runtime.records.carts['user-1'].items = skuIds.map((skuId) => ({ skuId, quantity: 1, isSelected: true }));
+    const replaced = await shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime,
+      'cart.replaceSku', { oldSkuId: 'sku-old', newSkuId: 'sku-new', quantity: 1 });
+    assert.deepStrictEqual(replaced.items.map((item) => item.skuId), ['sku-before', 'sku-new', 'sku-after']);
+  }
 }
 
 async function testCloudBaseDocumentArrayIsUnwrapped() {
@@ -450,6 +463,37 @@ async function testOrderCreationUsesDocumentOnlyTransaction() {
   assert.strictEqual(runtime.writes.some((write) => write.operation === 'update' && write.collection === 'skus'), true);
 }
 
+async function testOrderPreviewAllowsMissingAddressWithoutCreatingAnOrder() {
+  const runtime = makeRuntime();
+  const context = { auth: { uid: 'user-1' } };
+  const input = { items: [{ skuId: 'sku-new', quantity: 2 }], useCart: false };
+  const preview = await shopEndpoint({}, context, runtime, 'orders.preview', input);
+  assert.strictEqual(preview.addressSnapshot, null);
+  assert.strictEqual(preview.totalAmount, 200);
+  assert.strictEqual(preview.items[0].quantity, 2);
+  assert.strictEqual(runtime.writes.length, 0);
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
+  assert.deepStrictEqual(runtime.records.orders, {});
+
+  const withAddress = await shopEndpoint({}, context, runtime, 'orders.preview', { ...input, addressId: 'address-1' });
+  assert.strictEqual(withAddress.addressSnapshot._id, 'address-1');
+  runtime.records.addresses['address-other'] = { _id: 'address-other', userId: 'user-2' };
+  await assert.rejects(() => shopEndpoint({}, context, runtime, 'orders.preview', {
+    ...input, addressId: 'address-other',
+  }), appError('FORBIDDEN'));
+  await assert.rejects(() => shopEndpoint({}, context, runtime, 'orders.preview', {
+    ...input, addressId: 'missing-address',
+  }), appError('NOT_FOUND'));
+  await assert.rejects(() => shopEndpoint({}, context, runtime, 'orders.preview', {
+    items: [{ skuId: 'sku-new', quantity: 11 }],
+  }), appError('OUT_OF_STOCK'));
+  await assert.rejects(() => shopEndpoint({}, context, runtime, 'orders.create', {
+    ...input, requestKey: 'no-address', requireAddress: false,
+  }), appError('ADDRESS_REQUIRED'));
+  assert.deepStrictEqual(runtime.records.orders, {});
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
+}
+
 async function testOrderCreationRechecksProductStatus() {
   const runtime = makeRuntime();
   const originalTransaction = runtime.db.runTransaction.bind(runtime.db);
@@ -468,8 +512,20 @@ async function testDashboardProductCountUsesCountQuery() {
   const runtime = makeRuntime();
   runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   for (let index = 0; index < 25; index += 1) runtime.records.products[`extra-${index}`] = { _id: `extra-${index}` };
+  runtime.records.skus['sku-new'].stockQuantity = 3;
+  runtime.records.skus['sku-zero'] = { ...runtime.records.skus['sku-new'], _id: 'sku-zero', skuId: 'sku-zero', stockQuantity: 0 };
+  runtime.records.skus['sku-normal'] = { ...runtime.records.skus['sku-new'], _id: 'sku-normal', skuId: 'sku-normal', stockQuantity: 4 };
   const result = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'dashboard.summary', {});
   assert.strictEqual(result.metrics.productCount, 26);
+  assert.deepStrictEqual(result.inventoryWarnings.map((item) => item.stockQuantity), [0, 3]);
+  assert.strictEqual(result.inventoryWarnings[0].productId, 'product-1');
+  runtime.records.products['product-1'].deletedByAdmin = true;
+  const afterDelete = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'dashboard.summary', {});
+  assert.strictEqual(afterDelete.metrics.productCount, 25);
+  assert.deepStrictEqual(afterDelete.inventoryWarnings, []);
+  Object.values(runtime.records.products).forEach((product) => { product.deletedByAdmin = true; });
+  const empty = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'dashboard.summary', {});
+  assert.strictEqual(empty.metrics.productCount, 0);
 }
 
 async function testHomeConfigLimitsAndLegacyResponse() {
@@ -653,6 +709,7 @@ const cases = [
     name: 'order creation uses document-only transaction operations',
     run: testOrderCreationUsesDocumentOnlyTransaction,
   },
+  { name: 'order preview accepts no address while creation still requires one', run: testOrderPreviewAllowsMissingAddressWithoutCreatingAnOrder },
   { name: 'order creation rechecks product status inside transaction', run: testOrderCreationRechecksProductStatus },
   { name: 'dashboard product count is not limited to the first page', run: testDashboardProductCountUsesCountQuery },
   { name: 'home configuration limits and legacy response', run: testHomeConfigLimitsAndLegacyResponse },

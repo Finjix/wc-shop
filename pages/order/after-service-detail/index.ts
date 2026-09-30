@@ -215,8 +215,8 @@ Page({
   onGoodsCardTap(e) {
     const { index } = e.currentTarget.dataset;
     const goods = (this.data.serviceRaw.rightsItem || [])[index];
-    if (!goods || !goods.skuId) return;
-    navigateToGoodsDetail(`/pages/goods/details/index?skuId=${goods.skuId}`);
+    if (!goods || !goods.spuId) return;
+    navigateToGoodsDetail(`/pages/goods/details/index?spuId=${encodeURIComponent(goods.spuId)}`);
   },
 
   onServiceNoCopy() {

@@ -3,6 +3,7 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import { createComment } from '../../../../services/comments/createComment';
 import { getApiErrorMessage } from '../../../../utils/api';
+import { resolveImage } from '../../../../utils/images';
 
 function decodeQueryValue(value) {
   const text = value == null ? '' : String(value);
@@ -30,10 +31,11 @@ Page({
     this.productId = options.productId || options.spuId || '';
     this.skuId = options.skuId || '';
     this.setData({
-      imgUrl: decodeQueryValue(options.imgUrl),
+      imgUrl: '',
       title: decodeQueryValue(options.title),
       goodsDetail: decodeQueryValue(options.specs),
     });
+    resolveImage(decodeQueryValue(options.imgUrl)).then((imgUrl) => this.setData({ imgUrl }));
   },
 
   handleSuccess(e) {

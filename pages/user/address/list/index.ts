@@ -7,6 +7,7 @@ import {
   deleteDeliveryAddress,
 } from '../../../../services/address/fetchAddress';
 import Toast from 'tdesign-miniprogram/toast/index';
+import { getApiErrorMessage } from '../../../../utils/api';
 import { getAddressPromise, resolveAddress, rejectAddress } from '../../../../services/address/list';
 
 const isTrueQueryValue = (value) => value === true || value === 1 || value === '1' || value === 'true';
@@ -69,7 +70,9 @@ Page({
       });
       this.hasLoaded = true;
       this.setData({ addressList });
-    }).catch(() => {});
+    }).catch((error) => {
+      Toast({ context: this, selector: '#t-toast', message: getApiErrorMessage(error, '地址加载失败，请重试'), icon: '' });
+    });
   },
   getWXAddressHandle() {
     wx.chooseAddress({

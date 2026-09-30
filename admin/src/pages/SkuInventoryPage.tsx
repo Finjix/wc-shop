@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useBlocker, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { EmptyState, ErrorState, LoadingState, Panel, Table } from '../components/Ui';
@@ -43,10 +43,10 @@ function SkuStockRow({ sku, product, draft, disabled, onChange }: {
 
 export function SkuInventoryPage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const selectedProductId = searchParams.get('productId') || '';
-  const [queryInput, setQueryInput] = useState('');
-  const [query, setQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const routeQuery = searchParams.get('query') || '';
+  const [queryInput, setQueryInput] = useState(routeQuery);
+  const [query, setQuery] = useState(routeQuery);
   const [page, setPage] = useState(1);
   const [refreshKey, setRefreshKey] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
@@ -58,20 +58,29 @@ export function SkuInventoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { setUnsavedChanges } = useOutletContext<AdminOutletContext>();
-  const dirty = Object.keys(stockDrafts).length > 0;
+  const stockChanges = Object.entries(stockDrafts).filter(([skuId, draft]) => {
+    const currentStock = skuCache[skuId] ? variantStock(skuCache[skuId]) : -1;
+    return !/^\d+$/.test(draft.value.trim()) || Number(draft.value) !== currentStock;
+  });
+  const dirty = stockChanges.length > 0;
   const blocker = useBlocker(dirty);
 
   useEffect(() => { setUnsavedChanges(dirty); return () => setUnsavedChanges(false); }, [dirty, setUnsavedChanges]);
+  useEffect(() => { setQueryInput(routeQuery); setQuery(routeQuery); setPage(1); }, [routeQuery]);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError('');
     const load = async () => {
-      const result = selectedProductId
-        ? { items: [await adminApi.call<Product>('products.get', { id: selectedProductId })], total: 1 }
-        : await adminApi.call<ListResult<Product>>('products.list', { page, pageSize: PAGE_SIZE, query: query || undefined });
-      if (selectedProductId && result.items[0]?.deletedByAdmin) throw new Error('该商品已删除');
+      const result = { items: [] as Product[], total: 0 };
+        for (let productPage = 1; ; productPage += 1) {
+          const batch = await adminApi.call<ListResult<Product>>('products.list', { page: productPage, pageSize: 100, query: query || undefined });
+          if (!active) return;
+          result.items.push(...batch.items);
+          if (!batch.items.length || (batch.total !== undefined ? result.items.length >= batch.total : batch.items.length < 100)) break;
+        }
+      result.total = result.items.length;
       const skuEntries = await Promise.all(result.items.map(async (product) => {
         const productId = String(product._id || product.spuId);
         const refs = Array.from(new Set([product._id, product.spuId].filter(Boolean).map(String)));
@@ -89,16 +98,36 @@ export function SkuInventoryPage() {
       if (active) setError(failure instanceof Error ? failure.message : 'SKU 读取失败');
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [selectedProductId, query, page, refreshKey]);
+  }, [query, refreshKey]);
+
+  const sortedProducts = useMemo(() => {
+    const minimumStock = (product: Product) => {
+      const stocks = (skusByProduct[String(product._id || product.spuId)] || []).map(variantStock).filter((stock) => stock >= 0);
+      return stocks.length ? Math.min(...stocks) : Infinity;
+    };
+    return [...products].sort((left, right) => {
+      const leftStock = minimumStock(left);
+      const rightStock = minimumStock(right);
+      return leftStock === rightStock ? 0 : leftStock < rightStock ? -1 : 1;
+    });
+  }, [products, skusByProduct]);
+  const pageProducts = sortedProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  useEffect(() => { if (!selectedProductId && page > pageCount) setPage(pageCount); }, [selectedProductId, page, pageCount]);
+  useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
   const search = () => {
     if (saving) return;
-    if (selectedProductId) setSearchParams({});
     setPage(1);
     setQuery(queryInput.trim());
   };
+  useEffect(() => {
+    if (saving || queryInput.trim() === query) return;
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setQuery(queryInput.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [queryInput, query, saving]);
   const updateSkuRecord = (skuId: string, updated: Sku) => {
     setSkuCache((old) => ({ ...old, [skuId]: { ...old[skuId], ...updated } }));
     setSkusByProduct((old) => Object.fromEntries(Object.entries(old).map(([productId, skus]) => [
@@ -109,7 +138,7 @@ export function SkuInventoryPage() {
   const changeStock = (sku: Sku, value: string) => {
     const skuId = String(sku._id || sku.skuId);
     const currentStock = variantStock(sku);
-    if (currentStock >= 0 && /^\d+$/.test(value.trim()) && Number(value) === currentStock) {
+    if (value === '') {
       setStockDrafts((old) => { const next = { ...old }; delete next[skuId]; return next; });
       return;
     }
@@ -120,7 +149,7 @@ export function SkuInventoryPage() {
   };
   const save = async (): Promise<boolean> => {
     if (saving || !dirty) return !dirty;
-    const changes = Object.entries(stockDrafts).map(([skuId, draft]) => ({ skuId, draft, sku: skuCache[skuId] }));
+    const changes = stockChanges.map(([skuId, draft]) => ({ skuId, draft, sku: skuCache[skuId] }));
     if (changes.some(({ sku }) => !sku)) {
       await MessagePlugin.error('部分 SKU 信息已失效，请刷新后重试');
       setRefreshKey((key) => key + 1);
@@ -193,23 +222,21 @@ export function SkuInventoryPage() {
     <div className="page-actions product-page-actions">
       <div className="product-page-search">
         <Input value={queryInput} disabled={saving} onChange={setQueryInput} onEnter={(_value, { e }) => { e.preventDefault(); search(); }} placeholder="搜索商品名称" aria-label="搜索商品名称" />
-        <Button theme="primary" disabled={saving} onClick={search}>搜索</Button>
       </div>
       <div className="sku-inventory-page-actions">
-        {selectedProductId && <Button variant="outline" disabled={saving} onClick={() => { setSearchParams({}); setQuery(''); setQueryInput(''); setPage(1); }}>查看全部 SKU</Button>}
         <Button theme="primary" loading={saving} disabled={!dirty || saving || loading} onClick={() => void save()}>保存</Button>
       </div>
     </div>
     {loading && <LoadingState />}
     {!loading && error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
     {!loading && !error && products.length === 0 && <Panel><EmptyState title={query ? '没有找到相关商品' : '暂无商品'} /></Panel>}
-    {!loading && !error && products.map((product) => {
+    {!loading && !error && pageProducts.map((product) => {
       const productId = String(product._id || product.spuId);
       const skus = skusByProduct[productId] || [];
       return <Panel className="sku-inventory-panel" key={productId}>
         <div className="panel-heading">
           <h3>{product.title || '未命名商品'}</h3>
-          <Button variant="text" disabled={saving} onClick={() => navigate(`/products?edit=${encodeURIComponent(productId)}`)}>编辑</Button>
+          <Button variant="text" disabled={saving} onClick={() => navigate(`/products/${encodeURIComponent(productId)}/edit`)}>编辑</Button>
         </div>
         {skus.length === 0 ? <EmptyState title="该商品暂无规格" /> : <Table minWidth={560}>
           <thead><tr><th>规格</th><th>当前库存</th><th>设置库存</th></tr></thead>
@@ -220,7 +247,7 @@ export function SkuInventoryPage() {
         </Table>}
       </Panel>;
     })}
-    {!selectedProductId && !loading && !error && total > 0 && <div className="product-list-pagination sku-inventory-pagination">
+    {!loading && !error && total > 0 && <div className="product-list-pagination sku-inventory-pagination">
       <div>
         <Button variant="outline" disabled={page <= 1 || saving} onClick={() => setPage((value) => value - 1)}>上一页</Button>
         <span>{page} / {pageCount} 页</span>

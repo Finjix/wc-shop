@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { request } from '../../utils/api';
+import { resolveOrderImages } from '../../utils/images';
 import { normalizeOrder } from './orderList';
 
 function dataOf(response) {
@@ -17,15 +18,15 @@ export function fetchOrderDetail(params = {}) {
     return Promise.reject(error);
   }
   const payload = typeof parameter === 'string' ? { orderNo: parameter } : parameter;
-  return request('orders.detail', payload).then((response) => {
+  return request('orders.detail', payload).then(async (response) => {
     const data = dataOf(response) || {};
     const order = data.order && typeof data.order === 'object' ? data.order : data;
-    const normalized = normalizeOrder({
+    const normalized = await resolveOrderImages(normalizeOrder({
       ...order,
       goodsAmountApp: order.goodsAmountApp ?? order.goodsAmount ?? order.totalAmount ?? 0,
       trajectoryVos: Array.isArray(order.trajectoryVos) ? order.trajectoryVos : order.trajectories || [],
       paymentVO: order.paymentVO || order.payment || {},
-    });
+    }));
     return { data: { ...normalized, orderItemVOs: normalized.orderItemVOs.map((goods) => ({ ...goods, goodsPaymentPrice: goods.goodsPaymentPrice ?? goods.actualPrice, itemPaymentAmount: goods.itemPaymentAmount ?? goods.actualPrice * goods.buyQuantity, buttonVOs: Array.isArray(goods.buttonVOs) ? goods.buttonVOs : [] })) } };
   });
 }

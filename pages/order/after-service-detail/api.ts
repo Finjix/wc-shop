@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { request } from '../../../utils/api';
+import { resolveRightsImages } from '../../../utils/images';
 import { formatTime } from '../../../utils/util';
 import {
   normalizeLogistics,
@@ -12,7 +13,7 @@ import {
 export { formatTime };
 
 export function getRightsDetail({ rightsNo }) {
-  return request('afterSales.detail', { rightsNo }).then((result) => {
+  return request('afterSales.detail', { rightsNo }).then(async (result) => {
     const data = result && result.data !== undefined ? result.data : result;
     const source = data && data.data && !Array.isArray(data.data) ? data.data : data;
     const record = Array.isArray(source)
@@ -34,14 +35,14 @@ export function getRightsDetail({ rightsNo }) {
       rightsImageUrls: sourceRights.rightsImageUrls || sourceRights.images || [],
     };
     return {
-      data: [{
+      data: [await resolveRightsImages({
         ...record,
         rights,
         rightsItem: (Array.isArray(record.rightsItem)
           ? record.rightsItem
           : Array.isArray(record.items) ? record.items : []).map(normalizeOrderItem),
         logisticsVO: normalizeLogistics(record.logisticsVO || record.logistics || {}),
-      }],
+      })],
     };
   });
 }

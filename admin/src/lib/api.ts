@@ -153,6 +153,7 @@ export async function uploadCloudFile(file: File, folder = 'admin/products') {
 }
 
 export async function getTempFileUrl(fileID: string) {
+  if (!/^(cloud|local):\/\//i.test(fileID)) return fileID;
   if (localApiUrl) {
     const result = await callLocal<Array<{ fileID: string; tempFileURL?: string }>>('storage.tempUrls', { fileList: [fileID] });
     return result?.[0]?.tempFileURL || fileID;

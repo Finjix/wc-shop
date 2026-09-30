@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { isPageNavigationEnabled } from '../../../config/navigation';
 
 /* eslint-disable no-param-reassign */
 import { getSearchResult } from '../../../services/good/fetchSearchResult';
@@ -28,6 +29,7 @@ Page({
     filter: initFilters,
     hasLoaded: false,
     keywords: '',
+    categoryId: '',
     searchInput: '',
     searchTitle: '',
     loadMoreStatus: 0,
@@ -54,7 +56,8 @@ Page({
       searchWidth: Math.max(menuButtonLeft - searchLeft - screenSideGap, 0),
     });
 
-    const { searchValue = '' } = options || {};
+    const { searchValue = '', categoryId = '', categoryName = '' } = options || {};
+    const decode = (value) => { try { return decodeURIComponent(value); } catch { return value; } };
     let keyword = searchValue;
     try {
       keyword = decodeURIComponent(searchValue);
@@ -64,8 +67,9 @@ Page({
     this.setData(
       {
         keywords: keyword,
+        categoryId: decode(categoryId),
         searchInput: keyword,
-        searchTitle: keyword || '搜索',
+        searchTitle: keyword || decode(categoryName) || '搜索',
       },
       () => {
         this.init(true);
@@ -82,6 +86,7 @@ Page({
       pageNum: 1,
       pageSize: 30,
       keyword: keywords,
+      categoryId: this.data.categoryId || undefined,
     };
 
     if (sorts) {
@@ -153,6 +158,7 @@ Page({
   },
 
   handleCartTap() {
+    if (!isPageNavigationEnabled('/pages/cart/index')) return;
     wx.switchTab({
       url: '/pages/cart/index',
     });
