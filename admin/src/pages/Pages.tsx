@@ -241,7 +241,7 @@ export function OverviewPage() {
   };
   return <>
     <div className="overview-page">
-    <h1 className="overview-title">盛途优品后台管理系统 v260927</h1>
+    <h1 className="overview-title">盛途优品后台管理系统 v260930</h1>
     {loading && <LoadingState />}
     {error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
     {!loading && !error && <>
