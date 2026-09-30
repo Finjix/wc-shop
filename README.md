@@ -36,7 +36,7 @@ npm --prefix admin run dev -- --host 127.0.0.1 --port 5173
 
 当前 `config/runtime.ts` 已打开本地小程序接口，地址为 `http://127.0.0.1:8787`；管理后台使用 `admin/.env.local` 中的 `VITE_LOCAL_API_URL`。本地后台默认管理员账号为 `admin`，密码为 `admin`，仅用于本地调试。微信开发者工具需要勾选“不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书”。发布前将 `useLocalBackend` 改回 `false`，并移除后台的 `VITE_LOCAL_API_URL`。
 
-本地上传图片保存在项目根目录的 `.local-files/` 下，本地数据库保存在 `.local-data/.local-backend.json`，两者均已加入 Git 忽略规则。启动时自动复制原用户目录及旧项目目录中的数据和图片，保留原文件且不覆盖已有数据。`.local-data/` 已排除小程序打包，也可以通过 `LOCAL_BACKEND_DATA_DIR` 指定数据库目录。
+本地数据库和上传图片保存在用户目录的 `.wc-shop/runtime/<项目路径标识>/` 下，分别为 `.local-backend.json` 和 `.local-files/`。运行时写入项目目录会触发微信开发者工具自动热重载，导致加购、删除等操作后重新回到首页，因此默认将数据放在项目目录外。首次启动会复制项目里的 `.local-data/`、`.local-files/` 和旧目录中的数据，保留原文件且不覆盖已迁移的数据。可通过 `LOCAL_BACKEND_DATA_DIR` 指定运行时数据目录，请选择项目目录外的位置。
 
 ## 部署包
 

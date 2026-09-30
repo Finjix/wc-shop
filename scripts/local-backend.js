@@ -17,7 +17,7 @@ const port = Number(process.env.LOCAL_BACKEND_PORT || 8787);
 const host = process.env.LOCAL_BACKEND_HOST || '127.0.0.1';
 const publicHost = host === '0.0.0.0' ? '127.0.0.1' : host;
 const baseUrl = `http://${publicHost}:${port}`;
-// Local runtime data stays in the project; exclude .local-data from mini-program packaging.
+// Keep runtime writes outside the project to avoid triggering DevTools hot reload.
 const { dataFile, filesRoot } = prepareLocalStorage(root, process.env.LOCAL_BACKEND_DATA_DIR);
 const collectionNames = ['categories', 'products', 'skus', 'addresses', 'carts', 'orders', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings', 'adminMembers'];
 
