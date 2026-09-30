@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 const crypto = require('crypto');
-const { toPublicError } = require('./errors');
+const { AppError, toPublicError } = require('./errors');
 
 function requestId() {
   return typeof crypto.randomUUID === 'function'
@@ -32,7 +32,9 @@ async function runEndpoint(endpoint, event, context, runtime) {
   try {
     return { ...ok(await endpoint(event, context, runtime), id), requestId: id };
   } catch (error) {
-    if (!(error && error.code)) console.error(`[${id}]`, error);
+    // SDK failures also carry a code. Keep their cause in server logs instead
+    // of silently replacing it with the public business error.
+    if (!(error instanceof AppError)) console.error(`[${id}]`, error);
     return fail(error, id);
   }
 }

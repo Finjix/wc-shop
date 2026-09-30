@@ -3,6 +3,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const cloudRequire = createRequire(path.resolve(process.argv[2] || path.join(__dirname, '../cloudfunctions'), 'package.json'));
+const { setDoc } = require('../cloudfunctions/.build/shared/db');
 
 async function run() {
   const set = cloudRequire('lodash.set');
@@ -24,6 +25,11 @@ async function run() {
     request.on('end', () => {
       invocation = JSON.parse(body);
       response.setHeader('Content-Type', 'application/json');
+      if (invocation.action === 'database.modifyDocument') {
+        assert.equal(JSON.parse(invocation.data)._id, undefined);
+        response.end(JSON.stringify({ data: { updated: 0, upsert_id: 'home.page-config' }, requestId: 'write-test' }));
+        return;
+      }
       response.end(JSON.stringify({ data: { response_data: '{"ok":true}' }, requestId: 'dependency-test' }));
     });
   });
@@ -35,6 +41,12 @@ async function run() {
     const db = app.database();
     assert.equal(typeof db.runTransaction, 'function');
     assert.equal(typeof db.collection('orders').where({ status: db.command.in(['paid', 'shipped']) }).get, 'function');
+    await assert.rejects(() => db.collection('homeContents').doc('home.page-config').set({ _id: 'home.page-config', title: 'home' }),
+      (error) => error.message.includes('不能更新_id'));
+    const document = { _id: 'home.page-config', title: 'home' };
+    const saved = await setDoc(db.collection('homeContents'), document._id, document);
+    assert.equal(saved.upsertedId, document._id);
+    assert.equal(document._id, 'home.page-config');
     const result = await app.callFunction({ name: 'compatibility-test', data: { quantity: 2 } });
     assert.deepEqual(result.result, { ok: true });
     assert.equal(invocation.action, 'functions.invokeFunction');

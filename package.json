@@ -17,7 +17,7 @@
     "check": "node config/eslintCheck.js && npm run typecheck && npm run typecheck:cloud && npm run build:admin",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
     "test:loading": "node scripts/test-loading.cjs",
-    "test:cloud-dependencies": "node scripts/test-cloud-dependencies.cjs"
+    "test:cloud-dependencies": "tsc -p cloudfunctions/tsconfig.json && node scripts/test-cloud-dependencies.cjs"
   },
   "author": "",
   "license": "ISC",

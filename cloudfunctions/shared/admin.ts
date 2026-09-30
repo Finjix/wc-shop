@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { COLLECTIONS, STATUS, ORDER_STATUS, AFTER_SALE_STATUS } = require('./constants');
 const { errorFrom } = require('./errors');
 const { requireAdmin } = require('./auth');
-const { getDoc, list, count, affected, withTransaction } = require('./db');
+const { getDoc, setDoc, list, count, affected, withTransaction } = require('./db');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
@@ -134,7 +134,7 @@ async function saveProductWithVariants(runtime, data) {
       if (skuStock(latest) !== variant.expectedStockQuantity) throw errorFrom('CONFLICT', { field: 'stockQuantity', skuId: variant.skuId });
     }
     if (current) await txProducts.doc(productId).update(patch);
-    else await txProducts.doc(productId).set({ _id: productId, spuId: productId, status: STATUS.active, createdAt: timestamp, ...patch });
+    else await setDoc(txProducts, productId, { _id: productId, spuId: productId, status: STATUS.active, createdAt: timestamp, ...patch });
     const kept = new Set();
     for (let index = 0; index < variants.length; index += 1) {
       const variant = variants[index];
@@ -147,7 +147,7 @@ async function saveProductWithVariants(runtime, data) {
       if (old) {
         if (variant.stockQuantity !== undefined) skuPatch.stockQuantity = variant.stockQuantity;
         await txSkus.doc(skuId).update(skuPatch);
-      } else await txSkus.doc(skuId).set({ _id: skuId, skuId, stockQuantity: variant.stockQuantity ?? 999, skuImage: variant.skuImage || '', soldQuantity: 0, createdAt: timestamp, ...skuPatch });
+      } else await setDoc(txSkus, skuId, { _id: skuId, skuId, stockQuantity: variant.stockQuantity ?? 999, skuImage: variant.skuImage || '', soldQuantity: 0, createdAt: timestamp, ...skuPatch });
     }
     for (const old of existingSkus) {
       const skuId = String(old._id || old.skuId);
@@ -448,7 +448,7 @@ async function homeAction(runtime, data, action) {
   }
   if (!existing) {
     const item = { _id: key, ...patch, status: statusValue(patch.status, STATUS.active), createdAt: now() };
-    await home.doc(key).set(item);
+    await setDoc(home, key, item);
     return item;
   }
   await home.doc(key).update(patch);
@@ -638,7 +638,7 @@ async function settingsAction(runtime, data, action) {
   if (action !== 'settings.upsert') throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
   const item = { _id: key, key, value: clone(data.value), description: optionalString(data.description, 'description', { max: 240 }) || '', updatedAt: now() };
   if (existing) await settings.doc(key).update(item);
-  else await settings.doc(key).set({ ...item, createdAt: now() });
+  else await setDoc(settings, key, { ...item, createdAt: now() });
   return item;
 }
 

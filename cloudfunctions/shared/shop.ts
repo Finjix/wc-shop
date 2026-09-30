@@ -5,7 +5,7 @@ const {
   COLLECTIONS, STATUS,
 } = require('./constants');
 const { errorFrom } = require('./errors');
-const { getDoc, list, all, count, listData, affected, withTransaction } = require('./db');
+const { getDoc, setDoc, list, all, count, listData, affected, withTransaction } = require('./db');
 const { HOME_CONFIG_SLOT, productIds } = require('./home-config');
 const { requireUser } = require('./auth');
 const { getTempFileURLs } = require('./storage');
@@ -241,7 +241,7 @@ async function searchHistoryAction(runtime, event, context, data, action) {
   if (action === 'searchHistory.add') {
     const id = `search_${crypto.createHash('sha256').update(`${identity.uid}:${keyword.toLowerCase()}`).digest('hex').slice(0, 32)}`;
     const item = { _id: id, userId: identity.uid, keyword, updatedAt: now() };
-    await histories.doc(id).set(item);
+    await setDoc(histories, id, item);
     return item;
   }
   if (action === 'searchHistory.remove') {
@@ -295,14 +295,14 @@ async function addressAction(runtime, event, context, data, action) {
     const existingAddresses = await list(addresses, { where: { userId: identity.uid }, limit: 100, includeTotal: false });
     const item = { _id: id, ...addressInput(data), userId: identity.uid, isDefault: Boolean(data.isDefault) || existingAddresses.items.length === 0, createdAt: timestamp, updatedAt: timestamp };
     if (!item.isDefault) {
-      await addresses.doc(id).set(item);
+      await setDoc(addresses, id, item);
       return item;
     }
     return withTransaction(runtime.db, async (tx) => {
       for (const address of existingAddresses.items) {
         await tx.collection(COLLECTIONS.addresses).doc(address._id).update({ isDefault: false, updatedAt: timestamp });
       }
-      await tx.collection(COLLECTIONS.addresses).doc(id).set(item);
+      await setDoc(tx.collection(COLLECTIONS.addresses), id, item);
       return item;
     });
   }
@@ -376,7 +376,7 @@ async function cartAction(runtime, event, context, data, action) {
     const currentItems = current && Array.isArray(current.items) ? current.items.map((item) => ({ ...item })) : [];
     const items = await transform(currentItems);
     const saved = { _id: identity.uid, userId: identity.uid, items, updatedAt: now() };
-    await tx.collection(COLLECTIONS.carts).doc(identity.uid).set(saved);
+    await setDoc(tx.collection(COLLECTIONS.carts), identity.uid, saved);
     return saved;
   });
   const present = async (cart) => {
@@ -665,12 +665,12 @@ async function createOrder(runtime, event, context, data) {
       createdAt: timestamp,
       updatedAt: timestamp,
     };
-    await orders.doc(orderId).set(order);
+    await setDoc(orders, orderId, order);
     if (cart) {
       const storedCart = await getDoc(tx.collection(COLLECTIONS.carts), identity.uid, false);
       const orderedSkuIds = new Set(draft.items.map((item) => String(item.skuId)));
       const remaining = (storedCart?.items || []).filter((item) => !item.isSelected || !orderedSkuIds.has(String(item.skuId)));
-      await tx.collection(COLLECTIONS.carts).doc(identity.uid).set({ _id: identity.uid, userId: identity.uid, items: remaining, updatedAt: timestamp });
+      await setDoc(tx.collection(COLLECTIONS.carts), identity.uid, { _id: identity.uid, userId: identity.uid, items: remaining, updatedAt: timestamp });
     }
     return order;
   });
@@ -944,7 +944,7 @@ async function commentsAction(runtime, event, context, data, action) {
     if (commentedProductIds.includes(productId)) throw errorFrom('CONFLICT', { field: 'comment' });
     commentedProductIds.push(productId);
     const saved = { ...comment, _id: id };
-    await comments.doc(id).set(saved);
+    await setDoc(comments, id, saved);
     await orders.doc(current._id || orderId).update({
       commentedProductIds,
       hasPendingComments: (current.items || []).some((item) => !commentedProductIds.includes(item.productId)),
@@ -1066,7 +1066,7 @@ async function afterSalesAction(runtime, event, context, data, action) {
     const item = { _id: id, rightsNo: id, userId: identity.uid, orderId: current._id || orderId, orderNo: current.orderNo || orderId,
       productId: productIds[0], productIds, type, reason, description, images, items,
       amount, refundRequestAmount: amount, status: STATUS.pendingReview, createdAt: timestamp, updatedAt: timestamp };
-    await txAfterSales.doc(id).set(item);
+    await setDoc(txAfterSales, id, item);
     await orders.doc(current._id || orderId).update({ afterSaleIds: [...priorIds, id], updatedAt: timestamp });
     return item;
   });

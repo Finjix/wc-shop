@@ -34,6 +34,8 @@ function errorFrom(code, details) {
 }
 
 function isNotFound(error) {
+  // Missing runtime packages/files are deployment failures, not missing data.
+  if (error && (error.code === 'MODULE_NOT_FOUND' || error.code === 'ERR_MODULE_NOT_FOUND' || error.code === 'ENOENT')) return false;
   const text = `${error && error.code ? error.code : ''} ${error && error.message ? error.message : ''}`.toLowerCase();
   return text.includes('not found') || text.includes('not_found') || text.includes('document does not exist');
 }

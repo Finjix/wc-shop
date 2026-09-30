@@ -105,10 +105,16 @@ async function all(collection, where = {}) {
   }
 }
 
+function setDoc(collection, id, document) {
+  // doc(id) determines the primary key; CloudBase rejects _id in set data.
+  const { _id, ...data } = document;
+  return collection.doc(id).set(data);
+}
+
 async function count(collection, where = {}) {
   const ref = safeQuery(collection, where);
   if (typeof ref.count === 'function') return Number((await ref.count()).total) || 0;
   return (await all(collection, where)).length;
 }
 
-module.exports = { resultData, listData, affected, getDoc, safeQuery, list, all, count, withTransaction };
+module.exports = { resultData, listData, affected, getDoc, setDoc, safeQuery, list, all, count, withTransaction };

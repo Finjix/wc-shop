@@ -11,6 +11,16 @@ const { adminEndpoint } = require('../shared/admin');
 const { page } = require('../shared/validation');
 const { validateHomeConfig, DEFAULT_SEARCH_TEXT, DEFAULT_BANNER_TEXT } = require('../shared/home-config');
 const { processImageBuffer, processStagedImage, MAX_IMAGE_BYTES } = require('../shared/image-upload');
+const { isNotFound, toPublicError } = require('../shared/errors');
+
+function testMissingDependenciesAreNotMissingData() {
+  for (const code of ['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND', 'ENOENT']) {
+    const error = Object.assign(new Error("Cannot find module 'lodash/set'"), { code });
+    assert.strictEqual(isNotFound(error), false);
+    assert.strictEqual(toPublicError(error).code, 'INTERNAL_ERROR');
+  }
+  assert.strictEqual(isNotFound(new Error('document does not exist')), true);
+}
 
 async function testImageUploads() {
   const png = await sharp({ create: { width: 1200, height: 1500, channels: 3, background: '#c87a2b' } }).png().toBuffer();
@@ -107,7 +117,8 @@ function makeRuntime() {
             return { data: value ? [value] : [] };
           },
           async set(value) {
-            bucket[key] = value;
+            assert.strictEqual(Object.prototype.hasOwnProperty.call(value, '_id'), false, 'CloudBase rejects _id in doc.set data');
+            bucket[key] = { ...value, _id: key };
             writes.push({ operation: 'set', collection: name, id: key });
             return { upserted: 1 };
           },
@@ -868,6 +879,7 @@ async function testDashboardCountsBeyondSdkQueryLimit() {
 }
 
 const cases = [
+  { name: 'missing runtime dependencies are not reported as missing business data', run: testMissingDependenciesAreNotMissingData },
   { name: 'only explicitly active administrators can access the backend', run: testOnlyActiveAdminsAreAllowed },
   { name: 'order prices, product snapshots and addresses are confirmed in the transaction', run: testOrderPricesAndSnapshotsAreConfirmedInTransaction },
   { name: 'expired details and timer batches release inventory with trusted trigger context', run: testExpiryAndTimerAuthorization },
