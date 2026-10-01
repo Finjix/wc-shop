@@ -10,6 +10,7 @@
     "typecheck:cloud": "tsc -p cloudfunctions/tsconfig.json",
     "build:cloudfunction": "tsc -p cloudfunctions/tsconfig.json",
     "test:cloud": "tsc -p cloudfunctions/tsconfig.json && node cloudfunctions/.build/tests/run.js",
+    "test:admin-upload": "node scripts/test-admin-upload.cjs",
     "test:checkout": "node scripts/test-checkout.cjs",
     "dev:local-backend": "npm run build:cloudfunction && node scripts/local-backend.js",
     "build:admin": "npm --prefix admin run build",

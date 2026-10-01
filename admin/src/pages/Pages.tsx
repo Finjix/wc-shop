@@ -241,7 +241,7 @@ export function OverviewPage() {
   };
   return <>
     <div className="overview-page">
-    <h1 className="overview-title">盛途优品后台管理系统 v260930</h1>
+    <h1 className="overview-title">盛途优品后台管理系统 v261001</h1>
     {loading && <LoadingState />}
     {error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
     {!loading && !error && <>
@@ -708,7 +708,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
          <div className="product-detail-image-upload"><div className="image-file-picker">
            <button type="button" disabled={draft.detailImages.length >= 6 || Boolean(uploading)} onClick={() => detailInputRef.current?.click()}>选择文件</button>
            <span>{draft.detailImages.length ? `已上传 ${draft.detailImages.length} 张` : '未选择文件'}</span>
-           <input ref={detailInputRef} className="image-file-picker-input" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple disabled={Boolean(uploading)} aria-label="选择商品详情图片"
+           <input ref={detailInputRef} className="image-file-picker-input" type="file" accept="image/*" multiple disabled={Boolean(uploading)} aria-label="选择商品详情图片"
              onChange={(event) => { const files = Array.from(event.target.files || []); event.target.value = ''; void uploadDetails(files); }} />
          </div>{uploading === 'details' && <small>正在上传详情图片 {detailUploadProgress}</small>}</div>
        </div>

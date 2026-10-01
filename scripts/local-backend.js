@@ -345,7 +345,8 @@ async function saveUpload(request) {
   if (!file || !file.length) throw errorFrom('INVALID_ARGUMENT');
   const image = await processImageBuffer(file, fileName);
   const folder = safeRelativePart(fields.folder, 'uploads');
-  const name = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.webp`;
+  const safeName = String(fileName || 'image').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const name = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeName}`;
   const relative = `${folder}/${name}`;
   const destination = path.resolve(filesRoot, relative);
   if (!destination.startsWith(`${path.resolve(filesRoot)}${path.sep}`)) throw errorFrom('FORBIDDEN');

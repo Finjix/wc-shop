@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { Button, Loading } from 'tdesign-react';
+import { Button } from 'tdesign-react';
 
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <section className={`panel ${className}`}>{children}</section>;
@@ -10,7 +10,7 @@ export function EmptyState({ title, action }: { title?: string; description?: st
 }
 
 export function LoadingState() {
-  return <div className="loading-state"><Loading size="small" /> 读取中…</div>;
+  return <div className="loading-state" role="status" aria-live="polite">读取中…</div>;
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
@@ -30,7 +30,7 @@ export function ImageFilePicker({ onSelect, disabled = false }: { onSelect: (fil
   return <div className="image-file-picker">
     <button type="button" disabled={disabled} onClick={() => inputRef.current?.click()}>选择文件</button>
     <span>{fileName}</span>
-    <input ref={inputRef} className="image-file-picker-input" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" disabled={disabled} tabIndex={-1}
+    <input ref={inputRef} className="image-file-picker-input" type="file" accept="image/*" disabled={disabled} tabIndex={-1}
       onChange={(event) => {
         const file = event.target.files?.[0];
         event.target.value = '';

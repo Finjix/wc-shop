@@ -1,5 +1,5 @@
 /**
- * 业务层兼容入口：所有请求都经过 CloudBase 云函数，不再包含本地数据分支。
+ * 业务层统一 API 入口：请求按 config/runtime.ts 配置发送到本地开发服务或 CloudBase。
  */
 export {
   ApiError,

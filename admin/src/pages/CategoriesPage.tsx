@@ -250,7 +250,7 @@ export function CategoriesPage() {
             </div>}
           </div>)}
         </div>
-        <input ref={imageInputRef} className="image-file-picker-input" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" aria-label="选择二级类别图片" onChange={(event) => {
+        <input ref={imageInputRef} className="image-file-picker-input" type="file" accept="image/*" aria-label="选择二级类别图片" onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = '';
           if (file && imageTargetRef.current) void uploadImage(imageTargetRef.current, file);

@@ -118,10 +118,7 @@ export async function callAdmin<T>(action: string, payload: Record<string, unkno
 }
 
 export async function uploadCloudFile(file: File, folder = 'admin/products') {
-  if ((file.type && !/^image\/(jpeg|png|webp)$/i.test(file.type)) || !/\.(jpe?g|png|webp)$/i.test(file.name)) {
-    throw new ApiError('只能上传 JPG、PNG 或 WebP 图片');
-  }
-  if (file.size > 10 * 1024 * 1024) throw new ApiError('图片不能超过 10MB');
+  if (file.size > 3 * 1024 * 1024) throw new ApiError('图片不能超过 3MB');
   if (file.size === 0) throw new ApiError('图片文件为空');
   if (localApiUrl) {
     const body = new FormData();
@@ -137,19 +134,14 @@ export async function uploadCloudFile(file: File, folder = 'admin/products') {
   }
   if (!cloudbaseApp) throw new ApiError('未配置 CloudBase 环境 ID，无法上传图片。');
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const cloudPath = `pending/${folder}/${Date.now()}-${safeName}`;
+  const cloudPath = `${folder}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
   const result = await cloudbaseApp.uploadFile({
     cloudPath,
-    filePath: file.name,
-    fileContent: file,
+    // The Web adapter sends filePath as the request body. SDK typings still
+    // declare a string here for native runtimes, but browsers require the File.
+    filePath: file as unknown as string,
   });
-  try {
-    const processed = await callAdmin<{ fileID: string }>('storage.processImage', { fileID: result.fileID });
-    return processed.fileID;
-  } catch (error) {
-    try { await cloudbaseApp.deleteFile({ fileList: [result.fileID] }); } catch { /* Keep the original upload error. */ }
-    throw error;
-  }
+  return result.fileID;
 }
 
 export async function getTempFileUrl(fileID: string) {

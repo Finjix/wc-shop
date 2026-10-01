@@ -39,7 +39,7 @@
       <t-icon name="chevron-right" size="40rpx" color="#695941" />
     </button>
   </view>
-  <view class="footer__version">Finjix 提供技术支持 v260930</view>
+  <view class="footer__version">Finjix 提供技术支持 v261001</view>
 </view>
 </scroll-view>
 <t-toast id="t-toast" />

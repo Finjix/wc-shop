@@ -23,32 +23,34 @@ function testMissingDependenciesAreNotMissingData() {
 }
 
 async function testImageUploads() {
+  assert.strictEqual(MAX_IMAGE_BYTES, 3 * 1024 * 1024);
   const png = await sharp({ create: { width: 1200, height: 1500, channels: 3, background: '#c87a2b' } }).png().toBuffer();
-  const converted = await processImageBuffer(png, 'photo.png');
-  const metadata = await sharp(converted).metadata();
-  assert.strictEqual(metadata.format, 'webp');
-  assert.deepStrictEqual([metadata.width, metadata.height], [1080, 1350]);
-  const jpeg = await sharp({ create: { width: 480, height: 240, channels: 3, background: '#9d9d9d' } }).jpeg().toBuffer();
-  assert.strictEqual((await sharp(await processImageBuffer(jpeg, 'photo.jpg')).metadata()).format, 'webp');
-  const webp = await sharp({ create: { width: 300, height: 500, channels: 3, background: '#3467ab' } }).webp().toBuffer();
-  assert.strictEqual(await processImageBuffer(webp, 'photo.webp'), webp);
-  const largeWebp = await sharp({ create: { width: 1300, height: 2600, channels: 3, background: '#3467ab' } }).webp().toBuffer();
-  const resizedWebp = await sharp(await processImageBuffer(largeWebp, 'large.webp')).metadata();
-  assert.deepStrictEqual([resizedWebp.width, resizedWebp.height], [1080, 2160]);
-  await assert.rejects(() => processImageBuffer(png, 'photo.gif'), appError('IMAGE_FORMAT'));
-  await assert.rejects(() => processImageBuffer(png, 'photo.jpg'), appError('IMAGE_FORMAT'));
+  const original = await processImageBuffer(png, 'photo.PNG');
+  assert.strictEqual(original, png);
+  const metadata = await sharp(original).metadata();
+  assert.strictEqual(metadata.format, 'png');
+  assert.deepStrictEqual([metadata.width, metadata.height], [1200, 1500]);
+  for (const extension of ['jpg', 'JPEG', 'webp', 'GIF', 'svg', 'bmp', 'avif', 'heic', 'tiff', 'ico', 'psd']) {
+    const bytes = Buffer.from(`Original ${extension} image bytes`);
+    assert.strictEqual(await processImageBuffer(bytes, `photo.${extension}`), bytes);
+  }
+  const boundary = Buffer.alloc(MAX_IMAGE_BYTES);
+  assert.strictEqual(await processImageBuffer(boundary, 'photo.gif'), boundary);
   await assert.rejects(() => processImageBuffer(Buffer.alloc(MAX_IMAGE_BYTES + 1), 'photo.png'), appError('IMAGE_TOO_LARGE'));
+  await assert.rejects(() => processImageBuffer(Buffer.alloc(0), 'photo.png'), appError('IMAGE_FORMAT'));
   const calls = [];
   const runtime = { app: {
     downloadFile: async ({ fileID }) => { calls.push(['download', fileID]); return { fileContent: png }; },
-    uploadFile: async ({ cloudPath, fileContent }) => { calls.push(['upload', cloudPath]); assert.strictEqual((await sharp(fileContent).metadata()).format, 'webp'); return { fileID: `cloud://test/${cloudPath}` }; },
+    uploadFile: async ({ cloudPath, fileContent }) => { calls.push(['upload', cloudPath]); assert.strictEqual(fileContent, png); return { fileID: `cloud://test/${cloudPath}` }; },
     deleteFile: async ({ fileList }) => { calls.push(['delete', fileList[0]]); },
   } };
   const result = await processStagedImage(runtime, 'cloud://test/pending/user/comments/photo.png', ['user/comments']);
-  assert.match(result.fileID, /^cloud:\/\/test\/user\/comments\/.+\.webp$/);
+  assert.match(result.fileID, /^cloud:\/\/test\/user\/comments\/.+-photo\.png$/);
   assert.deepStrictEqual(calls.map((call) => call[0]), ['download', 'upload', 'delete']);
-  const categoryImage = await processStagedImage(runtime, 'cloud://test/pending/admin/categories/photo.png', ['admin/categories']);
-  assert.match(categoryImage.fileID, /^cloud:\/\/test\/admin\/categories\/.+\.webp$/);
+  for (const extension of ['png', 'PNG', 'PnG', 'GIF', 'avif', 'svg', 'heic']) {
+    const staged = await processStagedImage(runtime, `cloud://test/pending/admin/categories/photo.${extension}`, ['admin/categories']);
+    assert.ok(staged.fileID.endsWith(`-photo.${extension}`));
+  }
   await assert.rejects(() => processStagedImage(runtime, 'cloud://test/pending/admin/products/photo.png', ['user/comments']), appError('FORBIDDEN'));
 }
 
@@ -888,7 +890,7 @@ const cases = [
   { name: 'image filtering precedes comment pagination and total counting', run: testImageFilterPrecedesCommentPagination },
   { name: 'after-sales validate SKU, quantity, amount and serialize concurrent claims', run: testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims },
   { name: 'dashboard counts are complete beyond the SDK default query limit', run: testDashboardCountsBeyondSdkQueryLimit },
-  { name: 'image uploads validate format, size, conversion and staging', run: testImageUploads },
+  { name: 'image uploads preserve original bytes and enforce the 3MB boundary', run: testImageUploads },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
   { name: 'product save manages SKU inventory and images without SKU status', run: testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus },
   { name: 'SKU inventory is set separately and stale updates conflict', run: testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt },

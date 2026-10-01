@@ -61,7 +61,7 @@ wx.cloud.callFunction({
 - `settings.list/get/upsert`
 - `storage.tempUrls`、`storage.processImage`
 
-商品图片、SKU 图片、首页轮播图和评论图片字段保存 CloudBase `fileId`。客户端先将 JPG、PNG 或 WebP 图片上传到 `pending/`，再调用 `storage.processImage`；云函数校验原图不超过 10MB，非 WebP 转为 WebP，最短边超过 1080 像素时等比缩小至 1080 像素，并返回正式文件 ID。本地后台的 `/upload` 执行相同处理。云端安装依赖需包含 Sharp 的 Linux 原生包。
+商品图片、SKU 图片、首页轮播图和评论图片字段保存 CloudBase `fileId`。客户端允许任意图片格式，上传前检查非空且不超过 3MB（3,145,728 字节），然后直接上传原文件到正式目录；不再调用图片转换云函数，也不压缩、缩放、旋转或转换格式。原始字节、扩展名和动画均保留。本地 `/upload` 使用相同大小限制并原样保存。`storage.processImage` 仅为旧客户端保留，校验 3MB 上限后原样转存。已有图片保持不变。
 
 ## 订单和库存边界
 
