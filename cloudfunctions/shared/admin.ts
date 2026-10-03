@@ -9,7 +9,30 @@ const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
 const { skuPrice, skuStock } = require('./shop');
-const { HOME_CONFIG_SLOT, validateHomeConfig } = require('./home-config');
+const { HOME_CONFIG_SLOT, validateHomeConfig, productIds: homeProductIds } = require('./home-config');
+
+async function clearHomeProductLinks(tx, product, id, timestamp) {
+  const home = tx.collection(COLLECTIONS.homeContents);
+  const config = await getDoc(home, HOME_CONFIG_SLOT, false);
+  if (!config?.payload) return;
+  const ids = new Set([id, product._id, product.spuId].filter(Boolean).map(String));
+  const payload = clone(config.payload);
+  let changed = false;
+  for (const item of [...(payload.banners || []), ...(payload.promos || [])]) {
+    if (ids.has(String(item.productId || ''))) {
+      item.productId = '';
+      changed = true;
+    }
+  }
+  for (const section of payload.sections || []) {
+    section.productIds = (section.productIds || []).map((productId) => {
+      if (!ids.has(String(productId))) return productId;
+      changed = true;
+      return '';
+    });
+  }
+  if (changed) await home.doc(HOME_CONFIG_SLOT).update({ payload, updatedAt: timestamp });
+}
 
 function now() { return new Date().toISOString(); }
 function col(runtime, name) { return runtime.db.collection(name); }
@@ -133,6 +156,7 @@ async function saveProductWithVariants(runtime, data) {
       const latest = await getDoc(txSkus, variant.skuId, true);
       if (skuStock(latest) !== variant.expectedStockQuantity) throw errorFrom('CONFLICT', { field: 'stockQuantity', skuId: variant.skuId });
     }
+    if (current && patch.status === STATUS.inactive) await clearHomeProductLinks(tx, current, productId, timestamp);
     if (current) await txProducts.doc(productId).update(patch);
     else await setDoc(txProducts, productId, { _id: productId, spuId: productId, status: STATUS.active, createdAt: timestamp, ...patch });
     const kept = new Set();
@@ -309,7 +333,7 @@ async function catalogAction(runtime, data, action) {
       const field = entity === 'skus' ? 'skuId' : entity === 'products' ? 'title' : 'name';
       where[field] = runtime.db.RegExp({ regexp: escapeRegExp(keyword), options: 'i' });
     }
-    const fallbackProductList = entity === 'products' && !runtime.db.command?.neq;
+    const fallbackProductList = entity === 'products' && (data.inactiveFirst === true || !runtime.db.command?.neq);
     let result;
     if (fallbackProductList) {
       const paging = page(data);
@@ -321,6 +345,10 @@ async function catalogAction(runtime, data, action) {
       const orderField = data.orderBy || 'updatedAt';
       const direction = data.direction === 'asc' ? 1 : -1;
       items.sort((a, b) => {
+        if (data.inactiveFirst === true) {
+          const priority = Number(a.status === STATUS.active) - Number(b.status === STATUS.active);
+          if (priority) return priority;
+        }
         const left = a[orderField];
         const right = b[orderField];
         const comparison = typeof left === 'number' && typeof right === 'number'
@@ -375,7 +403,12 @@ async function catalogAction(runtime, data, action) {
   if (action.endsWith('.delete')) {
     if (entity === 'products') {
       const timestamp = now();
-      await collection.doc(id).update({ status: STATUS.inactive, deletedByAdmin: true, updatedAt: timestamp });
+      await withTransaction(runtime.db, async (tx) => {
+        const products = tx.collection(COLLECTIONS.products);
+        const product = await getDoc(products, id, true);
+        await clearHomeProductLinks(tx, product, id, timestamp);
+        await products.doc(id).update({ status: STATUS.inactive, deletedByAdmin: true, updatedAt: timestamp });
+      });
       return { ...existing, status: STATUS.inactive, deletedByAdmin: true, _id: id };
     }
     if (entity === 'skus') {
@@ -405,7 +438,14 @@ async function catalogAction(runtime, data, action) {
     if (patch.stockQuantity !== undefined) patch.stockQuantity = integer(patch.stockQuantity, 'stockQuantity', { min: 0 });
   }
   patch.updatedAt = now();
-  await collection.doc(id).update(patch);
+  if (entity === 'products' && patch.status === STATUS.inactive) {
+    await withTransaction(runtime.db, async (tx) => {
+      const products = tx.collection(COLLECTIONS.products);
+      const product = await getDoc(products, id, true);
+      await clearHomeProductLinks(tx, product, id, patch.updatedAt);
+      await products.doc(id).update(patch);
+    });
+  } else await collection.doc(id).update(patch);
   if (entity === 'skus') await syncProductPrices(runtime, { ...existing, ...patch, _id: id });
   return entity === 'skus' ? { ...withoutSkuStatus(existing), ...patch, _id: id } : { ...existing, ...patch, _id: id };
 }
@@ -440,7 +480,20 @@ async function homeAction(runtime, data, action) {
   const keySource = data.contentId || data.id || data.slot || (action !== 'home.get' ? `home_${Date.now()}` : undefined);
   const key = string(keySource, 'contentId', { max: 128 });
   const existing = await getDoc(home, key, false);
-  if (action === 'home.get') return existing || (() => { throw errorFrom('NOT_FOUND'); })();
+  if (action === 'home.get' || action === 'home.clearUnavailableLinks') {
+    if (!existing) throw errorFrom('NOT_FOUND');
+    if (key !== HOME_CONFIG_SLOT) return existing;
+    return withTransaction(runtime.db, async (tx) => {
+      const config = await getDoc(tx.collection(COLLECTIONS.homeContents), key, true);
+      for (const id of homeProductIds(config.payload)) {
+        const product = await getDoc(tx.collection(COLLECTIONS.products), id, false);
+        if (!product || product.deletedByAdmin || product.status !== STATUS.active) {
+          await clearHomeProductLinks(tx, product || {}, id, now());
+        }
+      }
+      return await getDoc(tx.collection(COLLECTIONS.homeContents), key, true);
+    });
+  }
   const patch = { ...allowedFields(data, ['slot', 'type', 'title', 'subtitle', 'content', 'image', 'link', 'payload', 'sort', 'status']), updatedAt: now() };
   if (key === HOME_CONFIG_SLOT || patch.slot === HOME_CONFIG_SLOT) {
     assert(key === HOME_CONFIG_SLOT && patch.slot === HOME_CONFIG_SLOT && patch.type === 'pageConfig', { field: 'slot' });

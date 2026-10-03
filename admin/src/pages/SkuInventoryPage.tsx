@@ -7,7 +7,7 @@ import { adminApi, ApiError } from '../lib/api';
 import { variantName, variantStock } from '../lib/sku';
 import type { ListResult, Product, Sku } from '../types';
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 4;
 
 interface StockDraft {
   value: string;

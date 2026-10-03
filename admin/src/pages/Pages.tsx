@@ -231,9 +231,10 @@ export function OverviewPage() {
   const { data, loading, error } = useResource<Record<string, unknown>>('dashboard.summary');
   const warnings = (data?.inventoryWarnings || []) as { productId: string; title: string; skuId: string; specName: string; stockQuantity: number }[];
   const [warningPage, setWarningPage] = useState(1);
-  const warningPageCount = Math.max(1, Math.ceil(warnings.length / 6));
+  const warningPageSize = 4;
+  const warningPageCount = Math.max(1, Math.ceil(warnings.length / warningPageSize));
   useEffect(() => { setWarningPage((current) => Math.min(current, warningPageCount)); }, [warningPageCount]);
-  const visibleWarnings = warnings.slice((warningPage - 1) * 6, warningPage * 6);
+  const visibleWarnings = warnings.slice((warningPage - 1) * warningPageSize, warningPage * warningPageSize);
   const metrics = (data?.metrics || data || {}) as Record<string, unknown>;
   const value = (keys: string[]) => {
     const found = keys.map((key) => metrics[key]).find((item) => item !== undefined && item !== null);
@@ -256,7 +257,7 @@ export function OverviewPage() {
           <thead><tr><th>商品</th><th>规格</th><th>当前库存</th><th>操作</th></tr></thead>
           <tbody>{visibleWarnings.map((item) => <tr key={`${item.productId}:${item.skuId}`}>
             <td>{item.title}</td><td>{item.specName}</td><td>{item.stockQuantity}</td>
-            <td><Link to={`/skus?query=${encodeURIComponent(item.title)}`}>补货</Link></td>
+            <td><div className="overview-warning-actions"><Link to={`/skus?query=${encodeURIComponent(item.title)}`}>补货</Link><Link to={`/products?query=${encodeURIComponent(item.title)}`}>编辑商品</Link></div></td>
           </tr>)}</tbody>
         </Table>}
         </div>
@@ -275,7 +276,7 @@ const emptyProduct: ProductDraft = {
   title: '', categoryId: '', primaryImage: '', detailImages: [],
 };
 
-const PRODUCT_LIST_PAGE_SIZE = 12;
+const PRODUCT_LIST_PAGE_SIZE = 7;
 
 interface VariantDraft {
   localId: string;
@@ -369,8 +370,15 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const routeEditProductId = editorMode ? routeProductId : searchParams.get('edit') || '';
   const [refreshKey, setRefreshKey] = useState(0);
-  const [productQueryInput, setProductQueryInput] = useState('');
-  const [productQuery, setProductQuery] = useState('');
+  const routeProductQuery = searchParams.get('query') || '';
+  const [productQueryInput, setProductQueryInput] = useState(routeProductQuery);
+  const [productQuery, setProductQuery] = useState(routeProductQuery);
+  useEffect(() => {
+    if (editorMode) return;
+    setProductQueryInput(routeProductQuery);
+    setProductQuery(routeProductQuery);
+    setProductPage(1);
+  }, [routeProductQuery, editorMode]);
   const [productPage, setProductPage] = useState(1);
   const [statusChangingId, setStatusChangingId] = useState('');
   const [deletingProductId, setDeletingProductId] = useState('');
@@ -391,6 +399,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const { data, loading, error } = useResource<unknown>('products.list', {
     page: productPage,
     pageSize: PRODUCT_LIST_PAGE_SIZE,
+    inactiveFirst: true,
     query: productQuery || undefined,
   }, refreshKey, !editorMode);
   const [categoryRows, setCategoryRows] = useState<Category[]>([]);
@@ -661,8 +670,8 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
       <Button theme="primary" onClick={() => navigate('/products/new')}>新建商品</Button>
     </div>
     {(loading || routeEditLoading) && <LoadingState />}{!routeEditLoading && error && <ErrorState message={error} />}
-    {!loading && !routeEditLoading && !error && <Panel className="product-list-panel"><Table><thead><tr><th>商品</th><th>操作</th></tr></thead><tbody>
-      {rows.length === 0 && <tr><td colSpan={2}><EmptyState title={productQuery ? '没有找到相关商品' : '暂无商品'} /></td></tr>}
+    {!loading && !routeEditLoading && !error && <Panel className="product-list-panel"><Table><thead><tr><th>商品</th><th>操作</th><th aria-label="商品状态" /></tr></thead><tbody>
+      {rows.length === 0 && <tr><td colSpan={3}><EmptyState title={productQuery ? '没有找到相关商品' : '暂无商品'} /></td></tr>}
       {rows.map((product) => {
         const fileID = String(product.primaryImage || '');
         const resolvedImage = imageUrls[fileID];
@@ -670,7 +679,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
         const status = productStatusOf(product);
         const productId = String(product._id || product.spuId);
         const productActionInProgress = Boolean(statusChangingId || deletingProductId);
-        return <tr key={productId} className={status === 'active' ? '' : 'product-list-inactive'}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong></div></div></td><td><div className="product-list-actions"><Button variant="text" className="product-list-edit" disabled={productActionInProgress || busy} onClick={() => navigate(`/products/${encodeURIComponent(productId)}/edit`)}>编辑</Button><Link className="product-list-sku-link" to={`/skus?query=${encodeURIComponent(product.title)}`}>库存</Link><Button variant="text" className="product-list-edit" loading={statusChangingId === productId} disabled={productActionInProgress || busy} onClick={() => void toggleProductStatus(product)}>{status === 'active' ? '下架' : '上架'}</Button><Button variant="text" className="product-list-delete" loading={deletingProductId === productId} disabled={productActionInProgress || busy} onClick={() => void deleteProduct(product)}>删除</Button></div></td></tr>;
+        return <tr key={productId} className={status === 'active' ? '' : 'product-list-inactive'}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong></div></div></td><td><div className="product-list-actions"><Button variant="text" className="product-list-edit" disabled={productActionInProgress || busy} onClick={() => navigate(`/products/${encodeURIComponent(productId)}/edit`)}>编辑</Button><Link className="product-list-sku-link" to={`/skus?query=${encodeURIComponent(product.title)}`}>库存</Link><Button variant="text" className="product-list-edit" loading={statusChangingId === productId} disabled={productActionInProgress || busy} onClick={() => void toggleProductStatus(product)}>{status === 'active' ? '下架' : '上架'}</Button><Button variant="text" className="product-list-delete" loading={deletingProductId === productId} disabled={productActionInProgress || busy} onClick={() => void deleteProduct(product)}>删除</Button></div></td><td className="product-list-status">{status !== 'active' && <strong className="product-list-inactive-label">已下架</strong>}</td></tr>;
       })}
     </tbody></Table>
       <div className="product-list-pagination">

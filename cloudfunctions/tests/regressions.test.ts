@@ -373,6 +373,56 @@ async function testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus() {
   assert.strictEqual(runtime.records.skus[byName['小份']].stockQuantity, 7);
 }
 
+async function testDeletingProductClearsHomeLinksWithoutRemovingSlots() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
+  runtime.records.products['product-1'].spuId = 'legacy-product-1';
+  const payload = {
+    searchText: '欢迎', bannerText: '公告',
+    banners: [{ image: 'banner.jpg', productId: 'product-1' }],
+    promos: [{ image: 'promo.jpg', productId: 'legacy-product-1' }, { image: 'other.jpg', productId: 'other-product' }],
+    sections: [{ id: 'section-1', title: '推荐', productIds: ['product-1', 'other-product', 'legacy-product-1'] }],
+  };
+  runtime.records.homeContents = { 'home.page-config': { _id: 'home.page-config', payload } };
+  await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.delete', { id: 'product-1' });
+  const saved = runtime.records.homeContents['home.page-config'].payload;
+  assert.deepStrictEqual(saved.banners, [{ image: 'banner.jpg', productId: '' }]);
+  assert.deepStrictEqual(saved.promos, [{ image: 'promo.jpg', productId: '' }, { image: 'other.jpg', productId: 'other-product' }]);
+  assert.deepStrictEqual(saved.sections[0].productIds, ['', 'other-product', '']);
+  assert.strictEqual(saved.searchText, '欢迎');
+  runtime.records.homeContents['home.page-config'].payload = payload;
+  const repaired = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'home.clearUnavailableLinks', { id: 'home.page-config' });
+  assert.strictEqual(repaired.payload.banners[0].productId, '');
+  assert.strictEqual(repaired.payload.promos[0].productId, '');
+  const reread = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'home.get', { id: 'home.page-config' });
+  assert.deepStrictEqual(reread.payload, repaired.payload);
+  assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.banners[0].productId, '');
+  assert.strictEqual(runtime.records.products['product-1'].deletedByAdmin, true);
+
+  runtime.records.products['product-1'].deletedByAdmin = false;
+  runtime.records.products['product-1'].status = 'active';
+  runtime.records.homeContents['home.page-config'].payload = payload;
+  await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.update', { id: 'product-1', status: 'inactive' });
+  assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.banners[0].productId, '');
+  assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.promos[0].productId, '');
+  assert.deepStrictEqual(runtime.records.homeContents['home.page-config'].payload.sections[0].productIds, ['', 'other-product', '']);
+  await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.update', { id: 'product-1', status: 'active' });
+  assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.banners[0].productId, '');
+  assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.promos[0].productId, '');
+}
+
+async function testInactiveProductsArePinnedBeforePagination() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
+  runtime.records.products['product-1'].status = 'active';
+  runtime.records.products['product-1'].updatedAt = '2026-01-01';
+  runtime.records.products['inactive-product'] = { _id: 'inactive-product', title: '已下架商品', status: 'inactive', updatedAt: '2020-01-01' };
+  runtime.records.products['deleted-product'] = { _id: 'deleted-product', status: 'inactive', deletedByAdmin: true };
+  const result = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.list', { page: 1, pageSize: 1, inactiveFirst: true });
+  assert.strictEqual(result.items[0]._id, 'inactive-product');
+  assert.strictEqual(result.total, 2);
+}
+
 async function testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt() {
   const runtime = makeRuntime();
   runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
@@ -935,6 +985,8 @@ const cases = [
   { name: 'order creation rechecks product status inside transaction', run: testOrderCreationRechecksProductStatus },
   { name: 'dashboard product count is not limited to the first page', run: testDashboardProductCountUsesCountQuery },
   { name: 'home configuration limits and legacy response', run: testHomeConfigLimitsAndLegacyResponse },
+  { name: 'deleting a product clears home links while preserving slots', run: testDeletingProductClearsHomeLinksWithoutRemovingSlots },
+  { name: 'inactive products are pinned before pagination', run: testInactiveProductsArePinnedBeforePagination },
   { name: 'two-level categories validate hierarchy and clear products on deletion', run: testTwoLevelCategoriesAndCascadeDeletion },
 ];
 

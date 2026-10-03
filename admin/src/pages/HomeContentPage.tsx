@@ -206,15 +206,39 @@ export function HomeContentPage() {
   ].filter(Boolean))), [config]);
   const selectedKey = selectedIds.join('|');
   useEffect(() => {
+    const unavailable = new Set(Object.keys(known).filter((id) => known[id] === null));
+    if (!selectedIds.some((id) => unavailable.has(id))) return;
+    let active = true;
+    const clearLinks = (old: HomeConfig): HomeConfig => ({
+      ...old,
+      banners: old.banners.map((item) => unavailable.has(item.productId) ? { ...item, productId: '' } : item),
+      promos: old.promos.map((item) => unavailable.has(item.productId) ? { ...item, productId: '' } : item),
+      sections: old.sections.map((section) => ({ ...section, productIds: section.productIds.map((id) => unavailable.has(id) ? '' : id) })),
+    });
+    void adminApi.call<HomeRecord>('home.clearUnavailableLinks', { id: SLOT })
+      .then(() => {
+        if (!active) return;
+        setConfig(clearLinks);
+        setSavedConfig((old) => JSON.stringify(clearLinks(JSON.parse(old) as HomeConfig)));
+      })
+      .catch((error: unknown) => {
+        if (active) void MessagePlugin.error(error instanceof Error ? error.message : '失效跳转自动清理失败，请重试');
+      });
+    return () => { active = false; };
+  }, [known, selectedKey]);
+  useEffect(() => {
     let active = true;
     const missing = selectedIds.filter((id) => !(id in known));
     if (missing.length) {
       void Promise.all(missing.map(async (id) => {
         try {
           const product = await adminApi.call<Product>('products.get', { id });
-          return [id, product.status === 'active' ? product : null] as const;
-        } catch { return [id, null] as const; }
-      })).then((entries) => { if (active) setKnown((old) => ({ ...old, ...Object.fromEntries(entries) })); });
+          return [id, product.status === 'active' && !product.deletedByAdmin ? product : null] as const;
+        } catch (error) {
+          if ((error as { code?: string }).code === 'NOT_FOUND') return [id, null] as const;
+          return null;
+        }
+      })).then((entries) => { if (active) setKnown((old) => ({ ...old, ...Object.fromEntries(entries.filter((entry) => entry !== null)) })); });
     }
     return () => { active = false; };
     // selectedKey captures the selected IDs; known is checked only when selection changes.
