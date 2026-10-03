@@ -118,7 +118,7 @@ export async function callAdmin<T>(action: string, payload: Record<string, unkno
 }
 
 export async function uploadCloudFile(file: File, folder = 'admin/products') {
-  if (file.size > 3 * 1024 * 1024) throw new ApiError('图片不能超过 3MB');
+  if (file.size > 1 * 1024 * 1024) throw new ApiError('图片不能超过 1MB');
   if (file.size === 0) throw new ApiError('图片文件为空');
   if (localApiUrl) {
     const body = new FormData();

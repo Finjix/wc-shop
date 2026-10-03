@@ -343,8 +343,8 @@ async function saveUpload(request) {
     fileName = parsed.fileName;
   }
   if (!file || !file.length) throw errorFrom('INVALID_ARGUMENT');
-  const image = await processImageBuffer(file, fileName);
   const folder = safeRelativePart(fields.folder, 'uploads');
+  const image = await processImageBuffer(file, fileName, folder);
   const safeName = String(fileName || 'image').replace(/[^a-zA-Z0-9._-]/g, '_');
   const name = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeName}`;
   const relative = `${folder}/${name}`;

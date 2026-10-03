@@ -46,10 +46,10 @@ async function main() {
     }
   }
   calls.length = 0;
-  await exports.uploadCloudFile(new File([Buffer.alloc(3 * 1024 * 1024)], 'boundary.png'));
-  assert.equal(calls.length, 1, 'Exactly 3MB is allowed');
+  await exports.uploadCloudFile(new File([Buffer.alloc(1 * 1024 * 1024)], 'boundary.png'));
+  assert.equal(calls.length, 1, 'Exactly 1MB is allowed');
   calls.length = 0;
-  await assert.rejects(() => exports.uploadCloudFile(new File([Buffer.alloc(3 * 1024 * 1024 + 1)], 'large.png')), /图片不能超过 3MB/);
+  await assert.rejects(() => exports.uploadCloudFile(new File([Buffer.alloc(1 * 1024 * 1024 + 1)], 'large.png')), /图片不能超过 1MB/);
   assert.equal(calls.length, 0, 'Oversized files must be rejected before any upload');
   await assert.rejects(() => exports.uploadCloudFile(new File([], 'empty.png')), /图片文件为空/);
   assert.equal(calls.length, 0);

@@ -23,7 +23,7 @@ function testMissingDependenciesAreNotMissingData() {
 }
 
 async function testImageUploads() {
-  assert.strictEqual(MAX_IMAGE_BYTES, 3 * 1024 * 1024);
+  assert.strictEqual(MAX_IMAGE_BYTES, 1 * 1024 * 1024);
   const png = await sharp({ create: { width: 1200, height: 1500, channels: 3, background: '#c87a2b' } }).png().toBuffer();
   const original = await processImageBuffer(png, 'photo.PNG');
   assert.strictEqual(original, png);
@@ -38,6 +38,16 @@ async function testImageUploads() {
   assert.strictEqual(await processImageBuffer(boundary, 'photo.gif'), boundary);
   await assert.rejects(() => processImageBuffer(Buffer.alloc(MAX_IMAGE_BYTES + 1), 'photo.png'), appError('IMAGE_TOO_LARGE'));
   await assert.rejects(() => processImageBuffer(Buffer.alloc(0), 'photo.png'), appError('IMAGE_FORMAT'));
+  for (const folder of ['comments', 'after-sales', 'user/comments', 'user/after-sales']) {
+    const userBoundary = Buffer.alloc(3 * MAX_IMAGE_BYTES);
+    assert.strictEqual(await processImageBuffer(userBoundary, 'photo.png', folder), userBoundary);
+    await assert.rejects(() => processImageBuffer(Buffer.alloc(3 * MAX_IMAGE_BYTES + 1), 'photo.png', folder),
+      (error) => error.code === 'IMAGE_TOO_LARGE' && error.message === '图片不能超过 3MB');
+  }
+  for (const folder of ['admin/products', 'admin/categories', 'home', 'avatars', 'user/avatars']) {
+    await assert.rejects(() => processImageBuffer(Buffer.alloc(MAX_IMAGE_BYTES + 1), 'photo.png', folder),
+      (error) => error.code === 'IMAGE_TOO_LARGE' && error.message === '图片不能超过 1MB');
+  }
   const calls = [];
   const runtime = { app: {
     downloadFile: async ({ fileID }) => { calls.push(['download', fileID]); return { fileContent: png }; },
@@ -890,7 +900,7 @@ const cases = [
   { name: 'image filtering precedes comment pagination and total counting', run: testImageFilterPrecedesCommentPagination },
   { name: 'after-sales validate SKU, quantity, amount and serialize concurrent claims', run: testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims },
   { name: 'dashboard counts are complete beyond the SDK default query limit', run: testDashboardCountsBeyondSdkQueryLimit },
-  { name: 'image uploads preserve original bytes and enforce the 3MB boundary', run: testImageUploads },
+  { name: 'image uploads preserve original bytes and enforce the 1MB boundary', run: testImageUploads },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
   { name: 'product save manages SKU inventory and images without SKU status', run: testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus },
   { name: 'SKU inventory is set separately and stale updates conflict', run: testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt },

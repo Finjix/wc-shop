@@ -24,7 +24,7 @@ const ERRORS = Object.freeze({
   DATABASE_ERROR: ['DATABASE_ERROR', '数据服务暂时不可用'],
   STORAGE_ERROR: ['STORAGE_ERROR', '文件服务暂时不可用'],
   IMAGE_FORMAT: ['IMAGE_FORMAT', '图片文件无效或为空'],
-  IMAGE_TOO_LARGE: ['IMAGE_TOO_LARGE', '图片不能超过 3MB'],
+  IMAGE_TOO_LARGE: ['IMAGE_TOO_LARGE', '图片不能超过 1MB'],
   INTERNAL_ERROR: ['INTERNAL_ERROR', '服务暂时不可用'],
 });
 

@@ -120,7 +120,8 @@ export async function uploadCloudFile(localPath: string, folder: 'comments' | 'a
   const fileInfo = await new Promise<{ size: number }>((resolve, reject) => {
     (wx as any).getFileInfo({ filePath: localPath, success: resolve, fail: reject });
   });
-  if (fileInfo.size > 3 * 1024 * 1024) throw new ApiError('图片不能超过 3MB', undefined, 'IMAGE_TOO_LARGE');
+  const maxSizeMB = folder === 'comments' || folder === 'after-sales' ? 3 : 1;
+  if (fileInfo.size > maxSizeMB * 1024 * 1024) throw new ApiError(`图片不能超过 ${maxSizeMB}MB`, undefined, 'IMAGE_TOO_LARGE');
   if (!fileInfo.size) throw new ApiError('图片文件为空', undefined, 'IMAGE_FORMAT');
   if (useLocalBackend) {
     return new Promise<string>((resolve, reject) => {
