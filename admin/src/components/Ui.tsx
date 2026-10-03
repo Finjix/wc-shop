@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { Button } from 'tdesign-react';
+import { IMAGE_ACCEPT } from '../lib/image-upload';
 
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <section className={`panel ${className}`}>{children}</section>;
@@ -30,7 +31,7 @@ export function ImageFilePicker({ onSelect, disabled = false }: { onSelect: (fil
   return <div className="image-file-picker">
     <button type="button" disabled={disabled} onClick={() => inputRef.current?.click()}>选择文件</button>
     <span>{fileName}</span>
-    <input ref={inputRef} className="image-file-picker-input" type="file" accept="image/*" disabled={disabled} tabIndex={-1}
+    <input ref={inputRef} className="image-file-picker-input" type="file" accept={IMAGE_ACCEPT} disabled={disabled} tabIndex={-1}
       onChange={(event) => {
         const file = event.target.files?.[0];
         event.target.value = '';

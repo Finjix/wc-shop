@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin, Tag } from 'tdesign-react';
 import { adminApi } from '../lib/api';
+import { IMAGE_ACCEPT, type UploadPhase } from '../lib/image-upload';
 import { variantName } from '../lib/sku';
 import type { AfterSale, Category, Comment, ListResult, Order, Product, ProductDraft, Sku } from '../types';
 import { EmptyState, EmptyTable, ErrorState, Field, ImageFilePicker, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
@@ -393,6 +394,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const editorRequest = useRef(0);
   const [variantsLoading, setVariantsLoading] = useState(false);
   const [uploading, setUploading] = useState('');
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('处理图片中…');
   const [detailUploadProgress, setDetailUploadProgress] = useState('');
   const [routeEditLoading, setRouteEditLoading] = useState(false);
   const detailInputRef = useRef<HTMLInputElement>(null);
@@ -548,7 +550,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     const request = editorRequest.current;
     setUploading('cover');
     try {
-      const fileID = await adminApi.upload(file);
+      const fileID = await adminApi.upload(file, 'admin/products', setUploadPhase);
       if (request !== editorRequest.current) return;
       setDraft((old) => ({ ...old, primaryImage: fileID }));
       await MessagePlugin.success('图片已上传');
@@ -561,7 +563,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     const request = editorRequest.current;
     setUploading(`sku:${localId}`);
     try {
-      const fileID = await adminApi.upload(file, 'admin/products');
+      const fileID = await adminApi.upload(file, 'admin/products', setUploadPhase);
       if (request !== editorRequest.current) return;
       setVariants((old) => old.map((item) => item.localId === localId ? { ...item, skuImage: fileID } : item));
       await MessagePlugin.success('SKU 图片已上传');
@@ -577,7 +579,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     try {
       for (const [index, file] of files.entries()) {
         setDetailUploadProgress(`${index + 1}/${files.length}`);
-        const fileID = await adminApi.upload(file);
+        const fileID = await adminApi.upload(file, 'admin/products', setUploadPhase);
         if (request !== editorRequest.current) return;
         setDraft((old) => ({ ...old, detailImages: [...old.detailImages, fileID] }));
       }
@@ -702,7 +704,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
              <label><span>售价（元）</span><Input value={variant.price} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, price: value } : item))} placeholder="例如：29.90" /></label>
              <Button variant="text" disabled={variants.length === 1} onClick={() => setVariants((old) => old.filter((item) => item.localId !== variant.localId))}>删除</Button>
            </div>
-           <div className="variant-image"><span>SKU 图片（可选）</span><ImageFilePicker onSelect={(file) => void uploadVariantImage(variant.localId, file)} disabled={Boolean(uploading)} />{uploading === `sku:${variant.localId}` && <small>正在上传...</small>}
+           <div className="variant-image"><span>SKU 图片（可选）</span><ImageFilePicker onSelect={(file) => void uploadVariantImage(variant.localId, file)} disabled={Boolean(uploading)} />{uploading === `sku:${variant.localId}` && <small role="status">{uploadPhase}</small>}
              {variant.skuImage && <div className="product-image-item"><ProductImagePreview fileID={variant.skuImage} alt={`${variant.name || 'SKU'} 图片预览`} /><Button variant="text" onClick={() => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, skuImage: '' } : item))}>移除图片</Button></div>}
            </div>
          </div>)}
@@ -710,7 +712,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
        </div>
        <div className="product-cover-field"><Field label="封面图片（1:1）" fileUpload>
          <ImageFilePicker onSelect={(file) => void uploadCover(file)} disabled={Boolean(uploading)} />
-         {uploading === 'cover' && <small>正在上传...</small>}
+         {uploading === 'cover' && <small role="status">{uploadPhase}</small>}
          {draft.primaryImage && <div className="product-image-item product-cover-preview"><ProductImagePreview fileID={draft.primaryImage} alt="商品封面预览" /></div>}
        </Field></div>
        <div className="product-detail-images">
@@ -724,9 +726,9 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
          <div className="product-detail-image-upload"><div className="image-file-picker">
            <button type="button" disabled={draft.detailImages.length >= 6 || Boolean(uploading)} onClick={() => detailInputRef.current?.click()}>选择文件</button>
            <span>{draft.detailImages.length ? `已上传 ${draft.detailImages.length} 张` : '未选择文件'}</span>
-           <input ref={detailInputRef} className="image-file-picker-input" type="file" accept="image/*" multiple disabled={Boolean(uploading)} aria-label="选择商品详情图片"
+           <input ref={detailInputRef} className="image-file-picker-input" type="file" accept={IMAGE_ACCEPT} multiple disabled={Boolean(uploading)} aria-label="选择商品详情图片"
              onChange={(event) => { const files = Array.from(event.target.files || []); event.target.value = ''; void uploadDetails(files); }} />
-         </div>{uploading === 'details' && <small>正在上传详情图片 {detailUploadProgress}</small>}</div>
+         </div>{uploading === 'details' && <small role="status">{uploadPhase} {detailUploadProgress}</small>}</div>
        </div>
     </div></Panel> : null}
   </>;

@@ -6,6 +6,9 @@ const http = require('http');
 const path = require('path');
 const { prepareLocalStorage } = require('./local-backend-storage.cjs');
 const { processImageBuffer } = require('../cloudfunctions/.build/shared/image-upload');
+const { describeHeader, replacementUploadJob } = require('../cloudfunctions/.build/shared/image-resources');
+const { requireAdmin } = require('../cloudfunctions/.build/shared/auth');
+const { resolveAlias } = require('../cloudfunctions/.build/shared/image-references');
 
 const { fail, ok, runEndpoint } = require('../cloudfunctions/.build/shared/response');
 const { errorFrom } = require('../cloudfunctions/.build/shared/errors');
@@ -81,6 +84,7 @@ function matchesCondition(actual, expected) {
     if (expected.__localOp === 'in') return expected.values.some((value) => sameValue(actual, value));
     if (expected.__localOp === 'neq') return !sameValue(actual, expected.value);
     if (expected.__localOp === 'gte') return compareValues(actual, expected.value) >= 0;
+    if (expected.__localOp === 'gt') return compareValues(actual, expected.value) > 0;
     if (expected.__localOp === 'lte') return compareValues(actual, expected.value) <= 0;
     if (expected.__localOp === 'and') return expected.values.every((value) => matchesCondition(actual, value));
   }
@@ -191,10 +195,12 @@ class LocalDatabase {
   constructor(state, persistEnabled = true) {
     this.state = state;
     this.persistEnabled = persistEnabled;
+    this.transactionTail = Promise.resolve();
     this.command = {
       in: (values) => ({ __localOp: 'in', values: Array.isArray(values) ? values : [] }),
       neq: (value) => ({ __localOp: 'neq', value }),
       gte: (value) => ({ __localOp: 'gte', value }),
+      gt: (value) => ({ __localOp: 'gt', value }),
       lte: (value) => ({ __localOp: 'lte', value }),
       and: (...values) => ({ __localOp: 'and', values }),
     };
@@ -212,13 +218,17 @@ class LocalDatabase {
     fs.writeFileSync(dataFile, JSON.stringify(this.state, null, 2), 'utf8');
   }
 
-  async runTransaction(worker) {
-    const transactionState = clone(this.state);
-    const transactionDb = new LocalDatabase(transactionState, false);
-    const result = await worker(transactionDb);
-    this.state = transactionState;
-    this.changed();
-    return { result };
+  runTransaction(worker) {
+    const pending = this.transactionTail.then(async () => {
+      const transactionState = clone(this.state);
+      const transactionDb = new LocalDatabase(transactionState, false);
+      const result = await worker(transactionDb);
+      this.state = transactionState;
+      this.changed();
+      return { result };
+    });
+    this.transactionTail = pending.catch(() => undefined);
+    return pending;
   }
 }
 
@@ -231,9 +241,27 @@ function tempFileUrl(fileID) {
 
 const runtime = {
   db: database,
+  async resourceFileInfo(fileID) {
+    const location = localFilePath(fileID);
+    if (!location || !fs.existsSync(location)) return { status: 'error', missing: true, size: null, format: path.extname(String(fileID)).slice(1), error: '图片不存在' };
+    const stat = fs.statSync(location);
+    const buffer = Buffer.alloc(Math.min(stat.size, 65536));
+    const descriptor = fs.openSync(location, 'r');
+    try { fs.readSync(descriptor, buffer, 0, buffer.length, 0); } finally { fs.closeSync(descriptor); }
+    const header = describeHeader(buffer);
+    return { status: 'ok', size: stat.size, version: `${stat.mtimeMs}:${stat.size}`, format: header.format || path.extname(location).slice(1), animated: header.animated, url: tempFileUrl(fileID) };
+  },
   app: {
     async getTempFileURL({ fileList }) {
       return { fileList: fileList.map((fileID) => ({ fileID, tempFileURL: tempFileUrl(fileID) })) };
+    },
+    async deleteFile({ fileList }) {
+      return { fileList: fileList.map((fileID) => {
+        const location = localFilePath(fileID);
+        if (!location) throw errorFrom('FORBIDDEN');
+        if (fs.existsSync(location)) fs.unlinkSync(location);
+        return { fileID, code: 'SUCCESS' };
+      }) };
     },
   },
   auth: { getUserInfo: () => ({ uid: 'local-user' }) },
@@ -269,7 +297,7 @@ function parseJson(buffer) {
 function sendJson(response, payload, status = 200) {
   response.writeHead(status, {
     'access-control-allow-origin': '*',
-    'access-control-allow-headers': 'content-type,x-local-uid',
+    'access-control-allow-headers': 'content-type,x-local-uid,x-upload-folder,x-resource-job',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
     'content-type': 'application/json; charset=utf-8',
   });
@@ -327,7 +355,17 @@ function parseMultipart(buffer, contentType) {
 
 async function saveUpload(request) {
   const contentType = String(headerValue(request, 'content-type') || '');
-  const buffer = await readBody(request);
+  // Admin output can exceed the source size; other routes retain their request limits.
+  const uploadFolder = String(headerValue(request, 'x-upload-folder') || '');
+  const adminOutput = ['admin/products', 'admin/categories', 'home'].includes(uploadFolder);
+  const resourceJobID = String(headerValue(request, 'x-resource-job') || '');
+  let resourceJob;
+  if (resourceJobID) {
+    const uid = String(headerValue(request, 'x-local-uid') || 'local-admin');
+    await requireAdmin(database, {}, { auth: { uid } }, 'settings', runtime);
+    resourceJob = await replacementUploadJob(runtime, resourceJobID, uid);
+  }
+  const buffer = await readBody(request, adminOutput || resourceJob ? Infinity : 14 * 1024 * 1024);
   let fields;
   let file;
   let fileName;
@@ -343,7 +381,16 @@ async function saveUpload(request) {
     fileName = parsed.fileName;
   }
   if (!file || !file.length) throw errorFrom('INVALID_ARGUMENT');
+  if (resourceJob) {
+    if (fields.resourceJobID !== resourceJobID || String(fields.folder || '') !== resourceJob.folder || describeHeader(file).format !== 'webp') throw errorFrom('INVALID_ARGUMENT');
+    const destination = localFilePath(`local://${resourceJob.cloudPath}`);
+    if (!destination) throw errorFrom('FORBIDDEN');
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, file);
+    return { fileID: `local://${resourceJob.cloudPath}` };
+  }
   const folder = safeRelativePart(fields.folder, 'uploads');
+  if (adminOutput && folder !== uploadFolder) throw errorFrom('INVALID_ARGUMENT');
   const image = await processImageBuffer(file, fileName, folder);
   const safeName = String(fileName || 'image').replace(/[^a-zA-Z0-9._-]/g, '_');
   const name = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeName}`;
@@ -385,7 +432,8 @@ async function handle(request, response) {
   const requestUrl = new URL(request.url || '/', baseUrl);
   if (request.method === 'GET' && requestUrl.pathname === '/health') return sendJson(response, ok({ service: 'wc-shop-local-backend', port }));
   if (request.method === 'GET' && requestUrl.pathname === '/files') {
-    const filePath = localFilePath(requestUrl.searchParams.get('fileID') || '');
+    const fileID = await resolveAlias(database, requestUrl.searchParams.get('fileID') || '');
+    const filePath = localFilePath(fileID);
     if (!filePath || !fs.existsSync(filePath)) return sendJson(response, fail(errorFrom('NOT_FOUND')), 404);
     const extension = path.extname(filePath).toLowerCase();
     const contentTypes = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml' };

@@ -2,6 +2,7 @@
 
 const { errorFrom } = require('./errors');
 const { array, string } = require('./validation');
+const { resolveAlias } = require('./image-references');
 
 function pathOf(fileId) {
   if (!fileId.startsWith('cloud://')) return fileId;
@@ -23,8 +24,10 @@ async function getTempFileURLs(runtime, fileList, options) {
     });
   }
   try {
-    const result = await method.call(runtime.app, { fileList: normalized });
-    return result && result.fileList ? result.fileList : result;
+    const mapped = await Promise.all(normalized.map((file) => resolveAlias(runtime.db, file)));
+    const result = await method.call(runtime.app, { fileList: mapped });
+    const files = result && result.fileList ? result.fileList : result;
+    return Array.isArray(files) ? files.map((file, index) => ({ ...file, fileID: normalized[index] })) : files;
   } catch (error) {
     throw errorFrom('STORAGE_ERROR');
   }

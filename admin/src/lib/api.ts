@@ -1,5 +1,6 @@
 import { cloudbaseApp, requireCloudBase } from './cloudbase';
 import type { ApiEnvelope } from '../types';
+import { prepareImageUpload, type UploadPhase } from './image-upload';
 
 const localApiUrl = import.meta.env.VITE_LOCAL_API_URL?.trim() ?? '';
 const localSessionKey = 'wc-shop.local-admin-session';
@@ -117,16 +118,17 @@ export async function callAdmin<T>(action: string, payload: Record<string, unkno
   }
 }
 
-export async function uploadCloudFile(file: File, folder = 'admin/products') {
-  if (file.size > 1 * 1024 * 1024) throw new ApiError('图片不能超过 1MB');
-  if (file.size === 0) throw new ApiError('图片文件为空');
+export async function uploadCloudFile(file: File, folder = 'admin/products', onPhase?: (phase: UploadPhase) => void) {
+  onPhase?.('处理图片中…');
+  file = await prepareImageUpload(file);
+  onPhase?.('上传中…');
   if (localApiUrl) {
     const body = new FormData();
     body.append('folder', folder);
     body.append('file', file);
     const response = await fetch(`${localApiUrl.replace(/\/$/, '')}/upload`, {
       method: 'POST',
-      headers: { 'x-local-uid': localHeaders()['x-local-uid'] },
+      headers: { 'x-local-uid': localHeaders()['x-local-uid'], 'x-upload-folder': folder },
       body,
     });
     const result = await response.json() as ApiEnvelope<{ fileID: string }>;
@@ -151,14 +153,30 @@ export async function getTempFileUrl(fileID: string) {
     return result?.[0]?.tempFileURL || fileID;
   }
   if (!cloudbaseApp) throw new ApiError('未配置 CloudBase 环境 ID，无法读取图片。');
-  const result = await cloudbaseApp.getTempFileURL({ fileList: [fileID] });
-  return result.fileList?.[0]?.tempFileURL || fileID;
+  const files = await callAdmin<Array<{ fileID: string; tempFileURL?: string }>>('storage.tempUrls', { fileList: [fileID] });
+  return files?.[0]?.tempFileURL || fileID;
+}
+
+export async function uploadReplacementFile(file: File, job: { _id: string; cloudPath: string; folder: string }) {
+  if (localApiUrl) {
+    const body = new FormData();
+    body.append('folder', job.folder);
+    body.append('resourceJobID', job._id);
+    body.append('file', file);
+    const response = await fetch(`${localApiUrl.replace(/\/$/, '')}/upload`, {
+      method: 'POST', headers: { 'x-local-uid': localHeaders()['x-local-uid'], 'x-resource-job': job._id }, body,
+    });
+    return unwrap(await response.json() as ApiEnvelope<{ fileID: string }>, String(response.status)).fileID;
+  }
+  if (!cloudbaseApp) throw new ApiError('未配置 CloudBase 环境 ID');
+  return (await cloudbaseApp.uploadFile({ cloudPath: job.cloudPath, filePath: file as unknown as string })).fileID;
 }
 
 export const adminApi = {
   call: <T>(action: string, payload: Record<string, unknown> = {}) => callAdmin<T>(action, payload),
   upload: uploadCloudFile,
   getTempFileUrl,
+  uploadReplacement: uploadReplacementFile,
   isLocal: Boolean(localApiUrl),
   localLogin,
   localSession,

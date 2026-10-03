@@ -4,7 +4,7 @@
       <t-icon name="close" size="48rpx" />
     </view>
     <view class="popup-sku-header">
-      <t-image t-class="popup-sku-header__img" src="{{src}}" mode="aspectFill" />
+      <t-image t-class="popup-sku-header__img" src="{{src}}" mode="aspectFill" bindtap="previewImage" />
       <view class="popup-sku-header__goods-info">
         <view class="popup-sku__goods-name">{{title}}</view>
         <view class="popup-sku__goods-price"><price price="{{price}}" type="main" /></view>

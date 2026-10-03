@@ -69,6 +69,10 @@ Component({
   },
 
   methods: {
+    previewImage() {
+      if (this.properties.src) this.triggerEvent('previewImage', { src: this.properties.src });
+    },
+
     initData() {
       const { skuList } = this.properties;
       const sourceSpecs = this.properties.specList;

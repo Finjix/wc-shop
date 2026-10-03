@@ -7,6 +7,8 @@ const { requireAdmin } = require('./auth');
 const { getDoc, setDoc, list, count, affected, withTransaction } = require('./db');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
+const { resourcesEndpoint } = require('./image-resources');
+const { imageAwareRuntime } = require('./image-references');
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
 const { skuPrice, skuStock } = require('./shop');
 const { HOME_CONFIG_SLOT, validateHomeConfig, productIds: homeProductIds } = require('./home-config');
@@ -717,6 +719,7 @@ async function settingsAction(runtime, data, action) {
 }
 
 function scopeFor(action) {
+  if (['storage.resources.beginReplacement', 'storage.resources.advanceReplacement', 'storage.resources.cancelReplacement', 'storage.resources.source'].includes(action)) return 'settings';
   if (action.startsWith('products.') || action.startsWith('categories.') || action.startsWith('skus.') || action === 'inventory.adjust') return 'catalog';
   if (action.startsWith('orders.')) return 'orders';
   if (action.startsWith('home.')) return 'content';
@@ -764,6 +767,8 @@ async function adminEndpoint(event, context, runtime, action, data) {
     ? /^cloud:\/\/[^/]+\/pending\/home\//.test(String(data.fileID || '')) ? 'content' : 'catalog'
     : scopeFor(action);
   const auth = await requireAdmin(runtime.db, event, context, uploadScope, runtime);
+  if (action.startsWith('storage.resources.')) return resourcesEndpoint({ ...runtime, db: runtime.rawDb || runtime.db }, action, data, auth);
+  runtime = imageAwareRuntime(runtime);
   if (isVariantSave) return saveProductWithVariants(runtime, data);
   if (action === 'dashboard.summary') return dashboardSummary(runtime);
   if (action === 'auth.me') return { uid: auth.identity.uid, roles: auth.roles, member: auth.member };

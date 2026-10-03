@@ -10,6 +10,7 @@ const { HOME_CONFIG_SLOT, productIds } = require('./home-config');
 const { requireUser } = require('./auth');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
+const { imageAwareRuntime } = require('./image-references');
 const {
   assert, string, optionalString, integer, object, array, page, clone,
 } = require('./validation');
@@ -218,7 +219,7 @@ async function getOrCreateUser(runtime, identity, data) {
   return {
     uid: identity.uid,
     ...(data && data.nickname !== undefined ? { nickname: optionalString(data.nickname, 'nickname', { max: 40 }) } : {}),
-    ...(data && data.avatarUrl !== undefined ? { avatarUrl: optionalString(data.avatarUrl, 'avatarUrl', { max: 1024 }) } : {}),
+    avatarUrl: '/assets/user-avatar.jpg',
   };
 }
 
@@ -1073,6 +1074,7 @@ async function afterSalesAction(runtime, event, context, data, action) {
 }
 
 async function shopEndpoint(event, context, runtime, action, data) {
+  runtime = imageAwareRuntime(runtime);
   if (action === 'categories.list') return readCategories(runtime, data);
   if (action === 'products.list') return readProducts(runtime, data);
   if (action === 'products.detail') return readProductDetail(runtime, data);
@@ -1080,11 +1082,11 @@ async function shopEndpoint(event, context, runtime, action, data) {
   if (action === 'home.get') return readHome(runtime, data);
   if (action === 'storage.tempUrls') {
     requireUser(event, context, runtime);
-    return getTempFileURLs(runtime, data.fileList, { allowedPrefixes: ['admin/products/', 'products/', 'comments/', 'after-sales/', 'user/comments/', 'user/after-sales/', 'user/avatars/', 'home/', 'public/'] });
+    return getTempFileURLs(runtime, data.fileList, { allowedPrefixes: ['admin/products/', 'products/', 'comments/', 'after-sales/', 'user/comments/', 'user/after-sales/', 'home/', 'public/'] });
   }
   if (action === 'storage.processImage') {
     requireUser(event, context, runtime);
-    return processStagedImage(runtime, data.fileID, ['user/comments', 'user/after-sales', 'user/avatars']);
+    return processStagedImage(runtime, data.fileID, ['user/comments', 'user/after-sales']);
   }
   if (action === 'user.me' || action === 'user.update') return getOrCreateUser(runtime, requireUser(event, context, runtime), data);
   if (action.startsWith('searchHistory.')) return searchHistoryAction(runtime, event, context, data, action);

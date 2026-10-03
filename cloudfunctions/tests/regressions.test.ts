@@ -44,9 +44,12 @@ async function testImageUploads() {
     await assert.rejects(() => processImageBuffer(Buffer.alloc(3 * MAX_IMAGE_BYTES + 1), 'photo.png', folder),
       (error) => error.code === 'IMAGE_TOO_LARGE' && error.message === '图片不能超过 3MB');
   }
-  for (const folder of ['admin/products', 'admin/categories', 'home', 'avatars', 'user/avatars']) {
-    await assert.rejects(() => processImageBuffer(Buffer.alloc(MAX_IMAGE_BYTES + 1), 'photo.png', folder),
-      (error) => error.code === 'IMAGE_TOO_LARGE' && error.message === '图片不能超过 1MB');
+  for (const folder of ['admin/products', 'admin/categories', 'home']) {
+    const largeOutput = Buffer.alloc(15 * MAX_IMAGE_BYTES);
+    assert.strictEqual(await processImageBuffer(largeOutput, 'encoded.webp', folder), largeOutput);
+  }
+  for (const folder of ['avatars', 'user/avatars']) {
+    await assert.rejects(() => processImageBuffer(png, 'photo.png', folder), appError('FORBIDDEN'));
   }
   const calls = [];
   const runtime = { app: {
@@ -62,6 +65,7 @@ async function testImageUploads() {
     assert.ok(staged.fileID.endsWith(`-photo.${extension}`));
   }
   await assert.rejects(() => processStagedImage(runtime, 'cloud://test/pending/admin/products/photo.png', ['user/comments']), appError('FORBIDDEN'));
+  await assert.rejects(() => processStagedImage(runtime, 'cloud://test/pending/user/avatars/photo.png', ['user/avatars']), appError('FORBIDDEN'));
 }
 
 function appError(code) {
@@ -121,6 +125,7 @@ function makeRuntime() {
       async get() { return { data: Object.values(bucket).slice(0, 20) }; },
       async count() { return { total: Object.keys(bucket).length }; },
       limit(value) { return this.where({}).limit(value); },
+      orderBy(field, direction) { return this.where({}).orderBy(field, direction); },
       doc(id) {
         const key = String(id);
         return {
@@ -154,6 +159,8 @@ function makeRuntime() {
           if (expected && expected.__op === 'in') return expected.value.includes(actual);
           if (expected && expected.__op === 'neq') return actual !== expected.value;
           if (expected && expected.__op === 'gte') return actual >= expected.value;
+          if (expected && expected.__op === 'gt') return actual > expected.value;
+          if (expected instanceof RegExp) return expected.test(String(actual || ''));
           if (expected && expected.__op === 'lte') return actual <= expected.value;
           return Array.isArray(actual) ? actual.includes(expected) : actual === expected;
         }));
@@ -184,7 +191,8 @@ function makeRuntime() {
     records,
     db: {
       collection,
-      command: Object.fromEntries(['in', 'neq', 'gte', 'lte'].map((op) => [op, (value) => ({ __op: op, value })])),
+      command: Object.fromEntries(['in', 'neq', 'gte', 'gt', 'lte'].map((op) => [op, (value) => ({ __op: op, value })])),
+      RegExp: ({ regexp, options }) => new RegExp(regexp, options),
       runTransaction(worker) {
         const result = transactionTail.then(async () => {
           const snapshot = JSON.parse(JSON.stringify(records));
@@ -983,7 +991,7 @@ const cases = [
   { name: 'image filtering precedes comment pagination and total counting', run: testImageFilterPrecedesCommentPagination },
   { name: 'after-sales validate SKU, quantity, amount and serialize concurrent claims', run: testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims },
   { name: 'dashboard counts are complete beyond the SDK default query limit', run: testDashboardCountsBeyondSdkQueryLimit },
-  { name: 'image uploads preserve original bytes and enforce the 1MB boundary', run: testImageUploads },
+  { name: 'image uploads preserve bytes with unrestricted admin output and scoped user limits', run: testImageUploads },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
   { name: 'product save manages SKU inventory and images without SKU status', run: testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus },
   { name: 'SKU inventory is set separately and stale updates conflict', run: testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt },
@@ -1049,4 +1057,4 @@ async function run() {
   }
 }
 
-module.exports = { run };
+module.exports = { run, makeRuntime };

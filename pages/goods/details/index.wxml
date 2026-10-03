@@ -23,6 +23,8 @@
       class="goods-cover-image"
       src="{{details.primaryImage}}"
       mode="aspectFill"
+      data-src="{{details.primaryImage}}"
+      bindtap="previewProductImage"
     />
     <view class="goods-info">
       <view class="goods-number">
@@ -53,7 +55,7 @@
     </view>
   </view>
   <view class="desc-content">
-    <view wx:if="{{details.desc.length > 0}}" wx:for="{{details.desc}}" wx:key="index">
+    <view wx:if="{{details.desc.length > 0}}" wx:for="{{details.desc}}" wx:key="index" data-src="{{item}}" bindtap="previewProductImage">
       <t-image t-class="desc-content__img" src="{{item}}" mode="widthFix" />
     </view>
   </view>
@@ -81,6 +83,7 @@
   skuList="{{skuArray}}"
   bind:closeSpecsPopup="handlePopupHide"
   bind:change="chooseSpecItem"
+  bind:previewImage="previewProductImage"
   bind:changeNum="changeNum"
   bind:addCart="addCart"
   bind:buyNow="gotoBuy"

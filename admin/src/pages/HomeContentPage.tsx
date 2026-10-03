@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBlocker, useOutletContext } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { adminApi } from '../lib/api';
+import type { UploadPhase } from '../lib/image-upload';
 import type { AdminOutletContext } from '../components/Layout';
 import type { ListResult, Product } from '../types';
 import { ErrorState, Field, ImageFilePicker, LoadingState, Panel } from '../components/Ui';
@@ -143,16 +144,17 @@ function ImagePreview({ image, aspect }: { image: string; aspect: 'banner' | 'sq
 
 function ImagePicker({ onChange }: { onChange: (value: string) => void }) {
   const [uploading, setUploading] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('处理图片中…');
   const upload = async (file?: File) => {
     if (!file) return;
     setUploading(true);
-    try { onChange(await adminApi.upload(file, 'home')); }
+    try { onChange(await adminApi.upload(file, 'home', setUploadPhase)); }
     catch (error) { await MessagePlugin.error(error instanceof Error ? error.message : '图片上传失败'); }
     finally { setUploading(false); }
   };
   return <>
     <ImageFilePicker onSelect={(file) => void upload(file)} disabled={uploading} />
-    {uploading && <small>正在上传...</small>}
+    {uploading && <small role="status">{uploadPhase}</small>}
   </>;
 }
 

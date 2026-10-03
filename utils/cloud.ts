@@ -115,12 +115,13 @@ export async function request<T = unknown>(action: string, data: Record<string, 
   }
 }
 
-export async function uploadCloudFile(localPath: string, folder: 'comments' | 'after-sales' | 'avatars' = 'comments') {
+export async function uploadCloudFile(localPath: string, folder: 'comments' | 'after-sales' = 'comments') {
+  if (folder !== 'comments' && folder !== 'after-sales') throw new ApiError('不支持该上传目录', undefined, 'FORBIDDEN');
   if (!localPath) throw new ApiError('请选择图片', undefined, 'IMAGE_FORMAT');
   const fileInfo = await new Promise<{ size: number }>((resolve, reject) => {
     (wx as any).getFileInfo({ filePath: localPath, success: resolve, fail: reject });
   });
-  const maxSizeMB = folder === 'comments' || folder === 'after-sales' ? 3 : 1;
+  const maxSizeMB = 3;
   if (fileInfo.size > maxSizeMB * 1024 * 1024) throw new ApiError(`图片不能超过 ${maxSizeMB}MB`, undefined, 'IMAGE_TOO_LARGE');
   if (!fileInfo.size) throw new ApiError('图片文件为空', undefined, 'IMAGE_FORMAT');
   if (useLocalBackend) {
@@ -160,8 +161,8 @@ export async function getTempFileUrl(fileID: string) {
   }
   const cloud = getCloud();
   if (!cloud?.getTempFileURL) return fileID;
-  const result = await cloud.getTempFileURL({ fileList: [fileID] });
-  return result.fileList?.[0]?.tempFileURL || fileID;
+  const files = await request<Array<{ fileID: string; tempFileURL?: string }>>('storage.tempUrls', { fileList: [fileID] });
+  return files?.[0]?.tempFileURL || fileID;
 }
 
 export function getApiErrorMessage(error: unknown, fallback = '请求失败，请稍后重试。') {

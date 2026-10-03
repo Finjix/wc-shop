@@ -76,6 +76,25 @@ Page({
     });
   },
 
+  previewProductImage(event) {
+    const current = event.detail?.src || event.currentTarget?.dataset?.src;
+    if (typeof current !== 'string' || !current.trim()) return;
+    const { details, skuArray } = this.data;
+    const urls = [...new Set([
+      details.primaryImage,
+      ...(details.desc || []),
+      ...(skuArray || []).map((sku) => sku.skuImage),
+      current,
+    ].filter((url) => typeof url === 'string' && url.trim()))];
+    wx.previewImage({
+      current,
+      urls,
+      fail: () => {
+        Toast({ context: this, selector: '#t-toast', message: '图片预览失败，请重试', icon: '' });
+      },
+    });
+  },
+
   showSkuSelectPopup(type) {
     this.setData({
       buyType: type || 0,

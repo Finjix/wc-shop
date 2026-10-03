@@ -3,6 +3,7 @@ import { useBlocker, useOutletContext } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { ChevronDownIcon, ChevronUpIcon, DeleteIcon, EditIcon, ImageIcon } from 'tdesign-icons-react';
 import { adminApi } from '../lib/api';
+import { IMAGE_ACCEPT, type UploadPhase } from '../lib/image-upload';
 import type { Category, ListResult } from '../types';
 import { ErrorState, LoadingState, Panel, Table } from '../components/Ui';
 import type { AdminOutletContext } from '../components/Layout';
@@ -41,6 +42,7 @@ export function CategoriesPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [uploadingId, setUploadingId] = useState('');
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('处理图片中…');
   const [selectedParentId, setSelectedParentId] = useState('');
   const [newParentName, setNewParentName] = useState('');
   const [newChildName, setNewChildName] = useState('');
@@ -131,7 +133,7 @@ export function CategoriesPage() {
     const id = idOf(target);
     setUploadingId(id);
     try {
-      const image = await adminApi.upload(file, 'admin/categories');
+      const image = await adminApi.upload(file, 'admin/categories', setUploadPhase);
       setRows((old) => old.map((item) => idOf(item) === id ? { ...item, image } : item));
       void MessagePlugin.success('图片已上传，点击保存后生效');
     } catch (err) { void MessagePlugin.error(err instanceof Error ? err.message : '图片上传失败'); }
@@ -241,7 +243,7 @@ export function CategoriesPage() {
             <div className="category-manager-child-name">{nameCell(item)}</div>
             {moveActions(children, index)}
             <Button size="small" variant="text" className={item.image ? 'category-manager-has-image' : ''} icon={<ImageIcon />} title="上传分类封面（可选）" aria-label={`上传 ${item.name} 的分类封面（可选）`} disabled={busy || Boolean(uploadingId)} onClick={() => chooseImage(item)} />
-            {uploadingId === idOf(item) && <small>正在上传...</small>}
+            {uploadingId === idOf(item) && <small role="status">{uploadPhase}</small>}
             {editActions(item)}
             {item.image && <div className="category-manager-image-preview-row"><div className="category-manager-image-preview-wrap">
               <button type="button" className="category-manager-image-preview-button" title="点击更换图片" aria-label={`更换 ${item.name} 的图片`} disabled={busy || Boolean(uploadingId)} onClick={() => chooseImage(item)}><CategoryImagePreview image={item.image} name={item.name} /></button>
@@ -250,7 +252,7 @@ export function CategoriesPage() {
             </div>}
           </div>)}
         </div>
-        <input ref={imageInputRef} className="image-file-picker-input" type="file" accept="image/*" aria-label="选择二级类别图片" onChange={(event) => {
+        <input ref={imageInputRef} className="image-file-picker-input" type="file" accept={IMAGE_ACCEPT} aria-label="选择二级类别图片" onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = '';
           if (file && imageTargetRef.current) void uploadImage(imageTargetRef.current, file);

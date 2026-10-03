@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const cache = new Map();
 let page, component, respond;
 let resolves = 0;
+const imagePreviews = [];
 const deferred = new Map();
 const api = {
   getApiErrorMessage: (error) => error.message,
@@ -29,12 +30,12 @@ function load(file) {
   }).outputText, {
     exports,
     require(name) {
-      if (name === 'tdesign-miniprogram/toast/index') return () => {};
+      if (name === 'tdesign-miniprogram/toast/index') return { default: () => {} };
       if (name.startsWith('.')) return load(`${path.resolve(path.dirname(filename), name)}.ts`);
       throw new Error(`Unexpected dependency ${name}`);
     },
     Page: (value) => { page = value; }, Component: (value) => { component = value; },
-    wx: { getWindowInfo: () => ({ screenWidth: 375, pixelRatio: 2 }), stopPullDownRefresh() {}, showToast() {} },
+    wx: { getWindowInfo: () => ({ screenWidth: 375, pixelRatio: 2 }), stopPullDownRefresh() {}, showToast() {}, previewImage(options) { imagePreviews.push(options); } },
   }, { filename });
   return exports;
 }
@@ -54,6 +55,7 @@ async function run() {
   assert.equal(await images.resolveImage('/assets/user-avatar.jpg'), '/assets/user-avatar.jpg');
   respond = async () => ({ items: [{ images: ['cloud://comment.webp'], avatarUrl: 'local://avatar.webp' }] });
   const comments = await load('services/comments/fetchComments.ts').fetchComments();
+  assert.equal(comments.pageList[0].userHeadUrl, '/assets/user-avatar.jpg');
   const resource = comments.pageList[0].commentResources[0];
   assert.equal(resource.image, 'https://example.test/comment.webp');
   assert.equal(resource.fileID, 'cloud://comment.webp');
@@ -152,6 +154,23 @@ async function run() {
   respond = async () => ({ items: [snapshot] });
   await orderpage.init(); assert.equal(orderpage.data.loadError, '');
   assert.equal(orderpage.data._order.goodsList[0].thumb, 'https://example.test/cover.webp');
-  console.log('PASS image URLs, snapshot adapters, comment IDs, async races, home failure and retry');
+  load('pages/goods/details/index.ts');
+  const productPage = instance(page);
+  productPage.data.details = { primaryImage: 'https://example.test/cover.webp', desc: ['', 'https://example.test/detail.webp'] };
+  productPage.data.skuArray = [{ skuImage: 'https://example.test/sku.webp' }, { skuImage: 'https://example.test/cover.webp' }];
+  for (const src of ['cover', 'detail']) {
+    productPage.previewProductImage({ currentTarget: { dataset: { src: `https://example.test/${src}.webp` } } });
+    assert.equal(imagePreviews.at(-1).current, `https://example.test/${src}.webp`);
+    assert.deepEqual(Array.from(imagePreviews.at(-1).urls), ['https://example.test/cover.webp', 'https://example.test/detail.webp', 'https://example.test/sku.webp']);
+  }
+  load('pages/goods/details/components/goods-specs-popup/index.ts');
+  component.methods.previewImage.call({ properties: { src: 'https://example.test/sku.webp' }, triggerEvent(name, detail) {
+    assert.equal(name, 'previewImage'); productPage.previewProductImage({ detail });
+  } });
+  assert.equal(imagePreviews.at(-1).current, 'https://example.test/sku.webp');
+  productPage.previewProductImage({ currentTarget: { dataset: { src: '' } } });
+  assert.equal(imagePreviews.length, 3);
+  imagePreviews.at(-1).fail();
+  console.log('PASS image URLs, snapshot adapters, comment IDs, async races, home failure and retry, product image preview');
 }
 run().catch((error) => { console.error(error); process.exitCode = 1; });

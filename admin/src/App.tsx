@@ -5,6 +5,7 @@ import { AfterSalesPage, CommentsPage, HomeContentPage, OrderDetailPage, OrdersP
 import { CategoriesPage } from './pages/CategoriesPage';
 import { LoginPage } from './pages/LoginPage';
 import { SkuInventoryPage } from './pages/SkuInventoryPage';
+import { ImageResourcesPage } from './pages/ImageResourcesPage';
 import { LoadingState } from './components/Ui';
 
 function ProtectedRoute() {
@@ -27,6 +28,7 @@ const router = createHashRouter([
         { path: 'products/new', element: <ProductsPage key="new" editorMode /> },
         { path: 'products/:productId/edit', element: <ProductsPage key="edit" editorMode /> },
         { path: 'categories', element: <CategoriesPage /> },
+        { path: 'image-resources', element: <ImageResourcesPage /> },
         { path: 'skus', element: <SkuInventoryPage /> },
         { path: 'inventory', element: <Navigate to="/skus" replace /> },
         { path: 'home-content', element: <HomeContentPage /> },

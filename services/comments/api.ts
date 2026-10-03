@@ -128,7 +128,7 @@ export { request, getApiErrorMessage };
 export async function resolveCommentImages(comment) {
   if (!comment) return null;
   return { ...comment,
-    userHeadUrl: await resolveImage(comment.userHeadUrl || comment.avatarUrl || comment.avatar),
+    userHeadUrl: '/assets/user-avatar.jpg',
     commentResources: await Promise.all((comment.commentResources || []).map(async (resource) => ({
       ...resource, image: await resolveImage(resource.fileID || resource.image),
     }))),
