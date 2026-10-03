@@ -11,6 +11,13 @@ const { assert, string, optionalString, integer, page, clone } = require('./vali
 const { skuPrice, skuStock } = require('./shop');
 const { HOME_CONFIG_SLOT, validateHomeConfig, productIds: homeProductIds } = require('./home-config');
 
+async function findProduct(collection, id) {
+  const direct = await getDoc(collection, id, false);
+  if (direct) return direct;
+  const result = await list(collection, { where: { spuId: id }, limit: 1, includeTotal: false });
+  return result.items[0] || null;
+}
+
 async function clearHomeProductLinks(tx, product, id, timestamp) {
   const home = tx.collection(COLLECTIONS.homeContents);
   const config = await getDoc(home, HOME_CONFIG_SLOT, false);
@@ -377,7 +384,8 @@ async function catalogAction(runtime, data, action) {
   }
   if (action.endsWith('.get')) {
     const id = string(data[`${entity.slice(0, -1)}Id`] || data.id || data.spuId || data.skuId, 'id', { max: 128 });
-    const result = await getDoc(collection, id, true);
+    const result = entity === 'products' ? await findProduct(collection, id) : await getDoc(collection, id, true);
+    if (!result) throw errorFrom('NOT_FOUND');
     return entity === 'skus' ? withoutSkuStatus(result) : result;
   }
   if (entity === 'categories') return categoryAction(runtime, data, action, collection);
@@ -483,10 +491,23 @@ async function homeAction(runtime, data, action) {
   if (action === 'home.get' || action === 'home.clearUnavailableLinks') {
     if (!existing) throw errorFrom('NOT_FOUND');
     if (key !== HOME_CONFIG_SLOT) return existing;
+    // CloudBase transactions only support document operations. Resolve aliases
+    // outside the transaction, then re-read the actual documents inside it.
+    const resolved = new Map(await Promise.all(homeProductIds(existing.payload).map(async (id) => {
+      const product = await findProduct(col(runtime, COLLECTIONS.products), id);
+      return [id, product?._id || id];
+    })));
     return withTransaction(runtime.db, async (tx) => {
       const config = await getDoc(tx.collection(COLLECTIONS.homeContents), key, true);
       for (const id of homeProductIds(config.payload)) {
-        const product = await getDoc(tx.collection(COLLECTIONS.products), id, false);
+        // A concurrently added link has not been resolved yet; leave it alone.
+        if (!resolved.has(id)) continue;
+        const products = tx.collection(COLLECTIONS.products);
+        let product = await getDoc(products, id, false);
+        if (!product && resolved.get(id) !== id) {
+          product = await getDoc(products, resolved.get(id), false);
+          if (product && product.spuId !== id) product = null;
+        }
         if (!product || product.deletedByAdmin || product.status !== STATUS.active) {
           await clearHomeProductLinks(tx, product || {}, id, now());
         }

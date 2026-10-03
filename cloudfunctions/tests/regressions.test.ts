@@ -411,6 +411,39 @@ async function testDeletingProductClearsHomeLinksWithoutRemovingSlots() {
   assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.promos[0].productId, '');
 }
 
+async function testHomeCleanupPreservesActiveLegacyProductLinks() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
+  runtime.records.products['product-1'].spuId = 'legacy-product-1';
+  const payload = {
+    searchText: '欢迎', bannerText: '公告',
+    banners: [{ image: 'banner.jpg', productId: 'legacy-product-1' }],
+    promos: [{ image: 'promo.jpg', productId: 'legacy-product-1' }, { image: '', productId: '' }],
+    sections: [{ id: 'section-1', title: '推荐', productIds: ['legacy-product-1', 'product-1', 'missing-product'] }],
+  };
+  runtime.records.homeContents = { 'home.page-config': { _id: 'home.page-config', payload } };
+  const call = (action, data) => adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, action, data);
+  const product = await call('products.get', { id: 'legacy-product-1' });
+  assert.strictEqual(product._id, 'product-1');
+  assert.strictEqual((await call('products.get', { id: 'product-1' }))._id, 'product-1');
+  await assert.rejects(() => call('products.get', { id: 'missing-product' }), appError('NOT_FOUND'));
+  for (const action of ['home.get', 'home.clearUnavailableLinks']) {
+    const result = await call(action, { id: 'home.page-config' });
+    assert.deepStrictEqual(result.payload.banners, payload.banners);
+    assert.deepStrictEqual(result.payload.promos, payload.promos);
+    assert.deepStrictEqual(result.payload.sections[0].productIds, ['legacy-product-1', 'product-1', '']);
+  }
+  for (const patch of [{ status: 'inactive' }, { status: 'active', deletedByAdmin: true }]) {
+    Object.assign(runtime.records.products['product-1'], patch);
+    runtime.records.homeContents['home.page-config'].payload = payload;
+    const result = await call('home.clearUnavailableLinks', { id: 'home.page-config' });
+    assert.strictEqual(result.payload.banners[0].productId, '');
+    assert.strictEqual(result.payload.promos[0].productId, '');
+    assert.deepStrictEqual(result.payload.sections[0].productIds, ['', '', '']);
+    assert.strictEqual(result.payload.banners[0].image, 'banner.jpg');
+  }
+}
+
 async function testInactiveProductsArePinnedBeforePagination() {
   const runtime = makeRuntime();
   runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
@@ -986,6 +1019,7 @@ const cases = [
   { name: 'dashboard product count is not limited to the first page', run: testDashboardProductCountUsesCountQuery },
   { name: 'home configuration limits and legacy response', run: testHomeConfigLimitsAndLegacyResponse },
   { name: 'deleting a product clears home links while preserving slots', run: testDeletingProductClearsHomeLinksWithoutRemovingSlots },
+  { name: 'home cleanup preserves active legacy product links and clears unavailable aliases', run: testHomeCleanupPreservesActiveLegacyProductLinks },
   { name: 'inactive products are pinned before pagination', run: testInactiveProductsArePinnedBeforePagination },
   { name: 'two-level categories validate hierarchy and clear products on deletion', run: testTwoLevelCategoriesAndCascadeDeletion },
 ];
