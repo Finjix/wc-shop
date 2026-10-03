@@ -259,7 +259,6 @@ export function HomeContentPage() {
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
-  const panelSaveButton = () => <Button theme="primary" loading={saving} disabled={saving} onClick={() => void save()}>保存</Button>;
   const productSelect = (value: string, onChange: (value: string) => void) => <ProductSelect value={value} onChange={onChange} known={known} onKnown={(product) => setKnown((old) => ({ ...old, [String(product._id)]: product }))} />;
   const imageLinkFields = (kind: 'banners' | 'promos', entry: ImageLink, index: number) => <div className="home-config-link-fields">
     <Field label="封面图片" fileUpload><ImagePicker onChange={(value) => updateLink(kind, index, 'image', value)} /></Field>
@@ -267,9 +266,10 @@ export function HomeContentPage() {
   </div>;
 
   return <div className="home-config-page">
-    <Panel><div className="panel-heading"><h3>顶部搜索栏</h3>{panelSaveButton()}</div><Field label="滚动文字"><Input value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={120} /></Field></Panel>
+    <div className="floating-save-actions"><Button theme="primary" loading={saving} disabled={!dirty || saving} onClick={() => void save()}>保存</Button></div>
+    <Panel><div className="panel-heading"><h3>顶部搜索栏</h3></div><Field label="滚动文字"><Input value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={120} /></Field></Panel>
 
-    <Panel><div className="panel-heading"><h3>轮播图（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 6} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button>{panelSaveButton()}</div></div>
+    <Panel><div className="panel-heading"><h3>轮播图（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 6} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button></div></div>
       {config.banners.map((entry, index) => <div className="home-config-entry" key={index}>
         <div className="home-config-entry-head"><strong>轮播 {index + 1}</strong><Button size="small" variant="text" disabled={config.banners.length <= 1} onClick={() => setConfig((old) => ({ ...old, banners: old.banners.filter((_, i) => i !== index) }))}>删除</Button></div>
         {imageLinkFields('banners', entry, index)}
@@ -279,16 +279,16 @@ export function HomeContentPage() {
       </div>}
     </Panel>
 
-    <Panel><div className="panel-heading"><h3>轮播下方文字</h3>{panelSaveButton()}</div><Field label="显示文字"><Input value={config.bannerText} onChange={(value) => setConfig((old) => ({ ...old, bannerText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={160} /></Field></Panel>
+    <Panel><div className="panel-heading"><h3>轮播下方文字</h3></div><Field label="显示文字"><Input value={config.bannerText} onChange={(value) => setConfig((old) => ({ ...old, bannerText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={160} /></Field></Panel>
 
-    <Panel><div className="panel-heading"><h3>轮播下方两个图片位（1:1）</h3>{panelSaveButton()}</div>
+    <Panel><div className="panel-heading"><h3>轮播下方两个图片位（1:1）</h3></div>
       {config.promos.map((entry, index) => <div className="home-config-entry" key={index}><div className="home-config-entry-head"><strong>{index === 0 ? '左侧位置' : '右侧位置'}</strong></div>{imageLinkFields('promos', entry, index)}</div>)}
       {config.promos.some((entry) => entry.image) && <div className="home-config-image-previews">
         {config.promos.map((entry, index) => entry.image && <div className="home-config-image-preview" key={index}><ImagePreview image={entry.image} aspect="square" /><span className="home-config-image-caption">{index === 0 ? '左侧封面' : '右侧封面'}</span></div>)}
       </div>}
     </Panel>
 
-    <Panel><div className="panel-heading"><h3>商品区</h3><div className="home-config-panel-actions"><Button disabled={config.sections.length >= 6} onClick={() => setConfig((old) => ({ ...old, sections: [...old.sections, blankSection()] }))}>新增商品区</Button>{panelSaveButton()}</div></div>
+    <Panel><div className="panel-heading"><h3>商品区</h3><div className="home-config-panel-actions"><Button disabled={config.sections.length >= 6} onClick={() => setConfig((old) => ({ ...old, sections: [...old.sections, blankSection()] }))}>新增商品区</Button></div></div>
       {config.sections.map((section, sectionIndex) => <div className="home-config-entry" key={section.id}>
         <div className="home-config-entry-head"><strong>商品区 {sectionIndex + 1}</strong><div><Button size="small" variant="text" disabled={section.productIds.length >= 6} onClick={() => resizeSectionProducts(sectionIndex, 2)}>增加商品</Button><Button size="small" variant="text" disabled={section.productIds.length <= 2} onClick={() => resizeSectionProducts(sectionIndex, -2)}>减少商品</Button><Button size="small" variant="text" disabled={config.sections.length <= 1} onClick={() => setConfig((old) => ({ ...old, sections: old.sections.filter((item) => item.id !== section.id) }))}>删除</Button></div></div>
         <Field label="标题"><Input value={section.title} onChange={(value) => updateSection(sectionIndex, { title: value })} placeholder="商品区标题" /></Field>

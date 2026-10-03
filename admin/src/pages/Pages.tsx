@@ -379,6 +379,9 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const [editing, setEditing] = useState<Product | null>(null);
   const [draft, setDraft] = useState<ProductDraft>(emptyProduct);
   const [variants, setVariants] = useState<VariantDraft[]>([emptyVariant()]);
+  const [savedEditor, setSavedEditor] = useState<string | null>(null);
+  const editorSnapshot = JSON.stringify({ draft, variants });
+  const editorDirty = savedEditor !== null && editorSnapshot !== savedEditor;
   const editorRequest = useRef(0);
   const [variantsLoading, setVariantsLoading] = useState(false);
   const [uploading, setUploading] = useState('');
@@ -456,7 +459,11 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     });
     return () => { active = false; };
   }, [rows]);
+  useEffect(() => {
+    if (editorOpen && !variantsLoading && savedEditor === null) setSavedEditor(editorSnapshot);
+  }, [editorOpen, variantsLoading, savedEditor, editorSnapshot]);
   const openEditor = async (product?: Product) => {
+    setSavedEditor(null);
     const request = ++editorRequest.current;
     setEditorOpen(true);
     setEditing(product || null);
@@ -676,7 +683,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
       </div>
     </Panel>}
     </>}{editorMode && routeEditLoading && <LoadingState />}
-    {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions"><Button variant="outline" onClick={cancelEditor}>取消</Button><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存商品</Button></div><div className="form-grid">
+    {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions floating-save-actions"><Button variant="outline" onClick={cancelEditor}>取消</Button><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} disabled={!editorDirty || busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存</Button></div><div className="form-grid">
        <Field label="商品名称"><Input value={draft.title} onChange={(value) => setValue('title', value)} placeholder="请输入商品名称" /></Field>
        <Field label="分类" fileUpload hint={categoriesError || (categoriesLoading ? '分类加载中...' : undefined)}><CategoryPicker value={draft.categoryId} onChange={(id) => setValue('categoryId', id)} options={categoryOptions} disabled={categoriesLoading || Boolean(categoriesError)} /></Field>
        <div className="variant-field"><strong>商品规格</strong>{variantsLoading && <small>正在读取已有规格…</small>}

@@ -223,7 +223,7 @@ export function SkuInventoryPage() {
       <div className="product-page-search">
         <Input value={queryInput} disabled={saving} onChange={setQueryInput} onEnter={(_value, { e }) => { e.preventDefault(); search(); }} placeholder="搜索商品名称" aria-label="搜索商品名称" />
       </div>
-      <div className="sku-inventory-page-actions">
+      <div className="floating-save-actions">
         <Button theme="primary" loading={saving} disabled={!dirty || saving || loading} onClick={() => void save()}>保存</Button>
       </div>
     </div>
@@ -236,7 +236,7 @@ export function SkuInventoryPage() {
       return <Panel className="sku-inventory-panel" key={productId}>
         <div className="panel-heading">
           <h3>{product.title || '未命名商品'}</h3>
-          <Button variant="text" disabled={saving} onClick={() => navigate(`/products/${encodeURIComponent(productId)}/edit`)}>编辑</Button>
+          <Button variant="text" disabled={saving} onClick={() => navigate(`/products/${encodeURIComponent(productId)}/edit`)}>编辑商品</Button>
         </div>
         {skus.length === 0 ? <EmptyState title="该商品暂无规格" /> : <Table minWidth={560}>
           <thead><tr><th>规格</th><th>当前库存</th><th>设置库存</th></tr></thead>

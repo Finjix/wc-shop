@@ -220,7 +220,7 @@ export function CategoriesPage() {
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} onRetry={() => { setLoading(true); void readCategories().then((items) => { setRows(items); setSavedRows(items); setError(''); }).catch((err: unknown) => setError(err instanceof Error ? err.message : '分类读取失败')).finally(() => setLoading(false)); }} />;
   return <>
-    <div className="page-actions"><Button theme="primary" loading={busy} disabled={!dirty || busy || Boolean(uploadingId)} onClick={() => void save()}>保存</Button></div>
+    <div className="floating-save-actions"><Button theme="primary" loading={busy} disabled={!dirty || busy || Boolean(uploadingId)} onClick={() => void save()}>保存</Button></div>
     <div className="category-manager-columns">
       <Panel>
         <div className="panel-heading"><h3>一级类别</h3></div>
@@ -240,7 +240,7 @@ export function CategoriesPage() {
           {children.map((item, index) => <div key={idOf(item)} className="category-manager-parent category-manager-child-item">
             <div className="category-manager-child-name">{nameCell(item)}</div>
             {moveActions(children, index)}
-            <Button size="small" variant="text" className={item.image ? 'category-manager-has-image' : ''} icon={<ImageIcon />} title="点击上传图片" aria-label={`上传 ${item.name} 的图片`} disabled={busy || Boolean(uploadingId)} onClick={() => chooseImage(item)} />
+            <Button size="small" variant="text" className={item.image ? 'category-manager-has-image' : ''} icon={<ImageIcon />} title="上传分类封面（可选）" aria-label={`上传 ${item.name} 的分类封面（可选）`} disabled={busy || Boolean(uploadingId)} onClick={() => chooseImage(item)} />
             {uploadingId === idOf(item) && <small>正在上传...</small>}
             {editActions(item)}
             {item.image && <div className="category-manager-image-preview-row"><div className="category-manager-image-preview-wrap">

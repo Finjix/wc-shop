@@ -13,8 +13,8 @@
     <view class="category-right">
       <scroll-view class="category-products" scroll-y>
         <view class="category-section" wx:for="{{goodsSections}}" wx:for-item="section" wx:key="id" wx:if="{{!section.isParent || section.goodsList.length}}">
+          <view class="category-section-title">{{section.name}}</view>
           <image class="category-section-banner {{!section.isParent ? 'category-section-banner-rounded' : ''}}" wx:if="{{section.image}}" src="{{section.image}}" mode="widthFix" lazy-load data-category-id="{{section.id}}" data-category-name="{{section.name}}" data-is-parent="{{section.isParent}}" bindtap="openCategoryResults" />
-          <view class="category-section-title" wx:else>{{section.name}}</view>
           <view class="category-product-grid" wx:if="{{section.goodsList.length}}">
             <view class="category-product-card" wx:for="{{section.goodsList}}" wx:for-item="goods" wx:key="spuId" data-id="{{goods.spuId || goods._id}}" bindtap="openGoods">
               <image class="category-product-image" wx:if="{{goods.thumb}}" src="{{goods.thumb}}" mode="aspectFill" lazy-load />

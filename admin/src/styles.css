@@ -58,6 +58,7 @@ a { color: var(--text); text-decoration: none; }
 .main-area { min-width: 0; flex: 1; }
 .menu-button { display: none; background: transparent; border: 0; font-size: 20px; color: var(--ink); padding: 0; }
 .page-content { max-width: 1320px; padding: 28px 30px 56px; margin: auto; }
+.floating-save-actions { position: fixed; top: 12px; right: max(58px, calc((100% - 1540px) / 4 + 15px)); transform: translateX(50%); z-index: 100; display: flex; align-items: center; gap: 8px; padding: 0; margin: 0; }
 .overview-title { margin: 0 0 20px; color: var(--ink); font-size: 22px; font-weight: 650; }
 .overview-page { display: flex; flex-direction: column; min-height: calc(100dvh - 84px); gap: 20px; }
 .overview-page .overview-title { margin-bottom: 0; }
@@ -108,6 +109,11 @@ tbody tr.product-list-inactive, tbody tr.product-list-inactive:hover { backgroun
 .product-list-inactive .product-cell img { filter: grayscale(1); opacity: .65; }
 .product-list-inactive .product-list-edit.t-button { color: var(--muted); }
 .sku-inventory-panel .panel-heading h3 { min-width: 0; overflow-wrap: anywhere; }
+.sku-inventory-panel table { table-layout: fixed; }
+.sku-inventory-panel th:nth-child(1) { width: 35%; }
+.sku-inventory-panel th:nth-child(2) { width: 25%; }
+.sku-inventory-panel th:nth-child(3) { width: 40%; }
+.sku-inventory-panel td { overflow-wrap: anywhere; }
 .sku-inventory-panel td:nth-child(3) .t-input { width: 150px; }
 .sku-inventory-panel td:last-child { white-space: nowrap; }
 .text-button { display: inline-block; padding: 4px 7px; color: #333; }
@@ -183,6 +189,8 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .form-panel .form-grid { margin-bottom: 18px; }
 .editor-panel { border-color: var(--line-strong); background: var(--surface); }
 .product-editor-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 18px; }
+.product-editor-actions.floating-save-actions { flex-direction: column-reverse; margin-bottom: 0; }
+.product-editor-actions.floating-save-actions .t-button { width: 100%; }
 .form-actions { display: flex; gap: 8px; margin-top: 18px; }
 .file-list { display: flex; flex-direction: column; gap: 4px; margin-top: 7px; }
 .file-list code { word-break: break-all; font-size: 10px; color: #555; background: var(--surface-muted); border: 1px solid #ededed; border-radius: 0; padding: 5px; }

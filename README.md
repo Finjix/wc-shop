@@ -37,7 +37,7 @@ npm run dev:local-backend
 npm --prefix admin run dev -- --host 127.0.0.1 --port 5173
 ```
 
-当前 `config/runtime.ts` 的 `useLocalBackend` 为 `false`，小程序默认连接真实 CloudBase 服务端。本地调试时可临时改为 `true` 并启动本地服务；管理后台可通过 `admin/.env.local` 中的 `VITE_LOCAL_API_URL` 使用本地服务。本地后台默认管理员账号为 `admin`，密码为 `admin`，仅用于本地调试。发布小程序前确保 `useLocalBackend` 为 `false`；部署打包脚本会禁用管理后台的本地接口地址。
+当前 `config/runtime.ts` 的 `useLocalBackend` 为 `true`，小程序默认连接本地服务 `http://127.0.0.1:8787`，调试前请启动 `npm run dev:local-backend`；管理后台可通过 `admin/.env.local` 中的 `VITE_LOCAL_API_URL` 使用本地服务。本地后台默认管理员账号为 `admin`，密码为 `admin`，仅用于本地调试。发布小程序前确保 `useLocalBackend` 为 `false`；部署打包脚本会禁用管理后台的本地接口地址。
 
 本地数据库和上传图片保存在用户目录的 `.wc-shop/runtime/<项目路径标识>/` 下，分别为 `.local-backend.json` 和 `.local-files/`。运行时写入项目目录会触发微信开发者工具自动热重载，导致加购、删除等操作后重新回到首页，因此默认将数据放在项目目录外。首次启动会复制项目里的 `.local-data/`、`.local-files/` 和旧目录中的数据，保留原文件且不覆盖已迁移的数据。可通过 `LOCAL_BACKEND_DATA_DIR` 指定运行时数据目录，请选择项目目录外的位置。
 
