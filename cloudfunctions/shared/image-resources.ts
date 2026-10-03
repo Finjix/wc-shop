@@ -129,7 +129,7 @@ async function scan(runtime, data) {
       const documents = await pageDocuments(runtime, source, job.cursor);
       let budget = 40, processed = 0, cursor = job.cursor, pendingDocID = '', imageOffset = 0;
       for (const document of documents) {
-        const images = collectImages(document);
+        const images = collectImages(document, source);
         let offset = document._id === job.pendingDocID ? job.imageOffset || 0 : 0;
         for (; offset < images.length && budget > 0; offset++, budget--) {
           const fileID = images[offset];
@@ -198,7 +198,7 @@ async function resourceList(runtime, data) {
 async function stillReferenced(runtime, entry) {
   for (const use of entry.uses) {
     const document = await getDoc(runtime.db.collection(use.source), use.id, false);
-    if (document && collectImages(document).includes(entry.fileID)) return true;
+    if (document && collectImages(document, use.source).includes(entry.fileID)) return true;
   }
   return false;
 }
@@ -271,11 +271,11 @@ async function advanceReplacement(runtime, data) {
     const documents = await pageDocuments(runtime, source, job.cursor);
     let changed = 0;
     for (const document of documents) {
-      if (!collectImages(document).includes(job.oldFileID)) continue;
+      if (!collectImages(document, source).includes(job.oldFileID)) continue;
       const updated = await withTransaction(runtime.db, async (tx) => {
         const current = await getDoc(tx.collection(source), document._id, false);
-        if (!current || !collectImages(current).includes(job.oldFileID)) return false;
-        const normalized = mapImages(current, (file) => file === job.oldFileID ? job.newFileID : file);
+        if (!current || !collectImages(current, source).includes(job.oldFileID)) return false;
+        const normalized = mapImages(current, (file) => file === job.oldFileID ? job.newFileID : file, source);
         await setDoc(tx.collection(source), document._id, normalized);
         return true;
       });

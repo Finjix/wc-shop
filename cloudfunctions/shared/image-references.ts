@@ -1,6 +1,6 @@
 // @ts-nocheck
 const crypto = require('crypto');
-const { getDoc, setDoc, withTransaction } = require('./db');
+const { getDoc, withTransaction } = require('./db');
 const { errorFrom } = require('./errors');
 
 const SOURCES = ['homeContents', 'products', 'skus', 'categories', 'comments', 'afterSales', 'orders', 'carts'];
@@ -16,21 +16,30 @@ function isStoredImage(value) {
 }
 
 // Only image fields and known image-bearing containers are visited; text stays untouched.
-function mapImages(value, mapper, key = '', inResource = false) {
-  if (typeof value === 'string') return (SINGLE_FIELDS.has(key.split('.').pop()) || ARRAY_FIELDS.has(key)) && isStoredImage(value) ? mapper(value) : value;
-  if (Array.isArray(value)) return value.map((item) => mapImages(item, mapper, key, key === 'commentResources' || key === 'resources'));
-  if (!value || typeof value !== 'object') return value;
-  if (inResource && value.type && value.type !== 'image') return value;
-  const result = { ...value };
-  Object.entries(value).forEach(([field, item]) => {
-    const leaf = field.split('.').pop();
-    if (SINGLE_FIELDS.has(leaf) || ARRAY_FIELDS.has(leaf) || CONTAINERS.has(leaf)) result[field] = mapImages(item, mapper, leaf);
-  });
-  return result;
+function mapImages(value, mapper, source = '', type = value?.type) {
+  const mapFile = (file) => isStoredImage(file) ? mapper(file) : file;
+  function visit(value, key = '', inResource = false, inProduct = source === 'products') {
+    if (typeof value === 'string') return SINGLE_FIELDS.has(key) || ARRAY_FIELDS.has(key) ? mapFile(value) : value;
+    if (Array.isArray(value)) return value.map((item) => visit(item, key, key === 'commentResources' || key === 'resources', inProduct));
+    if (!value || typeof value !== 'object') return value;
+    if (inResource && value.type && value.type !== 'image') return value;
+    const result = { ...value };
+    Object.entries(value).forEach(([field, item]) => {
+      const leaf = field.split('.').pop();
+      // Legacy detail arrays belong to products, including order/cart snapshots.
+      if (inProduct && leaf === 'desc' && Array.isArray(item)) result[field] = item.map(mapFile);
+      else if (!key && source === 'homeContents' && (value.type ?? type) === 'banner' && leaf === 'content') result[field] = mapFile(item);
+      else if (SINGLE_FIELDS.has(leaf) || ARRAY_FIELDS.has(leaf) || CONTAINERS.has(leaf)) {
+        result[field] = visit(item, leaf, false, leaf === 'product' || leaf === 'productSnapshot');
+      }
+    });
+    return result;
+  }
+  return visit(value);
 }
-function collectImages(document) {
+function collectImages(document, source = '', type = document?.type) {
   const files = new Set();
-  mapImages(document, (file) => { files.add(file); return file; });
+  mapImages(document, (file) => { files.add(file); return file; }, source, type);
   return [...files];
 }
 function groupOf(fileID, source) {
@@ -57,13 +66,13 @@ async function resolveAlias(db, fileID) {
   }
   throw errorFrom('CONFLICT');
 }
-async function normalizeImages(db, value) {
+async function normalizeImages(db, value, source, type) {
   const mapping = new Map();
-  const files = collectImages(value);
+  const files = collectImages(value, source, type);
   for (let offset = 0; offset < files.length; offset += 20) {
     await Promise.all(files.slice(offset, offset + 20).map(async (file) => mapping.set(file, await resolveAlias(db, file))));
   }
-  return mapImages(value, (file) => mapping.get(file) || file);
+  return mapImages(value, (file) => mapping.get(file) || file, source, type);
 }
 
 /** Normalize stale IDs at the actual transactional write, including snapshot copies. */
@@ -80,7 +89,7 @@ function imageAwareRuntime(runtime) {
         if (!SOURCES.includes(name)) return collection;
         return new Proxy(collection, { get(ref, field) {
           if (field === 'add') return async (value) => {
-            if (!collectImages(value).length) return ref.add(value);
+            if (!collectImages(value, name).length) return ref.add(value);
             const id = `${name}-${Date.now()}-${crypto.randomUUID()}`;
             await write(id, 'set', value);
             return { id };
@@ -92,11 +101,14 @@ function imageAwareRuntime(runtime) {
           } });
         } });
         async function write(id, method, value) {
-          if (!collectImages(value).length) return target.collection(name).doc(id)[method](value);
+          const needsHomeType = method === 'update' && name === 'homeContents' && value.type === undefined && isStoredImage(value.content);
+          if (!needsHomeType && !collectImages(value, name).length) return target.collection(name).doc(id)[method](value);
           const apply = async (tx) => {
             // Alias activation updates this fence, forcing concurrent image writes to retry.
             await getDoc(tx.collection('resourceControl'), 'current', false);
-            const normalized = await normalizeImages(tx, value);
+            // Partial banner updates omit type; read it in the same write transaction.
+            const type = needsHomeType ? (await getDoc(tx.collection(name), id, false))?.type : value.type;
+            const normalized = await normalizeImages(tx, value, name, type);
             return tx.collection(name).doc(id)[method](normalized);
           };
           return transactional ? apply(target) : withTransaction(original, apply);

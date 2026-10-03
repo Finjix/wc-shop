@@ -46,10 +46,10 @@ workerScope.onmessage = async ({ data: { bytes, format, reencodeWebp } }) => {
       source.width = source.height = target.width = target.height = 1;
     }
     await initEncode({ locateFile: (path: string) => path.includes('simd') ? encodeSimdWasm : encodeWasm });
-    const output = await encode(pixels, { lossless: 1, near_lossless: 100, exact: 1, alpha_quality: 100, method: 4 });
+    const output = await encode(pixels, { lossless: 0, quality: 100, exact: 1, alpha_quality: 100, method: 4 });
     workerScope.postMessage({ bytes: output }, [output]);
   } catch (error) {
-    workerScope.postMessage({ error: error instanceof Error && error.message.startsWith('浏览器') ? error.message : '图片解码或无损编码失败，请检查图片是否损坏' });
+    workerScope.postMessage({ error: error instanceof Error && error.message.startsWith('浏览器') ? error.message : '图片解码或编码失败，请检查图片是否损坏' });
   } finally {
     bitmap?.close();
   }

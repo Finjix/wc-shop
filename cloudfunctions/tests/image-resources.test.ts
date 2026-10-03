@@ -3,6 +3,7 @@ const assert = require('assert');
 const { scan, resourceList, beginReplacement, advanceReplacement, resourcesEndpoint } = require('../shared/image-resources');
 const { imageAwareRuntime, collectImages, hash } = require('../shared/image-references');
 const { adminEndpoint } = require('../shared/admin');
+const { shopEndpoint } = require('../shared/shop');
 
 async function finishScan(runtime) {
   let job = await scan(runtime, {});
@@ -11,6 +12,8 @@ async function finishScan(runtime) {
   return resourceList(runtime, {});
 }
 async function run(makeRuntime) {
+  await testCategoryTempUrls(makeRuntime);
+  await testLegacyImageReferences(makeRuntime);
   const large = makeRuntime();
   large.records.orders.large = { _id: 'large', items: Array.from({ length: 90 }, (_, i) => ({ image: `local://products/${i}.png` })) };
   large.resourceFileInfo = async () => ({ size: 2, format: 'png', animated: false, version: 'v1', status: 'ok' });
@@ -114,5 +117,89 @@ async function run(makeRuntime) {
   await adminEndpoint({}, { auth: { uid: 'viewer' } }, runtime, 'storage.resources.list', {});
   await assert.rejects(() => adminEndpoint({}, { auth: { uid: 'viewer' } }, runtime, 'storage.resources.beginReplacement', { fileID: replacement, version: 'v2' }), { code: 'FORBIDDEN' });
   console.log('PASS inventory administrators can view but cannot replace cloud resources');
+}
+
+async function testCategoryTempUrls(makeRuntime) {
+  const runtime = makeRuntime();
+  const context = { auth: { uid: 'user-1' } };
+  const original = 'cloud://env/admin/categories/child.png';
+  const replacement = 'cloud://env/admin/categories/child.webp';
+  runtime.records.resourceAliases = { [hash(original)]: { newFileID: replacement } };
+  runtime.app = {
+    getTempFileURL: async ({ fileList }) => ({ fileList: fileList.map((fileID) => ({ fileID, tempFileURL: `https://test/${fileID.split('/').pop()}` })) }),
+  };
+  const files = await shopEndpoint({}, context, runtime, 'storage.tempUrls', {
+    fileList: [original, 'cloud://env/categories/legacy.png'],
+  });
+  assert.deepEqual(files, [
+    { fileID: original, tempFileURL: 'https://test/child.webp' },
+    { fileID: 'cloud://env/categories/legacy.png', tempFileURL: 'https://test/legacy.png' },
+  ]);
+  for (const folder of ['pending/admin/categories', 'user/avatars', 'private', 'admin/categories-private']) {
+    await assert.rejects(() => shopEndpoint({}, context, runtime, 'storage.tempUrls', {
+      fileList: [`cloud://env/${folder}/file.png`],
+    }), { code: 'FORBIDDEN' });
+  }
+  console.log('PASS category image URLs allow current and legacy folders, resolve replacements and reject unrelated folders');
+}
+
+async function testLegacyImageReferences(makeRuntime) {
+  const runtime = makeRuntime();
+  const detail = 'cloud://env/products/legacy-detail.png';
+  const banner = 'cloud://env/home/legacy-banner.png';
+  const files = Object.fromEntries([detail, banner].map((fileID) => [fileID, {
+    size: 100, format: 'png', animated: false, status: 'ok', version: 'v1', url: `https://test/${fileID.split('/').pop()}`,
+  }]));
+  runtime.records.products['product-1'].desc = [detail];
+  runtime.records.products['product-1'].description = detail;
+  runtime.records.homeContents = {
+    banner: { _id: 'banner', type: 'banner', content: banner },
+    text: { _id: 'text', type: 'text', content: banner },
+  };
+  runtime.records.orders.snapshot = { _id: 'snapshot', items: [{ productSnapshot: { desc: [detail] } }] };
+  runtime.records.carts.snapshot = { _id: 'snapshot', items: [{ product: { desc: [detail] } }] };
+  runtime.records.comments = { text: { _id: 'text', desc: [detail], content: banner } };
+  runtime.resourceFileInfo = async (fileID) => files[fileID] || { size: null, status: 'error', missing: true };
+  runtime.app = {
+    getTempFileURL: async ({ fileList }) => ({ fileList: fileList.map((fileID) => ({ fileID, tempFileURL: files[fileID]?.url || '' })) }),
+    deleteFile: async ({ fileList }) => {
+      for (const fileID of fileList) {
+        if (fileID === detail) {
+          assert.notEqual(runtime.records.products['product-1'].desc[0], detail);
+          assert.notEqual(runtime.records.orders.snapshot.items[0].productSnapshot.desc[0], detail);
+          assert.notEqual(runtime.records.carts.snapshot.items[0].product.desc[0], detail);
+        } else if (fileID === banner) assert.notEqual(runtime.records.homeContents.banner.content, banner);
+        delete files[fileID];
+      }
+      return { fileList: fileList.map((fileID) => ({ fileID, code: 'SUCCESS' })) };
+    },
+  };
+  const inventory = await finishScan(runtime);
+  assert.deepEqual(inventory.summary, { count: 2, bytes: 200, unknown: 0 });
+  assert.equal(inventory.items.find((item) => item.fileID === detail).uses.length, 3);
+  assert.deepEqual(inventory.items.find((item) => item.fileID === banner).uses.map((use) => use.id), ['banner']);
+  const aware = imageAwareRuntime(runtime);
+  for (const original of [detail, banner]) {
+    const job = await beginReplacement(runtime, { fileID: original, version: 'v1' }, 'admin');
+    const replacement = `cloud://env/${job.cloudPath}`;
+    files[replacement] = { size: 80, format: 'webp', animated: false, status: 'ok', version: 'v2', url: 'https://test/new' };
+    let current = await advanceReplacement(runtime, { jobID: job._id, newFileID: replacement });
+    for (let i = 0; current.status !== 'completed' && i < 100; i++) current = await advanceReplacement(runtime, { jobID: job._id });
+    assert.equal(current.status, 'completed');
+    assert.equal(files[original], undefined);
+    if (original === detail) {
+      await aware.db.collection('products').doc('product-1').update({ desc: [original] });
+      assert.deepEqual(runtime.records.products['product-1'].desc, [replacement]);
+    } else {
+      await aware.db.collection('homeContents').doc('banner').update({ content: original });
+      assert.equal(runtime.records.homeContents.banner.content, replacement);
+      await aware.db.collection('homeContents').doc('text').update({ content: original });
+    }
+  }
+  assert.equal(runtime.records.products['product-1'].description, detail);
+  assert.equal(runtime.records.homeContents.text.content, banner);
+  assert.deepEqual(runtime.records.comments.text, { _id: 'text', desc: [detail], content: banner });
+  assert.deepEqual((await finishScan(runtime)).summary, { count: 2, bytes: 160, unknown: 0 });
+  console.log('PASS legacy product details and banner content are inventoried, replaced before deletion and normalized on stale writes without changing text');
 }
 module.exports = { run };

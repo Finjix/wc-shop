@@ -1082,7 +1082,7 @@ async function shopEndpoint(event, context, runtime, action, data) {
   if (action === 'home.get') return readHome(runtime, data);
   if (action === 'storage.tempUrls') {
     requireUser(event, context, runtime);
-    return getTempFileURLs(runtime, data.fileList, { allowedPrefixes: ['admin/products/', 'products/', 'comments/', 'after-sales/', 'user/comments/', 'user/after-sales/', 'home/', 'public/'] });
+    return getTempFileURLs(runtime, data.fileList, { allowedPrefixes: ['admin/products/', 'products/', 'admin/categories/', 'categories/', 'comments/', 'after-sales/', 'user/comments/', 'user/after-sales/', 'home/', 'public/'] });
   }
   if (action === 'storage.processImage') {
     requireUser(event, context, runtime);
