@@ -23,11 +23,7 @@ yarn-error.log*
 .eslintcache
 
 # CloudBase deployment archives are generated locally under dist/
-dist/*.zip
-dist/*/*.zip
-dist/archive/
-dist/.package-staging/
-dist/.package-staging-*/
+dist/
 
 # TypeScript cloud function build output
 cloudfunctions/.build/
