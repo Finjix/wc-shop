@@ -42,7 +42,7 @@ function isNotFound(error) {
 
 function isWriteConflict(error) {
   const text = `${error && error.code ? error.code : ''} ${error && error.message ? error.message : ''}`.toLowerCase();
-  return text.includes('conflict') || text.includes('write conflict') || text.includes('transaction');
+  return text.includes('conflict') || text.includes('write conflict');
 }
 
 function toPublicError(error) {

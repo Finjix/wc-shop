@@ -10,7 +10,7 @@
     t-class-text="t-class-loading-text"
     t-class-indicator="t-class-indicator"
     loading="{{status === 1}}"
-    text="加载中..."
+    text=""
     theme="circular"
     size="40rpx"
   />

@@ -73,7 +73,7 @@
 </view>
 
 <view wx:if="{{cartGroupData && cartGroupData.isNotEmpty && !cartLoadError && !recommendedLeft.length && !recommendedRight.length && recommendedLoading}}" class="cart-recommend-loading">
-  推荐商品加载中...
+
 </view>
 </view>
 </scroll-view>

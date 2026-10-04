@@ -5,6 +5,7 @@ const { getDoc, setDoc, withTransaction, list } = require('./db');
 const { errorFrom } = require('./errors');
 const SOURCES = Object.values(COLLECTIONS);
 const CONTROL = '__image_cleanup_control';
+const IMAGE_NEUTRAL_FIELDS = new Set(['status', 'updatedAt', 'title', 'subtitle', 'name', 'sort', 'stockQuantity', 'soldQuantity', 'price', 'salePrice', 'linePrice', 'weight', 'volume', 'categoryId', 'categoryIds', 'parentId', 'level']);
 const stateId = (id) => `__image_file_${crypto.createHash('sha256').update(id).digest('hex')}`;
 const stored = (v) => typeof v === 'string' && /^(cloud|local):\/\//.test(v);
 function canonical(value) {
@@ -71,6 +72,11 @@ function imageLifecycleRuntime(runtime) {
         } });
         async function write(id, method, value) {
           if (source === 'settings' && String(id).startsWith('__image_')) return target.collection(source).doc(id)[method](value);
+          // Metadata changes cannot introduce or retire image references. Keep
+          // them in the caller's transaction without starting a second fence.
+          if (method === 'update' && Object.keys(value || {}).every((key) => IMAGE_NEUTRAL_FIELDS.has(key)) && !files(value).length) {
+            return target.collection(source).doc(id).update(value);
+          }
           const apply = async (tx) => {
             const previous = await getDoc(tx.collection(source), id, false);
             if (method === 'remove') {
@@ -83,7 +89,13 @@ function imageLifecycleRuntime(runtime) {
               return tx.collection(source).doc(id).remove();
             }
             const ids = files(value);
-            if (!ids.length && !files(previous).length) return tx.collection(source).doc(id)[method](value);
+            const previousIds = files(previous);
+            const next = method === 'set' ? value : { ...previous, ...value };
+            const nextIds = files(next);
+            if (inactive(previous || {}, source) === inactive(next, source)
+              && previousIds.length === nextIds.length && previousIds.every((file) => nextIds.includes(file))) {
+              return tx.collection(source).doc(id)[method](value);
+            }
             const settings = tx.collection('settings');
             const control = await getDoc(settings, CONTROL, false) || { version: 0 };
             const mapping = new Map();

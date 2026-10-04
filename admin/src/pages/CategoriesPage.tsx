@@ -3,7 +3,9 @@ import { useBlocker, useOutletContext } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { ChevronDownIcon, ChevronUpIcon, DeleteIcon, EditIcon, ImageIcon } from 'tdesign-icons-react';
 import { adminApi } from '../lib/api';
-import { IMAGE_ACCEPT, type UploadPhase } from '../lib/image-upload';
+import { IMAGE_ACCEPT } from '../lib/image-upload';
+import { useDraftImages } from '../lib/useDraftImages';
+import { useConfirm } from '../components/ConfirmProvider';
 import type { Category, ListResult } from '../types';
 import { ErrorState, LoadingState, Panel, Table } from '../components/Ui';
 import type { AdminOutletContext } from '../components/Layout';
@@ -36,13 +38,14 @@ async function readCategories() {
 }
 
 export function CategoriesPage() {
+  const confirm = useConfirm();
+  const draftImages = useDraftImages('admin/categories');
   const [rows, setRows] = useState<Category[]>([]);
   const [savedRows, setSavedRows] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [uploadingId, setUploadingId] = useState('');
-  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('处理图片中…');
   const [selectedParentId, setSelectedParentId] = useState('');
   const [newParentName, setNewParentName] = useState('');
   const [newChildName, setNewChildName] = useState('');
@@ -69,12 +72,6 @@ export function CategoriesPage() {
     setUnsavedChanges(dirty);
     return () => setUnsavedChanges(false);
   }, [dirty, setUnsavedChanges]);
-  useEffect(() => {
-    if (!dirty) return;
-    const warnBeforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
-    window.addEventListener('beforeunload', warnBeforeUnload);
-    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
-  }, [dirty]);
   useEffect(() => {
     let active = true;
     void readCategories().then((items) => { if (active) { setRows(items); setSavedRows(items); } })
@@ -104,9 +101,9 @@ export function CategoriesPage() {
     if (rows.some((item) => idOf(item) !== idOf(target) && (item.parentId || null) === (target.parentId || null) && item.name === name)) { void MessagePlugin.warning('同级分类名称不能重复，已保留原名称'); return; }
     setRows((old) => old.map((row) => idOf(row) === idOf(target) ? { ...row, name } : row));
   };
-  const remove = (target: Category) => {
+  const remove = async (target: Category) => {
     const message = target.parentId ? '保存后，关联商品将变为无类别。' : '保存后，其二级类别也会删除，关联商品将变为无类别。';
-    if (busy || !window.confirm(`确定删除分类“${target.name}”吗？${message}`)) return;
+    if (busy || !await confirm(`确定删除分类“${target.name}”吗？${message}`)) return;
     setRows((old) => old.filter((row) => idOf(row) !== idOf(target) && String(row.parentId || '') !== idOf(target)));
     if (selectedParentId === idOf(target)) setSelectedParentId('');
     setEditingId('');
@@ -133,16 +130,15 @@ export function CategoriesPage() {
     const id = idOf(target);
     setUploadingId(id);
     try {
-      const image = await adminApi.upload(file, 'admin/categories', setUploadPhase);
+      const image = await draftImages.select(file);
       setRows((old) => old.map((item) => idOf(item) === id ? { ...item, image } : item));
-      void MessagePlugin.success('图片已上传，点击保存后生效');
     } catch (err) { void MessagePlugin.error(err instanceof Error ? err.message : '图片上传失败'); }
     finally { setUploadingId(''); }
   };
   const save = async () => {
-    if (operationRef.current || uploadingId) return false;
+    if (operationRef.current || uploadingId || draftImages.processing) return false;
     const editedName = editingName.trim();
-    const draft = rows.map((row) => idOf(row) === editingId && editedName ? { ...row, name: editedName } : row);
+    let draft = rows.map((row) => idOf(row) === editingId && editedName ? { ...row, name: editedName } : row);
     setEditingId('');
     setEditingName('');
     if (editingId && !editedName) { void MessagePlugin.warning('分类名称不能为空，已保留原名称'); return false; }
@@ -156,6 +152,7 @@ export function CategoriesPage() {
     operationRef.current = true;
     setBusy(true);
     try {
+      draft = await draftImages.images.upload(draft);
       const remaining = new Set(draft.map(idOf));
       const removed = savedRows.filter((item) => !remaining.has(idOf(item)));
       const removedParents = new Set(removed.filter((item) => !item.parentId).map(idOf));
@@ -190,6 +187,7 @@ export function CategoriesPage() {
       setEditingId('');
       setEditingName('');
       setError('');
+      draftImages.images.commit(fresh);
       void MessagePlugin.success('分类设置已保存');
       return true;
     } catch (err) {
@@ -243,7 +241,7 @@ export function CategoriesPage() {
             <div className="category-manager-child-name">{nameCell(item)}</div>
             {moveActions(children, index)}
             <Button size="small" variant="text" className={item.image ? 'category-manager-has-image' : ''} icon={<ImageIcon />} title="上传分类封面（可选）" aria-label={`上传 ${item.name} 的分类封面（可选）`} disabled={busy || Boolean(uploadingId)} onClick={() => chooseImage(item)} />
-            {uploadingId === idOf(item) && <small role="status">{uploadPhase}</small>}
+
             {editActions(item)}
             {item.image && <div className="category-manager-image-preview-row"><div className="category-manager-image-preview-wrap">
               <button type="button" className="category-manager-image-preview-button" title="点击更换图片" aria-label={`更换 ${item.name} 的图片`} disabled={busy || Boolean(uploadingId)} onClick={() => chooseImage(item)}><CategoryImagePreview image={item.image} name={item.name} /></button>

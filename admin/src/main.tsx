@@ -6,11 +6,12 @@ import 'tdesign-react/es/style/index.css';
 import './styles.css';
 import { AuthProvider } from './auth/AuthProvider';
 import { App } from './App';
+import { ConfirmProvider } from './components/ConfirmProvider';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ConfigProvider globalConfig={{ animation: { exclude: ['ripple'] } }}>
-      <AuthProvider><App /></AuthProvider>
+    <ConfigProvider globalConfig={{ animation: { exclude: ['ripple'] }, loading: { indicator: false } }}>
+      <ConfirmProvider><AuthProvider><App /></AuthProvider></ConfirmProvider>
     </ConfigProvider>
   </StrictMode>,
 );

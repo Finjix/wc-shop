@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBlocker, useOutletContext } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { adminApi } from '../lib/api';
-import type { UploadPhase } from '../lib/image-upload';
+import { useDraftImages } from '../lib/useDraftImages';
 import type { AdminOutletContext } from '../components/Layout';
 import type { ListResult, Product } from '../types';
 import { ErrorState, Field, ImageFilePicker, LoadingState, Panel } from '../components/Ui';
@@ -117,7 +117,7 @@ function ProductSelect({ value, onChange, known, onKnown }: {
     {open && <div className="home-product-picker-menu">
       <input autoFocus type="search" value={query} placeholder="搜索商品名称" onChange={(event) => { setQuery(event.target.value); setPage(1); }} onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }} />
       <div className="home-product-picker-list" ref={listRef}>
-        {loading ? <p>正在加载商品...</p> : error ? <p>{error}</p> : options.map((product) => <button type="button" key={String(product._id)} onClick={() => { onKnown(product); onChange(String(product._id)); setOpen(false); }}>{product.title}</button>)}
+        {loading ? null : error ? <p>{error}</p> : options.map((product) => <button type="button" key={String(product._id)} onClick={() => { onKnown(product); onChange(String(product._id)); setOpen(false); }}>{product.title}</button>)}
       </div>
       <div className="home-product-picker-footer">
         <button type="button" disabled={page <= 1} onClick={() => setPage((old) => old - 1)}>上一页</button>
@@ -142,23 +142,23 @@ function ImagePreview({ image, aspect }: { image: string; aspect: 'banner' | 'sq
   return preview ? <img className={`home-config-preview home-config-preview-${aspect}`} src={preview} alt="封面预览" /> : null;
 }
 
-function ImagePicker({ onChange }: { onChange: (value: string) => void }) {
+function ImagePicker({ onChange, select, disabled }: { onChange: (value: string) => void; select: (file: File) => Promise<string>; disabled: boolean }) {
   const [uploading, setUploading] = useState(false);
-  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('处理图片中…');
   const upload = async (file?: File) => {
     if (!file) return;
     setUploading(true);
-    try { onChange(await adminApi.upload(file, 'home', setUploadPhase)); }
+    try { onChange(await select(file)); }
     catch (error) { await MessagePlugin.error(error instanceof Error ? error.message : '图片上传失败'); }
     finally { setUploading(false); }
   };
   return <>
-    <ImageFilePicker onSelect={(file) => void upload(file)} disabled={uploading} />
-    {uploading && <small role="status">{uploadPhase}</small>}
+    <ImageFilePicker onSelect={(file) => void upload(file)} disabled={uploading || disabled} />
   </>;
 }
 
 export function HomeContentPage() {
+  const draftImages = useDraftImages('home');
+  const savingRef = useRef(false);
   const [config, setConfig] = useState<HomeConfig>(defaultConfig);
   const [savedConfig, setSavedConfig] = useState(() => JSON.stringify(defaultConfig()));
   const [loading, setLoading] = useState(true);
@@ -173,16 +173,6 @@ export function HomeContentPage() {
     setUnsavedChanges(dirty);
     return () => setUnsavedChanges(false);
   }, [dirty, setUnsavedChanges]);
-
-  useEffect(() => {
-    if (!dirty) return;
-    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-    window.addEventListener('beforeunload', warnBeforeUnload);
-    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
-  }, [dirty]);
 
   useEffect(() => {
     let active = true;
@@ -264,35 +254,39 @@ export function HomeContentPage() {
       await MessagePlugin.error(message);
       return false;
     };
-    const snapshot = JSON.stringify(config);
+    if (savingRef.current || draftImages.processing) return false;
+    savingRef.current = true;
     setSaving(true);
     try {
+      const saved = await draftImages.images.upload(config);
       await adminApi.call('homeContent.save', {
         id: SLOT, slot: SLOT, type: 'pageConfig', status: 'active', sort: -100,
         payload: {
-          searchText: config.searchText.trim(), bannerText: config.bannerText.trim(),
-          banners: config.banners.map((item) => ({ image: item.image.trim(), productId: item.productId.trim() })),
-          promos: config.promos.map((item) => ({ image: item.image.trim(), productId: item.productId.trim() })),
-          sections: config.sections.map((section) => ({ id: section.id, title: section.title.trim(), productIds: section.productIds })),
+          searchText: saved.searchText.trim(), bannerText: saved.bannerText.trim(),
+          banners: saved.banners.map((item) => ({ image: item.image.trim(), productId: item.productId.trim() })),
+          promos: saved.promos.map((item) => ({ image: item.image.trim(), productId: item.productId.trim() })),
+          sections: saved.sections.map((section) => ({ id: section.id, title: section.title.trim(), productIds: section.productIds })),
         },
       });
-      setSavedConfig(snapshot);
+      setConfig(saved);
+      setSavedConfig(JSON.stringify(saved));
+      draftImages.images.commit(saved);
       await MessagePlugin.success('首页设置已保存');
       return true;
     } catch (err) { return fail(err instanceof Error ? err.message : '保存失败'); }
-    finally { setSaving(false); }
+    finally { savingRef.current = false; setSaving(false); }
   };
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
   const productSelect = (value: string, onChange: (value: string) => void) => <ProductSelect value={value} onChange={onChange} known={known} onKnown={(product) => setKnown((old) => ({ ...old, [String(product._id)]: product }))} />;
   const imageLinkFields = (kind: 'banners' | 'promos', entry: ImageLink, index: number) => <div className="home-config-link-fields">
-    <Field label="封面图片" fileUpload><ImagePicker onChange={(value) => updateLink(kind, index, 'image', value)} /></Field>
+    <Field label="封面图片" fileUpload><ImagePicker select={draftImages.select} disabled={saving} onChange={(value) => updateLink(kind, index, 'image', value)} /></Field>
     <Field label="跳转商品（可选）">{productSelect(entry.productId, (value) => updateLink(kind, index, 'productId', value))}</Field>
   </div>;
 
-  return <div className="home-config-page">
-    <div className="floating-save-actions"><Button theme="primary" loading={saving} disabled={!dirty || saving} onClick={() => void save()}>保存</Button></div>
+  return <div className="home-config-page" inert={saving}>
+    <div className="floating-save-actions"><Button theme="primary" loading={saving} disabled={!dirty || saving || draftImages.processing} onClick={() => void save()}>保存</Button></div>
     <Panel><div className="panel-heading"><h3>顶部搜索栏</h3></div><Field label="滚动文字"><Input value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={120} /></Field></Panel>
 
     <Panel><div className="panel-heading"><h3>轮播图（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 6} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button></div></div>
@@ -329,7 +323,7 @@ export function HomeContentPage() {
         <div className="home-config-dialog-actions">
           <Button variant="outline" disabled={saving} onClick={() => blocker.reset()}>继续编辑</Button>
           <Button variant="outline" disabled={saving} onClick={() => blocker.proceed()}>放弃修改</Button>
-          <Button theme="primary" loading={saving} onClick={() => void save().then((saved) => { if (saved) blocker.proceed(); })}>保存并离开</Button>
+          <Button theme="primary" loading={saving} disabled={draftImages.processing} onClick={() => void save().then((saved) => { if (saved) blocker.proceed(); })}>保存并离开</Button>
         </div>
       </div>
     </div>}

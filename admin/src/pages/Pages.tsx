@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin, Tag } from 'tdesign-react';
 import { adminApi } from '../lib/api';
-import { IMAGE_ACCEPT, type UploadPhase } from '../lib/image-upload';
+import { IMAGE_ACCEPT } from '../lib/image-upload';
+import { useDraftImages } from '../lib/useDraftImages';
+import { useConfirm } from '../components/ConfirmProvider';
 import { variantName } from '../lib/sku';
 import type { AfterSale, Category, Comment, ListResult, Order, Product, ProductDraft, Sku } from '../types';
 import { EmptyState, EmptyTable, ErrorState, Field, ImageFilePicker, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
@@ -367,6 +369,8 @@ function CategoryPicker({ value, onChange, options, disabled }: {
 
 export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const draftImages = useDraftImages('admin/products');
   const { productId: routeProductId = '' } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const routeEditProductId = editorMode ? routeProductId : searchParams.get('edit') || '';
@@ -394,8 +398,6 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const editorRequest = useRef(0);
   const [variantsLoading, setVariantsLoading] = useState(false);
   const [uploading, setUploading] = useState('');
-  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('处理图片中…');
-  const [detailUploadProgress, setDetailUploadProgress] = useState('');
   const [routeEditLoading, setRouteEditLoading] = useState(false);
   const detailInputRef = useRef<HTMLInputElement>(null);
   const { data, loading, error } = useResource<unknown>('products.list', {
@@ -481,7 +483,6 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     setVariants([emptyVariant()]);
     setVariantsLoading(Boolean(product));
     setUploading('');
-    setDetailUploadProgress('');
     setDraft(product ? {
       ...emptyProduct,
       title: product.title || '',
@@ -550,10 +551,9 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     const request = editorRequest.current;
     setUploading('cover');
     try {
-      const fileID = await adminApi.upload(file, 'admin/products', setUploadPhase);
+      const fileID = await draftImages.select(file);
       if (request !== editorRequest.current) return;
       setDraft((old) => ({ ...old, primaryImage: fileID }));
-      await MessagePlugin.success('图片已上传');
     } catch (err) {
       await MessagePlugin.error(err instanceof Error ? err.message : '图片上传失败');
     } finally { if (request === editorRequest.current) setUploading(''); }
@@ -563,10 +563,9 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     const request = editorRequest.current;
     setUploading(`sku:${localId}`);
     try {
-      const fileID = await adminApi.upload(file, 'admin/products', setUploadPhase);
+      const fileID = await draftImages.select(file);
       if (request !== editorRequest.current) return;
       setVariants((old) => old.map((item) => item.localId === localId ? { ...item, skuImage: fileID } : item));
-      await MessagePlugin.success('SKU 图片已上传');
     } catch (err) {
       await MessagePlugin.error(err instanceof Error ? err.message : '图片上传失败');
     } finally { if (request === editorRequest.current) setUploading(''); }
@@ -577,21 +576,19 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     const request = editorRequest.current;
     setUploading('details');
     try {
-      for (const [index, file] of files.entries()) {
-        setDetailUploadProgress(`${index + 1}/${files.length}`);
-        const fileID = await adminApi.upload(file, 'admin/products', setUploadPhase);
+      for (const file of files) {
+        const fileID = await draftImages.select(file);
         if (request !== editorRequest.current) return;
         setDraft((old) => ({ ...old, detailImages: [...old.detailImages, fileID] }));
       }
-      await MessagePlugin.success('详情图片已上传');
     } catch (err) {
       await MessagePlugin.error(err instanceof Error ? err.message : '详情图片上传失败');
     } finally {
-      if (request === editorRequest.current) { setUploading(''); setDetailUploadProgress(''); }
+      if (request === editorRequest.current) setUploading('');
     }
   };
   const save = async () => {
-    if (variantsLoading || uploading) return;
+    if (busy || variantsLoading || uploading || draftImages.processing) return;
     const fail = async (message: string) => { await MessagePlugin.warning(message); };
     if (!draft.title.trim()) { await fail('请填写商品名称'); return; }
     const cleaned = variants.map((variant) => ({ ...variant, name: variant.name.trim(), price: variant.price.trim() }));
@@ -603,7 +600,8 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     if (!draft.primaryImage) { await fail('请上传商品封面图片'); return; }
     if (!draft.detailImages.some(Boolean)) { await fail('请至少上传 1 张商品详情图片'); return; }
     const { categoryId, ...productDraft } = draft;
-    try { await run('products.save', {
+    setUploading('save');
+    try { const payload = await draftImages.images.upload({
       ...(editing ? { id: editing._id || editing.spuId } : {}),
       ...productDraft,
       images: [draft.primaryImage],
@@ -615,16 +613,18 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
         skuImage: variant.skuImage,
       })),
       categoryIds: categoryId ? [categoryId] : [],
-    }, '商品已保存'); }
+    }); await run('products.save', payload, '商品已保存'); draftImages.images.commit(payload); }
     catch (error) {
       await MessagePlugin.error(error instanceof Error ? error.message : '商品保存失败');
       return;
-    }
+    } finally { setUploading(''); }
     setEditing(null); setDraft(emptyProduct); setVariants([emptyVariant()]); setEditorOpen(false); setProductPage(1); setRefreshKey((key) => key + 1);
     if (editorMode) { navigate('/products'); return; }
     if (routeEditProductId) setSearchParams({}, { replace: true });
   };
   const cancelEditor = () => {
+    if (busy || uploading) return;
+    void draftImages.images.discard();
     if (editorMode) { editorRequest.current += 1; navigate('/products'); return; }
     editorRequest.current += 1;
     setEditing(null);
@@ -636,7 +636,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     if (statusChangeRef.current || busy || deletingProductId) return;
     const id = String(product._id || product.spuId);
     const nextStatus = productStatusOf(product) === 'active' ? 'inactive' : 'active';
-    if (nextStatus === 'inactive' && !window.confirm(`确定下架商品“${product.title}”吗？下架后小程序中将无法购买该商品。`)) return;
+    if (nextStatus === 'inactive' && !await confirm(`确定下架商品“${product.title}”吗？下架后小程序中将无法购买该商品。`)) return;
     statusChangeRef.current = true;
     setStatusChangingId(id);
     try {
@@ -650,7 +650,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const deleteProduct = async (product: Product) => {
     if (statusChangeRef.current || busy || deletingProductId) return;
     const id = String(product._id || product.spuId);
-    if (!window.confirm(`确定删除商品“${product.title}”吗？删除后商品会从管理列表和小程序中移除，且无法直接恢复。`)) return;
+    if (!await confirm(`确定删除商品“${product.title}”吗？删除后商品会从管理列表和小程序中移除，且无法直接恢复。`)) return;
     statusChangeRef.current = true;
     setDeletingProductId(id);
     try {
@@ -694,17 +694,17 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
       </div>
     </Panel>}
     </>}{editorMode && routeEditLoading && <LoadingState />}
-    {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions floating-save-actions"><Button variant="outline" onClick={cancelEditor}>取消</Button><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} disabled={!editorDirty || busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存</Button></div><div className="form-grid">
+    {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions floating-save-actions"><Button variant="outline" disabled={busy || Boolean(uploading)} onClick={cancelEditor}>取消</Button><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} disabled={!editorDirty || busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存</Button></div><div className="form-grid">
        <Field label="商品名称"><Input value={draft.title} onChange={(value) => setValue('title', value)} placeholder="请输入商品名称" /></Field>
-       <Field label="分类" fileUpload hint={categoriesError || (categoriesLoading ? '分类加载中...' : undefined)}><CategoryPicker value={draft.categoryId} onChange={(id) => setValue('categoryId', id)} options={categoryOptions} disabled={categoriesLoading || Boolean(categoriesError)} /></Field>
-       <div className="variant-field"><strong>商品规格</strong>{variantsLoading && <small>正在读取已有规格…</small>}
+       <Field label="分类" fileUpload hint={categoriesError || undefined}><CategoryPicker value={draft.categoryId} onChange={(id) => setValue('categoryId', id)} options={categoryOptions} disabled={categoriesLoading || Boolean(categoriesError)} /></Field>
+       <div className="variant-field"><strong>商品规格</strong>
          {variants.map((variant) => <div className="variant-row" key={variant.localId}>
            <div className="variant-main">
              <label><span>规格名称</span><Input value={variant.name} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, name: value } : item))} placeholder="例如：小份" /></label>
              <label><span>售价（元）</span><Input value={variant.price} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, price: value } : item))} placeholder="例如：29.90" /></label>
              <Button variant="text" disabled={variants.length === 1} onClick={() => setVariants((old) => old.filter((item) => item.localId !== variant.localId))}>删除</Button>
            </div>
-           <div className="variant-image"><span>SKU 图片（可选）</span><ImageFilePicker onSelect={(file) => void uploadVariantImage(variant.localId, file)} disabled={Boolean(uploading)} />{uploading === `sku:${variant.localId}` && <small role="status">{uploadPhase}</small>}
+           <div className="variant-image"><span>SKU 图片（可选）</span><ImageFilePicker onSelect={(file) => void uploadVariantImage(variant.localId, file)} disabled={Boolean(uploading)} />
              {variant.skuImage && <div className="product-image-item"><ProductImagePreview fileID={variant.skuImage} alt={`${variant.name || 'SKU'} 图片预览`} /><Button variant="text" onClick={() => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, skuImage: '' } : item))}>移除图片</Button></div>}
            </div>
          </div>)}
@@ -712,7 +712,6 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
        </div>
        <div className="product-cover-field"><Field label="封面图片（1:1）" fileUpload>
          <ImageFilePicker onSelect={(file) => void uploadCover(file)} disabled={Boolean(uploading)} />
-         {uploading === 'cover' && <small role="status">{uploadPhase}</small>}
          {draft.primaryImage && <div className="product-image-item product-cover-preview"><ProductImagePreview fileID={draft.primaryImage} alt="商品封面预览" /></div>}
        </Field></div>
        <div className="product-detail-images">
@@ -728,7 +727,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
            <span>{draft.detailImages.length ? `已上传 ${draft.detailImages.length} 张` : '未选择文件'}</span>
            <input ref={detailInputRef} className="image-file-picker-input" type="file" accept={IMAGE_ACCEPT} multiple disabled={Boolean(uploading)} aria-label="选择商品详情图片"
              onChange={(event) => { const files = Array.from(event.target.files || []); event.target.value = ''; void uploadDetails(files); }} />
-         </div>{uploading === 'details' && <small role="status">{uploadPhase} {detailUploadProgress}</small>}</div>
+         </div></div>
        </div>
     </div></Panel> : null}
   </>;

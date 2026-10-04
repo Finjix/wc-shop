@@ -11,7 +11,7 @@ export function EmptyState({ title, action }: { title?: string; description?: st
 }
 
 export function LoadingState() {
-  return <div className="loading-state" role="status" aria-live="polite">读取中…</div>;
+  return null;
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {

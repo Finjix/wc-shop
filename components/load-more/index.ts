@@ -12,7 +12,7 @@ Component({
     },
     loadingText: {
       type: String,
-      value: '加载中...',
+      value: '',
     },
     noMoreText: {
       type: String,

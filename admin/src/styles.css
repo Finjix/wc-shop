@@ -291,6 +291,7 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .t-button--variant-text { color: #444; }
 .t-button--variant-text:hover, .t-button--variant-text:focus-visible { color: var(--ink); background: #f0f0f0; }
 .t-button.t-is-disabled, .t-button.t-is-loading { opacity: .55; }
+.t-button .t-loading { display: none; }
 .t-input, .t-input__wrap { border-radius: 0; }
 .t-input { border-color: var(--line-strong); color: var(--text); }
 .t-input:hover { border-color: #999; }

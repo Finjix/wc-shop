@@ -146,6 +146,10 @@ export async function uploadCloudFile(file: File, folder = 'admin/products', onP
   onPhase?.('处理图片中…');
   file = await prepareImageUpload(file);
   onPhase?.('上传中…');
+  return uploadPreparedCloudFile(file, folder);
+}
+
+export async function uploadPreparedCloudFile(file: File, folder = 'admin/products') {
   if (localApiUrl) {
     const body = new FormData();
     body.append('folder', folder);
@@ -184,6 +188,7 @@ export async function getTempFileUrl(fileID: string) {
 export const adminApi = {
   call: <T>(action: string, payload: Record<string, unknown> = {}) => callAdmin<T>(action, payload),
   upload: uploadCloudFile,
+  uploadPrepared: uploadPreparedCloudFile,
   getTempFileUrl,
   isLocal: Boolean(localApiUrl),
   localLogin,

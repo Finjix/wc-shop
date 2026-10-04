@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { ImageLightbox } from './ImageLightbox';
+import { useConfirm } from './ConfirmProvider';
 
 export type AdminOutletContext = { setUnsavedChanges: (value: boolean) => void };
 
@@ -14,11 +15,12 @@ const navItems = [
 ];
 
 export function AdminLayout() {
+  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const { logout } = useAuth();
   const handleLogout = async () => {
-    if (unsavedChanges && !window.confirm('首页设置尚未保存。确定放弃修改并退出吗？')) return;
+    if (unsavedChanges && !await confirm('设置尚未保存。确定放弃修改并退出吗？')) return;
     await logout();
   };
 
