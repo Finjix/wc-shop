@@ -47,10 +47,10 @@ export function inspectStaticImage(bytes: Uint8Array, filename: string): 'png' |
 
 let processingQueue: Promise<unknown> = Promise.resolve();
 
-export function prepareImageUpload(file: File, options: { existingResource?: boolean } = {}): Promise<File> {
+export function prepareImageUpload(file: File, options: { preserveDimensions?: boolean; existingImage?: boolean } = {}): Promise<File> {
   const run = async () => {
     if (!file.size) throw new Error('图片文件为空');
-    if (!options.existingResource && file.size > MAX_SOURCE_IMAGE_BYTES) throw new Error('原图片不能超过 10MB');
+    if (!options.existingImage && file.size > MAX_SOURCE_IMAGE_BYTES) throw new Error('原图片不能超过 10MB');
     const bytes = await file.arrayBuffer();
     const format = inspectStaticImage(new Uint8Array(bytes), file.name);
     return new Promise<File>((resolve, reject) => {
@@ -66,7 +66,7 @@ export function prepareImageUpload(file: File, options: { existingResource?: boo
         if (!event.data.bytes?.byteLength) { reject(new Error('图片编码失败')); return; }
         resolve(new File([event.data.bytes], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' }));
       };
-      try { worker.postMessage({ bytes, format, reencodeWebp: Boolean(options.existingResource) }, [bytes]); }
+      try { worker.postMessage({ bytes, format, preserveDimensions: options.preserveDimensions }, [bytes]); }
       catch { finish(); reject(new Error('浏览器无法启动图片处理，请重试')); }
     });
   };

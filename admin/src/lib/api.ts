@@ -102,7 +102,7 @@ function clearLocalSession() {
   if (typeof window !== 'undefined') window.localStorage.removeItem(localSessionKey);
 }
 
-export async function callAdmin<T>(action: string, payload: Record<string, unknown> = {}) {
+async function callAdminRaw<T>(action: string, payload: Record<string, unknown> = {}) {
   if (localApiUrl) return callLocal<T>(action, payload);
   const { app } = requireCloudBase();
   try {
@@ -116,6 +116,30 @@ export async function callAdmin<T>(action: string, payload: Record<string, unkno
     console.error('CloudBase admin function call failed:', error);
     throw new ApiError(getErrorMessage(error));
   }
+}
+
+export async function callAdmin<T>(action: string, payload: Record<string, unknown> = {}) {
+  const result = await callAdminRaw<T>(action, payload);
+  const candidates = (result as { imageCleanup?: string[] } | null)?.imageCleanup;
+  if (candidates?.length || /^(products|categories|skus|homeContent)\.(save|remove|delete)$/.test(action)) {
+    try {
+      const key = 'wc-shop.image-cleanup';
+      let pending: string[] = [];
+      try { pending = JSON.parse(localStorage.getItem(key) || '[]'); } catch { /* Start a fresh queue. */ }
+      pending = [...new Set([...pending, ...(candidates || [])])];
+      localStorage.setItem(key, JSON.stringify(pending));
+      for (const catalog of [true, false]) {
+        const group = pending.filter((id) => /\/(?:admin\/products|admin\/categories)\//.test(id) === catalog);
+        for (let offset = 0; offset < group.length; offset += 5) {
+          const cleaned = await callAdminRaw<{ deleted: string[]; retained: string[] }>('storage.cleanup', { fileList: group.slice(offset, offset + 5) });
+          const finished = new Set([...cleaned.deleted, ...cleaned.retained]);
+          const queue: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+          localStorage.setItem(key, JSON.stringify(queue.filter((id) => !finished.has(id))));
+        }
+      }
+    } catch (error) { console.warn('图片已保存，未完成的旧图清理将在下次保存时重试。', error); }
+  }
+  return result;
 }
 
 export async function uploadCloudFile(file: File, folder = 'admin/products', onPhase?: (phase: UploadPhase) => void) {
@@ -157,26 +181,10 @@ export async function getTempFileUrl(fileID: string) {
   return files?.[0]?.tempFileURL || fileID;
 }
 
-export async function uploadReplacementFile(file: File, job: { _id: string; cloudPath: string; folder: string }) {
-  if (localApiUrl) {
-    const body = new FormData();
-    body.append('folder', job.folder);
-    body.append('resourceJobID', job._id);
-    body.append('file', file);
-    const response = await fetch(`${localApiUrl.replace(/\/$/, '')}/upload`, {
-      method: 'POST', headers: { 'x-local-uid': localHeaders()['x-local-uid'], 'x-resource-job': job._id }, body,
-    });
-    return unwrap(await response.json() as ApiEnvelope<{ fileID: string }>, String(response.status)).fileID;
-  }
-  if (!cloudbaseApp) throw new ApiError('未配置 CloudBase 环境 ID');
-  return (await cloudbaseApp.uploadFile({ cloudPath: job.cloudPath, filePath: file as unknown as string })).fileID;
-}
-
 export const adminApi = {
   call: <T>(action: string, payload: Record<string, unknown> = {}) => callAdmin<T>(action, payload),
   upload: uploadCloudFile,
   getTempFileUrl,
-  uploadReplacement: uploadReplacementFile,
   isLocal: Boolean(localApiUrl),
   localLogin,
   localSession,

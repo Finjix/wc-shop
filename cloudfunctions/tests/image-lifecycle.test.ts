@@ -1,0 +1,40 @@
+// @ts-nocheck
+const assert = require('assert');
+const { makeRuntime } = require('./regressions.test');
+const { imageLifecycleRuntime, cleanup, replaceReference, matches } = require('../shared/image-lifecycle');
+const old = 'cloud://test.bucket/admin/products/old.jpg';
+const next = 'cloud://test.bucket/admin/products/new.webp';
+async function run() {
+  const runtime = makeRuntime();
+  const deleted = [];
+  runtime.app = { deleteFile: async ({fileList}) => { deleted.push(...fileList); return {fileList:fileList.map(fileID=>({fileID,code:'SUCCESS'}))}; } };
+  runtime.records.products['product-1'].images = [old];
+  runtime.records.orders.history = {_id:'history',items:[{image:old}]};
+  const wrapped = imageLifecycleRuntime(runtime);
+  await wrapped.db.collection('products').doc('product-1').update({images:[next]});
+  assert(wrapped.removedImages.has(old));
+  assert.deepStrictEqual((await cleanup(runtime,{fileList:[old]})).retained,[old]);
+  assert.strictEqual(deleted.length,0,'historical order protects shared original');
+  await replaceReference(runtime,{oldFileID:old,newFileID:next,source:'orders',id:'history'});
+  assert.strictEqual(runtime.records.orders.history.items[0].image,next);
+  await wrapped.db.collection('products').doc('product-1').update({images:[old]});
+  assert.deepStrictEqual(runtime.records.products['product-1'].images,[next],'stale clients use migrated image');
+  assert.deepStrictEqual((await cleanup(runtime,{fileList:[old]})).deleted,[old]);
+  const unused = 'cloud://test.bucket/admin/products/unused.jpg';
+  await cleanup(runtime,{fileList:[unused]});
+  await assert.rejects(()=>wrapped.db.collection('products').doc('product-1').update({images:[unused]}),e=>e.code==='CONFLICT');
+  const failure = makeRuntime();
+  failure.app = {deleteFile:async()=>{throw new Error('must not delete');}};
+  const originalCollection = failure.db.collection;
+  failure.db.collection = name => name==='orders' ? {orderBy(){throw new Error('scan failed');}} : originalCollection(name);
+  await assert.rejects(()=>cleanup(failure,{fileList:[old]}),/scan failed/);
+  const race = makeRuntime();
+  race.app = {deleteFile:async()=>{throw new Error('must not delete after concurrent write');}};
+  const transaction = race.db.runTransaction;
+  race.db.runTransaction = fn => { race.records.settings = {'__image_cleanup_control':{version:10}}; return transaction(fn); };
+  await assert.rejects(()=>cleanup(race,{fileList:[old]}),e=>e.code==='CONFLICT');
+  assert(matches('https://bucket.tcb.qcloud.la/admin/products/old.jpg?sign=a',old));
+  assert(!matches('https://bucket.evil.com/admin/products/old.jpg',old));
+  console.log('PASS image cleanup preserves history, fails closed, fences writes and migrates stale references');
+}
+module.exports = {run};

@@ -6,9 +6,6 @@ const http = require('http');
 const path = require('path');
 const { prepareLocalStorage } = require('./local-backend-storage.cjs');
 const { processImageBuffer } = require('../cloudfunctions/.build/shared/image-upload');
-const { describeHeader, replacementUploadJob } = require('../cloudfunctions/.build/shared/image-resources');
-const { requireAdmin } = require('../cloudfunctions/.build/shared/auth');
-const { resolveAlias } = require('../cloudfunctions/.build/shared/image-references');
 
 const { fail, ok, runEndpoint } = require('../cloudfunctions/.build/shared/response');
 const { errorFrom } = require('../cloudfunctions/.build/shared/errors');
@@ -241,16 +238,6 @@ function tempFileUrl(fileID) {
 
 const runtime = {
   db: database,
-  async resourceFileInfo(fileID) {
-    const location = localFilePath(fileID);
-    if (!location || !fs.existsSync(location)) return { status: 'error', missing: true, size: null, format: path.extname(String(fileID)).slice(1), error: '图片不存在' };
-    const stat = fs.statSync(location);
-    const buffer = Buffer.alloc(Math.min(stat.size, 65536));
-    const descriptor = fs.openSync(location, 'r');
-    try { fs.readSync(descriptor, buffer, 0, buffer.length, 0); } finally { fs.closeSync(descriptor); }
-    const header = describeHeader(buffer);
-    return { status: 'ok', size: stat.size, version: `${stat.mtimeMs}:${stat.size}`, format: header.format || path.extname(location).slice(1), animated: header.animated, url: tempFileUrl(fileID) };
-  },
   app: {
     async getTempFileURL({ fileList }) {
       return { fileList: fileList.map((fileID) => ({ fileID, tempFileURL: tempFileUrl(fileID) })) };
@@ -297,7 +284,7 @@ function parseJson(buffer) {
 function sendJson(response, payload, status = 200) {
   response.writeHead(status, {
     'access-control-allow-origin': '*',
-    'access-control-allow-headers': 'content-type,x-local-uid,x-upload-folder,x-resource-job',
+    'access-control-allow-headers': 'content-type,x-local-uid,x-upload-folder',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
     'content-type': 'application/json; charset=utf-8',
   });
@@ -358,14 +345,7 @@ async function saveUpload(request) {
   // Admin output can exceed the source size; other routes retain their request limits.
   const uploadFolder = String(headerValue(request, 'x-upload-folder') || '');
   const adminOutput = ['admin/products', 'admin/categories', 'home'].includes(uploadFolder);
-  const resourceJobID = String(headerValue(request, 'x-resource-job') || '');
-  let resourceJob;
-  if (resourceJobID) {
-    const uid = String(headerValue(request, 'x-local-uid') || 'local-admin');
-    await requireAdmin(database, {}, { auth: { uid } }, 'settings', runtime);
-    resourceJob = await replacementUploadJob(runtime, resourceJobID, uid);
-  }
-  const buffer = await readBody(request, adminOutput || resourceJob ? Infinity : 14 * 1024 * 1024);
+  const buffer = await readBody(request, adminOutput ? Infinity : 14 * 1024 * 1024);
   let fields;
   let file;
   let fileName;
@@ -381,14 +361,6 @@ async function saveUpload(request) {
     fileName = parsed.fileName;
   }
   if (!file || !file.length) throw errorFrom('INVALID_ARGUMENT');
-  if (resourceJob) {
-    if (fields.resourceJobID !== resourceJobID || String(fields.folder || '') !== resourceJob.folder || describeHeader(file).format !== 'webp') throw errorFrom('INVALID_ARGUMENT');
-    const destination = localFilePath(`local://${resourceJob.cloudPath}`);
-    if (!destination) throw errorFrom('FORBIDDEN');
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.writeFileSync(destination, file);
-    return { fileID: `local://${resourceJob.cloudPath}` };
-  }
   const folder = safeRelativePart(fields.folder, 'uploads');
   if (adminOutput && folder !== uploadFolder) throw errorFrom('INVALID_ARGUMENT');
   const image = await processImageBuffer(file, fileName, folder);
@@ -432,7 +404,7 @@ async function handle(request, response) {
   const requestUrl = new URL(request.url || '/', baseUrl);
   if (request.method === 'GET' && requestUrl.pathname === '/health') return sendJson(response, ok({ service: 'wc-shop-local-backend', port }));
   if (request.method === 'GET' && requestUrl.pathname === '/files') {
-    const fileID = await resolveAlias(database, requestUrl.searchParams.get('fileID') || '');
+    const fileID = requestUrl.searchParams.get('fileID') || '';
     const filePath = localFilePath(fileID);
     if (!filePath || !fs.existsSync(filePath)) return sendJson(response, fail(errorFrom('NOT_FOUND')), 404);
     const extension = path.extname(filePath).toLowerCase();

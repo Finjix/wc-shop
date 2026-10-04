@@ -24,9 +24,9 @@ async function main() {
   let workerError = false;
   class Worker {
     constructor() { workerCount++; }
-    postMessage({ format, reencodeWebp }) {
+    postMessage({ format }) {
       queueMicrotask(() => this.onmessage({ data: workerError ? { error: '图片编码失败' }
-        : format === 'webp' && !reencodeWebp ? { original: true } : { bytes: workerOutput } }));
+        : format === 'webp' ? { original: true } : { bytes: workerOutput } }));
     }
     terminate() {}
   }
@@ -71,11 +71,6 @@ async function main() {
   const boundary = Buffer.alloc(images.MAX_SOURCE_IMAGE_BYTES);
   jpeg.copy(boundary);
   await api.uploadCloudFile(new File([boundary], 'boundary.JPG'));
-  const oversizedResource = Buffer.concat([boundary, Buffer.from([0])]);
-  const resourceOutput = await images.prepareImageUpload(new File([oversizedResource], 'existing.JPG'), { existingResource: true });
-  assert.equal(resourceOutput.type, 'image/webp', 'Existing resources may exceed the new-upload source limit');
-  const selectedWebp = new File([webp], 'existing.webp');
-  assert.notEqual(await images.prepareImageUpload(selectedWebp, { existingResource: true }), selectedWebp, 'Existing small WebP is re-encoded');
   calls.length = 0;
   workerOutput = new ArrayBuffer(15 * 1024 * 1024);
   await api.uploadCloudFile(new File([png], 'large-output.png'));

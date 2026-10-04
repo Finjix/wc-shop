@@ -11,7 +11,6 @@ const navItems = [
   { to: '/products', label: '商品' },
   { to: '/skus', label: '库存' },
   { to: '/categories', label: '分类' },
-  { to: '/image-resources', label: '图片资源' },
 ];
 
 export function AdminLayout() {

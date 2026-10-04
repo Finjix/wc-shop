@@ -65,7 +65,6 @@ wx.cloud.callFunction({
 
 ## 订单和库存边界
 
-后台“图片资源”的分批盘点、浏览器压缩替换、集合及索引配置、权限、跨域检查和验证范围见 [图片资源管理说明](../docs/image-resources.md)。
 
 - 金额单位统一为整数“分”，订单服务端重新读取 SKU 价格，绝不信任客户端传来的金额或商品快照。
 - `orders.create` 只接受 `{ skuId, quantity }`，校验 SKU 仍属于商品规格、关联商品 `status === "active"` 和库存后才创建订单；上下架由商品状态控制。

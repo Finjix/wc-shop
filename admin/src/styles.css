@@ -215,22 +215,6 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .image-file-picker button:hover:not(:disabled) { border-color: var(--ink); }
 .image-file-picker span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .image-file-picker-input { display: none; }
-.image-resources-page .page-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.image-resources-page h1 { font-size: 20px; margin: 0; }
-.resource-summary { display: flex; gap: 60px; }
-.resource-summary span, .resource-name small, .resource-job small, .image-resources-page td small { display: block; color: #777; font-size: 12px; margin-top: 4px; }
-.resource-summary strong { display: block; font-size: 26px; margin-top: 8px; }
-.resource-note { color: #777; font-size: 12px; }
-.resource-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 12px; }
-.resource-filters button { background: white; border: 1px solid #ddd; padding: 6px 14px; cursor: pointer; }
-.resource-filters button.selected { background: #111; color: white; border-color: #111; }
-.resource-search { display: flex; gap: 8px; max-width: 460px; }
-.resource-thumbnail { width: 64px; height: 64px; object-fit: contain; background: #f6f6f6; }
-.resource-name { max-width: 430px; overflow-wrap: anywhere; }
-.resource-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; }
-.resource-job { display: flex; gap: 20px; justify-content: space-between; padding: 10px 0; }
-.resource-progress { padding: 12px; background: #f3f3f3; }
-.resource-error { color: #ad3d35 !important; }
 .content-preview { display: block; width: 220px; max-width: 100%; height: 90px; margin: 4px 0 6px; object-fit: cover; border: 1px solid var(--line); border-radius: 0; background: var(--surface-muted); }
 .content-thumb { width: 64px; height: 36px; object-fit: cover; border-radius: 0; background: var(--surface-muted); }
 .home-config-page .field { min-width: 0; }

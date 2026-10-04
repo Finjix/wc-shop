@@ -7,8 +7,7 @@ const { requireAdmin } = require('./auth');
 const { getDoc, setDoc, list, count, affected, withTransaction } = require('./db');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
-const { resourcesEndpoint } = require('./image-resources');
-const { imageAwareRuntime } = require('./image-references');
+const { imageLifecycleRuntime, referencePage, cleanup, replaceReference } = require('./image-lifecycle');
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
 const { skuPrice, skuStock } = require('./shop');
 const { HOME_CONFIG_SLOT, validateHomeConfig, productIds: homeProductIds } = require('./home-config');
@@ -315,8 +314,8 @@ async function categoryAction(runtime, data, action, collection) {
       updatedAt: now(),
     });
   }
-  for (const categoryId of ids) await collection.doc(categoryId).update({ status: STATUS.inactive, updatedAt: now() });
-  return { ...existing, status: STATUS.inactive, _id: id, removedIds: ids };
+  for (const categoryId of ids) await collection.doc(categoryId).update({ status: STATUS.inactive, image: '', icon: '', updatedAt: now() });
+  return { ...existing, status: STATUS.inactive, image: '', icon: '', _id: id, removedIds: ids };
 }
 
 async function catalogAction(runtime, data, action) {
@@ -719,7 +718,8 @@ async function settingsAction(runtime, data, action) {
 }
 
 function scopeFor(action) {
-  if (['storage.resources.beginReplacement', 'storage.resources.advanceReplacement', 'storage.resources.cancelReplacement', 'storage.resources.source'].includes(action)) return 'settings';
+  if (action.startsWith('storage.maintenance.')) return 'settings';
+  if (action === 'storage.cleanup') return 'content';
   if (action.startsWith('products.') || action.startsWith('categories.') || action.startsWith('skus.') || action === 'inventory.adjust') return 'catalog';
   if (action.startsWith('orders.')) return 'orders';
   if (action.startsWith('home.')) return 'content';
@@ -759,16 +759,27 @@ function normalizeAdminAction(action, data) {
 }
 
 async function adminEndpoint(event, context, runtime, action, data) {
+  runtime = imageLifecycleRuntime(runtime);
+  const result = await executeAdmin(event, context, runtime, action, data);
+  return result && typeof result === 'object' && !Array.isArray(result) && runtime.removedImages.size
+    ? { ...result, imageCleanup: [...runtime.removedImages] } : result;
+}
+
+async function executeAdmin(event, context, runtime, action, data) {
   const isVariantSave = action === 'products.save';
   const normalized = normalizeAdminAction(action, data);
   action = normalized.action;
   data = normalized.data;
-  const uploadScope = action === 'storage.processImage'
+  const uploadScope = action === 'storage.cleanup'
+    ? (data.fileList || []).every((id) => /\/(?:admin\/products|admin\/categories)\//.test(id)) ? 'catalog' : 'content'
+    : action === 'storage.processImage'
     ? /^cloud:\/\/[^/]+\/pending\/home\//.test(String(data.fileID || '')) ? 'content' : 'catalog'
     : scopeFor(action);
   const auth = await requireAdmin(runtime.db, event, context, uploadScope, runtime);
-  if (action.startsWith('storage.resources.')) return resourcesEndpoint({ ...runtime, db: runtime.rawDb || runtime.db }, action, data, auth);
-  runtime = imageAwareRuntime(runtime);
+  const raw = { ...runtime, db: runtime.rawDb || runtime.db };
+  if (action === 'storage.maintenance.references') return referencePage(raw, data);
+  if (action === 'storage.maintenance.cleanup' || action === 'storage.cleanup') return cleanup(raw, data);
+  if (action === 'storage.maintenance.replace') return replaceReference(raw, data);
   if (isVariantSave) return saveProductWithVariants(runtime, data);
   if (action === 'dashboard.summary') return dashboardSummary(runtime);
   if (action === 'auth.me') return { uid: auth.identity.uid, roles: auth.roles, member: auth.member };

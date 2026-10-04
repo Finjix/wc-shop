@@ -3,6 +3,7 @@
   "packOptions": {
     "ignore": [
       { "value": ".local-data", "type": "folder" },
+      { "value": "dist", "type": "folder" },
       {
         "value": "admin",
         "type": "folder"

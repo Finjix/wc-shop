@@ -5,18 +5,18 @@ import encodeSimdWasm from '@jsquash/webp/codec/enc/webp_enc_simd.wasm?url';
 import decodeWasm from '@jsquash/webp/codec/dec/webp_dec.wasm?url';
 
 const workerScope = self as unknown as {
-  onmessage: (event: MessageEvent<{ bytes: ArrayBuffer; format: 'png' | 'jpeg' | 'webp'; reencodeWebp?: boolean }>) => void;
+  onmessage: (event: MessageEvent<{ bytes: ArrayBuffer; format: 'png' | 'jpeg' | 'webp'; preserveDimensions?: boolean }>) => void;
   postMessage: (message: unknown, transfer?: Transferable[]) => void;
 };
 
-workerScope.onmessage = async ({ data: { bytes, format, reencodeWebp } }) => {
+workerScope.onmessage = async ({ data: { bytes, format, preserveDimensions } }) => {
   let bitmap: ImageBitmap | undefined;
   try {
     let pixels: ImageData;
     if (format === 'webp') {
       await initDecode({ locateFile: () => decodeWasm });
       pixels = await decode(bytes);
-      if (!reencodeWebp && Math.min(pixels.width, pixels.height) <= 1080) {
+      if (Math.min(pixels.width, pixels.height) <= 1080) {
         workerScope.postMessage({ original: true });
         return;
       }
@@ -32,7 +32,7 @@ workerScope.onmessage = async ({ data: { bytes, format, reencodeWebp } }) => {
       bitmap = undefined;
     }
     const shortest = Math.min(pixels.width, pixels.height);
-    if (shortest > 1080) {
+    if (!preserveDimensions && shortest > 1080) {
       const source = new OffscreenCanvas(pixels.width, pixels.height);
       const sourceContext = source.getContext('2d');
       const target = new OffscreenCanvas(Math.round(pixels.width * 1080 / shortest), Math.round(pixels.height * 1080 / shortest));

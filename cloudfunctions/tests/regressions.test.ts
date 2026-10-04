@@ -787,8 +787,8 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
   runtime.records.products['product-1'].categoryId = child._id;
   assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [child._id]);
   const publicCategories = await shopEndpoint({}, {}, runtime, 'categories.list', {});
-  assert.deepStrictEqual(publicCategories.items.map((item) => item._id), [parent._id, child._id]);
-  assert.strictEqual(publicCategories.items[1].image, '');
+  assert.deepStrictEqual(publicCategories.items.map((item) => item._id).sort(), [parent._id, child._id].sort());
+  assert.strictEqual(publicCategories.items.find((item) => item._id === child._id).image, '');
   const deleted = await adminEndpoint({}, context, runtime, 'categories.delete', { id: parent._id });
   assert.deepStrictEqual(deleted.removedIds, [parent._id, child._id]);
   assert.strictEqual(runtime.records.categories[parent._id].status, 'inactive');

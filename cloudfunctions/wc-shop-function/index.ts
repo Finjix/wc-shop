@@ -39,7 +39,6 @@ declare function require(moduleName: string): unknown;
 const { createRuntime, getPayload } = require('../shared/runtime') as RuntimeModule;
 const { runEndpoint } = require('../shared/response') as ResponseModule;
 const { errorFrom } = require('../shared/errors') as ErrorModule;
-const { imageAwareRuntime } = require('../shared/image-references') as { imageAwareRuntime: (runtime: Runtime) => Runtime };
 const { shopEndpoint, expirePendingOrders } = require('../shared/shop') as {
   shopEndpoint: Endpoint;
   expirePendingOrders: (runtime: Runtime) => Promise<unknown>;
@@ -69,7 +68,7 @@ export function isTimerInvocation(runtime: Runtime, context: unknown): boolean {
 
 export async function main(event: unknown, context: unknown): Promise<unknown> {
   return runEndpoint(async (input, ctx) => {
-    const runtime = imageAwareRuntime(createRuntime());
+    const runtime = createRuntime();
     // Only platform-injected context can authorize global maintenance.
     if (isTimerInvocation(runtime, ctx)) return expirePendingOrders(runtime);
     const { action, data } = getPayload(input);

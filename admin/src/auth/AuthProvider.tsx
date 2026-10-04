@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { adminApi } from '../lib/api';
 import { cloudbaseAuth, cloudbaseEnvId, requireCloudBase } from '../lib/cloudbase';
 import type { AdminMember, LoginState } from '../types';
+import { readPersistentSession } from './persistent-session';
 
 interface AuthContextValue {
   loading: boolean;
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [member, setMember] = useState<AdminMember | null>(null);
   const [error, setError] = useState('');
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (foreground = true) => {
     if (adminApi.isLocal) {
       const session = adminApi.localSession();
       if (!session) {
@@ -64,10 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (foreground) setLoading(true);
     setError('');
     try {
-      const state = (await cloudbaseAuth.getLoginState()) as LoginState | null;
+      const state = await readPersistentSession(cloudbaseAuth);
       if (!state) {
         setLoginState(null);
         setMember(null);
@@ -81,11 +82,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoginState(state);
       setMember(nextMember);
     } catch (err) {
-      setLoginState(null);
-      setMember(null);
+      if (foreground) {
+        setLoginState(null);
+        setMember(null);
+      }
       setError(err instanceof Error ? err.message : '登录状态恢复失败。');
     } finally {
-      setLoading(false);
+      if (foreground) setLoading(false);
     }
   }, []);
 
@@ -96,8 +99,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh().then(() => {
       if (adminApi.isLocal || !active || !cloudbaseAuth) return;
 
-      const result = cloudbaseAuth.onAuthStateChange((_event: unknown, session: unknown) => {
-        if (!active || session) return;
+      const result = cloudbaseAuth.onAuthStateChange((event, session) => {
+        if (!active) return;
+        if (session) {
+          setLoginState(session as LoginState);
+          return;
+        }
+        if (event !== 'SIGNED_OUT') return;
         setLoginState(null);
         setMember(null);
         setLoading(false);
@@ -108,6 +116,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
       unsubscribe?.();
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    if (adminApi.isLocal || !cloudbaseAuth) return;
+    const resume = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) void refresh(false);
+    };
+    const timer = window.setInterval(resume, 5 * 60 * 1000);
+    window.addEventListener('online', resume);
+    window.addEventListener('focus', resume);
+    document.addEventListener('visibilitychange', resume);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('online', resume);
+      window.removeEventListener('focus', resume);
+      document.removeEventListener('visibilitychange', resume);
     };
   }, [refresh]);
 
@@ -136,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError('');
     try {
       await auth.signInWithUsernameAndPassword(username, password);
-      const state = (await auth.getLoginState()) as LoginState | null;
+      const state = await readPersistentSession(auth);
       const nextMember = await loadAdminMember();
       if (!memberIsAllowed(nextMember)) {
         await auth.signOut();

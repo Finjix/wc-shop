@@ -2,7 +2,6 @@
 
 const { errorFrom } = require('./errors');
 const { array, string } = require('./validation');
-const { resolveAlias } = require('./image-references');
 
 function pathOf(fileId) {
   if (!fileId.startsWith('cloud://')) return fileId;
@@ -24,10 +23,26 @@ async function getTempFileURLs(runtime, fileList, options) {
     });
   }
   try {
-    const mapped = await Promise.all(normalized.map((file) => resolveAlias(runtime.db, file)));
+    const { getDoc } = require('./db');
+    const crypto = require('crypto');
+    const mapped = await Promise.all(normalized.map(async (file) => {
+      const seen = new Set();
+      while (true) {
+        if (seen.has(file) || seen.size >= 50) throw errorFrom('CONFLICT');
+        seen.add(file);
+        const id = `__image_file_${crypto.createHash('sha256').update(file).digest('hex')}`;
+        const state = await getDoc(runtime.db.collection('settings'), id, false);
+        if (!state?.newFileID) return file;
+        file = state.newFileID;
+      }
+    }));
     const result = await method.call(runtime.app, { fileList: mapped });
     const files = result && result.fileList ? result.fileList : result;
-    return Array.isArray(files) ? files.map((file, index) => ({ ...file, fileID: normalized[index] })) : files;
+    return Array.isArray(files) ? normalized.map((original, index) => {
+      const file = files.find((item) => (item.fileID || item.fileId) === mapped[index]);
+      if (!file) throw errorFrom('STORAGE_ERROR');
+      return { ...file, fileID: original };
+    }) : files;
   } catch (error) {
     throw errorFrom('STORAGE_ERROR');
   }

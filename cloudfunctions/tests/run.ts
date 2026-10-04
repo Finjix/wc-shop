@@ -1,13 +1,12 @@
 // @ts-nocheck
 
 const { run } = require('./contracts.test');
-const { run: runRegressions, makeRuntime } = require('./regressions.test');
-const { run: runResources } = require('./image-resources.test');
+const { run: runRegressions } = require('./regressions.test');
 
 Promise.resolve()
   .then(() => run())
   .then(() => runRegressions())
-  .then(() => runResources(makeRuntime))
+  .then(() => require('./image-lifecycle.test').run())
   .then(() => {
     console.log('cloudfunctions contract and regression tests passed');
 }).catch((error) => {

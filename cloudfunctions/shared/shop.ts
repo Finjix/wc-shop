@@ -10,7 +10,6 @@ const { HOME_CONFIG_SLOT, productIds } = require('./home-config');
 const { requireUser } = require('./auth');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
-const { imageAwareRuntime } = require('./image-references');
 const {
   assert, string, optionalString, integer, object, array, page, clone,
 } = require('./validation');
@@ -1074,7 +1073,7 @@ async function afterSalesAction(runtime, event, context, data, action) {
 }
 
 async function shopEndpoint(event, context, runtime, action, data) {
-  runtime = imageAwareRuntime(runtime);
+  runtime = require('./image-lifecycle').imageLifecycleRuntime(runtime);
   if (action === 'categories.list') return readCategories(runtime, data);
   if (action === 'products.list') return readProducts(runtime, data);
   if (action === 'products.detail') return readProductDetail(runtime, data);
