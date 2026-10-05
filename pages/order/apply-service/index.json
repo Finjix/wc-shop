@@ -3,6 +3,7 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
+    "image-processor": "/packages/form-ui/image-processor/index",
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "wr-price": "/components/price/index",
     "wr-order-goods-card": "../components/order-goods-card/index",
@@ -20,6 +21,7 @@
     "t-upload": "/packages/form-ui/tdesign/upload/upload"
   },
   "componentPlaceholder": {
+    "image-processor": "view",
     "t-textarea": "view",
     "t-input": "view",
     "t-upload": "view"

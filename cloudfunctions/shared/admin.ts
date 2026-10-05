@@ -153,7 +153,7 @@ async function saveProductWithVariants(runtime, data) {
   }
   patch.title = string(patch.title, 'title', { max: 200 });
   patch.primaryImage = string(patch.primaryImage, 'primaryImage', { max: 1024 });
-  assert(Array.isArray(patch.detailImages) && patch.detailImages.length >= 1 && patch.detailImages.length <= 6, { field: 'detailImages', min: 1, max: 6 });
+  assert(Array.isArray(patch.detailImages) && patch.detailImages.length >= 1 && patch.detailImages.length <= 3, { field: 'detailImages', min: 1, max: 3 });
   patch.detailImages = patch.detailImages.map((image) => string(image, 'detailImages[]', { max: 1024 }));
   patch.images = [patch.primaryImage];
   const result = await withTransaction(runtime.db, async (tx) => {

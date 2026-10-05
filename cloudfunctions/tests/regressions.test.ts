@@ -39,10 +39,8 @@ async function testImageUploads() {
   await assert.rejects(() => processImageBuffer(Buffer.alloc(MAX_IMAGE_BYTES + 1), 'photo.png'), appError('IMAGE_TOO_LARGE'));
   await assert.rejects(() => processImageBuffer(Buffer.alloc(0), 'photo.png'), appError('IMAGE_FORMAT'));
   for (const folder of ['comments', 'after-sales', 'user/comments', 'user/after-sales']) {
-    const userBoundary = Buffer.alloc(3 * MAX_IMAGE_BYTES);
-    assert.strictEqual(await processImageBuffer(userBoundary, 'photo.png', folder), userBoundary);
-    await assert.rejects(() => processImageBuffer(Buffer.alloc(3 * MAX_IMAGE_BYTES + 1), 'photo.png', folder),
-      (error) => error.code === 'IMAGE_TOO_LARGE' && error.message === '图片不能超过 3MB');
+    const userOutput = Buffer.alloc(15 * MAX_IMAGE_BYTES);
+    assert.strictEqual(await processImageBuffer(userOutput, 'encoded.webp', folder), userOutput);
   }
   for (const folder of ['admin/products', 'admin/categories', 'home']) {
     const largeOutput = Buffer.alloc(15 * MAX_IMAGE_BYTES);
@@ -278,7 +276,7 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   );
   await assert.rejects(
     () => adminEndpoint({}, context, runtime, 'products.save', {
-      id: created._id, title: '规格商品', primaryImage: 'cover.jpg', detailImages: Array(7).fill('detail.jpg'),
+      id: created._id, title: '规格商品', primaryImage: 'cover.jpg', detailImages: Array(4).fill('detail.jpg'),
       variants: [{ name: '小份', salePrice: 1900 }],
     }),
     appError('INVALID_ARGUMENT'),
@@ -946,12 +944,14 @@ async function testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims() {
   ];
   runtime.records.orders['order-1'] = receivedOrder(items);
   const context = { auth: { uid: 'user-1' } };
-  const input = { orderId: 'order-1', reason: '质量问题', rightsItem: [{ skuId: 'sku-B', rightsQuantity: 1 }], refundRequestAmount: 200 };
+  const input = { orderId: 'order-1', reason: '质量问题', rightsItem: [{ skuId: 'sku-B', rightsQuantity: 1 }], refundRequestAmount: 200,
+    images: Array.from({ length: 3 }, (_, index) => `cloud://test/user/after-sales/${index}.webp`) };
   for (const invalid of [
     { ...input, rightsItem: [{ skuId: 'unknown', rightsQuantity: 1 }] },
     { ...input, rightsItem: [{ skuId: 'sku-B', rightsQuantity: 4 }] },
     { ...input, refundRequestAmount: 201 },
     { ...input, type: 'invalid' },
+    { ...input, images: [...input.images, 'cloud://test/user/after-sales/extra.webp'] },
   ]) await assert.rejects(() => shopEndpoint({}, context, runtime, 'afterSales.create', invalid), appError('INVALID_ARGUMENT'));
   assert.strictEqual(Object.keys(runtime.records.afterSales || {}).length, 0);
   const results = await Promise.allSettled([
@@ -960,6 +960,7 @@ async function testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims() {
   ]);
   assert.strictEqual(results.filter((result) => result.status === 'fulfilled').length, 1);
   const saved = Object.values(runtime.records.afterSales)[0];
+  assert.strictEqual(saved.images.length, 3);
   assert.strictEqual(saved.items[0].skuId, 'sku-B');
   assert.strictEqual(saved.items[0].quantity, 1);
   assert.strictEqual(saved.amount, 200);
@@ -991,7 +992,7 @@ const cases = [
   { name: 'image filtering precedes comment pagination and total counting', run: testImageFilterPrecedesCommentPagination },
   { name: 'after-sales validate SKU, quantity, amount and serialize concurrent claims', run: testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims },
   { name: 'dashboard counts are complete beyond the SDK default query limit', run: testDashboardCountsBeyondSdkQueryLimit },
-  { name: 'image uploads preserve bytes with unrestricted admin output and scoped user limits', run: testImageUploads },
+  { name: 'image uploads preserve bytes with unrestricted prepared admin and user output', run: testImageUploads },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
   { name: 'product save manages SKU inventory and images without SKU status', run: testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus },
   { name: 'SKU inventory is set separately and stale updates conflict', run: testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt },

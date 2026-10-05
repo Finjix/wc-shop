@@ -7,11 +7,10 @@ const MAX_IMAGE_BYTES = 1 * 1024 * 1024;
 
 async function processImageBuffer(input, filename, folder = '') {
   if (folder === 'avatars' || folder === 'user/avatars') throw errorFrom('FORBIDDEN');
-  const isAdmin = ['admin/products', 'admin/categories', 'home'].includes(folder);
-  const maxSizeMB = ['comments', 'after-sales', 'user/comments', 'user/after-sales'].includes(folder) ? 3 : 1;
+  const isPreparedImage = ['admin/products', 'admin/categories', 'home', 'comments', 'after-sales', 'user/comments', 'user/after-sales'].includes(folder);
   if (!Buffer.isBuffer(input) || !input.length) throw errorFrom('IMAGE_FORMAT');
-  // Admin clients validate the 10MB source before encoding. The lossless output may be larger.
-  if (!isAdmin && input.length > maxSizeMB * MAX_IMAGE_BYTES) throw new AppError('IMAGE_TOO_LARGE', `图片不能超过 ${maxSizeMB}MB`);
+  // Clients validate the 10MB source before encoding; encoded output has no size cap.
+  if (!isPreparedImage && input.length > MAX_IMAGE_BYTES) throw new AppError('IMAGE_TOO_LARGE', '图片不能超过 1MB');
   // Preserve the original bytes, dimensions, metadata and animation.
   return input;
 }

@@ -1028,7 +1028,9 @@ async function afterSalesAction(runtime, event, context, data, action) {
   if (![STATUS.shipped, STATUS.received, STATUS.completed].includes(order.status)) throw errorFrom('ORDER_STATE_INVALID');
   const reason = string(data.reason || data.rightsReasonDesc, 'reason', { max: 120 });
   const description = optionalString(data.description || data.refundMemo, 'description', { max: 1000 }) || '';
-  const images = data.images === undefined ? [] : array(data.images, 'images').slice(0, 9).map((image) => string(image, 'images[]', { max: 1024 }));
+  const sourceImages = data.images === undefined ? [] : array(data.images, 'images');
+  assert(sourceImages.length <= 3, { field: 'images', max: 3 });
+  const images = sourceImages.map((image) => string(image, 'images[]', { max: 1024 }));
   const rawType = data.type ?? data.rightsType ?? 'refund';
   const type = ({ refund: 20, only_refund: 20, return: 10, return_goods: 10 })[rawType] ?? Number(rawType);
   assert([10, 20].includes(type), { field: 'type' });

@@ -25,7 +25,9 @@
         "type": "folder"
       }
     ],
-    "include": []
+    "include": [
+      { "value": "packages/form-ui/image-processor/codec/webp_enc.wasm", "type": "file" }
+    ]
   },
   "setting": {
     "urlCheck": false,

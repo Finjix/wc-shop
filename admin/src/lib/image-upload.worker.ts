@@ -1,11 +1,9 @@
 import encode, { init as initEncode } from '@jsquash/webp/encode';
-import decode, { init as initDecode } from '@jsquash/webp/decode';
 import encodeWasm from '@jsquash/webp/codec/enc/webp_enc.wasm?url';
 import encodeSimdWasm from '@jsquash/webp/codec/enc/webp_enc_simd.wasm?url';
-import decodeWasm from '@jsquash/webp/codec/dec/webp_dec.wasm?url';
 
 const workerScope = self as unknown as {
-  onmessage: (event: MessageEvent<{ bytes: ArrayBuffer; format: 'png' | 'jpeg' | 'webp'; preserveDimensions?: boolean }>) => void;
+  onmessage: (event: MessageEvent<{ bytes: ArrayBuffer; format: 'png' | 'jpeg'; preserveDimensions?: boolean }>) => void;
   postMessage: (message: unknown, transfer?: Transferable[]) => void;
 };
 
@@ -13,24 +11,15 @@ workerScope.onmessage = async ({ data: { bytes, format, preserveDimensions } }) 
   let bitmap: ImageBitmap | undefined;
   try {
     let pixels: ImageData;
-    if (format === 'webp') {
-      await initDecode({ locateFile: () => decodeWasm });
-      pixels = await decode(bytes);
-      if (Math.min(pixels.width, pixels.height) <= 1080) {
-        workerScope.postMessage({ original: true });
-        return;
-      }
-    } else {
-      bitmap = await createImageBitmap(new Blob([bytes], { type: `image/${format}` }), { imageOrientation: 'from-image' });
-      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-      const context = canvas.getContext('2d', { willReadFrequently: true });
-      if (!context) throw new Error('浏览器无法处理图片');
-      context.drawImage(bitmap, 0, 0);
-      pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-      canvas.width = canvas.height = 1;
-      bitmap.close();
-      bitmap = undefined;
-    }
+    bitmap = await createImageBitmap(new Blob([bytes], { type: `image/${format}` }), { imageOrientation: 'from-image' });
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) throw new Error('浏览器无法处理图片');
+    context.drawImage(bitmap, 0, 0);
+    pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    canvas.width = canvas.height = 1;
+    bitmap.close();
+    bitmap = undefined;
     const shortest = Math.min(pixels.width, pixels.height);
     if (!preserveDimensions && shortest > 1080) {
       const source = new OffscreenCanvas(pixels.width, pixels.height);

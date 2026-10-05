@@ -22,6 +22,8 @@
     "test:loading": "node scripts/test-loading.cjs",
     "test:subpackage-dependencies": "node scripts/test-subpackage-dependencies.cjs",
     "build:subpackage-ui": "node scripts/build-subpackage-ui.cjs",
+    "build:image-codec": "node scripts/build-image-codec.cjs",
+    "test:user-images": "node scripts/test-user-images.cjs",
     "test:cloud-dependencies": "tsc -p cloudfunctions/tsconfig.json && node scripts/test-cloud-dependencies.cjs"
   },
   "author": "",

@@ -24,9 +24,8 @@ async function main() {
   let workerError = false;
   class Worker {
     constructor() { workerCount++; }
-    postMessage({ format }) {
-      queueMicrotask(() => this.onmessage({ data: workerError ? { error: '图片编码失败' }
-        : format === 'webp' ? { original: true } : { bytes: workerOutput } }));
+    postMessage() {
+      queueMicrotask(() => this.onmessage({ data: workerError ? { error: '图片编码失败' } : { bytes: workerOutput } }));
     }
     terminate() {}
   }
@@ -48,8 +47,8 @@ async function main() {
   const jpeg = await sharp(png).jpeg().toBuffer();
   const webp = await sharp(png).webp({ lossless: true }).toBuffer();
   workerOutput = Uint8Array.from(webp).buffer;
-  for (const extension of ['png', 'PNG', 'PnG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'JpEg', 'webp', 'WEBP', 'WeBp']) {
-    const bytes = /webp/i.test(extension) ? webp : /png/i.test(extension) ? png : jpeg;
+  for (const extension of ['png', 'PNG', 'PnG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'JpEg']) {
+    const bytes = /png/i.test(extension) ? png : jpeg;
     const phases = [];
     const selected = new File([bytes], `图片.${extension}`, { type: 'application/octet-stream' });
     const result = await api.uploadCloudFile(selected, 'admin/categories', (phase) => phases.push(phase));
@@ -57,13 +56,13 @@ async function main() {
     assert.deepEqual(phases, ['处理图片中…', '上传中…']);
     const upload = calls.pop();
     assert.deepEqual(upload.bytes, webp);
-    assert.equal(/webp/i.test(extension) ? upload.params.filePath === selected : upload.params.filePath.type === 'image/webp', true);
+    assert.equal(upload.params.filePath.type, 'image/webp');
   }
-  for (const extension of ['gif', 'svg', 'bmp', 'avif', 'heic', 'tiff', 'ico', 'psd']) {
+  for (const extension of ['webp', 'WEBP', 'gif', 'svg', 'bmp', 'avif', 'heic', 'tiff', 'ico', 'psd']) {
     await assert.rejects(() => api.uploadCloudFile(new File([png], `photo.${extension}`)), /仅支持静态/);
   }
   await assert.rejects(() => api.uploadCloudFile(new File([jpeg], 'fake.png')), /格式不匹配/);
-  await assert.rejects(() => api.uploadCloudFile(new File([Buffer.from('broken')], 'broken.webp')), /已损坏/);
+  await assert.rejects(() => api.uploadCloudFile(new File([Buffer.from('broken')], 'broken.png')), /已损坏/);
   await assert.rejects(() => api.uploadCloudFile(new File([png.subarray(0, 30)], 'broken.png')), /已损坏/);
   await assert.rejects(() => api.uploadCloudFile(new File([], 'empty.png')), /图片文件为空/);
   await assert.rejects(() => api.uploadCloudFile(new File([Buffer.alloc(images.MAX_SOURCE_IMAGE_BYTES + 1)], 'large.png')), /10MB/);
@@ -78,7 +77,7 @@ async function main() {
   workerError = true;
   await assert.rejects(() => api.uploadCloudFile(new File([png], 'failure.png')), /编码失败/);
   workerError = false;
-  await api.uploadCloudFile(new File([webp], 'retry.webp'));
+  await api.uploadCloudFile(new File([png], 'retry.png'));
   assert.equal(calls.length, 1, 'Queue recovers after failure');
   const chunk = Buffer.alloc(20);
   chunk.writeUInt32BE(8, 0); chunk.write('acTL', 4); chunk.writeUInt32BE(2, 8);
@@ -88,7 +87,7 @@ async function main() {
   vp8x.write('VP8X'); vp8x.writeUInt32LE(10, 4); vp8x[8] = 2;
   const animated = Buffer.concat([webp.subarray(0, 12), vp8x, webp.subarray(12)]);
   animated.writeUInt32LE(animated.length - 8, 4);
-  assert.throws(() => images.inspectStaticImage(animated, 'animated.WEBP'), /动态图片/);
+  assert.throws(() => images.inspectStaticImage(animated, 'animated.WEBP'), /仅支持静态/);
   assert.ok(workerCount > 0);
   console.log('Admin upload checks passed: format, animation, source boundary, output size, phases, retry and direct upload.');
 }

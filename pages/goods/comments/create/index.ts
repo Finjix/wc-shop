@@ -24,6 +24,7 @@ Page({
     goodsDetail: '',
     imageProps: { mode: 'aspectFit' },
     submitting: false,
+    processingImages: false,
   },
 
   onLoad(options = {}) {
@@ -38,20 +39,22 @@ Page({
     resolveImage(decodeQueryValue(options.imgUrl)).then((imgUrl) => this.setData({ imgUrl }));
   },
 
-  handleSuccess(e) {
-    const selected = (e.detail.files || []).filter((file) => file && file.type !== 'video');
-    const invalid = selected.find((file) => !/\.(jpe?g|png|webp)(?:\?|$)/i.test(file.url || file.tempFilePath || file.path || file.name || ''));
-    if (invalid) {
-      Toast({ context: this, selector: '#t-toast', message: '只能上传 JPG、PNG 或 WebP 图片', icon: '' });
+  async handleSuccess(e) {
+    if (this.data.processingImages || this.data.submitting) return;
+    this.setData({ processingImages: true });
+    wx.showLoading({ title: '处理图片中', mask: true });
+    try {
+      const processor = this.selectComponent('#image-processor');
+      if (!processor?.prepare) throw new Error('图片组件加载中，请稍后重新选择');
+      const result = await processor.prepare(e.detail.files || [], 50);
+      this.setData({ uploadFiles: result.files }, () => this.updateButtonStatus());
+      if (result.error) Toast({ context: this, selector: '#t-toast', message: result.error, icon: '' });
+    } catch (error) {
+      Toast({ context: this, selector: '#t-toast', message: error.message || '图片处理失败', icon: '' });
+    } finally {
+      wx.hideLoading();
+      this.setData({ processingImages: false });
     }
-    const oversized = selected.find((file) => Number(file.size) > 10 * 1024 * 1024);
-    if (oversized) {
-      Toast({ context: this, selector: '#t-toast', message: '图片不能超过 10MB', icon: '' });
-    }
-    this.setData(
-      { uploadFiles: selected.filter((file) => /\.(jpe?g|png|webp)(?:\?|$)/i.test(file.url || file.tempFilePath || file.path || file.name || '') && Number(file.size) <= 10 * 1024 * 1024) },
-      () => this.updateButtonStatus(),
-    );
   },
 
   handleRemove(e) {
@@ -75,7 +78,7 @@ Page({
 
   onSubmitBtnClick() {
     const { isAllowedSubmit, submitting, uploadFiles } = this.data;
-    if (!isAllowedSubmit || submitting || this.commentSubmitPromise) return;
+    if (!isAllowedSubmit || submitting || this.data.processingImages || this.commentSubmitPromise) return;
     if (this.commentSubmitBlockedUntil && Date.now() < this.commentSubmitBlockedUntil) return;
     if (!this.orderNo) {
       Toast({ context: this, selector: '#t-toast', message: '订单不存在，无法提交评价', icon: '' });

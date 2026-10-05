@@ -572,7 +572,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   };
   const uploadDetails = async (files: File[]) => {
     if (!files.length || uploading) return;
-    if (draft.detailImages.length + files.length > 6) { await MessagePlugin.warning('商品详情图最多 6 张'); return; }
+    if (draft.detailImages.length + files.length > 3) { await MessagePlugin.warning('商品详情图最多 3 张'); return; }
     const request = editorRequest.current;
     setUploading('details');
     try {
@@ -715,7 +715,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
          {draft.primaryImage && <div className="product-image-item product-cover-preview"><ProductImagePreview fileID={draft.primaryImage} alt="商品封面预览" /></div>}
        </Field></div>
        <div className="product-detail-images">
-         <div className="product-detail-image-heading"><strong>商品详情图片（最多 6 张）</strong></div>
+         <div className="product-detail-image-heading"><strong>商品详情图片（最多 3 张）</strong></div>
          {draft.detailImages.length > 0 && <div className="product-detail-image-grid">
            {draft.detailImages.map((image, index) => <div className="product-detail-image-card" key={`${image}-${index}`}>
              <ProductImagePreview fileID={image} alt={`详情图 ${index + 1} 预览`} />
@@ -723,7 +723,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
            </div>)}
          </div>}
          <div className="product-detail-image-upload"><div className="image-file-picker">
-           <button type="button" disabled={draft.detailImages.length >= 6 || Boolean(uploading)} onClick={() => detailInputRef.current?.click()}>选择文件</button>
+           <button type="button" disabled={draft.detailImages.length >= 3 || Boolean(uploading)} onClick={() => detailInputRef.current?.click()}>选择文件</button>
            <span>{draft.detailImages.length ? `已上传 ${draft.detailImages.length} 张` : '未选择文件'}</span>
            <input ref={detailInputRef} className="image-file-picker-input" type="file" accept={IMAGE_ACCEPT} multiple disabled={Boolean(uploading)} aria-label="选择商品详情图片"
              onChange={(event) => { const files = Array.from(event.target.files || []); event.target.value = ''; void uploadDetails(files); }} />

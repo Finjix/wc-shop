@@ -342,10 +342,10 @@ function parseMultipart(buffer, contentType) {
 
 async function saveUpload(request) {
   const contentType = String(headerValue(request, 'content-type') || '');
-  // Admin output can exceed the source size; other routes retain their request limits.
+  // Prepared output can exceed the source size; source limits belong to selection.
   const uploadFolder = String(headerValue(request, 'x-upload-folder') || '');
-  const adminOutput = ['admin/products', 'admin/categories', 'home'].includes(uploadFolder);
-  const buffer = await readBody(request, adminOutput ? Infinity : 14 * 1024 * 1024);
+  const preparedOutput = ['admin/products', 'admin/categories', 'home', 'comments', 'after-sales'].includes(uploadFolder);
+  const buffer = await readBody(request, preparedOutput ? Infinity : 14 * 1024 * 1024);
   let fields;
   let file;
   let fileName;
@@ -362,7 +362,7 @@ async function saveUpload(request) {
   }
   if (!file || !file.length) throw errorFrom('INVALID_ARGUMENT');
   const folder = safeRelativePart(fields.folder, 'uploads');
-  if (adminOutput && folder !== uploadFolder) throw errorFrom('INVALID_ARGUMENT');
+  if (preparedOutput && folder !== uploadFolder) throw errorFrom('INVALID_ARGUMENT');
   const image = await processImageBuffer(file, fileName, folder);
   const safeName = String(fileName || 'image').replace(/[^a-zA-Z0-9._-]/g, '_');
   const name = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeName}`;

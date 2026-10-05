@@ -28,6 +28,7 @@
     </view>
     <view class="upload-container">
       <t-upload
+        disabled="{{processingImages || submitting}}"
         media-type="{{['image']}}"
         sizeLimit="{{10485760}}"
         files="{{uploadFiles}}"
@@ -47,10 +48,11 @@
     content="提交"
     block
     shape="round"
-    disabled="{{submitting}}"
+    disabled="{{submitting || processingImages}}"
     loading="{{submitting}}"
     t-class="submit-button{{isAllowedSubmit ? '' : '-disabled'}}"
     bind:tap="onSubmitBtnClick"
   />
 </view>
 <t-toast id="t-toast" />
+<image-processor id="image-processor" />

@@ -17,6 +17,7 @@ Page({
   query: {},
   data: {
     uploading: false, // 凭证上传状态
+    processingImages: false,
     canApplyReturn: true, // 是否可退货
     goodsInfo: {},
     goodsInfoList: [],
@@ -313,7 +314,7 @@ Page({
 
   // 发起申请售后请求
   onSubmit() {
-    if (this.data.submitting || this.applySubmitPromise) return;
+    if (this.data.submitting || this.data.processingImages || this.applySubmitPromise) return;
     if (this.applySubmitBlockedUntil && Date.now() < this.applySubmitBlockedUntil) return;
     this.applySubmitBlockedUntil = Date.now() + 2000;
     this.applySubmitPromise = this.submitCheck()
@@ -408,13 +409,22 @@ Page({
     });
   },
 
-  handleSuccess(e) {
-    const { files } = e.detail;
-    const valid = (files || []).filter((file) => /\.(jpe?g|png|webp)(?:\?|$)/i.test(file.url || file.tempFilePath || file.path || file.name || '') && Number(file.size) <= 10 * 1024 * 1024);
-    if (valid.length !== (files || []).length) Toast({ context: this, selector: '#t-toast', message: '只能上传 10MB 内的 JPG、PNG 或 WebP 图片', icon: '' });
-    this.setData({
-      'serviceFrom.rightsImageUrls': valid,
-    });
+  async handleSuccess(e) {
+    if (this.data.processingImages || this.data.submitting) return;
+    this.setData({ processingImages: true });
+    wx.showLoading({ title: '处理图片中', mask: true });
+    try {
+      const processor = this.selectComponent('#image-processor');
+      if (!processor?.prepare) throw new Error('图片组件加载中，请稍后重新选择');
+      const result = await processor.prepare(e.detail.files || [], 100, 3);
+      this.setData({ 'serviceFrom.rightsImageUrls': result.files });
+      if (result.error) Toast({ context: this, selector: '#t-toast', message: result.error, icon: '' });
+    } catch (error) {
+      Toast({ context: this, selector: '#t-toast', message: error.message || '图片处理失败', icon: '' });
+    } finally {
+      wx.hideLoading();
+      this.setData({ processingImages: false });
+    }
   },
 
   handleRemove(e) {

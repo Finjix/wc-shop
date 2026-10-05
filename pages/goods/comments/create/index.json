@@ -3,6 +3,7 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
+    "image-processor": "/packages/form-ui/image-processor/index",
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-image": "/components/webp-image/index",
     "t-textarea": "/packages/form-ui/tdesign/textarea/textarea",
@@ -11,6 +12,7 @@
     "t-toast": "tdesign-miniprogram/toast/toast"
   },
   "componentPlaceholder": {
+    "image-processor": "view",
     "t-textarea": "view",
     "t-upload": "view"
   }

@@ -7,7 +7,7 @@
 </view>
 <view class="content-wrapper">
   <view class="user-profile">
-    <image class="user-profile__avatar" src="/assets/user-avatar.jpg" mode="aspectFill" />
+    <image class="user-profile__avatar" src="/assets/usercenter-avatar.jpg" mode="aspectFill" />
     <view class="user-profile__name">微信用户</view>
   </view>
   <view class="order-group-wrapper">
