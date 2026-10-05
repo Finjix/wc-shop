@@ -3,6 +3,9 @@
   "usingComponents": {
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-tag": "tdesign-miniprogram/tag/tag",
-    "t-swipe-cell": "tdesign-miniprogram/swipe-cell/swipe-cell"
+    "t-swipe-cell": "/packages/order-ui/tdesign/swipe-cell/swipe-cell"
+  },
+  "componentPlaceholder": {
+    "t-swipe-cell": "view"
   }
 }

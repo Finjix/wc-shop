@@ -1,10 +1,9 @@
 // @ts-nocheck
 
 import { getPermission } from '../../../../utils/getPermission';
-import { phoneRegCheck } from '../../../../utils/util';
+import { phoneRegCheck } from '../../utils/phone';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { addressParse } from '../../utils/addressParse';
-import { resolveAddress, rejectAddress } from '../../../../services/address/list';
 
 Component({
   externalClasses: ['t-class'],
@@ -104,11 +103,11 @@ Component({
         const orderPageDeltaNum = this.findPage('pages/order/order-confirm/index');
         if (orderPageDeltaNum > -1) {
           wx.navigateBack({ delta: 1 });
-          resolveAddress(params);
+          getApp().addressSelection.resolveAddress(params);
           return;
         }
       } catch (err) {
-        rejectAddress(params);
+        getApp().addressSelection.rejectAddress(params);
         console.error(err);
       }
     },

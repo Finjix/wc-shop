@@ -1,10 +1,9 @@
 // @ts-nocheck
 
-import { formatTime } from '../../../utils/util';
+import { formatTime } from '../utils/format';
 import { getApiErrorMessage } from '../../../utils/api';
 import { OrderButtonTypes, OrderStatus } from '../config';
-import { fetchBusinessTime, fetchOrderDetail } from '../../../services/order/orderDetail';
-import { getAddressPromise } from '../../../services/address/list';
+import { fetchBusinessTime, fetchOrderDetail } from '../services/orderDetail';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 
 Page({
@@ -188,7 +187,7 @@ Page({
   },
 
   onEditAddressTap() {
-    getAddressPromise()
+    getApp().addressSelection.getAddressPromise()
       .then((address) => {
         this.setData({
           'order.logisticsVO.receiverName': address.name,

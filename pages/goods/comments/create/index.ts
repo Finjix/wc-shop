@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import Toast from 'tdesign-miniprogram/toast/index';
-import { createComment } from '../../../../services/comments/createComment';
+import { createComment } from '../../services/comments/createComment';
 import { getApiErrorMessage } from '../../../../utils/api';
 import { resolveImage } from '../../../../utils/images';
 

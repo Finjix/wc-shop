@@ -2,7 +2,7 @@
 
 import { request } from '../../../utils/api';
 import { resolveRightsImages } from '../../../utils/images';
-import { formatTime } from '../../../utils/util';
+import { formatTime } from '../utils/format';
 import {
   normalizeLogistics,
   normalizeOrderItem,

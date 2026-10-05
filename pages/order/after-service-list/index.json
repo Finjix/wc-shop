@@ -12,7 +12,9 @@
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-toast": "tdesign-miniprogram/toast/toast",
     "t-dialog": "tdesign-miniprogram/dialog/dialog",
-    "t-empty": "tdesign-miniprogram/empty/empty",
-    "t-pull-down-refresh": "tdesign-miniprogram/pull-down-refresh/pull-down-refresh"
+    "t-pull-down-refresh": "/packages/order-ui/tdesign/pull-down-refresh/pull-down-refresh"
+  },
+  "componentPlaceholder": {
+    "t-pull-down-refresh": "view"
   }
 }

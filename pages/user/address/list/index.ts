@@ -8,7 +8,6 @@ import {
 } from '../../../../services/address/fetchAddress';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { getApiErrorMessage } from '../../../../utils/api';
-import { getAddressPromise, resolveAddress, rejectAddress } from '../../../../services/address/list';
 
 const isTrueQueryValue = (value) => value === true || value === 1 || value === '1' || value === 'true';
 const addressIdOf = (address = {}) => address.addressId ?? address.id ?? address._id ?? '';
@@ -57,7 +56,7 @@ Page({
   },
   onUnload() {
     if (this.selectMode && !this.hasSelect) {
-      rejectAddress();
+      getApp().addressSelection.rejectAddress();
     }
   },
   getAddressList() {
@@ -182,7 +181,7 @@ Page({
   selectHandle({ detail }) {
     if (this.selectMode) {
       this.hasSelect = true;
-      resolveAddress(detail);
+      getApp().addressSelection.resolveAddress(detail);
       wx.navigateBack({ delta: 1 });
     } else {
       this.editAddressHandle({ detail });
@@ -194,7 +193,7 @@ Page({
   },
 
   waitForNewAddress() {
-    getAddressPromise()
+    getApp().addressSelection.getAddressPromise()
       .then((newAddress) => {
         const savedAddress = { ...newAddress };
         const savedAddressId = addressIdOf(savedAddress);

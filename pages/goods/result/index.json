@@ -5,8 +5,7 @@
   "usingComponents": {
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-search": "tdesign-miniprogram/search/search",
-    "t-input": "tdesign-miniprogram/input/input",
-    "t-empty": "tdesign-miniprogram/empty/empty",
+    "t-input": "/packages/form-ui/tdesign/input/input",
     "t-toast": "tdesign-miniprogram/toast/toast",
     "goods-list": "/components/goods-list/index",
     "filter": "/components/filter/index",
@@ -14,5 +13,8 @@
     "load-more": "/components/load-more/index",
     "t-icon": "tdesign-miniprogram/icon/icon"
   },
-  "onReachBottomDistance": 50
+  "onReachBottomDistance": 50,
+  "componentPlaceholder": {
+    "t-input": "view"
+  }
 }

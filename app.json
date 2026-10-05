@@ -2,6 +2,16 @@
   "pages": ["pages/home/home", "pages/category/index", "pages/cart/index", "pages/usercenter/index"],
   "subpackages": [
     {
+      "root": "packages/form-ui",
+      "name": "form-ui",
+      "pages": []
+    },
+    {
+      "root": "packages/order-ui",
+      "name": "order-ui",
+      "pages": []
+    },
+    {
       "root": "pages/user",
       "name": "user",
       "pages": ["person-info/index", "address/list/index", "address/edit/index", "help/index", "about/index"]

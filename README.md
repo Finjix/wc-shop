@@ -11,6 +11,12 @@
 
 ## 本地检查
 
+小程序包含用户、商品、订单三个业务分包，以及 `form-ui`、`order-ui` 两个异步组件分包。
+四个 tabBar 页面留在主包，表单及订单扩展控件按需下载；共享基础控件仍由主包提供。
+首次准备项目或更新 TDesign 后，先在微信开发者工具执行「工具 → 构建 npm」，再执行
+`npm run build:subpackage-ui`。该命令从 npm 构建产物生成两个组件分包；生成目录不入库。
+现有业务页面路径保持不变。
+
 ```powershell
 npm install
 npm --prefix admin install

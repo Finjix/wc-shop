@@ -1,7 +1,7 @@
 // @ts-nocheck
 
-import { request } from '../../utils/api';
-import { fetchComments } from '../comments/fetchComments';
+import { request } from '../../../utils/api';
+import { fetchComments } from './comments/fetchComments';
 
 export function getGoodsDetailsCommentsCount(spuId = '') {
   return request('comments.count', { spuId }).then((result) => {

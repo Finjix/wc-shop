@@ -9,7 +9,6 @@ import {
 } from '../../../services/order/orderConfirm';
 import { fetchCartGroupData } from '../../../services/cart/cart';
 import { fetchDeliveryAddress } from '../../../services/address/fetchAddress';
-import { getAddressPromise } from '../../../services/address/list';
 import { getApiErrorMessage } from '../../../utils/api';
 
 function getSelectedGoodsFromCart(cartGroupData) {
@@ -240,7 +239,7 @@ Page({
   },
   onGotoAddress() {
     /** 获取一个Promise */
-    getAddressPromise()
+    getApp().addressSelection.getAddressPromise()
       .then((address) => {
         this.handleOptionsParams({
           userAddressReq: { ...address, checked: true },

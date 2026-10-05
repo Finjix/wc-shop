@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import Dialog from 'tdesign-miniprogram/dialog/index';
+import Dialog from '../utils/dialog';
 import Toast from 'tdesign-miniprogram/toast/index';
 import reasonSheet from '../components/reason-sheet/reasonSheet';
 import { getDeliverCompanyList, create, update } from './api';

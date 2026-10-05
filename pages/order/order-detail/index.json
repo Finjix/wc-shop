@@ -4,7 +4,7 @@
   "disableScroll": true,
   "usingComponents": {
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
-    "t-pull-down-refresh": "tdesign-miniprogram/pull-down-refresh/pull-down-refresh",
+    "t-pull-down-refresh": "/packages/order-ui/tdesign/pull-down-refresh/pull-down-refresh",
     "t-button": "tdesign-miniprogram/button/button",
     "t-cell": "tdesign-miniprogram/cell/cell",
     "t-icon": "tdesign-miniprogram/icon/icon",
@@ -15,5 +15,8 @@
     "order-card": "../components/order-card/index",
     "order-goods-card": "../components/order-goods-card/index",
     "order-button-bar": "../components/order-button-bar/index"
+  },
+  "componentPlaceholder": {
+    "t-pull-down-refresh": "view"
   }
 }

@@ -4,13 +4,19 @@
   "disableScroll": true,
   "usingComponents": {
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
-    "t-textarea": "tdesign-miniprogram/textarea/textarea",
-    "t-input": "tdesign-miniprogram/input/input",
+    "t-textarea": "/packages/form-ui/tdesign/textarea/textarea",
+    "t-input": "/packages/form-ui/tdesign/input/input",
     "t-button": "tdesign-miniprogram/button/button",
     "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
     "t-cell": "tdesign-miniprogram/cell/cell",
     "t-toast": "tdesign-miniprogram/toast/toast",
-    "t-switch": "tdesign-miniprogram/switch/switch",
-    "t-cascader": "tdesign-miniprogram/cascader/cascader"
+    "t-switch": "/packages/form-ui/tdesign/switch/switch",
+    "t-cascader": "/packages/form-ui/tdesign/cascader/cascader"
+  },
+  "componentPlaceholder": {
+    "t-textarea": "view",
+    "t-input": "view",
+    "t-switch": "view",
+    "t-cascader": "view"
   }
 }

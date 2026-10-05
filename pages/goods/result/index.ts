@@ -2,7 +2,7 @@
 import { isPageNavigationEnabled } from '../../../config/navigation';
 
 /* eslint-disable no-param-reassign */
-import { getSearchResult } from '../../../services/good/fetchSearchResult';
+import { getSearchResult } from '../services/fetchSearchResult';
 import { getApiErrorMessage } from '../../../utils/api';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';

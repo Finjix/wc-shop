@@ -20,6 +20,8 @@
     "check": "node config/eslintCheck.js && npm run typecheck && npm run typecheck:cloud && npm run build:admin",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
     "test:loading": "node scripts/test-loading.cjs",
+    "test:subpackage-dependencies": "node scripts/test-subpackage-dependencies.cjs",
+    "build:subpackage-ui": "node scripts/build-subpackage-ui.cjs",
     "test:cloud-dependencies": "tsc -p cloudfunctions/tsconfig.json && node scripts/test-cloud-dependencies.cjs"
   },
   "author": "",

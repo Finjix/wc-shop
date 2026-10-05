@@ -7,11 +7,15 @@
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-cell": "tdesign-miniprogram/cell/cell",
     "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
-    "t-textarea": "tdesign-miniprogram/textarea/textarea",
-    "t-input": "tdesign-miniprogram/input/input",
+    "t-textarea": "/packages/form-ui/tdesign/textarea/textarea",
+    "t-input": "/packages/form-ui/tdesign/input/input",
     "t-toast": "tdesign-miniprogram/toast/toast",
     "t-dialog": "tdesign-miniprogram/dialog/dialog",
     "t-button": "tdesign-miniprogram/button/button",
     "ui-reason-sheet": "../components/reason-sheet/index"
+  },
+  "componentPlaceholder": {
+    "t-textarea": "view",
+    "t-input": "view"
   }
 }

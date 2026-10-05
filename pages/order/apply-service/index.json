@@ -15,8 +15,13 @@
     "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
     "t-stepper": "tdesign-miniprogram/stepper/stepper",
     "t-popup": "tdesign-miniprogram/popup/popup",
-    "t-textarea": "tdesign-miniprogram/textarea/textarea",
-    "t-input": "tdesign-miniprogram/input/input",
-    "t-upload": "tdesign-miniprogram/upload/upload"
+    "t-textarea": "/packages/form-ui/tdesign/textarea/textarea",
+    "t-input": "/packages/form-ui/tdesign/input/input",
+    "t-upload": "/packages/form-ui/tdesign/upload/upload"
+  },
+  "componentPlaceholder": {
+    "t-textarea": "view",
+    "t-input": "view",
+    "t-upload": "view"
   }
 }

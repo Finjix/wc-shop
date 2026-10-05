@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import { request, normalizeComment, normalizeCommentPayload } from './api';
-import { uploadCloudFile } from '../../utils/api';
+import { uploadCloudFile } from '../../../../utils/api';
 
 function localPath(resource) {
   if (typeof resource === 'string') return resource;

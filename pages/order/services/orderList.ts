@@ -1,7 +1,7 @@
 // @ts-nocheck
 
-import { request } from '../../utils/api';
-import { resolveOrderImages } from '../../utils/images';
+import { request } from '../../../utils/api';
+import { resolveOrderImages } from '../../../utils/images';
 
 const STATUS_LABELS = { 5: '待支付', 10: '待发货', 40: '待收货', 50: '已完成', 80: '已取消' };
 

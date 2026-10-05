@@ -1,10 +1,10 @@
 // @ts-nocheck
 
-import { fetchComments } from '../../../services/comments/fetchComments';
-import { fetchCommentsCount } from '../../../services/comments/fetchCommentsCount';
-import { fetchOrderComment } from '../../../services/comments/fetchOrderComment';
+import { fetchComments } from '../services/comments/fetchComments';
+import { fetchCommentsCount } from '../services/comments/fetchCommentsCount';
+import { fetchOrderComment } from '../services/comments/fetchOrderComment';
 import { getApiErrorMessage } from '../../../utils/api';
-import { formatTime } from '../../../utils/util';
+import { formatTime } from '../utils/formatTime';
 import Toast from 'tdesign-miniprogram/toast/index';
 
 const layoutMap = { 0: 'vertical' };

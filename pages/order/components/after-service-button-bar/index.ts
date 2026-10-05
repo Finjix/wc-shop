@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import Dialog from 'tdesign-miniprogram/dialog/index';
+import Dialog from '../../utils/dialog';
 import Toast from 'tdesign-miniprogram/toast/index';
 
 import { cancelRights } from '../../after-service-detail/api';

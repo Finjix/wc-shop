@@ -1,7 +1,7 @@
 // @ts-nocheck
 
-import { request, getApiErrorMessage } from '../../utils/api';
-import { resolveImage } from '../../utils/images';
+import { request, getApiErrorMessage } from '../../../../utils/api';
+import { resolveImage } from '../../../../utils/images';
 
 function resourceId(resource) {
   if (!resource) return '';

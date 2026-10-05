@@ -54,21 +54,21 @@ async function run() {
   assert.equal(await images.resolveImage('cloud://broken'), '');
   assert.equal(await images.resolveImage('/assets/user-avatar.jpg'), '/assets/user-avatar.jpg');
   respond = async () => ({ items: [{ images: ['cloud://comment.webp'], avatarUrl: 'local://avatar.webp' }] });
-  const comments = await load('services/comments/fetchComments.ts').fetchComments();
+  const comments = await load('pages/goods/services/comments/fetchComments.ts').fetchComments();
   assert.equal(comments.pageList[0].userHeadUrl, '/assets/user-avatar.jpg');
   const resource = comments.pageList[0].commentResources[0];
   assert.equal(resource.image, 'https://example.test/comment.webp');
   assert.equal(resource.fileID, 'cloud://comment.webp');
-  const payload = load('services/comments/api.ts').normalizeCommentPayload({ commentResources: [resource] });
+  const payload = load('pages/goods/services/comments/api.ts').normalizeCommentPayload({ commentResources: [resource] });
   assert.equal(payload.images[0], 'cloud://comment.webp');
   respond = async (action) => action === 'orders.list' ? { orders: [{ items: [snapshot] }] } : { items: [snapshot] };
-  const list = await load('services/order/orderList.ts').fetchOrders();
-  const detail = await load('services/order/orderDetail.ts').fetchOrderDetail({ orderNo: 'o1' });
+  const list = await load('pages/order/services/orderList.ts').fetchOrders();
+  const detail = await load('pages/order/services/orderDetail.ts').fetchOrderDetail({ orderNo: 'o1' });
   assert.equal(list.data.orders[0].orderItemVOs[0].goodsPictureUrl, 'https://example.test/cover.webp');
   assert.equal(detail.data.orderItemVOs[0].goodsPictureUrl, 'https://example.test/cover.webp');
   respond = async () => ({ status: 'received', hasPendingComments: false, items: [snapshot],
     addressSnapshot: { receiver: '收货人', phone: '13800000000', province: '广东省', city: '深圳市', district: '南山区', detail: '测试街道' } });
-  const received = await load('services/order/orderDetail.ts').fetchOrderDetail({ orderNo: 'o1' });
+  const received = await load('pages/order/services/orderDetail.ts').fetchOrderDetail({ orderNo: 'o1' });
   assert.equal(received.data.orderStatus, 50);
   assert.equal(received.data.logisticsVO.receiverProvince, '广东省');
   assert.equal(received.data.logisticsVO.receiverAddress, '测试街道');
@@ -113,7 +113,7 @@ async function run() {
   const wxs = { module: { exports: {} }, getRegExp: (source, flags) => new RegExp(source, flags) };
   vm.runInNewContext(fs.readFileSync(path.join(root, 'components/webp-image/utils.wxs'), 'utf8'), wxs);
   const transform = wxs.module.exports;
-  const cosThumb = load('utils/util.ts').cosThumb;
+  const cosThumb = load('pages/order/utils/format.ts').cosThumb;
   for (const url of ['/assets/user-avatar.jpg', 'data:image/png;base64,abc', 'wxfile://tmp.png', 'http://localhost:8787/files?fileID=local%3A', 'http://third.test/a.jpg', 'https://bucket.cos.ap-guangzhou.myqcloud.com/a.jpg?sign=abc']) {
     assert.equal(transform.imageMogr(url, { width: 50 }), url);
     assert.equal(cosThumb(url, 50), url);

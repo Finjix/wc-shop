@@ -6,12 +6,14 @@
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-search": "tdesign-miniprogram/search/search",
     "t-icon": "tdesign-miniprogram/icon/icon",
-    "t-input": "tdesign-miniprogram/input/input",
-    "t-empty": "tdesign-miniprogram/empty/empty",
+    "t-input": "/packages/form-ui/tdesign/input/input",
     "t-toast": "tdesign-miniprogram/toast/toast",
     "goods-list": "/components/goods-list/index",
     "filter": "/components/filter/index",
     "filter-popup": "/components/filter-popup/index",
     "load-more": "/components/load-more/index"
+  },
+  "componentPlaceholder": {
+    "t-input": "view"
   }
 }

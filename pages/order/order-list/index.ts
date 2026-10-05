@@ -1,8 +1,8 @@
 // @ts-nocheck
 
 import { OrderButtonTypes, OrderStatus } from '../config';
-import { fetchOrders, fetchOrdersCount } from '../../../services/order/orderList';
-import { cosThumb } from '../../../utils/util';
+import { fetchOrders, fetchOrdersCount } from '../services/orderList';
+import { cosThumb } from '../utils/format';
 
 Page({
   page: {

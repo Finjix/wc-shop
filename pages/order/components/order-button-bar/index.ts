@@ -2,9 +2,9 @@
 import { isPageNavigationEnabled } from '../../../../config/navigation';
 
 import Toast from 'tdesign-miniprogram/toast/index';
-import Dialog from 'tdesign-miniprogram/dialog/index';
+import Dialog from '../../utils/dialog';
 import { OrderButtonTypes } from '../../config';
-import { cancelOrder, confirmOrderReceived } from '../../../../services/order/orderDetail';
+import { cancelOrder, confirmOrderReceived } from '../../services/orderDetail';
 import { addGoodsToCart } from '../../../../services/cart/cart';
 import { getApiErrorMessage } from '../../../../utils/api';
 

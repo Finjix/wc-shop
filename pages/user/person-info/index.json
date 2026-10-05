@@ -6,7 +6,10 @@
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
     "t-cell": "tdesign-miniprogram/cell/cell",
-    "t-input": "tdesign-miniprogram/input/input",
+    "t-input": "/packages/form-ui/tdesign/input/input",
     "t-toast": "tdesign-miniprogram/toast/toast"
+  },
+  "componentPlaceholder": {
+    "t-input": "view"
   }
 }

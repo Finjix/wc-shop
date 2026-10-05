@@ -4,16 +4,20 @@
   "disableScroll": true,
   "usingComponents": {
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
-    "t-tabs": "tdesign-miniprogram/tabs/tabs",
-    "t-tab-panel": "tdesign-miniprogram/tab-panel/tab-panel",
-    "t-empty": "tdesign-miniprogram/empty/empty",
+    "t-tabs": "/packages/form-ui/tdesign/tabs/tabs",
+    "t-tab-panel": "/packages/form-ui/tdesign/tab-panel/tab-panel",
     "t-toast": "tdesign-miniprogram/toast/toast",
     "t-dialog": "tdesign-miniprogram/dialog/dialog",
-    "t-pull-down-refresh": "tdesign-miniprogram/pull-down-refresh/pull-down-refresh",
+    "t-pull-down-refresh": "/packages/order-ui/tdesign/pull-down-refresh/pull-down-refresh",
     "load-more": "/components/load-more/index",
     "order-button-bar": "../components/order-button-bar/index",
     "price": "/components/price/index",
     "order-card": "../components/order-card/index",
     "specs-goods-card": "../components/specs-goods-card/index"
+  },
+  "componentPlaceholder": {
+    "t-tabs": "view",
+    "t-tab-panel": "view",
+    "t-pull-down-refresh": "view"
   }
 }

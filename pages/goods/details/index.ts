@@ -5,7 +5,7 @@ import Toast from 'tdesign-miniprogram/toast/index';
 import { fetchGood } from '../../../services/good/fetchGood';
 import { addGoodsToCart } from '../../../services/cart/cart';
 import { setPendingGoodsRequestList } from '../../../services/order/orderConfirm';
-import { getGoodsDetailsCommentsCount } from '../../../services/good/fetchGoodsDetailsComments';
+import { getGoodsDetailsCommentsCount } from '../services/fetchGoodsDetailsComments';
 import { getApiErrorMessage } from '../../../utils/api';
 
 import { cdnBase } from '../../../config/runtime';

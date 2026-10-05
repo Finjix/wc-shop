@@ -1,8 +1,8 @@
 // @ts-nocheck
 
-import { request } from '../../utils/api';
-import { normalizeSearchResult, toProductListPayload } from './normalize';
-import { resolveGoodsListImages } from './resolveImages';
+import { request } from '../../../utils/api';
+import { normalizeSearchResult, toProductListPayload } from '../../../services/good/normalize';
+import { resolveGoodsListImages } from '../../../services/good/resolveImages';
 
 export async function getSearchResult(params = {}) {
   const result = normalizeSearchResult(await request('products.list', toProductListPayload(params)));

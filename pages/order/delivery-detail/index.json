@@ -8,7 +8,11 @@
     "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
     "t-image": "/components/webp-image/index",
     "t-icon": "tdesign-miniprogram/icon/icon",
-    "t-steps": "tdesign-miniprogram/steps/steps",
-    "t-step": "tdesign-miniprogram/step-item/step-item"
+    "t-steps": "/packages/order-ui/tdesign/steps/steps",
+    "t-step": "/packages/order-ui/tdesign/step-item/step-item"
+  },
+  "componentPlaceholder": {
+    "t-steps": "view",
+    "t-step": "view"
   }
 }

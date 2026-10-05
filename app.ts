@@ -1,7 +1,9 @@
 import updateManager from './common/updateManager';
+import { createAddressSelection } from './common/address-selection';
 import { cloudEnvId, useLocalBackend } from './config/runtime';
 
 App({
+  addressSelection: createAddressSelection(),
   onLaunch() {
     if (!useLocalBackend) {
       try {

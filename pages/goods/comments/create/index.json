@@ -5,9 +5,13 @@
   "usingComponents": {
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-image": "/components/webp-image/index",
-    "t-textarea": "tdesign-miniprogram/textarea/textarea",
+    "t-textarea": "/packages/form-ui/tdesign/textarea/textarea",
     "t-button": "tdesign-miniprogram/button/button",
-    "t-upload": "tdesign-miniprogram/upload/upload",
+    "t-upload": "/packages/form-ui/tdesign/upload/upload",
     "t-toast": "tdesign-miniprogram/toast/toast"
+  },
+  "componentPlaceholder": {
+    "t-textarea": "view",
+    "t-upload": "view"
   }
 }

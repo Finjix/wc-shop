@@ -1,7 +1,7 @@
 // @ts-nocheck
 
-import { request } from '../../utils/api';
-import { resolveOrderImages } from '../../utils/images';
+import { request } from '../../../utils/api';
+import { resolveOrderImages } from '../../../utils/images';
 import { normalizeOrder } from './orderList';
 
 function dataOf(response) {
