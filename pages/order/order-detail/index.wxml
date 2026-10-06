@@ -35,12 +35,12 @@
         wx:if="{{showLogistics && order.logisticsVO && order.logisticsVO.logisticsNo}}"
       />
       <!-- 收货地址 -->
-      <view class="order-logistics">
+      <view class="order-logistics" bindtap="onEditAddressTap">
         <view class="logistics-content">
           <view>{{order.logisticsVO.receiverName + ' '}}{{order.logisticsVO.receiverPhone}}</view>
           <view class="logistics-time">{{_order.receiverAddress}}</view>
         </view>
-        <view wx:if="{{addressEditable}}" class="edit-text" bindtap="onEditAddressTap"> 修改 </view>
+        <view wx:if="{{addressEditable}}" class="edit-text"> 修改 </view>
       </view>
     </view>
     <!-- 店铺及商品 -->
@@ -93,7 +93,6 @@
           <text class="order-no normal-color">{{formatCreateTime}}</text>
         </view>
       </view>
-      <view class="border-bottom border-bottom-margin" />
       <button class="pay-service" wx:if="{{storeDetail && storeDetail.storeTel}}" open-type="contact">
         <t-icon name="service" size="40rpx" />
         <text decode="{{true}}">&nbsp;联系客服</text>

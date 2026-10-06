@@ -100,6 +100,7 @@ Page({
       const hasReceived = order.orderStatus === OrderStatus.COMPLETE;
       const refundableOrderStatus = [OrderStatus.PENDING_DELIVERY, OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(order.orderStatus);
       const canApplyRefund = refundableOrderStatus
+        && !(order.orderStatus === OrderStatus.PENDING_DELIVERY && order.hasPendingRefund)
         && (order.orderItemVOs || []).some((goods) => refundableQuantityOf(goods) > 0);
       const supportedButtonTypes = Object.values(OrderButtonTypes).map(Number);
       const orderButtons = (order.buttonVOs || []).filter((button) =>
@@ -120,7 +121,7 @@ Page({
         orderButtons.splice(
           actionIndex === -1 ? orderButtons.length : actionIndex,
           0,
-          { type: OrderButtonTypes.APPLY_REFUND, name: '申请售后' },
+          { type: OrderButtonTypes.APPLY_REFUND, name: order.orderStatus === OrderStatus.PENDING_DELIVERY ? '取消订单' : '申请售后' },
         );
       }
       const _order = {
@@ -147,7 +148,7 @@ Page({
             num: goods.buyQuantity,
             fulfillableQuantity: goods.fulfillableQuantity ?? goods.remainingQuantity ?? goods.buyQuantity,
             refundableQuantity: refundableQuantityOf(goods),
-            canApplyRefund: refundableOrderStatus && Boolean(goods.skuId) && refundableQuantityOf(goods) > 0,
+            canApplyRefund: refundableOrderStatus && order.orderStatus !== OrderStatus.PENDING_DELIVERY && Boolean(goods.skuId) && refundableQuantityOf(goods) > 0,
             orderItemId: goods.orderItemId || goods.itemId || goods.id,
           }),
         ),
@@ -222,6 +223,7 @@ Page({
   },
 
   onEditAddressTap() {
+    if (!this.data.addressEditable) return;
     getApp().addressSelection.getAddressPromise()
       .then((address) => {
         wx.showLoading({ title: '正在保存' });

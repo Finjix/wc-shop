@@ -6,6 +6,17 @@
   color: #999;
   margin-left: 6rpx;
 }
+.address-card .add-address {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  line-height: 40rpx;
+}
+.address-card .add-address__icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
 .address-card .order-address {
   display: flex;
   width: 100%;

@@ -21,10 +21,12 @@
 	<t-cell
 	 wx:else
 	 bindtap="onAddTap"
-	 title="添加收货地址"
 	 hover
 	>
-		<t-icon name="add-circle" slot="left-icon" size="40rpx" />
+		<view class="add-address" slot="title">
+			<t-icon class="add-address__icon" name="add-circle" size="40rpx" />
+			<text>添加收货地址</text>
+		</view>
 	</t-cell>
 	<view class="top-line" />
 </view>

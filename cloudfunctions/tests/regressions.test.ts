@@ -590,6 +590,29 @@ async function testTransactionWrapperIsNormalized() {
   );
 }
 
+async function testCancelOrderRetainsAndRestoresStock() {
+  const runtime = makeRuntime();
+  const input = { requestKey: 'cancel-test', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 2 }] };
+  const call = (action, data, uid = 'user-1') => shopEndpoint({}, { auth: { uid } }, runtime, action, data);
+  const order = await call('orders.create', input);
+  const stock = runtime.records.skus['sku-new'].stockQuantity;
+  await assert.rejects(call('orders.cancel', { orderId: order._id }, 'other-user'), (error) => error.code === 'FORBIDDEN');
+  runtime.records.orders[order._id].status = 'shipped';
+  await assert.rejects(call('orders.cancel', { orderId: order._id }), (error) => error.code === 'ORDER_STATE_INVALID');
+  runtime.records.orders[order._id].status = 'paid';
+  await call('orders.cancel', { orderId: order._id });
+  assert.strictEqual(runtime.records.orders[order._id].status, 'cancelled');
+  assert.strictEqual(runtime.records.orders[order._id].paymentStatus, 'refunded');
+  assert.strictEqual(runtime.records.orders[order._id].deletedByUser, true);
+  const visible = await call('orders.list', {});
+  assert.strictEqual(visible.items.length, 0);
+  assert.strictEqual(visible.total, 0);
+  await call('orders.cancel', { orderId: order._id });
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, stock + 2);
+  await assert.rejects(call('orders.create', input), (error) => error.code === 'ORDER_STATE_INVALID');
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, stock + 2);
+}
+
 async function testOrderCreationUsesDocumentOnlyTransaction() {
   const runtime = makeRuntime();
   const result = await shopEndpoint(
@@ -604,7 +627,8 @@ async function testOrderCreationUsesDocumentOnlyTransaction() {
       useCart: false,
     },
   );
-  assert.match(result.orderNo, /^ord_[a-f0-9]{32}$/);
+  assert.match(result.orderNo, /^\d{13}-[1-9]\d{3}$/);
+  assert.strictEqual(result._id, result.orderNo);
   assert.strictEqual(result.status, 'paid');
   assert.strictEqual(result.paymentStatus, 'paid');
   assert.strictEqual(result.payment.mode, 'simulated');
@@ -650,8 +674,11 @@ async function testOrderPreviewAllowsMissingAddressWithoutCreatingAnOrder() {
 async function testOrderCreationRechecksProductStatus() {
   const runtime = makeRuntime();
   const originalTransaction = runtime.db.runTransaction.bind(runtime.db);
+  let transactionCount = 0;
   runtime.db.runTransaction = (worker) => {
-    runtime.records.products['product-1'].status = 'inactive';
+    transactionCount += 1;
+    // 首次事务预留幂等订单 ID；第二次事务才确认商品并创建订单。
+    if (transactionCount === 2) runtime.records.products['product-1'].status = 'inactive';
     return originalTransaction(worker);
   };
   await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'orders.create', {
@@ -1209,6 +1236,7 @@ const cases = [
   },
   { name: 'order preview accepts no address while creation still requires one', run: testOrderPreviewAllowsMissingAddressWithoutCreatingAnOrder },
   { name: 'order creation rechecks product status inside transaction', run: testOrderCreationRechecksProductStatus },
+  { name: 'cancelling unshipped orders retains records, restores stock once and blocks creation retries', run: testCancelOrderRetainsAndRestoresStock },
   { name: 'dashboard product count is not limited to the first page', run: testDashboardProductCountUsesCountQuery },
   { name: 'home configuration limits and legacy response', run: testHomeConfigLimitsAndLegacyResponse },
   { name: 'deleting a product clears home links while preserving slots', run: testDeletingProductClearsHomeLinksWithoutRemovingSlots },

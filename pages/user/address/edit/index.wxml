@@ -46,6 +46,7 @@
             t-class="field-text"
             borderless
             placeholder="省/市/区"
+            style="--td-input-disabled-text-color: {{locationState.provinceName ? '#333333' : '#bbbbbb'}};"
             data-item="address"
             value="{{locationState.provinceName ? locationState.provinceName+'/':'' }}{{locationState.cityName ? locationState.cityName+'/':''}}{{locationState.districtName}}"
             catch:tap="onPickArea"

@@ -96,7 +96,7 @@ function amountOf(order: Order) { return order.paymentAmount ?? order.totalAmoun
 function refundAmountOf(order: Order) { return order.refundAmount ?? order.refundedAmount ?? order.totalRefundAmount; }
 function orderIdOf(order: Order, fallback = '') { return String(order._id || order.orderId || order.orderNo || fallback); }
 const PAGE_SIZE = 20;
-const orderFilters = [['', '全部状态'], ['paid', '待发货'], ['shipped', '待收货'], ['completed', '已完成'], ['refunded', '已退款']];
+const orderFilters = [['', '全部状态'], ['paid', '待发货'], ['shipped', '待收货'], ['completed', '已完成'], ['cancelled', '已取消'], ['refunded', '已退款']];
 
 export function OrdersPage() {
   const [searchParams] = useSearchParams();

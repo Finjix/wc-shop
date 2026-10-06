@@ -189,7 +189,18 @@ Page({
   },
   createHandle() {
     this.waitForNewAddress();
-    wx.navigateTo({ url: '/pages/user/address/edit/index' });
+    wx.navigateTo({
+      url: '/pages/user/address/edit/index',
+      fail: (error) => {
+        console.error('打开新建收货地址页面失败', error);
+        Toast({
+          context: this,
+          selector: '#t-toast',
+          message: '无法打开地址编辑页，请重试',
+          icon: '',
+        });
+      },
+    });
   },
 
   waitForNewAddress() {

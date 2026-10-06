@@ -579,17 +579,32 @@ async function previewOrder(runtime, event, context, data) {
   return orderDraft(runtime, identity, input, source, false);
 }
 
-function orderIdFor(userId, requestKey) {
-  if (!requestKey) return `ord_${crypto.randomUUID()}`;
+async function orderIdFor(runtime, userId, requestKey) {
   const hash = crypto.createHash('sha256').update(`${userId}:${requestKey}`).digest('hex').slice(0, 32);
-  return `ord_${hash}`;
+  // 保留旧请求的重试兼容，历史订单 ID 不迁移。
+  const legacy = await getDoc(collection(runtime, COLLECTIONS.orders), `ord_${hash}`, false);
+  if (legacy) return legacy._id || `ord_${hash}`;
+  return withTransaction(runtime.db, async (tx) => {
+    const requests = tx.collection(COLLECTIONS.orderRequests);
+    const existing = await getDoc(requests, hash, false);
+    if (existing?.cancelled) throw errorFrom('ORDER_STATE_INVALID');
+    if (existing) return existing.orderId;
+    let orderId;
+    do {
+      orderId = `${Date.now()}-${crypto.randomInt(1000, 10000)}`;
+    } while (await getDoc(requests, `id_${orderId}`, false)
+      || await getDoc(tx.collection(COLLECTIONS.orders), orderId, false));
+    await setDoc(requests, `id_${orderId}`, { _id: `id_${orderId}`, orderId, userId });
+    await setDoc(requests, hash, { _id: hash, userId, requestKey, orderId, createdAt: now() });
+    return orderId;
+  });
 }
 
 async function createOrder(runtime, event, context, data) {
   const identity = requireUser(event, context, runtime);
   const input = orderInput(data);
   const requestKey = string(input.requestKey || input.idempotencyKey, 'requestKey', { max: 128 });
-  const orderId = orderIdFor(identity.uid, requestKey);
+  const orderId = await orderIdFor(runtime, identity.uid, requestKey);
   const addressInfo = input.userAddressReq || input.address || {};
   const addressId = String(input.addressId || addressInfo.addressId || addressInfo.id || addressInfo._id || '');
   const requestMode = input.useCart ? 'cart' : 'direct';
@@ -711,12 +726,16 @@ async function listOrders(runtime, event, context, data) {
   };
   const where = { userId: identity.uid };
   const statuses = statusGroups[requested] || (requested ? [String(requested)] : null);
+  if (statuses?.length === 1 && statuses[0] === STATUS.cancelled) {
+    return { items: [], page: paging.page, pageNum: paging.page, pageSize: paging.pageSize, total: 0 };
+  }
+  if (!statuses && runtime.db.command?.neq) where.status = runtime.db.command.neq(STATUS.cancelled);
   if (statuses && statuses.length === 1) where.status = statuses[0];
   else if (statuses && runtime.db.command?.in) where.status = runtime.db.command.in(statuses);
   if (runtime.db.command?.neq) where.deletedByUser = runtime.db.command.neq(true);
-  if (input.pendingCommentOnly || (statuses && statuses.length > 1 && !runtime.db.command?.in)) {
+  if (input.pendingCommentOnly || !runtime.db.command?.neq || (statuses && statuses.length > 1 && !runtime.db.command?.in)) {
     let rows = (await all(collection(runtime, COLLECTIONS.orders), where))
-      .filter((order) => !order.deletedByUser && (!statuses || statuses.includes(order.status)))
+      .filter((order) => !order.deletedByUser && order.status !== STATUS.cancelled && (!statuses || statuses.includes(order.status)))
       .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')) || String(b._id).localeCompare(String(a._id)));
     rows = await Promise.all(rows.map((order) => orderWithComments(runtime, order)));
     if (input.pendingCommentOnly) rows = rows.filter((order) => [STATUS.received, STATUS.completed].includes(order.status) && order.hasPendingComments);
@@ -728,7 +747,7 @@ async function listOrders(runtime, event, context, data) {
     skip: (paging.page - 1) * paging.pageSize,
     limit: paging.pageSize,
   });
-  let items = result.items.filter((item) => !item.deletedByUser);
+  let items = result.items.filter((item) => !item.deletedByUser && item.status !== STATUS.cancelled);
   if (statuses && !(runtime.db.command?.in) && statuses.length > 1) items = items.filter((item) => statuses.includes(item.status));
   items = await Promise.all(items.map((order) => orderWithComments(runtime, order)));
   return { items, page: paging.page, pageNum: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? items.length : result.total };
@@ -818,6 +837,57 @@ async function updateOrderState(runtime, event, context, data, action) {
   const order = await getDoc(orders, id, true);
   if (order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
   const timestamp = now();
+  if (action === 'orders.cancel') {
+    return withTransaction(runtime.db, async (tx) => {
+      const current = await getDoc(tx.collection(COLLECTIONS.orders), id, true);
+      if (current.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+      if (current.status === STATUS.cancelled) return { ...current, cancelled: true };
+      if (current.status !== STATUS.paid || (current.fulfillmentStatus && current.fulfillmentStatus !== STATUS.paid)) throw errorFrom('ORDER_STATE_INVALID');
+      const active = await transactionClaims(tx, current);
+      if (Number(current.pendingRefundAmount) > 0
+        || Object.values(current.pendingRefundQuantities || {}).some((quantity) => Number(quantity) > 0)
+        || active.some((claim) => ACTIVE_AFTER_SALE.includes(claim.status))) throw errorFrom('CONFLICT', { field: 'afterSale' });
+      if (current.payment?.mode !== 'simulated') throw errorFrom('ORDER_STATE_INVALID');
+      if (current.inventoryReserved) {
+        for (const item of current.items || []) {
+          const quantity = Math.max(0, Number(item.quantity) - Number(current.refundedQuantities?.[item.skuId] || 0));
+          if (!quantity) continue;
+          const skuId = item.skuSnapshot?._id || item.skuId;
+          const skus = tx.collection(COLLECTIONS.skus);
+          const sku = await getDoc(skus, skuId, true);
+          const result = await skus.doc(skuId).update({
+            stockQuantity: skuStock(sku) + quantity,
+            soldQuantity: Math.max(0, valueNumber(sku.soldQuantity, 0) - quantity),
+            updatedAt: timestamp,
+          });
+          if (affected(result) !== 1) throw errorFrom('CONFLICT');
+        }
+      }
+      // 保留取消标记，原创建请求重试不能重新下单。
+      if (current.requestKey) {
+        const hash = crypto.createHash('sha256').update(`${identity.uid}:${current.requestKey}`).digest('hex').slice(0, 32);
+        await setDoc(tx.collection(COLLECTIONS.orderRequests), hash, {
+          _id: hash, userId: identity.uid, orderId: id, cancelled: true, cancelledAt: timestamp,
+        });
+      }
+      const patch = {
+        status: STATUS.cancelled,
+        deletedByUser: true,
+        fulfillmentStatus: STATUS.cancelled,
+        paymentStatus: 'refunded',
+        payment: { ...current.payment, status: 'refunded', refundedAt: timestamp },
+        refundAmount: current.paymentAmount ?? current.totalAmount,
+        refundedQuantities: Object.fromEntries((current.items || []).map((item) => [item.skuId, item.quantity])),
+        inventoryReserved: false,
+        hasPendingComments: false,
+        cancelledAt: timestamp,
+        updatedAt: timestamp,
+      };
+      const result = await tx.collection(COLLECTIONS.orders).doc(id).update(patch);
+      if (affected(result) !== 1) throw errorFrom('CONFLICT');
+      return { ...current, ...patch, cancelled: true };
+    });
+  }
   if (action === 'orders.updateAddress') {
     const addressId = string(input.addressId || input.userAddressReq?.addressId || input.userAddressReq?.id || input.userAddressReq?._id, 'addressId', { max: 128 });
     return withTransaction(runtime.db, async (tx) => {
@@ -1367,7 +1437,7 @@ async function shopEndpoint(event, context, runtime, action, data) {
   if (action === 'orders.count') return orderCount(runtime, event, context);
   if (action === 'orders.businessTime') return { telphone: '', telephone: '', phone: '' };
   if (action === 'orders.detail') return orderDetail(runtime, event, context, data);
-  if (action === 'orders.confirmReceived' || action === 'orders.delete' || action === 'orders.updateAddress') return updateOrderState(runtime, event, context, data, action);
+  if (action === 'orders.cancel' || action === 'orders.confirmReceived' || action === 'orders.delete' || action === 'orders.updateAddress') return updateOrderState(runtime, event, context, data, action);
   if (action.startsWith('comments.')) return commentsAction(runtime, event, context, data, action);
   if (action.startsWith('afterSales.')) return afterSalesAction(runtime, event, context, data, action);
   throw errorFrom('INVALID_ARGUMENT', { field: 'action' });

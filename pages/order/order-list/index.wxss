@@ -52,6 +52,12 @@ wr-order-goods-card:not(:first-child) .wr-goods-card {
   border: none !important;
 }
 
+.order-list-divider {
+  height: 1rpx;
+  margin: 0 32rpx;
+  background-color: #e5e5e5;
+}
+
 .page-container .order-number {
   color: #666666;
   font-size: 28rpx;

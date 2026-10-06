@@ -21,14 +21,16 @@
       />
     </block>
   </view>
+</view>
+</scroll-view>
+<view class="address-container">
   <view class="bottom-fixed">
     <view class="btn-wrap">
-      <view class="address-btn {{addressList.length >= 20 ? 'btn-default':''}}" bind:tap="createHandle">
+      <view class="address-btn {{addressList.length >= 20 ? 'btn-default':''}}" bindtap="createHandle">
         <text>新建收货地址</text>
       </view>
     </view>
     <view class="footer" wx:if="{{addressList.length >= 20}}">最多支持添加20个收货地址</view>
   </view>
 </view>
-</scroll-view>
 <t-toast id="t-toast" />

@@ -38,6 +38,7 @@ export function fetchBusinessTime(params = {}) {
   });
 }
 
+export function cancelOrder(params = {}) { return request('orders.cancel', params); }
 export function confirmOrderReceived(params = {}) { return request('orders.confirmReceived', params); }
 export function updateOrderAddress(params = {}) {
   return request('orders.updateAddress', {

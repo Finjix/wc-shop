@@ -19,7 +19,7 @@ const publicHost = host === '0.0.0.0' ? '127.0.0.1' : host;
 const baseUrl = `http://${publicHost}:${port}`;
 // Keep runtime writes outside the project to avoid triggering DevTools hot reload.
 const { dataFile, filesRoot } = prepareLocalStorage(root, process.env.LOCAL_BACKEND_DATA_DIR);
-const collectionNames = ['categories', 'products', 'skus', 'addresses', 'carts', 'orders', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings', 'adminMembers'];
+const collectionNames = ['categories', 'products', 'skus', 'addresses', 'carts', 'orders', 'orderRequests', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings', 'adminMembers'];
 
 function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));

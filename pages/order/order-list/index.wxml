@@ -37,11 +37,8 @@
     bindrefresh="onPullDownRefresh_"
     t-class-indicator="t-class-indicator"
   >
+    <block wx:for="{{orderList}}" wx:key="id" wx:for-item="order" wx:for-index="oIndex">
     <order-card
-      wx:for="{{orderList}}"
-      wx:key="id"
-      wx:for-item="order"
-      wx:for-index="oIndex"
       order="{{order}}"
       defaultShowNum="{{3}}"
       data-order="{{order}}"
@@ -70,6 +67,8 @@
         />
       </view>
     </order-card>
+    <view wx:if="{{oIndex < orderList.length - 1}}" class="order-list-divider" />
+    </block>
     <!-- 列表加载中/已全部加载 -->
     <load-more
       wx:if="{{!pullDownRefreshing && listLoading !== 3}}"

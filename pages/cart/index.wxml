@@ -105,7 +105,7 @@
   total-goods-num="{{cartGroupData.selectedGoodsCount}}"
   theme-color="{{themeColor}}"
   fixed="{{true}}"
-  bottomHeight="{{110}}"
+  bottomHeight="{{100}}"
   bindhandleSelectAll="onSelectAll"
   bindhandleToSettle="onToSettle"
 />

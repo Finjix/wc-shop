@@ -4,7 +4,7 @@ import { isPageNavigationEnabled } from '../../../../config/navigation';
 import Toast from 'tdesign-miniprogram/toast/index';
 import Dialog from '../../utils/dialog';
 import { OrderButtonTypes } from '../../config';
-import { confirmOrderReceived } from '../../services/orderDetail';
+import { confirmOrderReceived, cancelOrder } from '../../services/orderDetail';
 import { addGoodsToCart } from '../../../../services/cart/cart';
 import { getApiErrorMessage } from '../../../../utils/api';
 
@@ -150,6 +150,35 @@ Component({
     },
 
     onApplyRefund(order) {
+      if (Number(order.status) === 10) {
+        let confirmed = false;
+        Dialog.confirm({
+          context: this,
+          title: '取消订单',
+          content: '确定取消此订单吗？取消后订单将保留为已取消状态。',
+          confirmBtn: '确认取消',
+          cancelBtn: '暂不取消',
+        }).then(() => {
+          confirmed = true;
+          return cancelOrder({ orderId: order.id || order.orderNo });
+        })
+          .then(() => {
+            const pages = getCurrentPages();
+            const current = pages[pages.length - 1];
+            if (current?.route === 'pages/order/order-detail/index') {
+              const previous = pages[pages.length - 2];
+              if (previous) previous.data.backRefresh = true;
+              wx.showToast({ title: '订单已取消', icon: 'success' });
+              wx.navigateBack({ delta: 1 });
+            } else {
+              this.finishAction('订单已取消');
+            }
+          }).catch((error) => {
+            if (!confirmed) return;
+            this.showActionError(error);
+          });
+        return;
+      }
       const goodsAmount = (order.goodsList || []).reduce(
         (total, goods) => total + Number(goods.price || 0) * Number(goods.num || 1),
         0,

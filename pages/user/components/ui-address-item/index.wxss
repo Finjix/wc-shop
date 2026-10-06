@@ -54,6 +54,7 @@
   color: #333333;
   font-weight: bold;
   display: flex;
+  align-items: center;
 }
 .address-item-wrapper .address .address-content .title .text-style {
   margin-right: 8rpx;
@@ -78,11 +79,12 @@
   padding: 0rpx 12rpx;
   min-width: 48rpx;
   height: 40rpx;
-  border-radius: 20rpx;
+  border-radius: 8rpx;
   font-size: 24rpx;
   line-height: 40rpx;
   text-align: center;
-  margin-left: 12rpx;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 .address-item-wrapper .address .address-content .tag-default {
   background: var(--app-theme-color-soft, #F0ECE4);

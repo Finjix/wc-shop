@@ -1,5 +1,6 @@
 <view class="cart-bar__placeholder" wx:if="{{fixed}}" />
-<view class="cart-bar {{fixed ? 'cart-bar--fixed' : ''}} flex flex-v-center" style="bottom: {{fixed ? 'calc(' + bottomHeight + 'rpx + env(safe-area-inset-bottom))' : ''}};">
+<view class="{{fixed ? 'cart-bar--fixed' : ''}}" style="padding-bottom: {{fixed ? 'calc(' + bottomHeight + 'rpx + env(safe-area-inset-bottom))' : '0'}};">
+<view class="cart-bar flex flex-v-center">
 	<t-icon
 	 size="40rpx"
 	 color="{{isAllSelected ? themeColor : '#BBBBBB'}}"
@@ -22,4 +23,5 @@
 	<view catchtap="handleToSettle" class="{{isDisabled ? 'disabled-btn' : ''}} account-btn" hover-class="{{isDisabled ? 'hover-btn' : ''}}">
 		结算
 	</view>
+</view>
 </view>

@@ -7,6 +7,7 @@ const COLLECTIONS = Object.freeze({
   addresses: 'addresses',
   carts: 'carts',
   orders: 'orders',
+  orderRequests: 'orderRequests',
   comments: 'comments',
   afterSales: 'afterSales',
   homeContents: 'homeContents',
