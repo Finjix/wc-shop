@@ -8,12 +8,12 @@
 />
 <view class="pay-result">
     <view class="pay-status">
-      <text>订单已提交</text>
+      <text>{{loading ? '正在确认订单' : statusText}}</text>
 	</view>
     <view class="pay-money">
-		当前状态：待支付，订单金额：
+		订单金额：
 		<price
-		 wx:if="{{totalPaid}}"
+		 wx:if="{{paymentConfirmed}}"
 		 price="{{totalPaid}}"
 		 wr-class="pay-money__price"
 		 decimalSmaller

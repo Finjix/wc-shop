@@ -14,6 +14,7 @@
     "test:admin-draft-images": "node scripts/test-admin-draft-images.cjs",
     "test:admin-session": "node scripts/test-admin-session.cjs",
     "test:checkout": "node scripts/test-checkout.cjs",
+    "test:commerce-http": "npm run build:cloudfunction && node scripts/test-commerce-http.cjs",
     "dev:local-backend": "npm run build:cloudfunction && node scripts/local-backend.js",
     "build:admin": "npm --prefix admin run build",
     "package:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-deploy-bundles.ps1",

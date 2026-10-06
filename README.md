@@ -43,7 +43,7 @@ npm run dev:local-backend
 npm --prefix admin run dev -- --host 127.0.0.1 --port 5173
 ```
 
-当前 `config/runtime.ts` 的 `useLocalBackend` 为 `true`，小程序默认连接本地服务 `http://127.0.0.1:8787`，调试前请启动 `npm run dev:local-backend`；管理后台可通过 `admin/.env.local` 中的 `VITE_LOCAL_API_URL` 使用本地服务。本地后台默认管理员账号为 `admin`，密码为 `admin`，仅用于本地调试。发布小程序前确保 `useLocalBackend` 为 `false`；部署打包脚本会禁用管理后台的本地接口地址。
+当前 `config/runtime.ts` 的 `useLocalBackend` 为 `false`，小程序连接线上 CloudBase。本地联调时可暂时改为 `true` 并启动 `npm run dev:local-backend`；管理后台可通过 `VITE_LOCAL_API_URL=http://127.0.0.1:8787` 使用同一服务。本地后台默认管理员账号为 `admin`，密码为 `admin`，仅用于本地调试。发布小程序前确保 `useLocalBackend` 为 `false`；部署打包脚本会禁用管理后台的本地接口地址。
 
 本地数据库和上传图片保存在用户目录的 `.wc-shop/runtime/<项目路径标识>/` 下，分别为 `.local-backend.json` 和 `.local-files/`。运行时写入项目目录会触发微信开发者工具自动热重载，导致加购、删除等操作后重新回到首页，因此默认将数据放在项目目录外。首次启动会复制项目里的 `.local-data/`、`.local-files/` 和旧目录中的数据，保留原文件且不覆盖已迁移的数据。可通过 `LOCAL_BACKEND_DATA_DIR` 指定运行时数据目录，请选择项目目录外的位置。
 
@@ -60,7 +60,11 @@ npm run package:deploy
 
 ## 当前支付边界
 
-本地开发模式和 CloudBase 模式共用订单业务逻辑：开发时由本地服务处理，线上由真实云函数处理。下单创建 `pending_payment` 订单，服务端事务负责价格重算、库存预占、幂等和过期回滚；首阶段不伪造微信支付成功，也不接入商户支付、退款或第三方物流回调。
+本地开发模式和 CloudBase 模式共用订单业务逻辑。v261005 新订单由服务端事务完成模拟支付，进入待发货；支付及退款记录明确标记为模拟，不调用微信商户支付或资金退款。服务端负责价格重算、库存扣减、幂等及退款库存联动。历史待支付订单保持原样，不自动迁移、删除或回滚库存。
+
+运行 `npm run test:commerce-http` 可用临时隔离数据验证支付、退款、发货、收货、评价与退货库存联动，测试结束后清理临时数据，不访问线上订单。
+
+后台手动记录发货公司和单号，小程序展示手填物流信息，不生成第三方轨迹。商家先在后台配置退货地址才能开放退货退款；仅退款和退货退款均由后台审核。客服仍使用现有微信入口。
 
 ## 环境配置
 

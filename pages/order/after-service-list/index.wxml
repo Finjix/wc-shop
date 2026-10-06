@@ -23,6 +23,10 @@
       hide-store-name="{{true}}"
       header-class="header-class"
     >
+      <view class="service-summary">
+        <text>{{order.typeDesc}}</text>
+        <text>{{order.statusName}}</text>
+      </view>
       <wr-goods-card
         wx:for="{{order.goodsList}}"
         wx:key="id"

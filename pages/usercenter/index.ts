@@ -1,7 +1,33 @@
 // @ts-nocheck
 
 import Toast from 'tdesign-miniprogram/toast/index';
+import { request } from '../../utils/api';
 const COMPLETE_ORDER_STATUS = 50;
+
+function unwrapApiData(response) {
+  const value = response?.data ?? response;
+  return value?.data && typeof value.data === 'object' && !Array.isArray(value.data) ? value.data : value;
+}
+
+function fetchOrderCounts() {
+  return request('orders.count').then((response) => {
+    const data = unwrapApiData(response);
+    const counts = Array.isArray(data) ? data : data?.items || data?.counts || data?.tabs || data?.list || [];
+    return Array.isArray(counts) ? counts.map((item) => ({
+      ...item,
+      tabType: Number(item.tabType ?? item.status ?? item.orderStatus) || 0,
+      orderNum: Number(item.orderNum ?? item.count ?? item.total) || 0,
+    })) : [];
+  });
+}
+
+function fetchAfterSalesCount() {
+  return request('afterSales.list', { page: 1, pageNum: 1, pageSize: 1 }).then((response) => {
+    const data = unwrapApiData(response) || {};
+    const records = data.dataList || data.list || data.items || data.records || [];
+    return Number(data.totalCount ?? data.total ?? data.totalRecords ?? records.length) || 0;
+  });
+}
 
 const toolData = [
   {
@@ -47,7 +73,7 @@ const getDefaultData = () => ({
   navBarHeight: 44,
   customNavHeight: 44,
   toolData,
-  orderTagInfos,
+  orderTagInfos: orderTagInfos.map((item) => ({ ...item })),
 });
 
 Page({
@@ -59,9 +85,28 @@ Page({
 
   onShow() {
     this.getTabBar().init();
+    this.refreshOrderCounts();
   },
   onPullDownRefresh() {
-    wx.stopPullDownRefresh();
+    this.refreshOrderCounts().finally(() => wx.stopPullDownRefresh());
+  },
+
+  refreshOrderCounts() {
+    const refreshOrders = fetchOrderCounts().then((counts) => {
+      const orderTagInfos = this.data.orderTagInfos.map((tag) => {
+        if (tag.tabType === 0) return tag;
+        const match = counts.find((item) => Number(item.tabType) === Number(tag.tabType));
+        return { ...tag, orderNum: Number(match?.orderNum) || 0 };
+      });
+      this.setData({ orderTagInfos });
+    });
+    const refreshAfterSales = fetchAfterSalesCount().then((total) => {
+      const orderTagInfos = this.data.orderTagInfos.map((tag) =>
+        tag.tabType === 0 ? { ...tag, orderNum: total } : tag,
+      );
+      this.setData({ orderTagInfos });
+    });
+    return Promise.allSettled([refreshOrders, refreshAfterSales]);
   },
 
   initCustomNav() {

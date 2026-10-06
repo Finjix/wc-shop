@@ -39,10 +39,7 @@ declare function require(moduleName: string): unknown;
 const { createRuntime, getPayload } = require('../shared/runtime') as RuntimeModule;
 const { runEndpoint } = require('../shared/response') as ResponseModule;
 const { errorFrom } = require('../shared/errors') as ErrorModule;
-const { shopEndpoint, expirePendingOrders } = require('../shared/shop') as {
-  shopEndpoint: Endpoint;
-  expirePendingOrders: (runtime: Runtime) => Promise<unknown>;
-};
+const { shopEndpoint } = require('../shared/shop') as { shopEndpoint: Endpoint };
 const { adminEndpoint } = require('../shared/admin') as { adminEndpoint: Endpoint };
 
 /**
@@ -56,21 +53,9 @@ export function resolveScope(event: unknown): FunctionScope {
   throw errorFrom('INVALID_ARGUMENT', { field: 'scope' });
 }
 
-export function isTimerInvocation(runtime: Runtime, context: unknown): boolean {
-  const cloudbase = runtime.cloudbase as { getCloudbaseContext?: (context: unknown) => { TRIGGER_SRC?: string } } | undefined;
-  try {
-    const source = cloudbase?.getCloudbaseContext?.(context)?.TRIGGER_SRC;
-    return String(source || '').toLowerCase() === 'timer';
-  } catch {
-    return false;
-  }
-}
-
 export async function main(event: unknown, context: unknown): Promise<unknown> {
   return runEndpoint(async (input, ctx) => {
     const runtime = createRuntime();
-    // Only platform-injected context can authorize global maintenance.
-    if (isTimerInvocation(runtime, ctx)) return expirePendingOrders(runtime);
     const { action, data } = getPayload(input);
     if (!action || typeof action !== 'string') {
       throw errorFrom('INVALID_ARGUMENT', { field: 'action' });

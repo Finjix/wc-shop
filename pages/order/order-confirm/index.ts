@@ -3,7 +3,7 @@
 import Toast from 'tdesign-miniprogram/toast/index';
 import {
   clearPendingGoodsRequestList,
-  createPendingOrder,
+  createOrder,
   fetchSettleDetail,
   getPendingGoodsRequestList,
 } from '../../../services/order/orderConfirm';
@@ -42,6 +42,7 @@ Page({
 
   payLock: false,
   onLoad(options) {
+    this.fromCart = options.type === 'cart';
     this.setData({
       loading: true,
     });
@@ -285,7 +286,7 @@ Page({
       this.handleOptionsParams({ goodsRequestList });
     }
   },
-  // 提交订单后创建真实云端待支付订单；当前阶段不伪造支付成功。
+  // 服务端以模拟支付完成订单，不调用微信商户支付。
   submitOrder() {
     const { settleDetailData, userAddressReq, storeInfoList } = this.data;
     const { goodsRequestList } = this;
@@ -315,19 +316,19 @@ Page({
       userName: address.name,
       totalAmount: settleDetailData.totalPayAmount,
       storeInfoList,
+      useCart: this.fromCart,
       requestKey: this.createRequestId,
     };
 
-    createPendingOrder(params)
+    createOrder(params)
       .then((res) => {
         this.payLock = false;
         this.createRequestId = null;
         clearPendingGoodsRequestList();
         const orderNo = res?.data?.orderNo;
-        const totalPaid = encodeURIComponent(res.data.totalAmount ?? settleDetailData.totalPayAmount ?? '0');
         if (orderNo) {
           wx.redirectTo({
-            url: `/pages/order/pay-result/index?totalPaid=${totalPaid}&orderNo=${encodeURIComponent(orderNo)}`,
+            url: `/pages/order/pay-result/index?orderNo=${encodeURIComponent(orderNo)}`,
           });
         } else {
           wx.redirectTo({ url: '/pages/order/order-list/index' });

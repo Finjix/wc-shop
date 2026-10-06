@@ -590,28 +590,41 @@ async function createOrder(runtime, event, context, data) {
   const input = orderInput(data);
   const requestKey = string(input.requestKey || input.idempotencyKey, 'requestKey', { max: 128 });
   const orderId = orderIdFor(identity.uid, requestKey);
-  const cart = input.useCart ? await getCart(runtime, identity) : null;
-  const source = cart
-    ? cart.items.filter((item) => item.isSelected).map((item) => ({ skuId: item.skuId, quantity: item.quantity }))
-    : input.items || input.goodsRequestList;
-  const normalizedItems = normalizeOrderItems(source);
   const addressInfo = input.userAddressReq || input.address || {};
   const addressId = String(input.addressId || addressInfo.addressId || addressInfo.id || addressInfo._id || '');
-  const requestHash = crypto.createHash('sha256').update(JSON.stringify({
-    items: [...normalizedItems].sort((a, b) => a.skuId.localeCompare(b.skuId)),
-    addressId,
-    remark: input.remark || '',
+  const requestMode = input.useCart ? 'cart' : 'direct';
+  const remark = input.remark || '';
+  const explicitItems = Array.isArray(input.items) && input.items.length ? input.items
+    : Array.isArray(input.goodsRequestList) && input.goodsRequestList.length ? input.goodsRequestList : null;
+  const explicitNormalized = explicitItems ? normalizeOrderItems(explicitItems) : null;
+  const hashRequest = (items) => crypto.createHash('sha256').update(JSON.stringify({
+    items: [...items].sort((a, b) => a.skuId.localeCompare(b.skuId)), addressId, remark,
   })).digest('hex');
+  const matchesCartRetry = (existing) => input.useCart && existing.requestMode === 'cart'
+    && String(existing.requestAddressId || '') === addressId && String(existing.requestRemark || '') === remark;
   const existing = await getDoc(collection(runtime, COLLECTIONS.orders), orderId, false);
   if (existing) {
-    if (existing.requestHash && existing.requestHash !== requestHash) throw errorFrom('IDEMPOTENCY_CONFLICT');
+    if (explicitNormalized) {
+      const requestHash = hashRequest(explicitNormalized);
+      if (existing.requestHash && existing.requestHash !== requestHash) throw errorFrom('IDEMPOTENCY_CONFLICT');
+    } else if (!matchesCartRetry(existing)) throw errorFrom('IDEMPOTENCY_CONFLICT');
     return existing;
   }
-  await expirePendingOrders(runtime, identity.uid);
-  const pendingRef = collection(runtime, COLLECTIONS.orders).where({ userId: identity.uid, status: STATUS.pendingPayment });
-  const pendingResult = typeof pendingRef.count === 'function' ? await pendingRef.count() : await pendingRef.limit(20).get();
-  const pendingCount = typeof pendingResult.total === 'number' ? pendingResult.total : listData(pendingResult).length;
-  if (pendingCount >= 20) throw errorFrom('CONFLICT', { field: 'pendingOrders', max: 20 });
+  const cart = input.useCart ? await getCart(runtime, identity) : null;
+  const cartItems = cart?.items.filter((item) => item.isSelected).map((item) => ({ skuId: item.skuId, quantity: item.quantity })) || [];
+  if (input.useCart && !explicitNormalized && !cartItems.length) {
+    const raced = await getDoc(collection(runtime, COLLECTIONS.orders), orderId, false);
+    if (raced && matchesCartRetry(raced)) return raced;
+    throw errorFrom('INVALID_ARGUMENT', { field: 'items' });
+  }
+  const source = explicitNormalized || (input.useCart ? cartItems : input.items || input.goodsRequestList);
+  const normalizedItems = explicitNormalized || normalizeOrderItems(source);
+  const requestHash = hashRequest(normalizedItems);
+  const concurrent = await getDoc(collection(runtime, COLLECTIONS.orders), orderId, false);
+  if (concurrent) {
+    if (concurrent.requestHash && concurrent.requestHash !== requestHash && !matchesCartRetry(concurrent)) throw errorFrom('IDEMPOTENCY_CONFLICT');
+    return concurrent;
+  }
   const draft = await orderDraft(runtime, identity, input, normalizedItems);
   const result = await withTransaction(runtime.db, async (tx) => {
     const orders = tx.collection(COLLECTIONS.orders);
@@ -649,11 +662,19 @@ async function createOrder(runtime, event, context, data) {
       userId: identity.uid,
       requestKey: requestKey || null,
       requestHash,
-      status: STATUS.pendingPayment,
-      paymentStatus: 'unpaid',
-      payment: null,
+      requestMode,
+      requestAddressId: addressId,
+      requestRemark: remark,
+      status: STATUS.paid,
+      paymentStatus: 'paid',
+      payment: { mode: 'simulated', status: 'paid', amount: subtotal + draft.shippingFee, transactionId: `sim_${orderId}`, paidAt: timestamp },
+      paymentAmount: subtotal + draft.shippingFee,
+      paidAt: timestamp,
       inventoryReserved: true,
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      refundAmount: 0,
+      refundedQuantities: {},
+      pendingRefundAmount: 0,
+      pendingRefundQuantities: {},
       items: confirmedItems,
       addressSnapshot: clone(confirmedAddress),
       subtotal,
@@ -674,17 +695,15 @@ async function createOrder(runtime, event, context, data) {
     }
     return order;
   });
-  return { ...result, payment: null, paymentRequired: false };
+  return { ...result, paymentRequired: false };
 }
 
 async function listOrders(runtime, event, context, data) {
   const identity = requireUser(event, context, runtime);
-  await expirePendingOrders(runtime, identity.uid);
   const input = orderInput(data);
   const paging = page(input);
   const requested = input.orderStatus ?? input.status;
   const statusGroups = {
-    5: [STATUS.pendingPayment],
     10: [STATUS.paid],
     40: [STATUS.shipped],
     50: [STATUS.received, STATUS.completed],
@@ -717,8 +736,7 @@ async function listOrders(runtime, event, context, data) {
 
 async function orderCount(runtime, event, context) {
   const identity = requireUser(event, context, runtime);
-  await expirePendingOrders(runtime, identity.uid);
-  const groups = [[5, [STATUS.pendingPayment]], [10, [STATUS.paid]], [40, [STATUS.shipped]], [50, [STATUS.received, STATUS.completed]]];
+  const groups = [[10, [STATUS.paid]], [40, [STATUS.shipped]], [50, [STATUS.received, STATUS.completed]]];
   const command = runtime.db.command;
   const items = await Promise.all(groups.map(async ([tabType, statuses]) => {
     const where = { userId: identity.uid };
@@ -744,76 +762,52 @@ async function orderDetail(runtime, event, context, data) {
   const identity = requireUser(event, context, runtime);
   const input = orderInput(data);
   const ref = string(input.orderId || input.orderNo, 'orderId', { max: 128 });
-  let order = await findDoc(runtime, COLLECTIONS.orders, ref, 'orderNo');
+  const order = await findDoc(runtime, COLLECTIONS.orders, ref, 'orderNo');
   if (!order) throw errorFrom('NOT_FOUND');
   if (order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
-  if (order.status === STATUS.pendingPayment && isExpired(order)) {
-    order = await cancelPendingOrder(runtime, order._id || order.orderNo, identity.uid, Date.now());
+  return orderWithComments(runtime, order, true);
+}
+
+async function orderWithComments(runtime, order, includeAfterSalesList = false) {
+  const orderId = order._id || order.orderNo;
+  const hasRefundAggregate = order.refundedQuantities && typeof order.refundedQuantities === 'object';
+  const hasPendingAggregate = order.pendingRefundQuantities && typeof order.pendingRefundQuantities === 'object';
+  const afterSales = includeAfterSalesList || !hasRefundAggregate || !hasPendingAggregate
+    ? await all(collection(runtime, COLLECTIONS.afterSales), { orderId }) : [];
+  const active = afterSales.filter((item) => [STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(item.status));
+  const refundedQuantities = hasRefundAggregate ? { ...order.refundedQuantities } : {};
+  const pendingRefundQuantities = hasPendingAggregate ? { ...order.pendingRefundQuantities } : {};
+  for (const item of afterSales) {
+    const destination = item.status === STATUS.refunded ? (hasRefundAggregate ? null : refundedQuantities)
+      : [STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(item.status) ? (hasPendingAggregate ? null : pendingRefundQuantities) : null;
+    if (!destination) continue;
+    for (const claim of item.items || []) destination[claim.skuId] = Number(destination[claim.skuId] || 0) + Number(claim.quantity || 0);
   }
-  return orderWithComments(runtime, order);
-}
-
-function isExpired(order, deadline = Date.now()) {
-  const expiresAt = Date.parse(order.expiresAt);
-  return Number.isFinite(expiresAt) && expiresAt <= deadline;
-}
-
-async function cancelPendingOrder(runtime, id, userId, expiredBefore) {
-  return withTransaction(runtime.db, async (tx) => {
-    const txOrder = await getDoc(tx.collection(COLLECTIONS.orders), id, true);
-    if (userId && txOrder.userId !== userId) throw errorFrom('FORBIDDEN');
-    if (expiredBefore !== undefined && (txOrder.status !== STATUS.pendingPayment || !isExpired(txOrder, expiredBefore))) return txOrder;
-    if (txOrder.status !== STATUS.pendingPayment) throw errorFrom('ORDER_STATE_INVALID');
-    const timestamp = now();
-    if (txOrder.inventoryReserved !== false) {
-      for (const item of txOrder.items || []) {
-        const skuDocumentId = item.skuSnapshot?._id || item.skuId;
-        const sku = await getDoc(tx.collection(COLLECTIONS.skus), skuDocumentId, true);
-        const updateResult = await tx.collection(COLLECTIONS.skus).doc(skuDocumentId).update({
-          stockQuantity: skuStock(sku) + item.quantity,
-          soldQuantity: Math.max(0, valueNumber(sku.soldQuantity, 0) - item.quantity),
-          updatedAt: timestamp,
-        });
-        if (affected(updateResult) !== 1) throw errorFrom('CONFLICT');
-      }
-    }
-    const patch = { status: STATUS.cancelled, inventoryReserved: false, cancelledAt: timestamp, updatedAt: timestamp };
-    const result = await tx.collection(COLLECTIONS.orders).doc(id).update(patch);
-    if (affected(result) !== 1) throw errorFrom('CONFLICT');
-    return { ...txOrder, ...patch };
+  const items = (order.items || []).map((item) => {
+    const refundedQuantity = Math.min(Number(item.quantity || 0), Number(refundedQuantities[item.skuId] || 0));
+    const remainingQuantity = Math.max(0, Number(item.quantity || 0) - refundedQuantity);
+    const pendingRefundQuantity = Math.min(remainingQuantity, Number(pendingRefundQuantities[item.skuId] || 0));
+    const availableRefundQuantity = Math.max(0, remainingQuantity - pendingRefundQuantity);
+    const shippedQuantity = Number(order.shippedQuantities?.[item.skuId]
+      ?? ([STATUS.shipped, STATUS.received, STATUS.completed].includes(order.status) ? item.quantity : 0));
+    const fulfillableQuantity = order.status === STATUS.paid
+      ? availableRefundQuantity : Math.min(shippedQuantity, remainingQuantity);
+    return { ...item, refundedQuantity, remainingQuantity, pendingRefundQuantity, availableRefundQuantity, fulfillableQuantity };
   });
-}
-
-async function expirePendingOrders(runtime, userId) {
-  const currentTime = Date.now();
-  const where = { status: STATUS.pendingPayment };
-  if (userId) where.userId = userId;
-  if (runtime.db.command?.lte) where.expiresAt = runtime.db.command.lte(new Date(currentTime).toISOString());
-  const result = await list(collection(runtime, COLLECTIONS.orders), {
-    where,
-    limit: 100,
-    orderBy: { field: 'expiresAt', direction: 'asc' },
-    includeTotal: false,
-  });
-  let cancelled = 0;
-  for (const order of result.items) {
-    if (!isExpired(order, currentTime)) continue;
-    try {
-      const updated = await cancelPendingOrder(runtime, order._id || order.orderNo, userId, currentTime);
-      if (updated.status === STATUS.cancelled) cancelled += 1;
-    } catch (error) {
-      if (!['ORDER_STATE_INVALID', 'CONFLICT'].includes(error && error.code)) throw error;
-    }
+  let commentedProductIds = Array.from(new Set((order.commentedProductIds || []).filter(Boolean)));
+  let hasPendingComments = false;
+  if ([STATUS.received, STATUS.completed].includes(order.status)) {
+    const comments = await all(collection(runtime, COLLECTIONS.comments), { userId: order.userId, orderId });
+    commentedProductIds = Array.from(new Set([...commentedProductIds, ...comments.map((comment) => comment.productId)].filter(Boolean)));
+    hasPendingComments = items.some((item) => item.remainingQuantity > 0 && !commentedProductIds.includes(item.productId));
   }
-  return { cancelled };
-}
-
-async function orderWithComments(runtime, order) {
-  if (![STATUS.received, STATUS.completed].includes(order.status)) return order;
-  const comments = await all(collection(runtime, COLLECTIONS.comments), { userId: order.userId, orderId: order._id || order.orderNo });
-  const commentedProductIds = Array.from(new Set([...(order.commentedProductIds || []), ...comments.map((comment) => comment.productId)].filter(Boolean)));
-  const hasPendingComments = (order.items || []).some((item) => !commentedProductIds.includes(item.productId));
-  return { ...order, commentedProductIds, hasPendingComments };
+  return {
+    ...order, items, refundedQuantities,
+    ...(includeAfterSalesList ? { afterSalesList: afterSales } : {}),
+    activeAfterSaleCount: active.length || (Number(order.pendingRefundAmount || 0) > 0 ? 1 : 0),
+    activeAfterSaleStatus: active[0]?.status || (Number(order.pendingRefundAmount || 0) > 0 ? 'processing' : ''),
+    commentedProductIds, hasPendingComments,
+  };
 }
 
 async function updateOrderState(runtime, event, context, data, action) {
@@ -824,11 +818,32 @@ async function updateOrderState(runtime, event, context, data, action) {
   const order = await getDoc(orders, id, true);
   if (order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
   const timestamp = now();
+  if (action === 'orders.updateAddress') {
+    const addressId = string(input.addressId || input.userAddressReq?.addressId || input.userAddressReq?.id || input.userAddressReq?._id, 'addressId', { max: 128 });
+    return withTransaction(runtime.db, async (tx) => {
+      const current = await getDoc(tx.collection(COLLECTIONS.orders), id, true);
+      if (current.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+      if (current.status !== STATUS.paid) throw errorFrom('ORDER_STATE_INVALID');
+      const hasPendingAggregate = current.pendingRefundQuantities && typeof current.pendingRefundQuantities === 'object'
+        && Number.isSafeInteger(Number(current.pendingRefundAmount));
+      const active = hasPendingAggregate ? [] : await transactionClaims(tx, current);
+      const hasPending = hasPendingAggregate
+        ? Number(current.pendingRefundAmount) > 0 || Object.values(current.pendingRefundQuantities).some((quantity) => Number(quantity) > 0)
+        : active.some((item) => ACTIVE_AFTER_SALE.includes(item.status));
+      if (hasPending) throw errorFrom('CONFLICT', { field: 'afterSale' });
+      const address = await getDoc(tx.collection(COLLECTIONS.addresses), addressId, true);
+      if (address.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+      const patch = { addressSnapshot: clone(address), updatedAt: timestamp };
+      const result = await tx.collection(COLLECTIONS.orders).doc(id).update(patch);
+      if (affected(result) !== 1) throw errorFrom('CONFLICT');
+      return { ...current, ...patch };
+    });
+  }
   if (action === 'orders.confirmReceived') {
     return withTransaction(runtime.db, async (tx) => {
       const current = await getDoc(tx.collection(COLLECTIONS.orders), id, true);
       if (current.userId !== identity.uid || current.status !== STATUS.shipped) throw errorFrom('ORDER_STATE_INVALID');
-      const patch = { status: STATUS.received, updatedAt: timestamp };
+      const patch = { status: STATUS.received, fulfillmentStatus: STATUS.received, receivedAt: timestamp, updatedAt: timestamp };
       const result = await tx.collection(COLLECTIONS.orders).doc(id).update(patch);
       if (affected(result) !== 1) throw errorFrom('CONFLICT');
       return { ...current, ...patch };
@@ -844,8 +859,7 @@ async function updateOrderState(runtime, event, context, data, action) {
       return { ...current, ...patch };
     });
   }
-  if (action !== 'orders.cancel' || order.status !== STATUS.pendingPayment) throw errorFrom('ORDER_STATE_INVALID');
-  return cancelPendingOrder(runtime, id, identity.uid);
+  throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
 }
 
 async function commentsAction(runtime, event, context, data, action) {
@@ -940,6 +954,14 @@ async function commentsAction(runtime, event, context, data, action) {
     if (current.userId !== identity.uid || ![STATUS.received, STATUS.completed].includes(current.status)) throw errorFrom('FORBIDDEN');
     const comments = tx.collection(COLLECTIONS.comments);
     if (await getDoc(comments, id, false)) throw errorFrom('CONFLICT', { field: 'comment' });
+    const claims = await transactionClaims(tx, current);
+    const refunded = current.refundedQuantities && typeof current.refundedQuantities === 'object'
+      ? current.refundedQuantities : quantityMapFromClaims(claims, (claim) => claim.status === STATUS.refunded);
+    const eligibleItems = (current.items || []).filter((item) => {
+      const product = item.productId || item.spuId || item.productSnapshot?.spuId || item.productSnapshot?._id;
+      return String(product) === String(productId) && Number(item.quantity || 0) > Number(refunded[item.skuId] || 0);
+    });
+    if (!eligibleItems.length) throw errorFrom('ORDER_STATE_INVALID');
     const commentedProductIds = Array.from(new Set([...(annotated.commentedProductIds || []), ...(current.commentedProductIds || [])]));
     if (commentedProductIds.includes(productId)) throw errorFrom('CONFLICT', { field: 'comment' });
     commentedProductIds.push(productId);
@@ -947,7 +969,7 @@ async function commentsAction(runtime, event, context, data, action) {
     await setDoc(comments, id, saved);
     await orders.doc(current._id || orderId).update({
       commentedProductIds,
-      hasPendingComments: (current.items || []).some((item) => !commentedProductIds.includes(item.productId)),
+      hasPendingComments: (current.items || []).some((item) => Number(item.quantity || 0) > Number(refunded[item.skuId] || 0) && !commentedProductIds.includes(item.productId)),
       updatedAt: timestamp,
     });
     return saved;
@@ -977,6 +999,146 @@ function requestedAfterSaleItems(order, data) {
   });
 }
 
+const ACTIVE_AFTER_SALE = [STATUS.pendingReview, STATUS.approved, STATUS.refunding];
+
+function afterSaleType(value) {
+  const mapped = ({ refund: 20, only_refund: 20, return: 10, return_goods: 10, return_refund: 10 })[value] ?? Number(value);
+  assert([10, 20].includes(mapped), { field: 'type' });
+  return mapped;
+}
+
+function cleanReturnAddress(value) {
+  if (!value || typeof value !== 'object') return null;
+  const receiver = String(value.receiver || value.name || '').trim();
+  const phone = String(value.phone || '').trim();
+  const detail = String(value.detail || value.address || '').trim();
+  if (!receiver || !phone || !detail) return null;
+  return {
+    receiver, name: receiver, phone,
+    province: String(value.province || '').trim(), city: String(value.city || '').trim(),
+    district: String(value.district || '').trim(), detail,
+  };
+}
+
+async function returnAddressFrom(settingsCollection) {
+  const global = await getDoc(settingsCollection, 'global', false);
+  const value = global?.value || global || {};
+  return cleanReturnAddress(value.returnAddress || value.afterSaleReturnAddress);
+}
+
+async function transactionClaims(tx, order, additionalIds = []) {
+  const ids = Array.from(new Set([...(order.afterSaleIds || []), ...additionalIds].filter(Boolean)));
+  const result = [];
+  for (const id of ids) {
+    const record = await getDoc(tx.collection(COLLECTIONS.afterSales), id, false);
+    if (record) result.push(record);
+  }
+  return result;
+}
+
+function quantityMapFromClaims(claims, predicate) {
+  const result = {};
+  claims.filter(predicate).forEach((claim) => (claim.items || []).forEach((item) => {
+    result[item.skuId] = Number(result[item.skuId] || 0) + Number(item.quantity || 0);
+  }));
+  return result;
+}
+
+function amountFromClaims(claims, predicate) {
+  return claims.filter(predicate).reduce((sum, claim) => sum + Number(claim.amount || claim.refundRequestAmount || 0), 0);
+}
+
+async function pendingAggregate(tx, order, claim, timestamp, persist = true) {
+  const hasAggregate = order.pendingRefundQuantities && typeof order.pendingRefundQuantities === 'object'
+    && Number.isSafeInteger(Number(order.pendingRefundAmount));
+  const claims = hasAggregate ? [] : await transactionClaims(tx, order, [claim._id]);
+  const quantities = hasAggregate ? { ...order.pendingRefundQuantities }
+    : quantityMapFromClaims(claims, (item) => ACTIVE_AFTER_SALE.includes(item.status));
+  const amount = hasAggregate ? Number(order.pendingRefundAmount)
+    : amountFromClaims(claims, (item) => ACTIVE_AFTER_SALE.includes(item.status));
+  for (const item of claim.items || []) quantities[item.skuId] = Math.max(0, Number(quantities[item.skuId] || 0) - Number(item.quantity || 0));
+  const patch = {
+    pendingRefundQuantities: quantities,
+    pendingRefundAmount: Math.max(0, amount - Number(claim.amount || claim.refundRequestAmount || 0)),
+    updatedAt: timestamp,
+  };
+  if (persist) {
+    const result = await tx.collection(COLLECTIONS.orders).doc(order._id || order.orderNo).update(patch);
+    if (affected(result) !== 1) throw errorFrom('CONFLICT');
+  }
+  return patch;
+}
+
+async function finishSimulatedRefund(tx, afterSale, order, timestamp) {
+  if (afterSale.status === STATUS.refunded) return { ...afterSale, _id: afterSale._id };
+  const isReturn = Number(afterSale.type ?? afterSale.rightsType) === 10;
+  if ((isReturn && afterSale.status !== STATUS.refunding) || (!isReturn && afterSale.status !== STATUS.pendingReview && afterSale.status !== STATUS.approved)) {
+    throw errorFrom('ORDER_STATE_INVALID');
+  }
+  if (order.payment?.mode !== 'simulated' || order.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
+  const paidAmount = Number(order.paymentAmount ?? order.payment?.amount ?? order.totalAmount);
+  const amount = Number(afterSale.amount ?? afterSale.refundRequestAmount);
+  if (!Number.isSafeInteger(paidAmount) || !Number.isSafeInteger(amount) || amount <= 0) throw errorFrom('INVALID_ARGUMENT', { field: 'refundAmount' });
+  const hasRefundAggregate = order.refundedQuantities && typeof order.refundedQuantities === 'object'
+    && Number.isSafeInteger(Number(order.refundAmount));
+  const claims = hasRefundAggregate ? [] : await transactionClaims(tx, order, [afterSale._id]);
+  const refundedClaims = claims.filter((item) => item.status === STATUS.refunded && item._id !== afterSale._id);
+  const settledAmount = hasRefundAggregate ? Number(order.refundAmount) : amountFromClaims(refundedClaims, () => true);
+  if (settledAmount + amount > paidAmount) throw errorFrom('CONFLICT', { field: 'refundAmount' });
+  const refundedQuantities = hasRefundAggregate
+    ? { ...order.refundedQuantities }
+    : quantityMapFromClaims(refundedClaims, () => true);
+  const bought = new Map((order.items || []).map((item) => [item.skuId, Number(item.quantity || 0)]));
+  for (const item of afterSale.items || []) {
+    const total = Number(refundedQuantities[item.skuId] || 0) + Number(item.quantity || 0);
+    if (!bought.has(item.skuId) || total > bought.get(item.skuId)) throw errorFrom('CONFLICT', { field: 'rightsQuantity' });
+    refundedQuantities[item.skuId] = total;
+  }
+  const cumulativeRefund = settledAmount + amount;
+  const fullRefund = cumulativeRefund >= paidAmount;
+  const previouslyFulfilled = order.fulfillmentStatus || order.status;
+  const orderPatch = {
+    refundAmount: cumulativeRefund,
+    refundedQuantities,
+    ...await pendingAggregate(tx, order, afterSale, timestamp, false),
+    paymentStatus: fullRefund ? 'refunded' : 'partially_refunded',
+    status: fullRefund
+      ? (previouslyFulfilled === STATUS.paid ? STATUS.cancelled : STATUS.completed)
+      : order.status,
+    ...(fullRefund && previouslyFulfilled === STATUS.paid ? { inventoryReserved: false } : {}),
+    ...(fullRefund && previouslyFulfilled === STATUS.paid ? { cancelledAt: timestamp } : {}),
+    ...(fullRefund && previouslyFulfilled !== STATUS.paid ? { completedAt: timestamp } : {}),
+    updatedAt: timestamp,
+  };
+  if (!fullRefund && !order.fulfillmentStatus && order.status === STATUS.paid) orderPatch.fulfillmentStatus = STATUS.paid;
+  const restoreInventory = (previouslyFulfilled === STATUS.paid && !isReturn) || isReturn;
+  if (restoreInventory) {
+    for (const item of afterSale.items || []) {
+      const skuId = item.skuSnapshot?._id || item.skuId;
+      const sku = await getDoc(tx.collection(COLLECTIONS.skus), skuId, true);
+      const quantity = Number(item.quantity || 0);
+      const result = await tx.collection(COLLECTIONS.skus).doc(skuId).update({
+        stockQuantity: skuStock(sku) + quantity,
+        soldQuantity: Math.max(0, valueNumber(sku.soldQuantity, 0) - quantity),
+        updatedAt: timestamp,
+      });
+      if (affected(result) !== 1) throw errorFrom('CONFLICT');
+    }
+  }
+  const orderResult = await tx.collection(COLLECTIONS.orders).doc(order._id || order.orderNo).update(orderPatch);
+  if (affected(orderResult) !== 1) throw errorFrom('CONFLICT');
+  const refundPatch = {
+    status: STATUS.refunded,
+    refundMode: 'simulated',
+    refundedAt: timestamp,
+    refundTransactionId: `sim_refund_${afterSale._id}`,
+    updatedAt: timestamp,
+  };
+  const afterSaleResult = await tx.collection(COLLECTIONS.afterSales).doc(afterSale._id).update(refundPatch);
+  if (affected(afterSaleResult) !== 1) throw errorFrom('CONFLICT');
+  return { ...afterSale, ...refundPatch, order: { ...order, ...orderPatch }, _id: afterSale._id };
+}
+
 async function afterSalesAction(runtime, event, context, data, action) {
   const identity = requireUser(event, context, runtime);
   const afterSales = collection(runtime, COLLECTIONS.afterSales);
@@ -984,6 +1146,8 @@ async function afterSalesAction(runtime, event, context, data, action) {
     const paging = page(data);
     const where = { userId: identity.uid };
     if (data.status) where.status = String(data.status);
+    if (data.type !== undefined && data.type !== '') where.type = afterSaleType(data.type);
+    if (data.orderId || data.orderNo) where.orderId = string(data.orderId || data.orderNo, 'orderId', { max: 128 });
     const result = await list(afterSales, { where, orderBy: { field: 'createdAt', direction: 'desc' }, skip: (paging.page - 1) * paging.pageSize, limit: paging.pageSize });
     return { items: result.items, page: paging.page, pageNum: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? result.items.length : result.total };
   }
@@ -999,78 +1163,182 @@ async function afterSalesAction(runtime, event, context, data, action) {
   if (action === 'afterSales.confirmReceived') {
     return updateOrderState(runtime, event, context, data, 'orders.confirmReceived');
   }
+  if (action === 'afterSales.withdraw' || action === 'afterSales.cancel') {
+    const ref = string(data.afterSaleId || data.rightsNo, 'afterSaleId', { max: 128 });
+    const existing = await findDoc(runtime, COLLECTIONS.afterSales, ref, 'rightsNo');
+    if (!existing) throw errorFrom('NOT_FOUND');
+    if (existing.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+    return withTransaction(runtime.db, async (tx) => {
+      const current = await getDoc(tx.collection(COLLECTIONS.afterSales), existing._id, true);
+      if (current.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+      if (current.status === STATUS.withdrawn) return current;
+      if (current.status !== STATUS.pendingReview) throw errorFrom('ORDER_STATE_INVALID');
+      const timestamp = now();
+      const order = await getDoc(tx.collection(COLLECTIONS.orders), current.orderId, true);
+      await pendingAggregate(tx, order, current, timestamp);
+      const patch = { status: STATUS.withdrawn, withdrawnAt: timestamp, updatedAt: timestamp };
+      await tx.collection(COLLECTIONS.afterSales).doc(existing._id).update(patch);
+      return { ...current, ...patch, _id: existing._id };
+    });
+  }
   if (action === 'afterSales.submitTracking') {
     const ref = string(data.afterSaleId || data.rightsNo, 'afterSaleId', { max: 128 });
     const item = await findDoc(runtime, COLLECTIONS.afterSales, ref, 'rightsNo');
     if (!item) throw errorFrom('NOT_FOUND');
     if (item.userId !== identity.uid) throw errorFrom('FORBIDDEN');
-    if (item.status !== STATUS.approved) throw errorFrom('ORDER_STATE_INVALID');
+    if (item.status !== STATUS.approved || Number(item.type ?? item.rightsType) !== 10) throw errorFrom('ORDER_STATE_INVALID');
     const trackingNo = string(data.trackingNo || data.logisticsNo, 'trackingNo', { max: 128 });
-    const patch = {
-      logisticsNo: trackingNo,
-      logisticsCompanyName: optionalString(data.logisticsCompanyName || data.companyName, 'logisticsCompanyName', { max: 120 }) || '',
-      logisticsCompanyCode: optionalString(data.logisticsCompanyCode || data.companyCode, 'logisticsCompanyCode', { max: 80 }) || '',
-      status: STATUS.refunding,
-      updatedAt: now(),
-    };
-    await afterSales.doc(item._id).update(patch);
-    return { ...item, ...patch, _id: item._id };
+    return withTransaction(runtime.db, async (tx) => {
+      const current = await getDoc(tx.collection(COLLECTIONS.afterSales), item._id, true);
+      if (current.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+      if (current.status !== STATUS.approved || Number(current.type ?? current.rightsType) !== 10) throw errorFrom('ORDER_STATE_INVALID');
+      const patch = {
+        trackingNo,
+        logisticsNo: trackingNo,
+        logisticsCompanyName: optionalString(data.logisticsCompanyName || data.company || data.companyName, 'logisticsCompanyName', { max: 120 }) || '',
+        logisticsCompanyCode: optionalString(data.logisticsCompanyCode || data.companyCode, 'logisticsCompanyCode', { max: 80 }) || '',
+        status: STATUS.refunding,
+        submittedTrackingAt: now(),
+        updatedAt: now(),
+      };
+      const result = await tx.collection(COLLECTIONS.afterSales).doc(item._id).update(patch);
+      if (affected(result) !== 1) throw errorFrom('CONFLICT');
+      return { ...current, ...patch, _id: item._id };
+    });
   }
   const orderId = string(data.orderId || data.orderNo, 'orderId', { max: 128 });
   const order = await getDoc(collection(runtime, COLLECTIONS.orders), orderId, true);
   if (order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
   if (action === 'afterSales.preview') {
-    const response = { orderId, items: order.items || [], allowed: [STATUS.shipped, STATUS.received, STATUS.completed].includes(order.status) };
+    const configuredAddress = await returnAddressFrom(collection(runtime, COLLECTIONS.settings));
+    const allowedStatuses = [STATUS.paid, STATUS.shipped, STATUS.received, STATUS.completed];
+    const decorated = await orderWithComments(runtime, order);
+    const response = { orderId, items: decorated.items, allowed: allowedStatuses.includes(order.status), allowedTypes: order.status === STATUS.paid ? [20] : [10, 20], returnAddressConfigured: Boolean(configuredAddress) };
     if (data.includeReasons) response.rightsReasonList = ['质量问题', '商品错发', '商品少发', '不想要了', '其他'].map((item) => ({ id: item, desc: item }));
     return response;
   }
   if (action !== 'afterSales.create') throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
-  if (![STATUS.shipped, STATUS.received, STATUS.completed].includes(order.status)) throw errorFrom('ORDER_STATE_INVALID');
   const reason = string(data.reason || data.rightsReasonDesc, 'reason', { max: 120 });
   const description = optionalString(data.description || data.refundMemo, 'description', { max: 1000 }) || '';
   const sourceImages = data.images === undefined ? [] : array(data.images, 'images');
   assert(sourceImages.length <= 3, { field: 'images', max: 3 });
   const images = sourceImages.map((image) => string(image, 'images[]', { max: 1024 }));
-  const rawType = data.type ?? data.rightsType ?? 'refund';
-  const type = ({ refund: 20, only_refund: 20, return: 10, return_goods: 10 })[rawType] ?? Number(rawType);
-  assert([10, 20].includes(type), { field: 'type' });
+  const type = afterSaleType(data.type ?? data.rightsType ?? 20);
+  if (![STATUS.paid, STATUS.shipped, STATUS.received, STATUS.completed].includes(order.status)) throw errorFrom('ORDER_STATE_INVALID');
+  if (order.status === STATUS.paid && type !== 20) throw errorFrom('ORDER_STATE_INVALID');
+  if (type === 10 && !await returnAddressFrom(collection(runtime, COLLECTIONS.settings))) throw errorFrom('RETURN_ADDRESS_REQUIRED');
+  if (order.payment?.mode !== 'simulated' || order.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
   const id = `as_${crypto.randomUUID()}`;
-  const legacy = await all(afterSales, { userId: identity.uid, orderId: order._id || orderId });
+  const hasRefundAggregates = order.refundedQuantities && typeof order.refundedQuantities === 'object'
+    && order.pendingRefundQuantities && typeof order.pendingRefundQuantities === 'object'
+    && Number.isSafeInteger(Number(order.refundAmount)) && Number.isSafeInteger(Number(order.pendingRefundAmount));
+  const legacy = hasRefundAggregates ? [] : await all(afterSales, { userId: identity.uid, orderId: order._id || orderId });
   return withTransaction(runtime.db, async (tx) => {
     const orders = tx.collection(COLLECTIONS.orders);
     const current = await getDoc(orders, order._id || orderId, true);
     if (current.userId !== identity.uid) throw errorFrom('FORBIDDEN');
-    if (![STATUS.shipped, STATUS.received, STATUS.completed].includes(current.status)) throw errorFrom('ORDER_STATE_INVALID');
+    if (![STATUS.paid, STATUS.shipped, STATUS.received, STATUS.completed].includes(current.status)) throw errorFrom('ORDER_STATE_INVALID');
+    if (current.status === STATUS.paid && type !== 20) throw errorFrom('ORDER_STATE_INVALID');
+    if (current.payment?.mode !== 'simulated' || current.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
+    const returnAddress = type === 10 ? await returnAddressFrom(tx.collection(COLLECTIONS.settings)) : null;
+    if (type === 10 && !returnAddress) throw errorFrom('RETURN_ADDRESS_REQUIRED');
     const items = requestedAfterSaleItems(current, data);
     const productIds = Array.from(new Set(items.map((item) => item.productId)));
     const txAfterSales = tx.collection(COLLECTIONS.afterSales);
-    // The order document serializes claims even when concurrent requests use different IDs.
     const priorIds = Array.from(new Set([...legacy.map((item) => item._id), ...(current.afterSaleIds || [])].filter(Boolean)));
-    const refundedQuantities = new Map();
-    for (const priorId of priorIds) {
-      const prior = await getDoc(txAfterSales, priorId, false);
-      if (!prior) continue;
-      const priorProducts = [prior.productId, ...(prior.items || []).map((item) => item.productId)];
-      if ([STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(prior.status)
-        && productIds.some((productId) => priorProducts.includes(productId))) throw errorFrom('CONFLICT', { field: 'afterSale' });
-      if (prior.status === STATUS.refunded) {
-        for (const item of prior.items || []) refundedQuantities.set(item.skuId, (refundedQuantities.get(item.skuId) || 0) + item.quantity);
-      }
-    }
+    const hasCurrentAggregates = current.refundedQuantities && typeof current.refundedQuantities === 'object'
+      && current.pendingRefundQuantities && typeof current.pendingRefundQuantities === 'object'
+      && Number.isSafeInteger(Number(current.refundAmount)) && Number.isSafeInteger(Number(current.pendingRefundAmount));
+    const priorClaims = hasCurrentAggregates ? [] : await transactionClaims(tx, current, legacy.map((item) => item._id));
+    const refundedQuantities = hasCurrentAggregates
+      ? { ...current.refundedQuantities }
+      : quantityMapFromClaims(priorClaims, (prior) => prior.status === STATUS.refunded);
+    const activeQuantities = hasCurrentAggregates
+      ? { ...current.pendingRefundQuantities }
+      : quantityMapFromClaims(priorClaims, (prior) => ACTIVE_AFTER_SALE.includes(prior.status));
+    const activeAmount = hasCurrentAggregates ? Number(current.pendingRefundAmount)
+      : amountFromClaims(priorClaims, (prior) => ACTIVE_AFTER_SALE.includes(prior.status));
+    const settledAmount = hasCurrentAggregates ? Number(current.refundAmount)
+      : amountFromClaims(priorClaims, (prior) => prior.status === STATUS.refunded);
+    if (current.paymentStatus === 'refunded') throw errorFrom('ORDER_STATE_INVALID');
     for (const item of items) {
       const bought = (current.items || []).find((snapshot) => snapshot.skuId === item.skuId);
-      assert(item.quantity + (refundedQuantities.get(item.skuId) || 0) <= bought.quantity, { field: 'rightsQuantity' });
+      if (Number(activeQuantities[item.skuId] || 0) > 0) throw errorFrom('CONFLICT', { field: 'afterSale' });
+      assert(item.quantity + Number(refundedQuantities[item.skuId] || 0) + Number(activeQuantities[item.skuId] || 0) <= bought.quantity, { field: 'rightsQuantity' });
     }
     const maximum = items.reduce((sum, item) => sum + item.amount, 0);
     assert(Number.isSafeInteger(maximum), { field: 'refundAmount' });
     const amount = integer(data.refundRequestAmount ?? data.rights?.refundRequestAmount ?? maximum, 'refundRequestAmount', { min: 1, max: maximum });
+    assert(amount === maximum, { field: 'refundRequestAmount', max: maximum });
+    const paidAmount = Number(current.paymentAmount ?? current.payment?.amount ?? current.totalAmount);
+    assert(settledAmount + activeAmount + amount <= paidAmount, { field: 'refundRequestAmount', max: Math.max(0, paidAmount - settledAmount - activeAmount) });
     const timestamp = now();
     const item = { _id: id, rightsNo: id, userId: identity.uid, orderId: current._id || orderId, orderNo: current.orderNo || orderId,
       productId: productIds[0], productIds, type, reason, description, images, items,
-      amount, refundRequestAmount: amount, status: STATUS.pendingReview, createdAt: timestamp, updatedAt: timestamp };
+      amount, refundRequestAmount: amount, status: STATUS.pendingReview,
+      ...(returnAddress ? { returnAddressRequestedSnapshot: returnAddress } : {}),
+      createdAt: timestamp, updatedAt: timestamp };
     await setDoc(txAfterSales, id, item);
-    await orders.doc(current._id || orderId).update({ afterSaleIds: [...priorIds, id], updatedAt: timestamp });
+    const pendingRefundQuantities = { ...activeQuantities };
+    items.forEach((claim) => { pendingRefundQuantities[claim.skuId] = Number(pendingRefundQuantities[claim.skuId] || 0) + claim.quantity; });
+    await orders.doc(current._id || orderId).update({
+      afterSaleIds: [...priorIds, id],
+      pendingRefundQuantities,
+      pendingRefundAmount: activeAmount + amount,
+      updatedAt: timestamp,
+    });
     return item;
+  });
+}
+
+async function moderateAfterSale(runtime, data) {
+  const id = string(data.afterSaleId || data.id || data.rightsNo, 'afterSaleId', { max: 128 });
+  const rawDecision = data.decision || data.status;
+  const decision = ({ approve: STATUS.approved, approved: STATUS.approved, reject: STATUS.rejected, rejected: STATUS.rejected })[rawDecision];
+  if (![STATUS.approved, STATUS.rejected].includes(decision)) throw errorFrom('INVALID_ARGUMENT', { field: 'status' });
+  const existing = await findDoc(runtime, COLLECTIONS.afterSales, id, 'rightsNo');
+  if (!existing) throw errorFrom('NOT_FOUND');
+  if (existing.status === STATUS.refunded && decision === STATUS.approved) return existing;
+  return withTransaction(runtime.db, async (tx) => {
+    const current = await getDoc(tx.collection(COLLECTIONS.afterSales), existing._id, true);
+    if (current.status === STATUS.refunded && decision === STATUS.approved) return current;
+    if (current.status === STATUS.approved && decision === STATUS.approved && Number(current.type ?? current.rightsType) === 10) return current;
+    if (current.status !== STATUS.pendingReview) throw errorFrom('ORDER_STATE_INVALID');
+    const order = await getDoc(tx.collection(COLLECTIONS.orders), current.orderId, true);
+    const timestamp = now();
+    if (decision === STATUS.rejected) {
+      const reason = optionalString(data.reason || data.reply, 'reason', { max: 1000 }) || '';
+      await pendingAggregate(tx, order, current, timestamp);
+      const patch = { status: STATUS.rejected, reviewReason: reason, reviewedAt: timestamp, updatedAt: timestamp };
+      const result = await tx.collection(COLLECTIONS.afterSales).doc(existing._id).update(patch);
+      if (affected(result) !== 1) throw errorFrom('CONFLICT');
+      return { ...current, ...patch, _id: existing._id };
+    }
+    if (Number(current.type ?? current.rightsType) === 20) {
+      if (order.payment?.mode !== 'simulated' || order.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
+      return finishSimulatedRefund(tx, { ...current, status: STATUS.approved }, order, timestamp);
+    }
+    if (Number(current.type ?? current.rightsType) !== 10) throw errorFrom('ORDER_STATE_INVALID');
+    const address = current.returnAddressRequestedSnapshot || await returnAddressFrom(tx.collection(COLLECTIONS.settings));
+    if (!address) throw errorFrom('RETURN_ADDRESS_REQUIRED');
+    const patch = { status: STATUS.approved, returnAddressSnapshot: clone(address), reviewedAt: timestamp, updatedAt: timestamp };
+    const result = await tx.collection(COLLECTIONS.afterSales).doc(existing._id).update(patch);
+    if (affected(result) !== 1) throw errorFrom('CONFLICT');
+    return { ...current, ...patch, _id: existing._id };
+  });
+}
+
+async function confirmAfterSaleReturn(runtime, data) {
+  const id = string(data.afterSaleId || data.id || data.rightsNo, 'afterSaleId', { max: 128 });
+  const existing = await findDoc(runtime, COLLECTIONS.afterSales, id, 'rightsNo');
+  if (!existing) throw errorFrom('NOT_FOUND');
+  if (existing.status === STATUS.refunded) return existing;
+  return withTransaction(runtime.db, async (tx) => {
+    const current = await getDoc(tx.collection(COLLECTIONS.afterSales), existing._id, true);
+    if (current.status === STATUS.refunded) return current;
+    if (current.status !== STATUS.refunding || Number(current.type ?? current.rightsType) !== 10) throw errorFrom('ORDER_STATE_INVALID');
+    const order = await getDoc(tx.collection(COLLECTIONS.orders), current.orderId, true);
+    return finishSimulatedRefund(tx, current, order, now());
   });
 }
 
@@ -1099,10 +1367,10 @@ async function shopEndpoint(event, context, runtime, action, data) {
   if (action === 'orders.count') return orderCount(runtime, event, context);
   if (action === 'orders.businessTime') return { telphone: '', telephone: '', phone: '' };
   if (action === 'orders.detail') return orderDetail(runtime, event, context, data);
-  if (action === 'orders.cancel' || action === 'orders.confirmReceived' || action === 'orders.delete') return updateOrderState(runtime, event, context, data, action);
+  if (action === 'orders.confirmReceived' || action === 'orders.delete' || action === 'orders.updateAddress') return updateOrderState(runtime, event, context, data, action);
   if (action.startsWith('comments.')) return commentsAction(runtime, event, context, data, action);
   if (action.startsWith('afterSales.')) return afterSalesAction(runtime, event, context, data, action);
   throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
 }
 
-module.exports = { shopEndpoint, normalizeOrderItems, skuPrice, skuStock, expirePendingOrders };
+module.exports = { shopEndpoint, normalizeOrderItems, skuPrice, skuStock, moderateAfterSale, confirmAfterSaleReturn };

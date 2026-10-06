@@ -134,10 +134,17 @@ async function run() {
 function testAsyncComponents() {
   const { groups } = require('./build-subpackage-ui.cjs');
   const config = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
+  const subpackageRoots = (config.subpackages || []).map((pack) => path.resolve(root, pack.root));
+  const subpackageOf = (file) => subpackageRoots
+    .filter((subpackageRoot) => file === subpackageRoot || file.startsWith(subpackageRoot + path.sep))
+    .sort((left, right) => right.length - left.length)[0] || null;
   for (const name of Object.keys(groups)) {
     assert.ok(config.subpackages.some((pack) => pack.root === `packages/${name}`));
   }
   let asyncReferences = 0;
+  const loadMoreJson = JSON.parse(fs.readFileSync(path.join(root, 'components/load-more/index.json'), 'utf8'));
+  assert.ok(!Object.values(loadMoreJson.usingComponents || {}).some((reference) => reference.startsWith('/packages/order-ui/')),
+    'main-package load-more must not synchronously depend on a component in the order-ui subpackage');
   function exists(reference) {
     return ['', '.json', '.js', '.ts', '.wxml', '.wxss', '.wxs'].some((ext) => fs.existsSync(reference + ext));
   }
@@ -145,6 +152,18 @@ function testAsyncComponents() {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const file = path.join(directory, entry.name);
       if (entry.isDirectory()) { inspect(file); continue; }
+      if (/\.(js|ts)$/.test(file)) {
+        const sourceSubpackage = subpackageOf(file);
+        const content = fs.readFileSync(file, 'utf8');
+        for (const match of content.matchAll(/(['"])(\.{1,2}\/[^'"\s]+)\1/g)) {
+          const dependency = path.resolve(path.dirname(file), match[2]);
+          const targetSubpackage = subpackageOf(dependency);
+          assert.ok(
+            !targetSubpackage || targetSubpackage === sourceSubpackage,
+            `${file}: synchronous JavaScript import crosses into subpackage ${path.relative(root, targetSubpackage || '')}`,
+          );
+        }
+      }
       if (file.endsWith('.json')) {
         const json = JSON.parse(fs.readFileSync(file, 'utf8'));
         for (const [alias, reference] of Object.entries(json.usingComponents || {})) {

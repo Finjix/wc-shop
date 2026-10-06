@@ -11,8 +11,7 @@
     "t-input": "/packages/form-ui/tdesign/input/input",
     "t-toast": "tdesign-miniprogram/toast/toast",
     "t-dialog": "tdesign-miniprogram/dialog/dialog",
-    "t-button": "tdesign-miniprogram/button/button",
-    "ui-reason-sheet": "../components/reason-sheet/index"
+    "t-button": "tdesign-miniprogram/button/button"
   },
   "componentPlaceholder": {
     "t-textarea": "view",

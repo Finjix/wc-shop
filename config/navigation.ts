@@ -2,7 +2,7 @@
 export const pageNavigationEnabled: Record<string, boolean> = {
   'pages/cart/index': true,
   'pages/usercenter/index': true,
-  'pages/order/order-confirm/index': false,
+  'pages/order/order-confirm/index': true,
 };
 
 export function isPageNavigationEnabled(url: string) {

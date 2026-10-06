@@ -23,4 +23,4 @@
   </view>
 </view>
 <t-toast id="t-toast" />
-<t-dialog id="t-dialog" />
+<t-dialog id="t-dialog" t-class-confirm="commerce-dialog-confirm" />

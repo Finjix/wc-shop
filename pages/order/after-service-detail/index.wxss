@@ -379,6 +379,44 @@
   padding-bottom: 18rpx !important;
 }
 
+.service-id-row {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 76rpx;
+  padding: 18rpx 32rpx;
+  font-size: 26rpx;
+  color: #666;
+}
+
+.service-id-row__label {
+  flex: none;
+  width: 132rpx;
+  white-space: nowrap;
+}
+
+.service-id-row__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #333;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-id-row__copy {
+  flex: none;
+  margin-left: 16rpx;
+  padding: 4rpx 14rpx;
+  border: 2rpx solid #ddd;
+  border-radius: 32rpx;
+  color: #333;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  white-space: nowrap;
+}
+
 .t-refund-title {
   font-size: 28rpx;
   color: #333;
@@ -442,5 +480,5 @@
 
 .t-button {
   --td-button-default-color: #000;
-  --td-button-primary-text-color: #fff;
+  --td-button-primary-text-color: #695941;
 }

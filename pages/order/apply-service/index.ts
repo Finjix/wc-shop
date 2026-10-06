@@ -19,6 +19,7 @@ Page({
     uploading: false, // 凭证上传状态
     processingImages: false,
     canApplyReturn: true, // 是否可退货
+    returnAddressMissing: false,
     goodsInfo: {},
     goodsInfoList: [],
     orderLevel: false,
@@ -158,10 +159,15 @@ Page({
       const previewAmount = Number(preview.refundableAmount || 0);
       const refundableAmount = previewAmount;
       const previewGoods = preview.goodsList || [];
-      if (!previewGoods.length) {
-        throw new Error('云端未返回可申请的订单数据');
+      const availableGoods = previewGoods.filter((goods) => Number(
+        goods.numOfSkuAvailable ?? goods.boughtQuantity ?? goods.quantity ?? 0,
+      ) > 0);
+      const returnAddressConfigured = preview.returnAddressConfigured ?? preview.hasReturnAddress;
+      const canApplyReturn = this.data.canApplyReturn && returnAddressConfigured !== false;
+      if (!availableGoods.length) {
+        throw new Error('该订单没有可申请售后的商品');
       }
-      const goodsInfoList = previewGoods.map((goods) => ({
+      const goodsInfoList = availableGoods.map((goods) => ({
         id: goods.skuId,
         orderItemId: goods.orderItemId || goods.itemId,
         thumb: goods.goodsInfo && goods.goodsInfo.skuImage,
@@ -169,10 +175,14 @@ Page({
         spuId: goods.spuId,
         skuId: goods.skuId,
         specs: ((goods.goodsInfo && goods.goodsInfo.specInfo) || []).map((s) => s.specValue),
+        specText: ((goods.goodsInfo && goods.goodsInfo.specInfo) || []).map((s) => s.specValue).filter(Boolean).join(' / '),
         paidAmountEach: goods.paidAmountEach,
+        paidAmountText: priceFormat(goods.paidAmountEach, 2),
         boughtQuantity: goods.boughtQuantity,
       }));
       this.setData({
+        canApplyReturn,
+        returnAddressMissing: this.data.canApplyReturn && returnAddressConfigured === false,
         goodsInfo: goodsInfoList[0] || {},
         goodsInfoList,
         refundAmountText: priceFormat(refundableAmount, 2),
@@ -180,9 +190,9 @@ Page({
           max: refundableAmount,
           current: refundableAmount,
         },
-        'serviceFrom.returnNum': preview.numOfSku || 1,
+        'serviceFrom.returnNum': preview.numOfSkuAvailable ?? preview.numOfSku ?? 1,
         amountTip: `最多可申请退款¥ ${priceFormat(refundableAmount, 2)}`,
-        maxApplyNum: preview.numOfSkuAvailable || preview.numOfSku || 1,
+        maxApplyNum: preview.numOfSkuAvailable ?? preview.numOfSku ?? 1,
       });
     } catch (err) {
       wx.hideLoading();
@@ -207,10 +217,14 @@ Page({
       serviceRequireType: 'REFUND_MONEY',
       serviceType: ServiceType.ONLY_REFUND,
     });
-    this.switchReceiptStatus(0);
+    this.switchReceiptStatus([OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(Number(this.query.orderStatus)) ? 1 : 0);
   },
 
   onApplyReturnGoods() {
+    if (!this.data.canApplyReturn) {
+      Toast({ context: this, selector: '#t-toast', message: '商家尚未配置退货地址，暂不能申请退货退款', icon: '' });
+      return;
+    }
     wx.setNavigationBarTitle({ title: '售后申请' });
     this.setData({ serviceRequireType: 'REFUND_GOODS' });
     const orderStatus = parseInt(this.query.orderStatus);
@@ -324,7 +338,7 @@ Page({
           return null;
         }
         const rightsItem = this.data.orderLevel
-          ? this.data.goodsInfoList.map((goods) => ({
+          ? this.data.goodsInfoList.filter((goods) => Number(goods.boughtQuantity) > 0).map((goods) => ({
               itemTotalAmount: Number(goods.paidAmountEach || 0) * Number(goods.boughtQuantity || 0),
               rightsQuantity: goods.boughtQuantity,
               skuId: goods.skuId,

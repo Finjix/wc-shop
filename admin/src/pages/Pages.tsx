@@ -6,8 +6,9 @@ import { IMAGE_ACCEPT } from '../lib/image-upload';
 import { useDraftImages } from '../lib/useDraftImages';
 import { useConfirm } from '../components/ConfirmProvider';
 import { variantName } from '../lib/sku';
-import type { AfterSale, Category, Comment, ListResult, Order, Product, ProductDraft, Sku } from '../types';
+import type { Category, ListResult, Order, Product, ProductDraft, Sku } from '../types';
 import { EmptyState, EmptyTable, ErrorState, Field, ImageFilePicker, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
+
 
 function useResource<T>(action: string, payload: Record<string, unknown> = {}, refreshKey = 0, enabled = true) {
   const [data, setData] = useState<T | null>(null);
@@ -52,31 +53,6 @@ function Metric({ label, value, note }: { label: string; value: string; note?: s
   return <div className="metric"><span>{label}</span><strong>{value}</strong>{note && <small>{note}</small>}</div>;
 }
 
-const orderStatusLabels: Record<string, string> = {
-  pending_payment: '待支付',
-  paid: '待发货',
-  shipped: '待收货',
-  received: '已完成',
-  completed: '已完成',
-  cancelled: '已取消',
-};
-
-const orderStatusFilterOptions = [
-  ['pending_payment', '待支付'],
-  ['paid', '待发货'],
-  ['shipped', '待收货'],
-  ['completed', '已完成'],
-  ['cancelled', '已取消'],
-] as const;
-
-const paymentStatusLabels: Record<string, string> = {
-  unpaid: '未支付',
-  pending: '待支付',
-  pending_payment: '待支付',
-  paid: '已支付',
-  success: '已支付',
-};
-
 const afterSaleTypeLabels: Record<string, string> = {
   '10': '退货退款',
   return: '退货退款',
@@ -105,38 +81,6 @@ function normalizedKey(value: unknown) {
 
 function productStatusOf(product: Product) {
   return normalizedKey(product.status || (product.isPutOnSale ? 'active' : 'inactive')) || 'inactive';
-}
-
-function orderStatusOf(value: unknown) {
-  const key = normalizedKey(value);
-  return ({
-    '5': 'pending_payment',
-    '10': 'paid',
-    '40': 'shipped',
-    '50': 'completed',
-    '80': 'cancelled',
-    pending: 'pending_payment',
-    pending_payment: 'pending_payment',
-    paid: 'paid',
-    pending_delivery: 'paid',
-    shipped: 'shipped',
-    pending_receipt: 'shipped',
-    received: 'received',
-    complete: 'completed',
-    completed: 'completed',
-    canceled: 'cancelled',
-    cancelled: 'cancelled',
-  } as Record<string, string>)[key] || key;
-}
-
-function orderStatusLabel(value: unknown, fallback = '—') {
-  const key = orderStatusOf(value);
-  return orderStatusLabels[key] || (String(value ?? '').trim() || fallback);
-}
-
-function paymentStatusLabel(value: unknown) {
-  const key = normalizedKey(value);
-  return paymentStatusLabels[key] || (String(value ?? '').trim() || '—');
 }
 
 function formatSpecInfo(value: unknown) {
@@ -234,7 +178,7 @@ export function OverviewPage() {
   const { data, loading, error } = useResource<Record<string, unknown>>('dashboard.summary');
   const warnings = (data?.inventoryWarnings || []) as { productId: string; title: string; skuId: string; specName: string; stockQuantity: number }[];
   const [warningPage, setWarningPage] = useState(1);
-  const warningPageSize = 4;
+  const warningPageSize = 6;
   const warningPageCount = Math.max(1, Math.ceil(warnings.length / warningPageSize));
   useEffect(() => { setWarningPage((current) => Math.min(current, warningPageCount)); }, [warningPageCount]);
   const visibleWarnings = warnings.slice((warningPage - 1) * warningPageSize, warningPage * warningPageSize);
@@ -245,17 +189,17 @@ export function OverviewPage() {
   };
   return <>
     <div className="overview-page">
-    <h1 className="overview-title">盛途优品后台管理系统 v261003</h1>
+    <h1 className="overview-title">盛途优品后台管理系统 v261005</h1>
     {loading && <LoadingState />}
     {error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
     {!loading && !error && <>
       <div className="metric-grid">
-        <Metric label="商品总数" value={value(['productCount'])} />
+        <Link className="metric-link" to="/orders?status=paid"><Metric label="待发货" value={value(['pendingShipmentCount', 'pendingDeliveryCount'])} /></Link>
+        <Link className="metric-link" to="/after-sales?status=pending_review"><Metric label="待售后" value={value(['pendingAfterSaleCount', 'pendingAfterSalesCount', 'pendingReviewAfterSalesCount'])} /></Link>
       </div>
-      <Panel className="overview-inventory-warnings">
+      {warnings.length > 0 && <Panel className="overview-inventory-warnings">
         <div className="panel-heading"><h3>库存预警</h3></div>
         <div className="overview-inventory-warning-body">
-        {warnings.length === 0 && <EmptyState title="暂无" />}
         {warnings.length > 0 && <Table>
           <thead><tr><th>商品</th><th>规格</th><th>当前库存</th><th>操作</th></tr></thead>
           <tbody>{visibleWarnings.map((item) => <tr key={`${item.productId}:${item.skuId}`}>
@@ -269,7 +213,7 @@ export function OverviewPage() {
           <span>{warningPage} / {warningPageCount} 页</span>
           <Button variant="outline" disabled={warningPage >= warningPageCount} onClick={() => setWarningPage((current) => current + 1)}>下一页</Button>
         </div>}
-      </Panel>
+      </Panel>}
     </>}
     </div>
   </>;
@@ -434,6 +378,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const searchProducts = () => {
     setProductPage(1);
     setProductQuery(productQueryInput.trim());
+    setRefreshKey((key) => key + 1);
   };
   useEffect(() => {
     if (productQueryInput.trim() === productQuery) return;
@@ -734,181 +679,3 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
 }
 
 export { HomeContentPage } from './HomeContentPage';
-
-export function OrdersPage() {
-  const [orderNoQuery, setOrderNoQuery] = useState('');
-  const [status, setStatus] = useState('');
-  const [refreshKey, setRefreshKey] = useState(0);
-  const { data, loading, error } = useResource<unknown>('orders.list', { page: 1, pageSize: 100, orderNo: orderNoQuery.trim() || undefined, status: status || undefined }, refreshKey);
-  const rows = readList<Order>(data);
-  const { busy, run } = useAction();
-  const cancel = async (order: Order) => {
-    await run('orders.cancel', { orderNo: order.orderNo || order._id, reason: '管理员取消' }, '订单已取消');
-    setRefreshKey((key) => key + 1);
-  };
-  return <>
-    <Panel className="toolbar">
-      <Input value={orderNoQuery} onChange={setOrderNoQuery} placeholder="订单号" />
-      <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option>{orderStatusFilterOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
-      <Button onClick={() => setRefreshKey((key) => key + 1)}>查询</Button>
-    </Panel>
-    {loading && <LoadingState />}
-    {error && <ErrorState message={error} />}
-    {!loading && !error && <Panel>
-      <Table>
-        <thead><tr><th>订单号</th><th>金额</th><th>支付状态</th><th>订单状态</th><th>创建时间</th><th>操作</th></tr></thead>
-        <tbody>
-          {rows.length === 0 && <EmptyTable colSpan={6} />}
-          {rows.map((order) => {
-            const orderNo = String(order.orderNo || order._id || '');
-            const normalized = orderStatusOf(order.status ?? order.orderStatusName);
-            const cancelable = normalized === 'pending_payment';
-            return <tr key={orderNo}>
-              <td><Link to={`/orders/${encodeURIComponent(orderNo)}`}>{orderNo || '—'}</Link></td>
-              <td>{formatMoney(order.paymentAmount ?? order.totalAmount)}</td>
-              <td>{paymentStatusLabel(order.paymentStatus)}</td>
-              <td><Tag theme={normalized === 'cancelled' ? 'default' : 'primary'} variant="light">{orderStatusLabel(order.status ?? order.orderStatusName)}</Tag></td>
-              <td>{formatDate(order.createTime)}</td>
-              <td><Link className="text-button" to={`/orders/${encodeURIComponent(orderNo)}`}>详情</Link>{cancelable && <Button variant="text" loading={busy} onClick={() => void cancel(order)}>取消</Button>}</td>
-            </tr>;
-          })}
-        </tbody>
-      </Table>
-    </Panel>}
-  </>;
-}
-
-export function OrderDetailPage() {
-  const { orderNo = '' } = useParams();
-  const navigate = useNavigate();
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [company, setCompany] = useState('');
-  const [trackingNo, setTrackingNo] = useState('');
-  const { data, loading, error } = useResource<Order>('orders.detail', { orderNo: decodeURIComponent(orderNo) }, refreshKey);
-  const { busy, run } = useAction();
-
-  useEffect(() => {
-    if (!data) return;
-    const logistics = data.logistics || data.logisticsVO || {};
-    setCompany(String(logistics.companyName || logistics.logisticsCompanyName || ''));
-    setTrackingNo(String(logistics.trackingNo || logistics.logisticsNo || ''));
-  }, [data]);
-
-  if (loading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
-  if (!data) return <EmptyState title="订单不存在" />;
-
-  const items = readList<Record<string, unknown>>(data.items || data.orderItemVOs);
-  const currentStatus = orderStatusOf(data.status ?? data.orderStatusName);
-  const deliveryAddress = deliveryAddressOf(data);
-  const saveLogistics = async () => {
-    if (!company.trim() || !trackingNo.trim()) { await MessagePlugin.warning('请填写物流公司和物流单号'); return; }
-    await run('orders.logistics.save', { orderNo: data.orderNo || orderNo, logisticsCompanyName: company.trim(), logisticsNo: trackingNo.trim() }, '物流信息已记录');
-    setRefreshKey((key) => key + 1);
-  };
-  const shipOrder = async () => {
-    if (!company.trim() || !trackingNo.trim()) { await MessagePlugin.warning('发货前请填写物流公司和物流单号'); return; }
-    await run('orders.ship', { orderNo: data.orderNo || orderNo, tracking: { carrier: company.trim(), trackingNo: trackingNo.trim() } }, '订单已发货');
-    setRefreshKey((key) => key + 1);
-  };
-
-  return <>
-    <div className="page-actions"><Button variant="outline" onClick={() => navigate('/orders')}>返回列表</Button></div>
-    <div className="detail-grid">
-      <Panel>
-        <div className="panel-heading">
-          <h3>订单信息</h3>
-          <Tag theme={currentStatus === 'cancelled' ? 'default' : 'primary'} variant="light">{orderStatusLabel(data.status ?? data.orderStatusName)}</Tag>
-        </div>
-        <dl className="detail-list">
-          <dt>订单号</dt><dd>{String(data.orderNo || orderNo)}</dd>
-          <dt>订单状态</dt><dd>{orderStatusLabel(data.status ?? data.orderStatusName)}</dd>
-          <dt>支付状态</dt><dd>{paymentStatusLabel(data.paymentStatus)}（不在后台伪造支付结果）</dd>
-          <dt>支付金额</dt><dd>{formatMoney(data.paymentAmount ?? data.totalAmount)}</dd>
-          <dt>创建时间</dt><dd>{formatDate(data.createTime)}</dd>
-        </dl>
-        <h3>收货信息</h3>
-        <dl className="detail-list">
-          <dt>收货人</dt><dd>{deliveryAddress.receiver}</dd>
-          <dt>联系电话</dt><dd>{deliveryAddress.phone}</dd>
-          <dt>收货地址</dt><dd>{deliveryAddress.address}</dd>
-        </dl>
-      </Panel>
-      <Panel>
-        <h3>物流信息</h3>
-        <div className="form-grid">
-          <Field label="物流公司"><Input value={company} onChange={setCompany} placeholder="例如：中通" /></Field>
-          <Field label="物流单号"><Input value={trackingNo} onChange={setTrackingNo} placeholder="请输入物流单号" /></Field>
-        </div>
-        <div className="form-actions">
-          <Button theme="primary" loading={busy} onClick={() => void saveLogistics()}>记录物流</Button>
-          {currentStatus === 'paid' && <Button variant="outline" loading={busy} onClick={() => void shipOrder()}>发货并更新状态</Button>}
-        </div>
-      </Panel>
-    </div>
-    <Panel>
-      <h3>商品明细</h3>
-      <Table>
-        <thead><tr><th>商品</th><th>SKU</th><th>规格</th><th>数量</th><th>金额</th></tr></thead>
-        <tbody>
-          {items.length === 0 && <EmptyTable colSpan={5} />}
-          {items.map((item, index) => <tr key={String(item._id || item.skuId || index)}>
-            <td>{String(item.goodsName || item.productName || item.title || '—')}</td>
-            <td>{String(item.skuId || '—')}</td>
-            <td>{formatSpecInfo(orderItemSpecInfo(item))}</td>
-            <td>{String(item.buyQuantity || item.quantity || 0)}</td>
-            <td>{formatMoney(item.itemPaymentAmount ?? item.amount ?? item.actualPrice)}</td>
-          </tr>)}
-        </tbody>
-      </Table>
-    </Panel>
-  </>;
-}
-
-export function CommentsPage() {
-  const [refreshKey, setRefreshKey] = useState(0); const { data, loading, error } = useResource<unknown>('comments.list', { page: 1, pageSize: 100 }, refreshKey); const rows = readList<Comment>(data); const { busy, run } = useAction();
-  const moderate = async (row: Comment, status: string) => { await run('comments.moderate', { id: row._id, status }, '评论状态已更新'); setRefreshKey((key) => key + 1); };
-  return <>{loading && <LoadingState />}{error && <ErrorState message={error} />}{!loading && !error && <Panel><Table minWidth={900}><thead><tr><th>用户</th><th>评分</th><th>内容</th><th>商品</th><th>订单</th><th>图片</th><th>状态</th><th>操作</th></tr></thead><tbody>{rows.length === 0 && <EmptyTable colSpan={8} />}{rows.map((row) => { const status = commentStatusKey(row.status); const imageCount = Array.isArray(row.images) ? row.images.length : 0; return <tr key={String(row._id)}><td>{String(row.userName || row.userId || '—')}</td><td>{String(row.score ?? row.commentScore ?? row.rating ?? '—')}</td><td className="long-text">{String(row.content || row.commentContent || '—')}</td><td>{String(row.productId || row.spuId || '—')}</td><td>{String(row.orderNo || '—')}</td><td>{imageCount ? `${imageCount} 张` : '—'}</td><td>{commentStatusLabel(row.status)}</td><td>{status !== 'active' && <Button variant="text" loading={busy} onClick={() => void moderate(row, 'active')}>通过</Button>}{status === 'active' && <Button variant="text" loading={busy} onClick={() => void moderate(row, 'rejected')}>隐藏</Button>}</td></tr>; })}</tbody></Table></Panel>}</>;
-}
-
-export function AfterSalesPage() {
-  const [refreshKey, setRefreshKey] = useState(0);
-  const { data, loading, error } = useResource<unknown>('afterSales.list', { page: 1, pageSize: 100 }, refreshKey);
-  const rows = readList<AfterSale>(data);
-  const { busy, run } = useAction();
-  const review = async (row: AfterSale, status: string) => {
-    await run('afterSales.review', { id: row._id, status }, '售后状态已更新');
-    setRefreshKey((key) => key + 1);
-  };
-  return <>
-    {loading && <LoadingState />}
-    {error && <ErrorState message={error} />}
-    {!loading && !error && <Panel>
-      <Table minWidth={1080}>
-        <thead><tr><th>售后单号</th><th>订单号</th><th>类型</th><th>退款金额</th><th>原因</th><th>物流</th><th>状态</th><th>申请时间</th><th>操作</th></tr></thead>
-        <tbody>
-          {rows.length === 0 && <EmptyTable colSpan={9} />}
-          {rows.map((row) => {
-            const status = afterSaleStatusKey(row.status || row.rightsStatus);
-            const logistics = [row.logisticsCompanyName, row.logisticsNo].filter(Boolean).join(' ');
-            const orderNo = String(row.orderNo || '').trim();
-            return <tr key={String(row._id || row.afterSaleNo || row.rightsNo)}>
-              <td>{String(row.afterSaleNo || row.rightsNo || row._id || '—')}</td>
-              <td>{orderNo ? <Link className="text-button" to={`/orders/${encodeURIComponent(orderNo)}`}>{orderNo}</Link> : '—'}</td>
-              <td>{afterSaleTypeLabel(row.type ?? row.rightsType)}</td>
-              <td>{formatMoney(row.amount ?? row.refundAmount ?? row.refundRequestAmount)}</td>
-              <td className="long-text">{String(row.reason || row.description || '—')}</td>
-              <td>{String(logistics || '—')}</td>
-              <td>{afterSaleStatusLabel(row.status || row.rightsStatus)}</td>
-              <td>{formatDate(row.createdAt)}</td>
-              <td>
-                {status === 'pending_review' && <><Button variant="text" loading={busy} onClick={() => void review(row, 'approved')}>同意</Button><Button variant="text" loading={busy} onClick={() => void review(row, 'rejected')}>拒绝</Button></>}
-                {status === 'refunding' && <Button variant="text" loading={busy} onClick={() => void review(row, 'refunded')}>标记退款完成</Button>}
-              </td>
-            </tr>;
-          })}
-        </tbody>
-      </Table>
-    </Panel>}
-  </>;
-}

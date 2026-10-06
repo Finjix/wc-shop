@@ -50,8 +50,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Backend build failed.' }
 Stop-ProjectListener 8787 'scripts[\\/]local-backend\.js'
 Stop-ProjectListener 5173 'vite[\\/]bin[\\/]vite\.js'
 
-Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', "cd /d `"$root`" && node scripts\local-backend.js" -WorkingDirectory $root
-Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', "cd /d `"$root\admin`" && npm run dev -- --host 127.0.0.1 --port 5173" -WorkingDirectory (Join-Path $root 'admin')
+Start-Process -FilePath 'cmd.exe' -ArgumentList '/k', "cd /d `"$root`" && node scripts\local-backend.js" -WorkingDirectory $root
+Start-Process -FilePath 'cmd.exe' -ArgumentList '/k', "cd /d `"$root\admin`" && npm run dev -- --host 127.0.0.1 --port 5173" -WorkingDirectory (Join-Path $root 'admin')
 
 Wait-ForListener 8787 'Local backend'
 Wait-ForListener 5173 'Admin frontend'

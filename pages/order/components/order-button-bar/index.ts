@@ -4,7 +4,7 @@ import { isPageNavigationEnabled } from '../../../../config/navigation';
 import Toast from 'tdesign-miniprogram/toast/index';
 import Dialog from '../../utils/dialog';
 import { OrderButtonTypes } from '../../config';
-import { cancelOrder, confirmOrderReceived } from '../../services/orderDetail';
+import { confirmOrderReceived } from '../../services/orderDetail';
 import { addGoodsToCart } from '../../../../services/cart/cart';
 import { getApiErrorMessage } from '../../../../utils/api';
 
@@ -76,9 +76,6 @@ Component({
     onOrderBtnTap(e) {
       const type = Number(e.currentTarget.dataset.type);
       switch (type) {
-        case OrderButtonTypes.CANCEL:
-          this.onCancel(this.data.currentOrder);
-          break;
         case OrderButtonTypes.CONFIRM:
           this.onConfirm(this.data.currentOrder);
           break;
@@ -102,30 +99,9 @@ Component({
       }
     },
 
-    onCancel(order) {
-      Dialog.confirm({
-        title: '确认取消订单？',
-        content: '取消后会释放已锁定的库存。',
-        confirmBtn: {
-          content: '确认取消',
-          theme: 'default',
-          rootClass: 't-dialog__button t-dialog__button--text t-dialog__button--confirm cancel-order-dialog-confirm-root',
-          tClass: 'cancel-order-dialog-confirm',
-        },
-        cancelBtn: {
-          content: '暂不取消',
-          theme: 'default',
-          rootClass: 't-dialog__button t-dialog__button--text t-dialog__button--cancel cancel-order-dialog-cancel-root',
-          tClass: 'cancel-order-dialog-cancel',
-        },
-      })
-        .then(() => cancelOrder(order.orderNo))
-        .then(() => this.finishAction('订单已取消'))
-        .catch((error) => { if (error) this.showActionError(error); });
-    },
-
     onConfirm(order) {
       Dialog.confirm({
+        context: this,
         title: '确认是否已经收到货？',
         content: '',
         confirmBtn: '确认收货',
@@ -138,12 +114,14 @@ Component({
 
     onBuyAgain(order) {
       if (!isPageNavigationEnabled('/pages/cart/index')) return;
-      const goodsList = order.goodsList || [];
+      const goodsList = (order.goodsList || []).filter((goods) => Number(
+        goods.fulfillableQuantity ?? goods.remainingQuantity ?? goods.num ?? goods.buyQuantity ?? 1,
+      ) > 0);
       if (!goodsList.length) return;
       Promise.all(goodsList.map((goods) => addGoodsToCart({
         spuId: goods.spuId,
         skuId: goods.skuId,
-        quantity: goods.num || goods.buyQuantity || 1,
+        quantity: goods.fulfillableQuantity ?? goods.remainingQuantity ?? goods.num ?? goods.buyQuantity ?? 1,
         title: goods.title,
         primaryImage: goods.thumb,
       }))).then(() => {
@@ -178,6 +156,7 @@ Component({
       );
       const orderAmt = Number(order.totalAmount || 0) || goodsAmount;
       const payAmt = Number(order.amount || 0) || orderAmt;
+      const canApplyReturn = [40, 50].includes(Number(order.status));
       const params = {
         orderNo: order.orderNo,
         orderStatus: order.status,
@@ -185,9 +164,9 @@ Component({
         createTime: order.createTime,
         orderAmt,
         payAmt,
-        canApplyReturn: true,
+        canApplyReturn,
         orderLevel: true,
-        directApply: true,
+        directApply: !canApplyReturn,
       };
       const paramsStr = Object.keys(params)
         .map((key) => `${key}=${encodeURIComponent(params[key] ?? '')}`)
@@ -216,7 +195,9 @@ Component({
 
     /** 添加订单评论 */
     onAddComment(order) {
-      const goods = (order.goodsList || []).find((item) => item.spuId === order.commentableProductId) || order?.goodsList?.[0];
+      const eligibleGoods = (order.goodsList || []).filter((item) => Number(item.fulfillableQuantity ?? item.remainingQuantity ?? item.num ?? 1) > 0);
+      const goods = eligibleGoods.find((item) => item.spuId === order.commentableProductId) || eligibleGoods[0];
+      if (!goods) return;
       const imgUrl = goods?.thumb;
       const title = goods?.title;
       const specs = goods?.specs;
@@ -225,7 +206,7 @@ Component({
           specs || '',
         )}&title=${encodeURIComponent(title || '')}&orderNo=${encodeURIComponent(
           order?.orderNo || '',
-        )}&spuId=${encodeURIComponent(goods?.spuId || '')}&imgUrl=${encodeURIComponent(imgUrl || '')}`,
+        )}&spuId=${encodeURIComponent(goods.spuId || '')}&skuId=${encodeURIComponent(goods.skuId || '')}&orderItemId=${encodeURIComponent(goods.orderItemId || goods.id || '')}&imgUrl=${encodeURIComponent(imgUrl || '')}`,
       });
     },
 

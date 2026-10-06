@@ -52,15 +52,6 @@ page {
   color: #aeb3b7 !important;
 }
 
-.cancel-order-dialog-confirm-root {
-  order: 1;
-}
-
-.cancel-order-dialog-cancel-root {
-  order: 2;
-}
-
-.cancel-order-dialog-confirm {
-  --td-button-default-color: #695941;
+.commerce-dialog-confirm {
   --td-button-primary-text-color: #695941;
 }

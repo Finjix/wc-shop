@@ -5,8 +5,8 @@ const sharp = require('sharp');
 
 const { getIdentity, requireUser, requireAdmin } = require('../shared/auth');
 const { resultData, listData, getDoc, withTransaction } = require('../shared/db');
-const { normalizeOrderItems, shopEndpoint, expirePendingOrders } = require('../shared/shop');
-const { isTimerInvocation } = require('../wc-shop-function/index');
+const { normalizeOrderItems, shopEndpoint } = require('../shared/shop');
+const { STATUS, ORDER_STATUS } = require('../shared/constants');
 const { adminEndpoint } = require('../shared/admin');
 const { page } = require('../shared/validation');
 const { validateHomeConfig, DEFAULT_SEARCH_TEXT, DEFAULT_BANNER_TEXT } = require('../shared/home-config');
@@ -605,7 +605,13 @@ async function testOrderCreationUsesDocumentOnlyTransaction() {
     },
   );
   assert.match(result.orderNo, /^ord_[a-f0-9]{32}$/);
-  assert.strictEqual(result.status, 'pending_payment');
+  assert.strictEqual(result.status, 'paid');
+  assert.strictEqual(result.paymentStatus, 'paid');
+  assert.strictEqual(result.payment.mode, 'simulated');
+  assert.strictEqual(result.paymentAmount, result.totalAmount);
+  assert.strictEqual(Object.hasOwn(result, 'expiresAt'), false);
+  assert.strictEqual(Object.hasOwn(runtime.records.orders[result._id], 'expiresAt'), false);
+  assert.strictEqual(STATUS.pendingPayment, undefined);
   assert.strictEqual(result.inventoryReserved, true);
   assert.strictEqual(runtime.writes.some((write) => write.operation === 'update' && write.collection === 'skus'), true);
 }
@@ -825,7 +831,8 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
 }
 
 function receivedOrder(items = [{ productId: 'product-1', skuId: 'sku-new', quantity: 2, unitPrice: 100, amount: 200 }]) {
-  return { _id: 'order-1', orderNo: 'order-1', userId: 'user-1', status: 'received', items, totalAmount: items.reduce((sum, item) => sum + item.amount, 0) };
+  const amount = items.reduce((sum, item) => sum + item.amount, 0);
+  return { _id: 'order-1', orderNo: 'order-1', userId: 'user-1', status: 'received', fulfillmentStatus: 'received', items, totalAmount: amount, paymentAmount: amount, paymentStatus: 'paid', payment: { mode: 'simulated', amount, status: 'paid' } };
 }
 
 async function testOnlyActiveAdminsAreAllowed() {
@@ -861,25 +868,19 @@ async function testOrderPricesAndSnapshotsAreConfirmedInTransaction() {
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 8);
 }
 
-async function testExpiryAndTimerAuthorization() {
+async function testHistoricalPendingPaymentOrdersRemainUntouched() {
   const runtime = makeRuntime();
-  runtime.records.orders['order-1'] = { ...receivedOrder(), status: 'pending_payment', inventoryReserved: true, expiresAt: '2020-01-01T00:00:00.000Z' };
+  const legacy = { ...receivedOrder(), status: 'pending_payment', inventoryReserved: true, expiresAt: '2020-01-01T00:00:00.000Z' };
+  runtime.records.orders['order-1'] = legacy;
   runtime.records.skus['sku-new'].stockQuantity = 8;
   const detail = await shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'orders.detail', { orderId: 'order-1' });
-  assert.strictEqual(detail.status, 'cancelled');
-  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
-  await shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'orders.detail', { orderId: 'order-1' });
-  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
-  for (let i = 0; i < 105; i += 1) runtime.records.orders[`expired-${i}`] = {
-    ...receivedOrder([{ skuId: 'sku-new', productId: 'product-1', quantity: 1, unitPrice: 100, amount: 100 }]),
-    _id: `expired-${i}`, userId: `other-user-${i}`, status: 'pending_payment', inventoryReserved: true, expiresAt: '2020-01-01T00:00:00.000Z',
-  };
-  runtime.records.orders.future = { _id: 'future', userId: 'other-user', status: 'pending_payment', expiresAt: '2099-01-01T00:00:00.000Z' };
-  assert.strictEqual((await expirePendingOrders(runtime)).cancelled, 100);
-  assert.strictEqual((await expirePendingOrders(runtime)).cancelled, 5);
-  assert.strictEqual(runtime.records.orders.future.status, 'pending_payment');
-  assert.strictEqual(isTimerInvocation({ cloudbase: { getCloudbaseContext: () => ({ TRIGGER_SRC: 'timer' }) } }, {}), true);
-  assert.strictEqual(isTimerInvocation({ cloudbase: { getCloudbaseContext: () => ({}) } }, { event: { TRIGGER_SRC: 'timer' } }), false);
+  assert.strictEqual(detail.status, 'pending_payment');
+  assert.strictEqual(detail.expiresAt, legacy.expiresAt);
+  assert.strictEqual(runtime.records.orders['order-1'].status, 'pending_payment');
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 8);
+  assert.strictEqual(runtime.writes.length, 0, 'reading a historical unpaid order must not migrate or alter it');
+  assert.strictEqual(STATUS.pendingPayment, undefined);
+  assert.strictEqual(ORDER_STATUS.includes('pending_payment'), false);
 }
 
 async function testCommentsAreAtomicPrivateAndQueryableByOwner() {
@@ -965,32 +966,215 @@ async function testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims() {
   assert.strictEqual(saved.items[0].quantity, 1);
   assert.strictEqual(saved.amount, 200);
   saved.status = 'refunded';
+  runtime.records.orders['order-1'].refundAmount = 200;
+  runtime.records.orders['order-1'].refundedQuantities = { 'sku-B': 1 };
+  runtime.records.orders['order-1'].pendingRefundAmount = 0;
+  runtime.records.orders['order-1'].pendingRefundQuantities = {};
   const second = await shopEndpoint({}, context, runtime, 'afterSales.create', input);
   runtime.records.afterSales[second._id].status = 'refunded';
+  runtime.records.orders['order-1'].refundAmount = 400;
+  runtime.records.orders['order-1'].refundedQuantities = { 'sku-B': 2 };
+  runtime.records.orders['order-1'].pendingRefundAmount = 0;
+  runtime.records.orders['order-1'].pendingRefundQuantities = {};
   await assert.rejects(() => shopEndpoint({}, context, runtime, 'afterSales.create', {
     ...input, rightsItem: [{ skuId: 'sku-B', rightsQuantity: 2 }], refundRequestAmount: 400,
   }), appError('INVALID_ARGUMENT'));
+}
+
+async function testSimulatedPaymentAddressChangeAndFullRefundRestoreInventory() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', roles: ['admin'], status: 'active' } };
+  const user = { auth: { uid: 'user-1' } };
+  const admin = { auth: { uid: 'admin-1' } };
+  const created = await shopEndpoint({}, user, runtime, 'orders.create', {
+    requestKey: 'sim-refund', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+  });
+  assert.strictEqual(created.status, 'paid');
+  assert.strictEqual(created.payment.mode, 'simulated');
+  assert.strictEqual(created.paymentAmount, 100);
+  const repeated = await shopEndpoint({}, user, runtime, 'orders.create', {
+    requestKey: 'sim-refund', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+  });
+  assert.strictEqual(repeated._id, created._id);
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 9);
+
+  runtime.records.addresses['address-2'] = { _id: 'address-2', userId: 'user-1', receiver: '新收件人', phone: '13900000000', detail: '新地址' };
+  const moved = await shopEndpoint({}, user, runtime, 'orders.updateAddress', { orderId: created._id, addressId: 'address-2' });
+  assert.strictEqual(moved.addressSnapshot._id, 'address-2');
+  await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'other-user' } }, runtime, 'orders.updateAddress', { orderId: created._id, addressId: 'address-1' }), appError('FORBIDDEN'));
+
+  const application = await shopEndpoint({}, user, runtime, 'afterSales.create', {
+    orderId: created._id, type: 20, reason: '不想要了', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
+  });
+  await assert.rejects(() => shopEndpoint({}, user, runtime, 'orders.updateAddress', { orderId: created._id, addressId: 'address-1' }), appError('CONFLICT'));
+  const refunded = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: application._id, status: 'approved' });
+  assert.strictEqual(refunded.status, 'refunded');
+  assert.strictEqual(refunded.refundMode, 'simulated');
+  assert.strictEqual(runtime.records.orders[created._id].status, 'cancelled');
+  assert.strictEqual(runtime.records.orders[created._id].paymentStatus, 'refunded');
+  assert.strictEqual(runtime.records.orders[created._id].refundAmount, 100);
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
+  assert.strictEqual(runtime.records.skus['sku-new'].soldQuantity, 0);
+  const repeatedRefund = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: application._id, status: 'approved' });
+  assert.strictEqual(repeatedRefund.status, 'refunded');
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
+}
+
+async function testCartCheckoutRetryAfterAtomicRemovalIsIdempotent() {
+  const runtime = makeRuntime();
+  runtime.records.skus['sku-other'] = { ...runtime.records.skus['sku-new'], _id: 'sku-other', skuId: 'sku-other', stockQuantity: 4 };
+  runtime.records.carts['user-1'] = {
+    _id: 'user-1', userId: 'user-1', items: [
+      { skuId: 'sku-new', quantity: 2, isSelected: true },
+      { skuId: 'sku-other', quantity: 1, isSelected: false },
+    ],
+  };
+  const context = { auth: { uid: 'user-1' } };
+  const input = {
+    requestKey: 'cart-retry', useCart: true, addressId: 'address-1',
+    items: [{ skuId: 'sku-new', quantity: 2 }],
+  };
+  const created = await shopEndpoint({}, context, runtime, 'orders.create', input);
+  assert.strictEqual(runtime.records.carts['user-1'].items.length, 1);
+  assert.strictEqual(runtime.records.carts['user-1'].items[0].skuId, 'sku-other');
+  const stockAfterFirst = runtime.records.skus['sku-new'].stockQuantity;
+  const retried = await shopEndpoint({}, context, runtime, 'orders.create', input);
+  assert.strictEqual(retried._id, created._id);
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, stockAfterFirst);
+  const retryWithoutItems = await shopEndpoint({}, context, runtime, 'orders.create', { requestKey: 'cart-retry', useCart: true, addressId: 'address-1' });
+  assert.strictEqual(retryWithoutItems._id, created._id);
+  await assert.rejects(() => shopEndpoint({}, context, runtime, 'orders.create', {
+    ...input, items: [{ skuId: 'sku-other', quantity: 1 }],
+  }), appError('IDEMPOTENCY_CONFLICT'));
+}
+
+async function testPreShipmentPartialRefundLeavesAccurateShippedQuantity() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', roles: ['admin'], status: 'active' } };
+  const user = { auth: { uid: 'user-1' } };
+  const admin = { auth: { uid: 'admin-1' } };
+  const created = await shopEndpoint({}, user, runtime, 'orders.create', {
+    requestKey: 'refund-before-ship', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 3 }],
+  });
+  const application = await shopEndpoint({}, user, runtime, 'afterSales.create', {
+    orderId: created._id, type: 20, reason: '退其中一件', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
+  });
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: application._id, status: 'approved' });
+  const shipped = await adminEndpoint({}, admin, runtime, 'orders.ship', {
+    orderId: created._id, logistics: { companyName: '顺丰' }, trackingNo: 'SF-REMAIN',
+  });
+  assert.strictEqual(shipped.shippedQuantities['sku-new'], 2);
+  const detail = await shopEndpoint({}, user, runtime, 'orders.detail', { orderId: created._id });
+  assert.strictEqual(detail.items[0].refundedQuantity, 1);
+  assert.strictEqual(detail.items[0].remainingQuantity, 2);
+  assert.strictEqual(detail.items[0].fulfillableQuantity, 2);
+}
+
+async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', roles: ['admin'], status: 'active' } };
+  const user = { auth: { uid: 'user-1' } };
+  const admin = { auth: { uid: 'admin-1' } };
+  const created = await shopEndpoint({}, user, runtime, 'orders.create', {
+    requestKey: 'partial-return', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 2 }],
+  });
+  const pending = await shopEndpoint({}, user, runtime, 'afterSales.create', {
+    orderId: created._id, type: 20, reason: '先拦截发货', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
+  });
+  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'orders.ship', {
+    orderId: created._id, logistics: { companyName: '顺丰' }, trackingNo: 'SF001',
+  }), appError('CONFLICT'));
+  const rejected = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: pending._id, status: 'rejected', reason: '请核实' });
+  assert.strictEqual(rejected.status, 'rejected');
+  assert.strictEqual(rejected.reviewReason, '请核实');
+
+  const shipped = await adminEndpoint({}, admin, runtime, 'orders.ship', {
+    orderId: created._id, logistics: { companyName: '顺丰' }, trackingNo: 'SF002',
+  });
+  assert.strictEqual(shipped.status, 'shipped');
+  assert.strictEqual(shipped.tracking.trackingNo, 'SF002');
+  assert.strictEqual(shipped.shippedQuantities['sku-new'], 2);
+  await assert.rejects(() => shopEndpoint({}, user, runtime, 'afterSales.create', {
+    orderId: created._id, type: 10, reason: '退货退款', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
+  }), appError('RETURN_ADDRESS_REQUIRED'));
+  const address = { receiver: '退货收件人', phone: '13800000000', province: '浙江省', city: '杭州市', district: '西湖区', detail: '退货地址 1 号' };
+  const savedSettings = await adminEndpoint({}, admin, runtime, 'settings.upsert', { key: 'global', value: { returnAddress: address } });
+  assert.deepStrictEqual(savedSettings.value.returnAddress, { ...address, name: address.receiver });
+  const invalidAddress = { ...address, phone: 'bad' };
+  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'settings.upsert', { key: 'global', value: { returnAddress: invalidAddress } }), appError('INVALID_ARGUMENT'));
+
+  const returned = await shopEndpoint({}, user, runtime, 'afterSales.create', {
+    orderId: created._id, type: 10, reason: '质量问题', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
+  });
+  const approved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: returned._id, status: 'approved' });
+  assert.strictEqual(approved.status, 'approved');
+  assert.strictEqual(approved.returnAddressSnapshot.detail, '退货地址 1 号');
+  const tracking = await shopEndpoint({}, user, runtime, 'afterSales.submitTracking', {
+    afterSaleId: returned._id, logisticsCompanyName: '中通', trackingNo: 'ZT003',
+  });
+  assert.strictEqual(tracking.status, 'refunding');
+  const refund = await adminEndpoint({}, admin, runtime, 'afterSales.confirmReturn', { afterSaleId: returned._id });
+  assert.strictEqual(refund.status, 'refunded');
+  assert.strictEqual(runtime.records.orders[created._id].paymentStatus, 'partially_refunded');
+  assert.strictEqual(runtime.records.orders[created._id].refundAmount, 100);
+  assert.strictEqual(runtime.records.orders[created._id].refundedQuantities['sku-new'], 1);
+  const partialFilter = await adminEndpoint({}, admin, runtime, 'orders.list', { status: 'partial_refunded' });
+  assert.strictEqual(partialFilter.total, 1);
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 9);
+  assert.strictEqual(runtime.records.skus['sku-new'].soldQuantity, 1);
+  await adminEndpoint({}, admin, runtime, 'afterSales.confirmReturn', { afterSaleId: returned._id });
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 9);
+  const partialDetail = await shopEndpoint({}, user, runtime, 'orders.detail', { orderId: created._id });
+  assert.strictEqual(partialDetail.items[0].remainingQuantity, 1);
+
+  const lastItem = await shopEndpoint({}, user, runtime, 'afterSales.create', {
+    orderId: created._id, type: 20, reason: '最后一件仅退款', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
+  });
+  const finalRefund = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: lastItem._id, status: 'approved' });
+  assert.strictEqual(finalRefund.status, 'refunded');
+  assert.strictEqual(runtime.records.orders[created._id].status, 'completed');
+  assert.strictEqual(runtime.records.orders[created._id].paymentStatus, 'refunded');
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 9, 'a shipped item refunded without return does not replenish stock');
+  const detail = await shopEndpoint({}, user, runtime, 'orders.detail', { orderId: created._id });
+  assert.strictEqual(detail.items[0].remainingQuantity, 0);
+  assert.strictEqual(detail.hasPendingComments, false);
+  await assert.rejects(() => shopEndpoint({}, user, runtime, 'comments.create', { orderId: created._id, productId: 'product-1', content: '已全退商品' }), appError('ORDER_STATE_INVALID'));
+}
+
+async function testLegacyPaidOrdersDoNotGainSyntheticPaymentRecords() {
+  const runtime = makeRuntime();
+  runtime.records.orders['legacy-paid'] = { ...receivedOrder(), _id: 'legacy-paid', status: 'received', paymentStatus: 'paid', payment: null };
+  await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'afterSales.create', {
+    orderId: 'legacy-paid', type: 20, reason: '仅退款', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
+  }), appError('PAYMENT_NOT_CONFIGURED'));
+  assert.strictEqual(runtime.records.orders['legacy-paid'].payment, null);
 }
 
 async function testDashboardCountsBeyondSdkQueryLimit() {
   const runtime = makeRuntime();
   runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
   for (const name of ['orders', 'comments', 'afterSales']) runtime.records[name] = Object.fromEntries(Array.from({ length: 120 }, (_, i) => [`item-${i}`, {
-    _id: `item-${i}`, status: name === 'orders' ? 'pending_payment' : 'pending_review',
+    _id: `item-${i}`, status: name === 'orders' ? 'paid' : 'pending_review',
   }]));
   const dashboard = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'dashboard.summary', {});
-  for (const field of ['orderCount', 'commentCount', 'afterSaleCount', 'pendingOrderCount', 'pendingAfterSaleCount']) assert.strictEqual(dashboard.metrics[field], 120);
+  for (const field of ['orderCount', 'commentCount', 'afterSaleCount', 'pendingAfterSaleCount']) assert.strictEqual(dashboard.metrics[field], 120);
+  assert.strictEqual(Object.hasOwn(dashboard.metrics, 'pendingOrderCount'), false);
 }
 
 const cases = [
   { name: 'missing runtime dependencies are not reported as missing business data', run: testMissingDependenciesAreNotMissingData },
   { name: 'only explicitly active administrators can access the backend', run: testOnlyActiveAdminsAreAllowed },
   { name: 'order prices, product snapshots and addresses are confirmed in the transaction', run: testOrderPricesAndSnapshotsAreConfirmedInTransaction },
-  { name: 'expired details and timer batches release inventory with trusted trigger context', run: testExpiryAndTimerAuthorization },
+  { name: 'historical pending-payment orders remain untouched and are not migrated on read', run: testHistoricalPendingPaymentOrdersRemainUntouched },
   { name: 'comments are atomic, public fields are restricted, and owners see pending reviews', run: testCommentsAreAtomicPrivateAndQueryableByOwner },
   { name: 'received orders and pending comments use consistent tabs and pagination', run: testReceivedOrdersAndPendingCommentPagination },
   { name: 'image filtering precedes comment pagination and total counting', run: testImageFilterPrecedesCommentPagination },
   { name: 'after-sales validate SKU, quantity, amount and serialize concurrent claims', run: testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims },
+  { name: 'new orders simulate payment and a full pre-shipment refund restores inventory exactly once', run: testSimulatedPaymentAddressChangeAndFullRefundRestoreInventory },
+  { name: 'cart checkout removes only selected items and remains idempotent after retries', run: testCartCheckoutRetryAfterAtomicRemovalIsIdempotent },
+  { name: 'pre-shipment partial refunds leave the correct quantity for shipment and review', run: testPreShipmentPartialRefundLeavesAccurateShippedQuantity },
+  { name: 'return refund, partial shipment and fully refunded comment eligibility follow the state machine', run: testReturnRefundStateMachineAndPartialShipmentAccounting },
+  { name: 'legacy paid orders do not receive synthetic payment records for refunds', run: testLegacyPaidOrdersDoNotGainSyntheticPaymentRecords },
   { name: 'dashboard counts are complete beyond the SDK default query limit', run: testDashboardCountsBeyondSdkQueryLimit },
   { name: 'image uploads preserve bytes with unrestricted prepared admin and user output', run: testImageUploads },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },

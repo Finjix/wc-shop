@@ -4,12 +4,12 @@ const crypto = require('crypto');
 const { COLLECTIONS, STATUS, ORDER_STATUS, AFTER_SALE_STATUS } = require('./constants');
 const { errorFrom } = require('./errors');
 const { requireAdmin } = require('./auth');
-const { getDoc, setDoc, list, count, affected, withTransaction } = require('./db');
+const { getDoc, setDoc, list, all, count, affected, withTransaction } = require('./db');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
 const { imageLifecycleRuntime, referencePage, cleanup, replaceReference } = require('./image-lifecycle');
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
-const { skuPrice, skuStock } = require('./shop');
+const { skuPrice, skuStock, moderateAfterSale, confirmAfterSaleReturn } = require('./shop');
 const { HOME_CONFIG_SLOT, validateHomeConfig, productIds: homeProductIds } = require('./home-config');
 
 async function findProduct(collection, id) {
@@ -533,7 +533,6 @@ async function homeAction(runtime, data, action) {
 function nextOrderStatus(current, next) {
   if (!ORDER_STATUS.includes(next)) throw errorFrom('ORDER_STATE_INVALID');
   const transitions = {
-    [STATUS.pendingPayment]: [STATUS.cancelled],
     [STATUS.paid]: [STATUS.shipped],
     [STATUS.shipped]: [STATUS.received],
     [STATUS.received]: [STATUS.completed],
@@ -545,13 +544,41 @@ function nextOrderStatus(current, next) {
 async function adminOrderAction(runtime, data, action) {
   const orders = col(runtime, COLLECTIONS.orders);
   if (action === 'orders.list') {
-    const where = data.status ? { status: string(data.status, 'status', { max: 40 }) } : {};
+    const status = data.status ? string(data.status, 'status', { max: 40 }) : '';
+    const where = status ? { status } : {};
+    if (status === STATUS.completed && runtime.db.command?.in) where.status = runtime.db.command.in([STATUS.received, STATUS.completed]);
+    if (status === 'partial_refunded' || status === 'partially_refunded') {
+      delete where.status;
+      where.paymentStatus = 'partially_refunded';
+    }
+    if (status === 'refunded') {
+      delete where.status;
+      const refundStatuses = ['refunded', 'partially_refunded', 'partial_refunded', 'partial_refund'];
+      if (runtime.db.command?.in) {
+        where.paymentStatus = runtime.db.command.in(refundStatuses);
+      } else {
+        const paging = page(data);
+        const filters = {
+          ...(data.userId ? { userId: string(data.userId, 'userId', { max: 128 }) } : {}),
+          ...(data.orderNo ? { orderNo: string(data.orderNo, 'orderNo', { max: 128 }) } : {}),
+        };
+        const rows = (await all(orders, filters)).filter((item) => refundStatuses.includes(item.paymentStatus))
+          .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+        return { items: rows.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map(({ addressSnapshot: _addressSnapshot, address: _address, userAddress: _userAddress, userAddressReq: _userAddressReq, ...summary }) => ({ ...summary, hasActiveAfterSale: Number(summary.pendingRefundAmount || 0) > 0 })), page: paging.page, pageSize: paging.pageSize, total: rows.length };
+      }
+    }
     if (data.userId) where.userId = string(data.userId, 'userId', { max: 128 });
     if (data.orderNo) where.orderNo = string(data.orderNo, 'orderNo', { max: 128 });
+    if (status === STATUS.completed && !runtime.db.command?.in) {
+      const paging = page(data);
+      let rows = await all(orders, { ...(data.userId ? { userId: String(data.userId) } : {}), ...(data.orderNo ? { orderNo: String(data.orderNo) } : {}) });
+      rows = rows.filter((item) => [STATUS.received, STATUS.completed].includes(item.status)).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+      return { items: rows.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map(({ addressSnapshot: _addressSnapshot, address: _address, ...summary }) => summary), page: paging.page, pageSize: paging.pageSize, total: rows.length };
+    }
     const result = await listCollection(runtime, COLLECTIONS.orders, data, where);
     result.items = result.items.map((item) => {
       const { addressSnapshot: _addressSnapshot, address: _address, userAddress: _userAddress, userAddressReq: _userAddressReq, ...summary } = item;
-      return summary;
+      return { ...summary, hasActiveAfterSale: Number(summary.pendingRefundAmount || 0) > 0 };
     });
     return result;
   }
@@ -561,61 +588,66 @@ async function adminOrderAction(runtime, data, action) {
   const order = direct || fallback?.data?.[0];
   if (!order) throw errorFrom('NOT_FOUND');
   const documentId = order._id || id;
-  if (action === 'orders.get') return order;
-  if (action === 'orders.logistics.save') {
-    const logistics = {
-      ...allowedFields(data, ['logisticsCompanyName', 'logisticsCompanyCode', 'logisticsNo', 'remark']),
-      companyName: data.logisticsCompanyName || '',
-      trackingNo: data.logisticsNo || '',
-    };
-    const patch = {
-      logistics,
-      tracking: {
-        carrier: logistics.logisticsCompanyName || '',
-        trackingNo: logistics.logisticsNo || '',
-        shippedAt: order.tracking?.shippedAt || now(),
-      },
-      updatedAt: now(),
-    };
-    await orders.doc(documentId).update(patch);
-    return { ...order, ...patch, _id: documentId };
+  if (action === 'orders.get') {
+    const hasPendingAggregate = order.pendingRefundQuantities && typeof order.pendingRefundQuantities === 'object'
+      && Number.isSafeInteger(Number(order.pendingRefundAmount));
+    const legacyClaims = hasPendingAggregate ? [] : await allMatching(col(runtime, COLLECTIONS.afterSales), { orderId: documentId });
+    const hasActiveAfterSale = hasPendingAggregate
+      ? Number(order.pendingRefundAmount) > 0 || Object.values(order.pendingRefundQuantities).some((quantity) => Number(quantity) > 0)
+      : legacyClaims.some((item) => [STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(item.status));
+    return { ...order, hasActiveAfterSale, activeAfterSales: legacyClaims };
   }
-  if (action !== 'orders.updateStatus' && action !== 'orders.ship' && action !== 'orders.cancel') throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
-  const next = action === 'orders.ship' ? STATUS.shipped : action === 'orders.cancel' ? STATUS.cancelled : string(data.status, 'status', { max: 40 });
+  if (action === 'orders.logistics.save') action = 'orders.ship';
+  if (action !== 'orders.updateStatus' && action !== 'orders.ship') throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
+  const next = string(data.status || (action === 'orders.ship' ? STATUS.shipped : ''), 'status', { max: 40 });
+  if (action === 'orders.ship' || next === STATUS.shipped) {
+    if (action !== 'orders.ship') throw errorFrom('ORDER_STATE_INVALID');
+    const inputLogistics = data.logistics && typeof data.logistics === 'object' ? data.logistics : {};
+    const companyName = string(data.company || data.logisticsCompanyName || inputLogistics.companyName || inputLogistics.logisticsCompanyName || inputLogistics.carrier, 'logistics.companyName', { max: 120 });
+    const trackingNo = string(data.trackingNo || data.logisticsNo || inputLogistics.trackingNo || inputLogistics.logisticsNo, 'trackingNo', { max: 128 });
+    const timestamp = now();
+    const hasPendingAggregate = order.pendingRefundQuantities && typeof order.pendingRefundQuantities === 'object'
+      && Number.isSafeInteger(Number(order.pendingRefundAmount));
+    const oldClaims = hasPendingAggregate ? [] : await all(col(runtime, COLLECTIONS.afterSales), { orderId: documentId });
+    return withTransaction(runtime.db, async (tx) => {
+      const current = await getDoc(tx.collection(COLLECTIONS.orders), documentId, true);
+      if (current.status !== STATUS.paid) throw errorFrom('ORDER_STATE_INVALID');
+      const aggregateExists = current.pendingRefundQuantities && typeof current.pendingRefundQuantities === 'object'
+        && Number.isSafeInteger(Number(current.pendingRefundAmount));
+      const ids = aggregateExists ? [] : Array.from(new Set([...(current.afterSaleIds || []), ...oldClaims.map((item) => item._id)].filter(Boolean)));
+      const claims = [];
+      for (const claimId of ids) {
+        const claim = await getDoc(tx.collection(COLLECTIONS.afterSales), claimId, false);
+        if (claim) claims.push(claim);
+      }
+      const hasActiveAfterSale = aggregateExists
+        ? Number(current.pendingRefundAmount) > 0 || Object.values(current.pendingRefundQuantities).some((quantity) => Number(quantity) > 0)
+        : claims.some((item) => [STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(item.status));
+      if (hasActiveAfterSale) throw errorFrom('CONFLICT', { field: 'afterSale' });
+      const refunded = current.refundedQuantities || {};
+      const shippedQuantities = {};
+      for (const item of current.items || []) {
+        const quantity = Number(item.quantity || 0) - Number(refunded[item.skuId] || 0);
+        if (quantity > 0) shippedQuantities[item.skuId] = quantity;
+      }
+      if (!Object.keys(shippedQuantities).length) throw errorFrom('ORDER_STATE_INVALID');
+      const tracking = { carrier: companyName, trackingNo, shippedAt: timestamp };
+      const logistics = { companyName, logisticsCompanyName: companyName, trackingNo, logisticsNo: trackingNo, ...(data.logisticsCompanyCode ? { logisticsCompanyCode: String(data.logisticsCompanyCode) } : {}) };
+      const patch = { status: STATUS.shipped, fulfillmentStatus: STATUS.shipped, shippedAt: timestamp, tracking, logistics, shippedQuantities, updatedAt: timestamp };
+      const result = await tx.collection(COLLECTIONS.orders).doc(documentId).update(patch);
+      if (affected(result) !== 1) throw errorFrom('CONFLICT');
+      return { ...current, ...patch, _id: documentId };
+    });
+  }
   if (next === STATUS.paid) throw errorFrom('PAYMENT_NOT_CONFIGURED');
   nextOrderStatus(order.status, next);
-  if (next !== STATUS.cancelled) {
-    const patch = { status: next, updatedAt: now() };
-    if (next === STATUS.paid) {
-      patch.paymentStatus = 'paid';
-      patch.paidAt = now();
-    }
-    if (next === STATUS.shipped) patch.shippedAt = now();
-    if (next === STATUS.received) patch.receivedAt = now();
-    if (next === STATUS.completed) patch.completedAt = now();
-    if (data.tracking) patch.tracking = allowedFields(data.tracking, ['carrier', 'trackingNo', 'shippedAt']);
-    const result = await orders.doc(documentId).update(patch);
-    if (affected(result) !== 1) throw errorFrom('CONFLICT');
-    return { ...order, ...patch, _id: documentId };
-  }
-  return withTransaction(runtime.db, async (tx) => {
-    const current = await getDoc(tx.collection(COLLECTIONS.orders), documentId, true);
-    nextOrderStatus(current.status, STATUS.cancelled);
-    for (const item of current.items || []) {
-      const skuDocumentId = item.skuSnapshot?._id || item.skuId;
-      const sku = await getDoc(tx.collection(COLLECTIONS.skus), skuDocumentId, true);
-      const result = await tx.collection(COLLECTIONS.skus).doc(skuDocumentId).update({
-        stockQuantity: skuStock(sku) + item.quantity,
-        soldQuantity: Math.max(0, Number(sku.soldQuantity || 0) - Number(item.quantity || 0)),
-        updatedAt: now(),
-      });
-      if (affected(result) !== 1) throw errorFrom('CONFLICT');
-    }
-    const patch = { status: STATUS.cancelled, inventoryReserved: false, cancelledAt: now(), updatedAt: now() };
-    const result = await tx.collection(COLLECTIONS.orders).doc(documentId).update(patch);
-    if (affected(result) !== 1) throw errorFrom('CONFLICT');
-    return { ...current, ...patch, _id: documentId };
-  });
+  const patch = { status: next, updatedAt: now() };
+  if (next === STATUS.received) patch.receivedAt = now();
+  if (next === STATUS.completed) patch.completedAt = now();
+  if (data.tracking) patch.tracking = allowedFields(data.tracking, ['carrier', 'trackingNo', 'shippedAt']);
+  const result = await orders.doc(documentId).update(patch);
+  if (affected(result) !== 1) throw errorFrom('CONFLICT');
+  return { ...order, ...patch, _id: documentId };
 }
 
 async function dashboardSummary(runtime) {
@@ -642,20 +674,28 @@ async function dashboardSummary(runtime) {
     }).filter(Boolean).join(' / ') || '默认规格';
     return [{ productId: String(product._id || product.spuId), title: product.title, skuId: String(sku._id || sku.skuId), specName, stockQuantity: stock }];
   }).sort((left, right) => left.stockQuantity - right.stockQuantity);
-  const [orderCount, commentCount, afterSaleCount, pendingOrderCount, pendingShipmentCount, pendingAfterSaleCount] = await Promise.all([
+  const [orderCount, commentCount, afterSaleCount, pendingAfterSaleCount, allOrders, allAfterSales] = await Promise.all([
     count(col(runtime, COLLECTIONS.orders)),
     count(col(runtime, COLLECTIONS.comments)),
     count(col(runtime, COLLECTIONS.afterSales)),
-    count(col(runtime, COLLECTIONS.orders), { status: STATUS.pendingPayment }),
-    count(col(runtime, COLLECTIONS.orders), { status: STATUS.paid }),
     count(col(runtime, COLLECTIONS.afterSales), { status: STATUS.pendingReview }),
+    allMatching(col(runtime, COLLECTIONS.orders), { status: STATUS.paid }),
+    allMatching(col(runtime, COLLECTIONS.afterSales), { status: runtime.db.command?.in ? runtime.db.command.in([STATUS.pendingReview, STATUS.approved, STATUS.refunding]) : STATUS.pendingReview }),
   ]);
+  const activeByOrder = new Map();
+  allAfterSales.filter((item) => [STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(item.status)).forEach((item) => {
+    const orderId = String(item.orderId || item.orderNo || '');
+    activeByOrder.set(orderId, true);
+  });
+  const pendingShipmentCount = allOrders.filter((order) => order.status === STATUS.paid
+    && !activeByOrder.has(String(order._id || order.orderNo || ''))).length;
   return {
     inventoryWarnings,
     metrics: {
       productCount: products.filter((product) => !product.deletedByAdmin).length,
       orderCount, commentCount, afterSaleCount,
-      pendingOrderCount, pendingShipmentCount, pendingAfterSaleCount,
+      pendingShipmentCount, pendingAfterSaleCount,
+      pendingAfterSalesCount: pendingAfterSaleCount,
     },
   };
 }
@@ -665,8 +705,11 @@ async function moderationAction(runtime, data, action, name) {
   if (action.endsWith('.list')) {
     const where = {};
     if (data.status) where.status = string(data.status, 'status', { max: 40 });
+    if (where.status === 'approved' && name === COLLECTIONS.comments) where.status = STATUS.active;
     if (data.productId) where.productId = string(data.productId, 'productId', { max: 128 });
     if (data.userId) where.userId = string(data.userId, 'userId', { max: 128 });
+    if (data.orderNo || data.orderId) where.orderNo = string(data.orderNo || data.orderId, 'orderNo', { max: 128 });
+    if (name === COLLECTIONS.afterSales && data.type !== undefined && data.type !== '') where.type = Number(data.type);
     const result = await listCollection(runtime, name, data, where);
     if (name === COLLECTIONS.comments) result.items = result.items.map((item) => ({ ...item, score: item.score ?? item.rating, commentScore: item.commentScore ?? item.rating, commentContent: item.commentContent ?? item.content, orderNo: item.orderNo || item.orderId }));
     if (name === COLLECTIONS.afterSales) result.items = result.items.map((item) => ({
@@ -677,8 +720,20 @@ async function moderationAction(runtime, data, action, name) {
       status: item.status ?? item.rightsStatus,
       reason: item.reason || item.rightsReasonDesc,
       amount: item.amount ?? item.refundAmount ?? item.refundRequestAmount,
+      items: item.items || item.rightsItem || [],
+      images: item.images || [],
     }));
     return result;
+  }
+  if (name === COLLECTIONS.afterSales && !action.endsWith('.get')) throw errorFrom('ORDER_STATE_INVALID');
+  if (action === 'comments.reply') {
+    const id = string(data.commentId || data.id, 'id', { max: 128 });
+    const existing = await getDoc(collection, id, true);
+    const reply = optionalString(data.reply, 'reply', { max: 2000 }) || '';
+    const patch = { reply, repliedAt: now(), updatedAt: now() };
+    const result = await collection.doc(id).update(patch);
+    if (affected(result) !== 1) throw errorFrom('CONFLICT');
+    return { ...existing, ...patch, _id: id };
   }
   const id = string(data.commentId || data.afterSaleId || data.id, 'id', { max: 128 });
   const existing = await getDoc(collection, id, true);
@@ -688,7 +743,8 @@ async function moderationAction(runtime, data, action, name) {
     return { ...existing, status: STATUS.inactive, _id: id };
   }
   if (!action.endsWith('.updateStatus')) throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
-  const allowed = name === COLLECTIONS.comments ? [STATUS.pendingReview, STATUS.active, STATUS.rejected, STATUS.inactive] : AFTER_SALE_STATUS;
+  if (name === COLLECTIONS.afterSales) throw errorFrom('ORDER_STATE_INVALID');
+  const allowed = [STATUS.pendingReview, STATUS.active, STATUS.rejected, STATUS.inactive];
   const status = string(data.status, 'status', { max: 40 });
   if (!allowed.includes(status)) throw errorFrom('INVALID_ARGUMENT', { field: 'status' });
   const patch = { status, ...(data.reply !== undefined ? { reply: optionalString(data.reply, 'reply', { max: 2000 }) } : {}), updatedAt: now() };
@@ -711,7 +767,26 @@ async function settingsAction(runtime, data, action) {
     return existing;
   }
   if (action !== 'settings.upsert') throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
-  const item = { _id: key, key, value: clone(data.value), description: optionalString(data.description, 'description', { max: 240 }) || '', updatedAt: now() };
+  let value = clone(data.value);
+  if (key === 'global' && existing?.value && value && typeof value === 'object' && !Array.isArray(value)) {
+    value = { ...existing.value, ...value };
+  }
+  if (key === 'global' && value && Object.prototype.hasOwnProperty.call(value, 'returnAddress')) {
+    const raw = value.returnAddress;
+    if (raw === null || raw === false || raw === '') value.returnAddress = null;
+    else {
+      assert(raw && typeof raw === 'object' && !Array.isArray(raw), { field: 'returnAddress' });
+      const receiver = string(raw.receiver || raw.name, 'returnAddress.receiver', { max: 80 });
+      const phone = string(raw.phone, 'returnAddress.phone', { max: 32 });
+      assert(/^\+?[0-9][0-9\s-]{5,23}$/.test(phone), { field: 'returnAddress.phone' });
+      const province = string(raw.province, 'returnAddress.province', { max: 80 });
+      const city = string(raw.city, 'returnAddress.city', { max: 80 });
+      const district = string(raw.district, 'returnAddress.district', { max: 80 });
+      const detail = string(raw.detail || raw.address, 'returnAddress.detail', { max: 240 });
+      value.returnAddress = { receiver, name: receiver, phone, province, city, district, detail };
+    }
+  }
+  const item = { _id: key, key, value: clone(value), description: optionalString(data.description, 'description', { max: 240 }) || '', updatedAt: now() };
   if (existing) await settings.doc(key).update(item);
   else await setDoc(settings, key, { ...item, createdAt: now() });
   return item;
@@ -789,6 +864,8 @@ async function executeAdmin(event, context, runtime, action, data) {
   if (action === 'inventory.adjust') return inventoryAdjust(runtime, data);
   if (action.startsWith('home.')) return homeAction(runtime, data, action);
   if (action.startsWith('orders.')) return adminOrderAction(runtime, data, action);
+  if (action === 'afterSales.updateStatus') return moderateAfterSale(runtime, data);
+  if (action === 'afterSales.confirmReturn') return confirmAfterSaleReturn(runtime, data);
   if (action.startsWith('comments.')) return moderationAction(runtime, data, action, COLLECTIONS.comments);
   if (action.startsWith('afterSales.')) return moderationAction(runtime, data, action, COLLECTIONS.afterSales);
   if (action.startsWith('settings.')) return settingsAction(runtime, data, action);

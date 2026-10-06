@@ -25,6 +25,9 @@ const mocks = {
           primaryImage: 'local://products/cover.webp', skuSnapshot: {}, isSelected: true,
         }] };
       }
+      if (action === 'orders.create') {
+        return { orderNo: 'order-new', status: 'paid', paymentStatus: 'paid', payment: { mode: 'simulated' }, paymentAmount: 300 };
+      }
       assert.equal(action, 'orders.preview');
       return {
         addressSnapshot: payload.addressId ? address : null,
@@ -132,9 +135,28 @@ async function run() {
   assert.equal(withAddress.data.userAddress.name, '测试收货人');
   assert.equal(withAddress.data.userAddress.detailAddress, '测试地址');
   const requestsBeforeCreate = calls.length;
-  await assert.rejects(service.createPendingOrder({ goodsRequestList: [goods], requestKey: 'test' }),
+  await assert.rejects(service.createOrder({ goodsRequestList: [goods], requestKey: 'test' }),
     (error) => error.code === 'ADDRESS_REQUIRED');
   assert.equal(calls.length, requestsBeforeCreate);
+  const simulatedOrder = await service.createOrder({
+    goodsRequestList: [goods], userAddressReq: withAddress.data.userAddress, requestKey: 'paid-test',
+  });
+  assert.equal(simulatedOrder.data.orderStatus, 10);
+  assert.equal(simulatedOrder.data.paymentStatus, 'paid');
+  assert.equal(simulatedOrder.data.statusDesc, '待发货');
+  assert.equal(simulatedOrder.data.payment.mode, 'simulated');
+  assert.equal(simulatedOrder.data.paymentAmount, 300);
+  assert.equal(calls.at(-1).payload.useCart, false);
+
+  const originalOrderCreateRequest = mocks[path.join(root, 'utils/api.ts')].request;
+  mocks[path.join(root, 'utils/api.ts')].request = async (action, payload) => {
+    if (action === 'orders.create') return { orderNo: 'unconfirmed-order', status: 'paid' };
+    return originalOrderCreateRequest(action, payload);
+  };
+  await assert.rejects(service.createOrder({
+    goodsRequestList: [goods], userAddressReq: withAddress.data.userAddress, requestKey: 'unpaid-test',
+  }), (error) => error.code === 'ORDER_NOT_PAID');
+  mocks[path.join(root, 'utils/api.ts')].request = originalOrderCreateRequest;
 
   mocks[path.join(root, 'services/address/fetchAddress.ts')] = {
     fetchDeliveryAddress: async () => null,
@@ -168,11 +190,14 @@ async function run() {
   const originalRequest = mocks[path.join(root, 'utils/api.ts')].request;
   const created = new Map();
   const retryKeys = [];
+  const retryPayloads = [];
+  page.fromCart = true;
   mocks[path.join(root, 'utils/api.ts')].request = async (action, payload) => {
     if (action !== 'orders.create') return originalRequest(action, payload);
     retryKeys.push(payload.requestKey);
+    retryPayloads.push(payload);
     if (!created.has(payload.requestKey)) {
-      created.set(payload.requestKey, { orderNo: 'order-retry', totalAmount: 300 });
+      created.set(payload.requestKey, { orderNo: 'order-retry', status: 'paid', paymentStatus: 'paid', payment: { mode: 'simulated' }, totalAmount: 300 });
       throw new Error('response lost after commit');
     }
     return created.get(payload.requestKey);
@@ -185,11 +210,15 @@ async function run() {
   await flush();
   assert.equal(retryKeys.length, 2);
   assert.equal(retryKeys[0], retryKeys[1]);
+  assert.equal(retryPayloads.at(-1).useCart, true);
+  assert.deepEqual(retryPayloads[0].items, retryPayloads[1].items);
+  assert.equal(retryPayloads[0].addressId, retryPayloads[1].addressId);
   assert.equal(created.size, 1);
   assert.equal(page.createRequestId, null);
-  assert.ok(navigation.at(-1).includes('totalPaid=300&orderNo=order-retry'));
+  assert.ok(navigation.at(-1).includes('orderNo=order-retry'));
+  assert.ok(!navigation.at(-1).includes('totalPaid='));
   mocks[path.join(root, 'utils/api.ts')].request = originalRequest;
-  console.log('PASS lost create response retries the same key and displays authoritative order amount');
+  console.log('PASS lost create response retries the same key and returns the simulated paid order');
 
   const cartService = load('services/cart/cart.ts');
   const cart = await cartService.fetchCartGroupData();

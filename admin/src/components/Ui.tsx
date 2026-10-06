@@ -6,12 +6,12 @@ export function Panel({ children, className = '' }: { children: ReactNode; class
   return <section className={`panel ${className}`}>{children}</section>;
 }
 
-export function EmptyState({ title, action }: { title?: string; description?: string; action?: ReactNode }) {
-  return <div className="empty-state">{title && <strong>{title}</strong>}{action}</div>;
+export function EmptyState({ title, description, action }: { title?: string; description?: string; action?: ReactNode }) {
+  return <div className="empty-state">{title && <strong>{title}</strong>}{description && <span>{description}</span>}{action}</div>;
 }
 
 export function LoadingState() {
-  return null;
+  return <div className="loading-state" role="status" aria-live="polite">正在加载…</div>;
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {

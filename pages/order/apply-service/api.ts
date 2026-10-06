@@ -16,29 +16,47 @@ function normalizePreview(data, params = {}) {
   const allItems = source.goodsList || source.items || source.products || [];
   const rawItems = params.skuId && Array.isArray(allItems)
     ? allItems.filter((item) => String(normalizeOrderItem(item).skuId) === String(params.skuId)) : allItems;
-  const goodsList = Array.isArray(rawItems)
-    ? rawItems.map((item) => ({
-      ...normalizeOrderItem(item),
-      numOfSku: item.numOfSku ?? item.quantity ?? item.buyQuantity ?? 0,
-      numOfSkuAvailable: item.numOfSkuAvailable ?? item.availableQuantity ?? item.quantity ?? item.buyQuantity ?? 0,
-      refundableAmount: item.refundableAmount ?? item.itemRefundAmount ?? item.itemPaymentAmount ?? item.amount ?? (Number(item.unitPrice || 0) * Number(item.quantity || 0)),
-      paidAmountEach: item.paidAmountEach ?? item.unitPrice ?? item.price ?? item.goodsPaymentPrice ?? 0,
-      boughtQuantity: item.boughtQuantity ?? item.quantity ?? item.buyQuantity ?? 0,
+  const hasItemizedAvailability = Array.isArray(rawItems);
+  const goodsList = Array.isArray(rawItems) ? rawItems.map((item) => {
+    const normalized = normalizeOrderItem(item);
+    const availableQuantity = Math.max(0, Number(
+      item.availableRefundQuantity
+        ?? item.numOfSkuAvailable
+        ?? item.availableQuantity
+        ?? item.remainingQuantity
+        ?? item.fulfillableQuantity
+        ?? item.boughtQuantity
+        ?? item.numOfSku
+        ?? item.quantity
+        ?? item.buyQuantity
+        ?? 0,
+    ) || 0);
+    const paidAmountEach = Number(
+      item.paidAmountEach ?? item.unitPrice ?? item.price ?? item.goodsPaymentPrice ?? item.actualPrice ?? 0,
+    ) || 0;
+    return {
+      ...normalized,
+      numOfSku: availableQuantity,
+      numOfSkuAvailable: availableQuantity,
+      refundableAmount: item.refundableAmount ?? paidAmountEach * availableQuantity,
+      paidAmountEach,
+      boughtQuantity: availableQuantity,
       goodsInfo: item.goodsInfo || {
-        goodsName: normalizeOrderItem(item).goodsName,
-        skuImage: normalizeOrderItem(item).goodsPictureUrl,
-        specInfo: normalizeOrderItem(item).specInfo,
+        goodsName: normalized.goodsName,
+        skuImage: normalized.goodsPictureUrl,
+        specInfo: normalized.specInfo,
       },
-    }))
-    : [];
+    };
+  }) : [];
   const itemAmount = goodsList.reduce((sum, item) => sum + Number(item.refundableAmount || 0), 0);
   const itemQuantity = goodsList.reduce((sum, item) => sum + Number(item.boughtQuantity || item.numOfSku || 0), 0);
   return {
     ...source,
-    refundableAmount: source.refundableAmount ?? source.refundAmount ?? itemAmount,
+    returnAddressConfigured: source.returnAddressConfigured ?? source.hasReturnAddress,
+    refundableAmount: hasItemizedAvailability ? itemAmount : source.refundableAmount ?? source.refundAmount ?? 0,
     shippingFeeIncluded: source.shippingFeeIncluded ?? source.shippingFee ?? 0,
-    numOfSku: source.numOfSku ?? itemQuantity,
-    numOfSkuAvailable: source.numOfSkuAvailable ?? itemQuantity,
+    numOfSku: hasItemizedAvailability ? itemQuantity : Number(source.numOfSku) || 0,
+    numOfSkuAvailable: hasItemizedAvailability ? itemQuantity : Number(source.numOfSkuAvailable ?? source.numOfSku) || 0,
     goodsList,
   };
 }

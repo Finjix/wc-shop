@@ -103,5 +103,5 @@
 
 .t-button {
   --td-button-default-color: #aeb3b7;
-  --td-button-primary-text-color: #fff;
+  --td-button-primary-text-color: #695941;
 }

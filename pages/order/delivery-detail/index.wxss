@@ -1,6 +1,11 @@
 page {
   background-color: #fff;
 }
+.logistics-empty {
+  padding: 32rpx;
+  color: #888;
+  font-size: 26rpx;
+}
 .page-section {
   margin-top: 24rpx;
   background-color: white;

@@ -8,6 +8,7 @@ import {
   normalizeOrderItem,
   normalizeServiceStatus,
   normalizeServiceType,
+  serviceStatusLabel,
 } from './contract';
 
 export { formatTime };
@@ -26,9 +27,9 @@ export function getRightsDetail({ rightsNo }) {
       rightsNo: sourceRights.rightsNo || sourceRights.afterSaleId || sourceRights.id || sourceRights._id,
       orderNo: sourceRights.orderNo || sourceRights.orderId,
       rightsType: normalizeServiceType(sourceRights.rightsType ?? sourceRights.type),
-      userRightsStatus: normalizeServiceStatus(sourceRights.userRightsStatus ?? sourceRights.status),
-      userRightsStatusName: sourceRights.userRightsStatusName || sourceRights.statusName,
-      userRightsStatusDesc: sourceRights.userRightsStatusDesc || sourceRights.statusDesc || sourceRights.description,
+      userRightsStatus: normalizeServiceStatus(sourceRights.userRightsStatus ?? sourceRights.rightsStatus ?? sourceRights.status),
+      userRightsStatusName: sourceRights.userRightsStatusName || sourceRights.statusName || serviceStatusLabel(sourceRights.userRightsStatus ?? sourceRights.rightsStatus ?? sourceRights.status, sourceRights.rightsType ?? sourceRights.type),
+      userRightsStatusDesc: sourceRights.userRightsStatusDesc || sourceRights.statusDesc || sourceRights.description || serviceStatusLabel(sourceRights.userRightsStatus ?? sourceRights.rightsStatus ?? sourceRights.status, sourceRights.rightsType ?? sourceRights.type),
       rightsReasonDesc: sourceRights.rightsReasonDesc || sourceRights.reason,
       refundRequestAmount: sourceRights.refundRequestAmount ?? sourceRights.refundAmount ?? sourceRights.amount,
       createTime: sourceRights.createTime || sourceRights.createdAt,
@@ -38,6 +39,7 @@ export function getRightsDetail({ rightsNo }) {
       data: [await resolveRightsImages({
         ...record,
         rights,
+        returnAddressSnapshot: record.returnAddressSnapshot || sourceRights.returnAddressSnapshot || null,
         rightsItem: (Array.isArray(record.rightsItem)
           ? record.rightsItem
           : Array.isArray(record.items) ? record.items : []).map(normalizeOrderItem),
@@ -51,9 +53,9 @@ export function confirmReceived(params = {}) {
   return request('afterSales.confirmReceived', params);
 }
 
-export function cancelRights() {
-  const error = new Error('售后撤销接口尚未开放');
-  error.code = 'UNSUPPORTED_ACTION';
-  return Promise.reject(error);
+export function cancelRights(params = {}) {
+  return request('afterSales.withdraw', {
+    afterSaleId: params.afterSaleId || params.rightsNo,
+  });
 }
 // @ts-nocheck

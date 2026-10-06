@@ -21,6 +21,7 @@ const SERVICE_TYPE_ALIASES = {
 };
 
 const SERVICE_STATUS_ALIASES = {
+  '10': 100,
   '100': 100,
   pending: 100,
   pending_review: 100,
@@ -28,6 +29,7 @@ const SERVICE_STATUS_ALIASES = {
   pendingreview: 100,
   refund_requested: 100,
   refundrequested: 100,
+  '20': 110,
   '110': 110,
   approved: 110,
   verified: 110,
@@ -35,6 +37,8 @@ const SERVICE_STATUS_ALIASES = {
   'pending-delivery': 120,
   pendingdelivery: 120,
   '120': 120,
+  '30': 140,
+  '40': 150,
   pending_receipt: 130,
   'pending-receipt': 130,
   pendingreceipt: 130,
@@ -46,6 +50,7 @@ const SERVICE_STATUS_ALIASES = {
   abnormal: 150,
   '150': 150,
   refunded: 160,
+  '50': 160,
   refund_success: 160,
   refundsuccess: 160,
   '160': 160,
@@ -53,6 +58,8 @@ const SERVICE_STATUS_ALIASES = {
   closed: 170,
   cancelled: 170,
   canceled: 170,
+  withdrawn: 170,
+  '60': 170,
   '170': 170,
 };
 
@@ -76,6 +83,31 @@ export function normalizeServiceStatus(value, fallback = null) {
   return SERVICE_STATUS_ALIASES[normalizedKey(value)] ?? fallback;
 }
 
+export function serviceStatusLabel(value, serviceType) {
+  const raw = normalizedKey(value);
+  if (['rejected', 'refused', 'declined'].includes(raw)) return '申请已驳回';
+  if (['cancelled', 'canceled', 'withdrawn', 'closed'].includes(raw)) return '已撤销';
+  const status = normalizeServiceStatus(value);
+  if (status === 100) return '等待商家审核';
+  if (status === 110) return Number(serviceType) === 10 ? '审核通过，请填写退货物流' : '退款处理中';
+  if (status === 120) return '等待填写退货物流';
+  if (status === 130) return '退货运输中';
+  if (status === 140) return '商家确认退货';
+  if (status === 150) return '退货异常，请联系商家';
+  if (status === 160) return '退款完成';
+  if (status === 170) return '已关闭';
+  return '处理中';
+}
+
+export function normalizeServiceButtons(value, serviceType, buttons = [], logisticsNo = '') {
+  if (Array.isArray(buttons) && buttons.length) return buttons;
+  const status = normalizeServiceStatus(value);
+  if (status === 100) return [{ type: 2, name: '撤销申请' }];
+  if ([110, 120].includes(status) && Number(serviceType) === 10) return [{ type: 3, name: '填写退货物流' }];
+  if ([130, 140, 150].includes(status) && logisticsNo) return [{ type: 5, name: '查看退货物流' }];
+  return [];
+}
+
 function firstValue(source, keys) {
   for (const key of keys) {
     if (source && source[key] !== undefined && source[key] !== null && source[key] !== '') {
@@ -97,6 +129,8 @@ export function normalizeOrderItem(item = {}) {
     goodsName: item.goodsName || item.title || productSnapshot.title || '',
     goodsPictureUrl: item.goodsPictureUrl || item.thumb || item.skuImage || skuSnapshot.skuImage || productSnapshot.primaryImage || productSnapshot.images?.[0] || '',
     specInfo: item.specInfo || item.specifications || skuSnapshot.specInfo || [],
+    itemRefundAmount: item.itemRefundAmount ?? item.refundAmount ?? item.amount
+      ?? (Number(item.unitPrice ?? item.price ?? 0) * Number(item.rightsQuantity ?? item.quantity ?? 0)),
     productId,
     spuId: firstValue(item, ['spuId', 'productId']) || productId,
     skuId,

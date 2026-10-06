@@ -1,7 +1,6 @@
 // @ts-nocheck
 
 export const OrderStatus = {
-  PENDING_PAYMENT: 5, // 待支付
   PENDING_DELIVERY: 10, // 待发货
   PENDING_RECEIPT: 40, // 待收货
   COMPLETE: 50, // 已完成/待评价
@@ -11,7 +10,6 @@ export const OrderStatus = {
 };
 
 export const OrderStatusDesc = {
-  [OrderStatus.PENDING_PAYMENT]: '待支付',
   [OrderStatus.PENDING_DELIVERY]: '待发货',
   [OrderStatus.PENDING_RECEIPT]: '待收货',
   [OrderStatus.COMPLETE]: '已完成',
@@ -28,7 +26,10 @@ export function normalizeOrderStatus(status) {
     CANCELED: OrderStatus.CANCELED,
     CANCELLED: OrderStatus.CANCELED,
   };
-  return aliases[String(status ?? '').toUpperCase()] ?? (Number(status) || OrderStatus.CANCELED);
+  const normalized = aliases[String(status ?? '').toUpperCase()] ?? Number(status);
+  return [OrderStatus.PENDING_DELIVERY, OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE, OrderStatus.CANCELED].includes(normalized)
+    ? normalized
+    : 0;
 }
 
 // 售后状态 10:待审核,20:已审核,30:已收货,40:收货异常,50:已完成,60:已关闭;
@@ -56,7 +57,6 @@ export const ServiceTypeDesc = {
 
 // 订单按钮类型
 export const OrderButtonTypes = {
-  CANCEL: 2, // 取消订单
   CONFIRM: 3, // 确认收货
   APPLY_REFUND: 4, // 申请售后
   VIEW_REFUND: 5, // 查看退款

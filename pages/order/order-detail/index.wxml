@@ -45,20 +45,31 @@
     </view>
     <!-- 店铺及商品 -->
     <order-card order="{{_order}}" use-top-right-slot hide-store-name="{{true}}">
-      <order-goods-card
+      <view
         wx:for="{{_order.goodsList}}"
         wx:key="id"
         wx:for-item="goods"
         wx:for-index="gIndex"
-        goods="{{goods}}"
-        no-top-line="{{gIndex === 0}}"
-        bindtap="onGoodsCardTap"
-        data-index="{{gIndex}}"
       >
-      </order-goods-card>
+        <order-goods-card
+          goods="{{goods}}"
+          no-top-line="{{gIndex === 0}}"
+          bindtap="onGoodsCardTap"
+          data-index="{{gIndex}}"
+        ></order-goods-card>
+        <view
+          wx:if="{{goods.canApplyRefund}}"
+          class="order-detail__item-after-sale"
+          data-index="{{gIndex}}"
+          catchtap="onApplyGoodsRefund"
+        >
+          <text>申请售后</text>
+          <text class="order-detail__item-after-sale-remaining">剩余{{goods.refundableQuantity}}件</text>
+        </view>
+      </view>
       <view class="pay-detail">
         <view class="pay-item">
-          <text>{{order.orderStatus === 5 ? '应付' : '实付'}}</text>
+          <text>实付</text>
           <price
             fill
             decimalSmaller

@@ -9,6 +9,8 @@ let page, component, respond;
 let resolves = 0;
 const imagePreviews = [];
 const deferred = new Map();
+const tabNavigations = [];
+const pageNavigations = [];
 const api = {
   getApiErrorMessage: (error) => error.message,
   getTempFileUrl: async (id) => {
@@ -35,7 +37,7 @@ function load(file) {
       throw new Error(`Unexpected dependency ${name}`);
     },
     Page: (value) => { page = value; }, Component: (value) => { component = value; },
-    wx: { getWindowInfo: () => ({ screenWidth: 375, pixelRatio: 2 }), stopPullDownRefresh() {}, showToast() {}, previewImage(options) { imagePreviews.push(options); } },
+    wx: { getWindowInfo: () => ({ screenWidth: 375, pixelRatio: 2 }), stopPullDownRefresh() {}, showToast() {}, navigateTo(options) { pageNavigations.push(options.url); }, switchTab(options) { tabNavigations.push(options.url); }, previewImage(options) { imagePreviews.push(options); } },
   }, { filename });
   return exports;
 }
@@ -48,6 +50,53 @@ function instance(definition) {
   return { ...definition, data: { ...definition.data }, setData(value) { Object.assign(this.data, value); } };
 }
 async function run() {
+  const applyServiceMarkup = fs.readFileSync(path.join(root, 'pages/order/apply-service/index.wxml'), 'utf8');
+  const applyServiceDefinition = fs.readFileSync(path.join(root, 'pages/order/apply-service/index.ts'), 'utf8');
+  assert.doesNotMatch(applyServiceMarkup, /wr-order-goods-card|slot="footer"/);
+  assert.match(applyServiceMarkup, /apply-goods-summary__image/);
+  assert.match(applyServiceMarkup, /apply-goods-summary__price/);
+  assert.match(applyServiceMarkup, /<t-stepper[\s\S]*?max="\{\{maxApplyNum\}\}"/);
+  assert.match(applyServiceDefinition, /paidAmountText:\s*priceFormat\(goods\.paidAmountEach,\s*2\)/);
+  console.log('PASS SKU after-sales form uses native product summary and preserves its quantity stepper');
+  const orderButtonBarMarkup = fs.readFileSync(path.join(root, 'pages/order/components/order-button-bar/index.wxml'), 'utf8');
+  const afterServiceMarkupForConfirm = fs.readFileSync(path.join(root, 'pages/order/after-service-detail/index.wxml'), 'utf8');
+  const themeStyles = fs.readFileSync(path.join(root, 'style/theme.wxss'), 'utf8');
+  assert.match(orderButtonBarMarkup, /t-dialog[^>]*t-class-confirm="commerce-dialog-confirm"/);
+  assert.match(afterServiceMarkupForConfirm, /t-dialog id="t-dialog" t-class-confirm="commerce-dialog-confirm"/);
+  assert.match(themeStyles, /\.commerce-dialog-confirm\s*\{[^}]*--td-button-primary-text-color:\s*#695941;/);
+  const orderDetailMarkup = fs.readFileSync(path.join(root, 'pages/order/order-detail/index.wxml'), 'utf8');
+  assert.match(orderDetailMarkup, /catchtap="onApplyGoodsRefund"/);
+  console.log('PASS order and after-sales confirmation dialogs use a visible shared primary-text style');
+  const homeStyles = fs.readFileSync(path.join(root, 'pages/home/home.wxss'), 'utf8');
+  const homeMarkup = fs.readFileSync(path.join(root, 'pages/home/home.wxml'), 'utf8');
+  assert.match(homeStyles, /\.home-scroll\s*\{[^}]*height:\s*calc\(100vh\s*-\s*100rpx\s*-\s*env\(safe-area-inset-bottom\)\)/);
+  assert.doesNotMatch(homeMarkup, /<scroll-view[^>]*\benhanced\b/);
+  console.log('PASS home scroll hit area stops above the custom tab bar and avoids enhanced native hit testing');
+  const afterServiceMarkup = fs.readFileSync(path.join(root, 'pages/order/after-service-detail/index.wxml'), 'utf8');
+  const afterServiceStyles = fs.readFileSync(path.join(root, 'pages/order/after-service-detail/index.wxss'), 'utf8');
+  assert.match(afterServiceMarkup, /该订单使用模拟支付/);
+  assert.doesNotMatch(afterServiceMarkup, /微信退款后|微信支付账单|银行处理时间/);
+  assert.match(afterServiceMarkup, /class="service-id-row__label">订单编号/);
+  assert.match(afterServiceStyles, /\.service-id-row__value[\s\S]*?text-overflow:\s*ellipsis;[\s\S]*?white-space:\s*nowrap;/);
+  const rightsContract = load('pages/order/after-service-detail/contract.ts');
+  assert.equal(rightsContract.normalizeOrderItem({ ...snapshot, quantity: 1, rightsQuantity: 1, amount: 100 }).itemRefundAmount, 100);
+  assert.equal(rightsContract.normalizeServiceStatus('withdrawn'), 170);
+  load('custom-tab-bar/index.ts');
+  const tabBarDefinition = component;
+  const tabBar = {
+    ...tabBarDefinition.methods,
+    data: { ...tabBarDefinition.data },
+    setData(value) { Object.assign(this.data, value); },
+  };
+  [
+    ['/pages/home/home', '首页'],
+    ['/pages/category/index', '商品'],
+    ['/pages/cart/index', '购物车'],
+    ['/pages/usercenter/index', '我的'],
+  ].forEach(([url], index) => tabBar.onItemTap({ currentTarget: { dataset: { index: String(index) } } }));
+  assert.deepEqual(tabNavigations, ['/pages/home/home', '/pages/category/index', '/pages/cart/index', '/pages/usercenter/index']);
+  assert.equal(tabBar.data.active, 3);
+  console.log('PASS native custom-tab callback navigates all four tabs and updates the active state');
   const images = load('utils/images.ts');
   const urls = await Promise.all([images.resolveImage('local://cover.webp'), images.resolveImage('local://cover.webp')]);
   assert.equal(resolves, 1); assert.equal(urls[0], urls[1]);
@@ -66,6 +115,46 @@ async function run() {
   const detail = await load('pages/order/services/orderDetail.ts').fetchOrderDetail({ orderNo: 'o1' });
   assert.equal(list.data.orders[0].orderItemVOs[0].goodsPictureUrl, 'https://example.test/cover.webp');
   assert.equal(detail.data.orderItemVOs[0].goodsPictureUrl, 'https://example.test/cover.webp');
+  respond = async (action) => action === 'orders.list' ? {
+    orders: [{ status: 'paid', activeAfterSaleStatus: 'pending_review', items: [{
+      ...snapshot, quantity: 3, refundedQuantity: 1, remainingQuantity: 2, fulfillableQuantity: 2,
+    }] }],
+  } : {};
+  const activeRefundOrder = await load('pages/order/services/orderList.ts').fetchOrders();
+  const activeRefund = activeRefundOrder.data.orders[0];
+  assert.equal(activeRefund.orderStatus, 10);
+  assert.equal(activeRefund.orderStatusName, '退款审核中');
+  assert.equal(activeRefund.orderItemVOs[0].fulfillableQuantity, 2);
+  assert.ok(activeRefund.buttonVOs.some((button) => Number(button.type) === 4));
+  console.log('PASS simulated-paid order and pending refund normalize with remaining quantity');
+  const orderListApi = load('pages/order/services/orderList.ts');
+  const unsupportedLegacyOrder = orderListApi.normalizeOrder({
+    status: 5,
+    orderStatusName: 'legacy-state',
+    items: [snapshot],
+    buttonVOs: [{ type: 2, name: 'legacy-action' }],
+  });
+  assert.equal(unsupportedLegacyOrder.orderStatus, 0);
+  assert.equal(unsupportedLegacyOrder.orderStatusName, '订单状态不可用');
+  assert.equal(unsupportedLegacyOrder.buttonVOs.length, 0);
+  const processingOrder = orderListApi.normalizeOrder({
+    status: 'paid', activeAfterSaleStatus: 'processing', activeAfterSaleCount: 1, pendingRefundAmount: 100,
+    items: [{ ...snapshot, remainingQuantity: 2, fulfillableQuantity: 2 }],
+    buttonVOs: [
+      { type: 3, name: '确认收货' }, { type: 4, name: '申请售后' },
+      { type: 5, name: '查看退款' }, { type: 9, name: '再次购买' },
+    ],
+  });
+  assert.equal(processingOrder.orderStatusName, '售后处理中');
+  assert.equal(processingOrder.hasPendingRefund, true);
+  assert.ok(processingOrder.buttonVOs.some((button) => Number(button.type) === 4), 'remaining items may go through server preview');
+  assert.ok(!processingOrder.buttonVOs.some((button) => Number(button.type) === 3), 'do not confirm receipt while after-sales work is active');
+  assert.ok(!processingOrder.buttonVOs.some((button) => Number(button.type) === 5), 'do not open a detail without a specific after-sale id');
+  const noRemainingOrder = orderListApi.normalizeOrder({ status: 'paid', items: [{ ...snapshot, fulfillableQuantity: 0 }], buttonVOs: [{ type: 4, name: '申请售后' }] });
+  assert.ok(!noRemainingOrder.buttonVOs.some((button) => Number(button.type) === 4));
+  const pendingReviewDetail = orderListApi.normalizeOrder({ status: 'paid', afterSalesList: [{ status: 'pending_review' }], items: [snapshot] });
+  assert.equal(pendingReviewDetail.orderStatusName, '退款审核中');
+  console.log('PASS active after-sales list label and action filtering; detailed pending-review label preserved');
   respond = async () => ({ status: 'received', hasPendingComments: false, items: [snapshot],
     addressSnapshot: { receiver: '收货人', phone: '13800000000', province: '广东省', city: '深圳市', district: '南山区', detail: '测试街道' } });
   const received = await load('pages/order/services/orderDetail.ts').fetchOrderDetail({ orderNo: 'o1' });
@@ -95,6 +184,57 @@ async function run() {
   assert.equal(preview.data.goodsList[0].skuId, 's1');
   assert.equal(preview.data.goodsList[0].goodsInfo.skuImage, 'https://example.test/cover.webp');
   assert.equal(preview.data.refundableAmount, 200);
+  respond = async () => ({ items: [{ ...snapshot, quantity: 3, refundedQuantity: 1, remainingQuantity: 2, fulfillableQuantity: 2 }] });
+  const remainingPreview = await load('pages/order/apply-service/api.ts').fetchRightsPreview({ orderNo: 'o1' });
+  assert.equal(remainingPreview.data.goodsList[0].boughtQuantity, 2);
+  assert.equal(remainingPreview.data.goodsList[0].refundableAmount, 200);
+  respond = async () => ({
+    numOfSku: 3,
+    numOfSkuAvailable: 3,
+    refundableAmount: 300,
+    items: [{
+      ...snapshot, quantity: 3, unitPrice: 100, amount: 300,
+      availableRefundQuantity: 2, remainingQuantity: 3, pendingRefundQuantity: 1, fulfillableQuantity: 3,
+    }],
+  });
+  const partialPreview = await load('pages/order/apply-service/api.ts').fetchRightsPreview({ orderNo: 'o1', skuId: 's1' });
+  assert.equal(partialPreview.data.numOfSkuAvailable, 2);
+  assert.equal(partialPreview.data.goodsList[0].boughtQuantity, 2);
+  assert.equal(partialPreview.data.goodsList[0].refundableAmount, 200, 'refund maximum must use available quantity times unit price');
+  console.log('PASS partial-refund preview uses backend available quantity and recomputes the maximum amount');
+  let orderDetailStatus = 'paid';
+  respond = async (action) => action === 'orders.detail' ? ({
+    orderNo: 'order-refund', status: orderDetailStatus,
+    items: [{ ...snapshot, quantity: 3, availableRefundQuantity: 2, remainingQuantity: 3, pendingRefundQuantity: 1, fulfillableQuantity: 3 }],
+  }) : {};
+  load('pages/order/order-detail/index.ts');
+  const orderDetailDefinition = page;
+  const showLifecyclePage = instance(orderDetailDefinition);
+  let showRefreshes = 0;
+  showLifecyclePage.onRefresh = () => { showRefreshes++; };
+  showLifecyclePage.onShow();
+  assert.equal(showRefreshes, 0, 'first onShow must not duplicate onLoad initialization');
+  showLifecyclePage.onShow();
+  assert.equal(showRefreshes, 1, 'returning to order detail must refresh its server snapshot');
+  console.log('PASS order detail skips its initial show and refreshes on subsequent shows');
+  const orderDetailPage = instance(page);
+  orderDetailPage.orderNo = 'order-refund';
+  await orderDetailPage.getDetail();
+  assert.equal(orderDetailPage.data._order.goodsList[0].refundableQuantity, 2);
+  assert.equal(orderDetailPage.data._order.goodsList[0].canApplyRefund, true);
+  orderDetailPage.onApplyGoodsRefund({ currentTarget: { dataset: { index: '0' } } });
+  assert.match(pageNavigations.at(-1), /skuId=s1/);
+  assert.match(pageNavigations.at(-1), /orderStatus=10/);
+  assert.match(pageNavigations.at(-1), /directApply=true/);
+  orderDetailStatus = 'completed';
+  await orderDetailPage.getDetail();
+  assert.equal(orderDetailPage.data.order.orderStatus, 50);
+  orderDetailPage.onApplyGoodsRefund({ currentTarget: { dataset: { index: '0' } } });
+  assert.match(pageNavigations.at(-1), /orderStatus=50/);
+  assert.match(pageNavigations.at(-1), /canApplyReturn=true/);
+  assert.match(pageNavigations.at(-1), /directApply=false/);
+  assert.match(fs.readFileSync(path.join(root, 'pages/order/order-detail/index.wxml'), 'utf8'), /catchtap="onApplyGoodsRefund"/);
+  console.log('PASS per-item after-sales navigation is SKU-scoped, stops product-tap propagation, and allows returns for completed orders');
   let submittedClaim;
   respond = async (action, payload) => { assert.equal(action, 'afterSales.create'); submittedClaim = payload; return {}; };
   await load('pages/order/apply-service/api.ts').dispatchApplyService({
@@ -103,6 +243,12 @@ async function run() {
   });
   assert.equal(submittedClaim.refundRequestAmount, 100);
   assert.equal(submittedClaim.rightsItem[0].rightsQuantity, 1);
+  respond = async (action, payload) => {
+    assert.equal(action, 'afterSales.withdraw');
+    assert.equal(payload.afterSaleId, 'r1');
+    return {};
+  };
+  await load('pages/order/after-service-detail/api.ts').cancelRights({ rightsNo: 'r1' });
   assert.equal(snapshot.productSnapshot.primaryImage, 'local://cover.webp');
   const goods = load('services/good/resolveImages.ts');
   const home = await goods.resolveHomeContentImages({ swiperImages: ['local://banner.webp'], items: [{ type: 'banner', cover: 'cloud://banner.webp' }] });
@@ -147,8 +293,7 @@ async function run() {
   respond = async () => ({ config: { banners: [], promos: [], sections: [] } });
   await homepage.loadHomePage(); assert.equal(homepage.data.loadError, '');
   respond = async () => { throw new Error('订单不存在'); };
-  load('pages/order/order-detail/index.ts');
-  const orderpage = instance(page); orderpage.orderNo = 'missing'; orderpage.getStoreDetail = () => {};
+  const orderpage = instance(orderDetailDefinition); orderpage.orderNo = 'missing'; orderpage.getStoreDetail = () => {};
   await orderpage.init();
   assert.equal(orderpage.data.pageLoading, false); assert.equal(orderpage.data.loadError, '订单不存在');
   respond = async () => ({ items: [snapshot] });

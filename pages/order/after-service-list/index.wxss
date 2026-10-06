@@ -2,6 +2,14 @@
   background-color: #fff;
 }
 
+.service-summary {
+  display: flex;
+  justify-content: space-between;
+  padding: 24rpx 20rpx 12rpx;
+  color: #695941;
+  font-size: 26rpx;
+}
+
 .list-loading {
   height: 100rpx;
 }
@@ -84,5 +92,5 @@
 
 .t-button {
   --td-button-default-color: #000;
-  --td-button-primary-text-color: #fff;
+  --td-button-primary-text-color: #695941;
 }

@@ -31,6 +31,7 @@ Page({
     this.orderNo = options.orderNo || '';
     this.productId = options.productId || options.spuId || '';
     this.skuId = options.skuId || '';
+    this.orderItemId = options.orderItemId || '';
     this.setData({
       imgUrl: '',
       title: decodeQueryValue(options.title),
@@ -92,6 +93,7 @@ Page({
       productId: this.productId,
       spuId: this.productId,
       skuId: this.skuId,
+      orderItemId: this.orderItemId,
       commentContent: (this.textAreaValue || '').trim(),
       commentResources: uploadFiles,
     }).then(() => {

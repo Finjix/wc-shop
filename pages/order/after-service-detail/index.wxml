@@ -52,7 +52,7 @@
             title=""
             t-class="t-class-wrapper-first-child"
             t-class-description="label"
-            description="说明：微信退款后，可以在微信支付账单查询，实际退款到时间可能受到银行处理时间的影响有一定延时，可以稍后查看"
+            description="说明：该订单使用模拟支付，退款已在系统中标记完成，不涉及真实资金退回。"
           />
         </block>
       </view>
@@ -74,7 +74,7 @@
           </t-cell>
         </view>
         <view wx:if="{{service.buttons.length}}" class="service-detail__button-bar">
-          <wr-after-service-button-bar service="{{service}}" />
+          <wr-after-service-button-bar service="{{service}}" bindrefresh="onRefresh" />
         </view>
       </view>
       <!-- 收货地址 -->
@@ -126,24 +126,15 @@
       <!-- 退款信息 -->
       <view class="service-section__pay">
         <t-cell bordered="{{false}}" title="退款信息" t-class="t-refund-wrapper" t-class-title="t-refund-title" />
-        <t-cell
-          bordered="{{false}}"
-          t-class="t-refund-wrapper"
-          t-class-title="t-refund-info"
-          t-class-note="t-refund-note"
-          title="订单编号"
-          note="{{service.orderNo}}"
-        />
-        <t-cell
-          bordered="{{false}}"
-          t-class="t-refund-wrapper"
-          t-class-title="t-refund-info"
-          t-class-note="t-refund-note"
-          title="服务单号"
-          note="{{service.rightsNo}}"
-        >
-          <view slot="right-icon" class="text-btn" hover-class="text-btn--active" bindtap="onServiceNoCopy">复制 </view>
-        </t-cell>
+        <view class="service-id-row">
+          <view class="service-id-row__label">订单编号</view>
+          <view class="service-id-row__value">{{service.orderNo}}</view>
+        </view>
+        <view class="service-id-row">
+          <view class="service-id-row__label">服务单号</view>
+          <view class="service-id-row__value">{{service.rightsNo}}</view>
+          <view class="service-id-row__copy" hover-class="text-btn--active" bindtap="onServiceNoCopy">复制</view>
+        </view>
         <t-cell
           bordered="{{false}}"
           t-class="t-refund-wrapper"
@@ -209,4 +200,4 @@
     <view class="tips">{{amountTip}}</view>
   </view>
 </t-dialog>
-<t-dialog id="t-dialog" />
+<t-dialog id="t-dialog" t-class-confirm="commerce-dialog-confirm" />

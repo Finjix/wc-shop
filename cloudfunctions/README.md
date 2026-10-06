@@ -16,7 +16,7 @@
 - `dist/0830a/wc-shop-function.zip`：函数 Handler 填 `index.main`
 - `dist/0830a/wc-shop-admin-static.zip`：静态托管包，根目录直接包含 `index.html`
 
-不要把 `cloudfunctions/wc-shop-function` 文件夹直接压成 ZIP 后上传；控制台包必须使用脚本生成的 ZIP，使根目录直接包含 `index.js`。包中还包含 `vendor/` 依赖适配器和 `config.json`。控制台部署后核对 `expire-pending-orders` 定时触发器已启用，周期为每 5 分钟，Cron 为 `0 */5 * * * * *`；仅上传代码不会保证触发器已创建。CLI 配置位于 `cloudbaserc.json`。
+不要把 `cloudfunctions/wc-shop-function` 文件夹直接压成 ZIP 后上传；控制台包必须使用脚本生成的 ZIP，使根目录直接包含 `index.js`。包中还包含 `vendor/` 依赖适配器和 `config.json`。订单不依赖定时触发器，`config.json` 中的空 `triggers` 配置用于移除历史函数触发器；CLI 配置位于 `cloudbaserc.json`。
 
 依赖要求 Node.js >= 20.9。SDK 的旧版 Axios 通过 overrides 更新；其数据库依赖使用的 lodash.set/unset 通过本地适配器调用已更新的 lodash，并保留 callable/default 两种导出约定。升级 SDK 时应重新核对这些覆盖和依赖审计。
 
@@ -44,9 +44,9 @@ wx.cloud.callFunction({
 - `searchHistory.list/add/remove/clear`
 - `addresses.list/get/create/update/remove/setDefault`
 - `cart.get/add/update/remove/clear`
-- `orders.preview/create/list/count/businessTime/detail/cancel/confirmReceived/delete`
+- `orders.preview/create/list/count/businessTime/detail/confirmReceived/updateAddress/delete`
 - `comments.list/count/create`
-- `afterSales.reasons/preview/list/detail/create/confirmReceived/submitTracking`
+- `afterSales.reasons/preview/list/detail/create/withdraw/cancel/confirmReceived/submitTracking`
 - `storage.tempUrls`、`storage.processImage`
 
 `scope: 'admin'`：
@@ -55,9 +55,9 @@ wx.cloud.callFunction({
 - `categories.*`、`products.*`、`skus.*`（list/get/create/update/delete；delete 为下架）
 - `inventory.adjust`
 - `home.list/get/upsert`
-- `orders.list/get/updateStatus/ship/cancel`
-- `comments.list/get/updateStatus/delete`
-- `afterSales.list/get/updateStatus`
+- `orders.list/get/updateStatus/ship`
+- `comments.list/get/updateStatus/reply/delete`
+- `afterSales.list/get/review/confirmReturn`
 - `settings.list/get/upsert`
 - `storage.tempUrls`、`storage.processImage`
 
@@ -69,12 +69,14 @@ wx.cloud.callFunction({
 - 金额单位统一为整数“分”，订单服务端重新读取 SKU 价格，绝不信任客户端传来的金额或商品快照。
 - `orders.create` 只接受 `{ skuId, quantity }`，校验 SKU 仍属于商品规格、关联商品 `status === "active"` 和库存后才创建订单；上下架由商品状态控制。
 - 创建订单使用文档数据库事务；事务内只通过已解析的 SKU 文档 `_id` 重新读取和更新库存，不使用事务不支持的 `where` 查询，库存不足或写冲突会回滚整个订单。
-- 订单保存 `productSnapshot`、`skuSnapshot`、`addressSnapshot`；首阶段状态固定为 `pending_payment`，`payment` 固定为 `null`，不返回模拟支付结果。
+- 订单保存 `productSnapshot`、`skuSnapshot`、`addressSnapshot`；下单事务内直接记为 `paid`，并保存 `payment.mode: simulated`、`paymentAmount`、`paidAt`。服务端决定模拟支付成功，不返回也不接受真实支付参数。
 - `requestKey`/`idempotencyKey` 是创建订单的必填字段；同一用户和 key 使用不同参数会返回 `IDEMPOTENCY_CONFLICT`。
-- 待支付订单记录 30 分钟 `expiresAt`，订单列表、详情和创建订单均会清理过期订单；定时触发器每次全局处理最多 100 条，后续触发继续清理，事务重读状态和截止时间，避免重复恢复库存。定时任务只信任 CloudBase 上下文的 `TRIGGER_SRC`。
-- 已收货、已完成订单映射前端状态 50；待评价查询只包含尚有商品未评价的订单。评价通过确定性文档 ID 和订单事务阻止重复提交，用户可查看自己尚未审核的评价，公开评价不返回用户及订单标识。
-- 售后按实际购买的 SKU 和申请数量计算金额上限，事务校验同商品的在途申请及累计已退款数量；首阶段仍不执行真实退款。
-- 取消仅允许待支付订单，并在同一事务中恢复库存及回退预占销量；发货和收货只能按状态机改变状态，支付、退款和物流第三方回调暂未实现。
+- 不自动迁移或删除历史数据：旧的待支付记录保持原字段和状态，服务端读取不会将其改成已付款或取消，也不会自动回滚其库存。
+- 已收货、已完成订单映射前端状态 50；全额退款的商品不再进入待评价，待评价查询只包含尚有未退款商品未评价的订单。评价通过确定性文档 ID 和订单事务阻止重复提交，用户可查看自己尚未审核的评价，公开评价不返回用户及订单标识。
+- 售后按实际购买的 SKU 和数量计算退款金额。仅本人可撤销待审核申请；管理员只能将待审核申请审核通过或拒绝。模拟退款只处理标记为 `payment.mode: simulated` 的新订单，不为历史订单补造支付记录；纯退款审核通过即完成模拟退款，退货退款审核后保存商家退货地址快照、录入寄回单号并由管理员确认收货后退款。
+- 已付款且未发货仅可申请仅退款；发货后可申请仅退款或退货退款。申请、审核、退款、发货、收货地址变更和库存更新使用事务约束状态、金额和数量。未发货仅退款恢复库存和销量；已发货仅退款不恢复库存；退货退款在收货确认后恢复库存和销量。全部退款后未发货订单关闭为 `cancelled`，已发货订单关闭为 `completed`；部分退款通过 `paymentStatus: partially_refunded` 与 `refundAmount/refundedQuantities` 表示，不中断仍需履约的剩余商品。
+- `settings` 的 `global` 记录可包含 `returnAddress: { receiver, phone, province, city, district, detail }`；服务端校验手机号和完整地址，未配置时拒绝退货退款申请。
+- 订单不提供通用取消入口；未发货订单完成全额退款后关闭为 `cancelled`。模拟下单与模拟退款不调用支付或物流第三方接口。
 
 ## 集合结构与建议索引
 
@@ -86,7 +88,7 @@ wx.cloud.callFunction({
 - `skus`: `productId`、`skuId`
 - `categories`: `status + sort`
 - `addresses`: `userId + isDefault`、`userId + updatedAt`
-- `orders`: `userId + createdAt`、`userId + status + createdAt`、`status + expiresAt`、`orderNo`、`requestKey + userId`
+- `orders`: `userId + createdAt`、`userId + status + createdAt`、`orderNo`、`requestKey + userId`
 - `comments`: `productId + status + createdAt`、`productId + status + hasImage + createdAt`、`orderId + userId`
 - `afterSales`: `userId + createdAt`、`orderId + createdAt`、`status + updatedAt`
 - `homeContents`: `status + slot + sort`
@@ -104,9 +106,9 @@ wx.cloud.callFunction({
 ## 状态枚举
 
 - 通用：`active`, `inactive`
-- 订单：`pending_payment`, `paid`, `shipped`, `received`, `completed`, `cancelled`
-- 售后/审核：`pending_review`, `approved`, `rejected`, `refunding`, `refunded`
-- 支付：`unpaid`；支付字段保留但首阶段不生成支付参数
+- 订单履约状态：`paid`, `shipped`, `received`, `completed`, `cancelled`；其中 `cancelled` 用于未发货订单全额退款关闭
+- 售后/审核：`pending_review`, `approved`, `rejected`, `refunding`, `refunded`, `withdrawn`
+- 支付状态：`paid`, `partially_refunded`, `refunded`；新订单支付方式为 `simulated`
 
 ## 安全边界
 

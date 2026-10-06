@@ -18,7 +18,6 @@ const COLLECTIONS = Object.freeze({
 const STATUS = Object.freeze({
   active: 'active',
   inactive: 'inactive',
-  pendingPayment: 'pending_payment',
   paid: 'paid',
   shipped: 'shipped',
   received: 'received',
@@ -27,13 +26,13 @@ const STATUS = Object.freeze({
   refundRequested: 'refund_requested',
   refunding: 'refunding',
   refunded: 'refunded',
+  withdrawn: 'withdrawn',
   pendingReview: 'pending_review',
   approved: 'approved',
   rejected: 'rejected',
 });
 
 const ORDER_STATUS = Object.freeze([
-  STATUS.pendingPayment,
   STATUS.paid,
   STATUS.shipped,
   STATUS.received,
@@ -47,6 +46,7 @@ const AFTER_SALE_STATUS = Object.freeze([
   STATUS.rejected,
   STATUS.refunding,
   STATUS.refunded,
+  STATUS.withdrawn,
 ]);
 
 const ADMIN_ROLES = Object.freeze([

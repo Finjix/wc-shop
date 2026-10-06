@@ -42,7 +42,7 @@ function buildOrderPayload(params, goodsRequestList) {
     items: goodsRequestList.map((goods) => ({ skuId: String(goods.skuId), quantity: goods.quantity })),
     addressId: addressIdOf(params),
     // The selected cart items are sent explicitly; the backend must not use the whole cart.
-    useCart: false,
+    useCart: params.useCart === true,
   };
   if (requestKey !== undefined && requestKey !== null && requestKey !== '') payload.requestKey = String(requestKey);
   if (params.remark !== undefined) payload.remark = params.remark;
@@ -145,16 +145,26 @@ function normalizeCreatedOrder(response) {
   const orderNo = order.orderNo || order.orderNumber;
   const orderId = order.orderId || order.id || order._id;
   if (!orderNo && !orderId) throw domainError('ORDER_CREATE_INVALID_RESPONSE', '订单创建结果缺少订单编号');
-  // 当前阶段只创建真实待支付订单；商户支付能力接入后再推进到待发货。
-  const orderStatus = order.orderStatus ?? order.status ?? 5;
+  const payment = order.payment || order.paymentVO || {};
+  const paymentStatus = String(order.paymentStatus || payment.status || '').toLowerCase();
+  const rawStatus = order.orderStatus ?? order.status;
+  const statusKey = String(rawStatus ?? '').toUpperCase().replace(/[- ]/g, '_');
+  const statusConfirmsPaid = rawStatus === undefined || rawStatus === null || rawStatus === ''
+    || ['10', 'PAID', 'PENDING_DELIVERY'].includes(statusKey);
+  if (paymentStatus !== 'paid' || !statusConfirmsPaid) {
+    throw domainError('ORDER_NOT_PAID', '订单尚未确认完成，请稍后重试');
+  }
   return {
     data: {
       ...order,
       orderNo,
       orderId,
-      orderStatus,
-      status: order.status ?? orderStatus,
-      statusDesc: order.statusDesc || order.orderStatusName || '待支付',
+      orderStatus: 10,
+      status: 10,
+      statusDesc: order.statusDesc || order.orderStatusName || '待发货',
+      orderStatusName: order.orderStatusName || order.statusDesc || '待发货',
+      payment,
+      paymentStatus: 'paid',
     },
   };
 }
@@ -169,10 +179,9 @@ function validateOrderRequest(params = {}) {
 }
 
 /**
- * 创建真实云端待支付订单。
- * 本阶段不伪造支付成功，也不调用微信商户支付；库存和订单幂等由云函数负责。
+ * 创建订单并由服务端完成模拟支付；库存和订单幂等由云函数负责。
  */
-export function createPendingOrder(params = {}) {
+export function createOrder(params = {}) {
   const { payload, error } = validateOrderRequest(params);
   if (error) return Promise.reject(error);
   return action('orders.create', payload).then(normalizeCreatedOrder);

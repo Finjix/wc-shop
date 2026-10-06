@@ -7,6 +7,8 @@ import {
   normalizeOrderItem,
   normalizeServiceStatus,
   normalizeServiceType,
+  normalizeServiceButtons,
+  serviceStatusLabel,
 } from '../after-service-detail/contract';
 
 function unwrapData(result) {
@@ -29,13 +31,20 @@ function normalizeRecord(record) {
       orderNo: rights.orderNo || rights.orderId,
       rightsType: normalizedType,
       rightsStatus: normalizedStatus,
-      userRightsStatusName: rights.userRightsStatusName || rights.statusName,
-      userRightsStatusDesc: rights.userRightsStatusDesc || rights.statusDesc || rights.description,
+      userRightsStatus: normalizeServiceStatus(rights.userRightsStatus ?? rights.rightsStatus ?? rights.status),
+      userRightsStatusName: rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rights.status ?? rights.rightsStatus, normalizedType),
+      userRightsStatusDesc: rights.userRightsStatusDesc || rights.statusDesc || rights.description || serviceStatusLabel(rights.status ?? rights.rightsStatus, normalizedType),
       rightsReasonDesc: rights.rightsReasonDesc || rights.reason,
       refundAmount: rights.refundAmount ?? rights.refundRequestAmount ?? rights.amount,
     },
     rightsItem: Array.isArray(rightsItem) ? rightsItem.map(normalizeOrderItem) : [],
-    buttonVOs: source.buttonVOs || rights.buttonVOs || rights.buttons || [],
+    buttonVOs: normalizeServiceButtons(
+      rights.status ?? rights.rightsStatus,
+      normalizedType,
+      source.buttonVOs || rights.buttonVOs || rights.buttons || [],
+      (source.logisticsVO || rights.logisticsVO || source.logistics || {}).logisticsNo,
+    ),
+    returnAddressSnapshot: source.returnAddressSnapshot || rights.returnAddressSnapshot || null,
     logisticsVO: normalizeLogistics(source.logisticsVO || rights.logisticsVO || source.logistics || {}),
   };
 }
@@ -61,7 +70,7 @@ export function getRightsList({ parameter = {} } = {}) {
         page: Number(data.page ?? data.pageNum ?? pageNum) || pageNum,
         pageNum: Number(data.pageNum ?? data.page ?? pageNum) || pageNum,
         pageSize: Number(data.pageSize ?? pageSize) || pageSize,
-        totalCount: Number(data.totalCount ?? data.total ?? records.length),
+        totalCount: Number(data.totalCount ?? data.total ?? data.totalRecords ?? records.length),
         dataList: Array.isArray(records) ? await Promise.all(records.map((record) => resolveRightsImages(normalizeRecord(record)))) : [],
         states: data.states || {},
       },

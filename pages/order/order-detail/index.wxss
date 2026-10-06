@@ -69,6 +69,27 @@
   margin: 16rpx auto;
 }
 
+.order-detail__item-after-sale {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 330rpx;
+  height: 60rpx;
+  margin: 0 32rpx 20rpx auto;
+  border: 1rpx solid #c8bda9;
+  border-radius: 32rpx;
+  color: #695941;
+  font-size: 24rpx;
+  line-height: 1;
+}
+
+.order-detail__item-after-sale-remaining {
+  margin-left: 8rpx;
+  color: #888;
+  font-size: 22rpx;
+}
+
 .order-detail .pay-detail {
   background-color: #ffffff;
   width: 100%;
@@ -220,5 +241,5 @@
 
 .t-button {
   --td-button-default-color: #000;
-  --td-button-primary-text-color: #fff;
+  --td-button-primary-text-color: #695941;
 }

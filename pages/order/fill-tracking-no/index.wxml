@@ -25,14 +25,9 @@
 
         <t-icon slot="right-icon" name="scan" t-class="icon-scan" bindtap="onScanTap" />
       </t-cell>
-      <t-cell
-        t-class-title="t-cell-title-width"
-        t-class-note="{{deliveryCompany && deliveryCompany.name ? 't-cell__value' : 't-cell__placeholder'}}"
-        title="物流公司"
-        note="{{deliveryCompany && deliveryCompany.name || '请选择物流公司'}}"
-        arrow
-        bindtap="onCompanyTap"
-      />
+      <t-cell title="物流公司" t-class-title="t-cell-title-width">
+        <t-input slot="note" borderless t-class="t-cell__value" value="{{logisticsCompanyName}}" maxlength="40" placeholder="请输入物流公司" bind:change="onInput" data-key="logisticsCompanyName" />
+      </t-cell>
     </t-cell-group>
     <view class="textarea-wrapper">
       <text>备注信息</text>
@@ -60,6 +55,5 @@
   </view>
 </view>
 </scroll-view>
-<ui-reason-sheet id="wr-reason-sheet" />
 <t-toast id="t-toast" />
 <t-dialog id="t-dialog" />

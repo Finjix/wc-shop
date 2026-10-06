@@ -4,7 +4,7 @@ import { getRightsList } from './api';
 import { AfterServiceStatus, ServiceType, ServiceTypeDesc } from '../config';
 import Toast from 'tdesign-miniprogram/toast/index';
 import { getApiErrorMessage } from '../../../utils/api';
-import { normalizeLogistics, normalizeServiceType } from '../after-service-detail/contract';
+import { normalizeLogistics, normalizeServiceType, normalizeServiceStatus, serviceStatusLabel } from '../after-service-detail/contract';
 
 Page({
   page: {
@@ -143,9 +143,9 @@ Page({
                 normalizeServiceType(rights.rightsType ?? rights.type) === ServiceType.ONLY_REFUND
                   ? 'money-circle'
                   : 'return-goods-1',
-              status: rights.rightsStatus,
-              statusName: rights.userRightsStatusName || rights.statusName,
-              statusDesc: rights.userRightsStatusDesc || rights.statusDesc,
+              status: normalizeServiceStatus(rights.userRightsStatus ?? rights.rightsStatus ?? rights.status),
+              statusName: rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rights.status ?? rights.rightsStatus, rights.rightsType ?? rights.type),
+              statusDesc: rights.userRightsStatusDesc || rights.statusDesc || serviceStatusLabel(rights.status ?? rights.rightsStatus, rights.rightsType ?? rights.type),
               amount: rights.refundAmount ?? rights.refundRequestAmount,
               goodsList: rightsItem.map((item, i) => ({
                 id: i,

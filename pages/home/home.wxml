@@ -11,7 +11,7 @@
   bind:submit="handleSearchSubmit"
 />
 
-<scroll-view class="home-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
+<scroll-view class="home-scroll" scroll-y show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
   <view class="home-scroll-content">
     <view wx:if="{{loadError}}" class="home-load-error">
       <text>{{loadError}}</text>

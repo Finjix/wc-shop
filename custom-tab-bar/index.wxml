@@ -1,23 +1,20 @@
-<t-tab-bar
- t-class="custom-tab-bar"
- value="{{active}}"
- bindchange="onChange"
- split="{{false}}"
->
-	<t-tab-bar-item
-	 wx:for="{{list}}"
-		 wx:for-item="item"
-	 wx:for-index="index"
-		 wx:key="index"
-	>
-		<view class="custom-tab-bar-wrapper">
-			<t-icon
-        class="custom-tab-bar-icon"
-				prefix="{{item.prefix}}"
-				name="{{item.icon}}"
-				size="40rpx"
-			/>
-			<view class="text">{{ item.text }}</view>
-		</view>
-	</t-tab-bar-item>
-</t-tab-bar>
+<view class="custom-tab-bar">
+  <view
+    wx:for="{{list}}"
+    wx:for-item="item"
+    wx:for-index="index"
+    wx:key="index"
+    class="custom-tab-bar__item {{active === index ? 'custom-tab-bar__item--active' : ''}}"
+    data-index="{{index}}"
+    bindtap="onItemTap"
+  >
+    <t-icon
+      class="custom-tab-bar__icon"
+      prefix="{{item.prefix}}"
+      name="{{item.icon}}"
+      size="40rpx"
+      color="{{active === index ? '#695941' : '#111111'}}"
+    />
+    <view class="custom-tab-bar__text">{{item.text}}</view>
+  </view>
+</view>

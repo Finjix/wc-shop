@@ -7,12 +7,9 @@
       "dir": "./cloudfunctions",
       "handler": "wc-shop-function/index.main",
       "runtime": "Nodejs20.19",
-      "timeout": 60,
-      "memorySize": 512,
-      "installDependency": true,
-      "triggers": [
-        { "name": "expire-pending-orders", "type": "timer", "config": "0 */5 * * * * *" }
-      ]
+      "timeout": 3,
+      "memorySize": 256,
+      "installDependency": true
     }
   ]
 }

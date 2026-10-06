@@ -41,7 +41,7 @@ Component({
   methods: {
     // 点击【订单操作】按钮，根据按钮类型分发
     onServiceBtnTap(e) {
-      const { type } = e.currentTarget.dataset;
+      const type = Number(e.currentTarget.dataset.type);
       switch (type) {
         case ServiceButtonTypes.REVOKE:
           this.onConfirm(this.data.currentService);
@@ -85,31 +85,29 @@ Component({
     },
 
     onConfirm() {
+      const pages = getCurrentPages();
+      const context = pages[pages.length - 1];
       Dialog.confirm({
+        context,
         title: '是否撤销退货申请？',
-        content: '',
-        // Dialog 默认右侧为确认、左侧为取消；调整文案后保持两侧实际逻辑一致。
-        confirmBtn: {
-          content: '不撤销',
-          variant: 'text',
-          theme: 'default',
-        },
-        cancelBtn: {
-          content: '撤销申请',
-          variant: 'text',
-          theme: 'default',
-        },
+        content: '撤销后可重新提交售后申请。',
+        confirmBtn: '撤销申请',
+        cancelBtn: '暂不撤销',
       })
-        .then(() => {})
-        .catch(() => {
+        .then(() => {
           const params = { rightsNo: this.data.currentService.id };
           return cancelRights(params).then(() => {
             Toast({
-              context: this,
+              context,
               selector: '#t-toast',
-              message: '你确认撤销申请',
+              message: '售后申请已撤销',
             });
+            this.triggerEvent('refresh');
           });
+        })
+        .catch((error) => {
+          if (error?.message === 'confirm' || error?.message === 'cancel' || error === 'cancel') return;
+          Toast({ context: this, selector: '#t-toast', message: error?.msg || error?.message || '撤销失败，请稍后重试', icon: '' });
         });
     },
   },

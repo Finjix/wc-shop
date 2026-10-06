@@ -8,25 +8,18 @@
 />
 <view class="select-service">
   <view wx:if="{{!orderLevel}}" class="order-goods-card">
-    <wr-order-goods-card
-      wx:for="{{goodsInfoList}}"
-      wx:for-item="goods"
-      wx:key="skuId"
-      goods="{{goods}}"
-      no-top-line="{{index === 0}}"
-      thumb-class="order-goods-card-title-class"
-    >
-      <view slot="footer" class="order-goods-card-footer">
-        <wr-price
-          price="{{goods.paidAmountEach}}"
-          fill
-          wr-class="order-goods-card-footer-price-class"
-          symbol-class="order-goods-card-footer-price-symbol"
-          decimal-class="order-goods-card-footer-price-decimal"
-        />
-        <view class="order-goods-card-footer-num">x {{goods.boughtQuantity}}</view>
+    <view wx:for="{{goodsInfoList}}" wx:for-item="goods" wx:key="skuId" class="apply-goods-summary">
+      <image wx:if="{{goods.thumb}}" class="apply-goods-summary__image" src="{{goods.thumb}}" mode="aspectFill" />
+      <view wx:else class="apply-goods-summary__image apply-goods-summary__image--empty">商品</view>
+      <view class="apply-goods-summary__content">
+        <text class="apply-goods-summary__title">{{goods.title || '商品'}}</text>
+        <text wx:if="{{goods.specText}}" class="apply-goods-summary__specs">{{goods.specText}}</text>
+        <view class="apply-goods-summary__meta">
+          <text class="apply-goods-summary__price">¥{{goods.paidAmountText}}</text>
+          <text class="apply-goods-summary__quantity">x {{goods.boughtQuantity}}</text>
+        </view>
       </view>
-    </wr-order-goods-card>
+    </view>
   </view>
   <view wx:if="{{!serviceRequireType}}" class="service-choice">
     <t-cell-group>
@@ -45,13 +38,7 @@
           color="#695941"
         />
       </t-cell>
-      <t-cell
-        wx:if="{{canApplyReturn}}"
-        title="退货退款"
-        description="已收到货，需要退还收到的商品"
-        arrow
-        bindtap="onApplyReturnGoods"
-      >
+      <t-cell wx:if="{{canApplyReturn}}" title="退货退款" description="已收到货，需要退还收到的商品" arrow bindtap="onApplyReturnGoods">
         <t-icon
           slot="left-icon"
           prefix="wr"
@@ -61,7 +48,7 @@
           color="#695941"
         />
       </t-cell>
-      <t-cell wx:else class="non-returnable" title="退货退款" description="该商品不支持退货">
+      <t-cell wx:elif="{{returnAddressMissing}}" class="non-returnable" title="退货退款" description="商家尚未配置退货地址，暂不能申请退货退款">
         <t-icon
           slot="left-icon"
           prefix="wr"

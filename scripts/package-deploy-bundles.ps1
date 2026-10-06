@@ -1,5 +1,5 @@
 param(
-  [string]$Version = '0830a'
+  [string]$Version = 'v261005'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -9,6 +9,10 @@ if ([string]::IsNullOrWhiteSpace($Version) -or $Version -notmatch '^[A-Za-z0-9][
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
+$runtimeConfig = Get-Content -LiteralPath (Join-Path $repoRoot 'config\runtime.ts') -Raw
+if ($runtimeConfig -notmatch 'export\s+const\s+useLocalBackend\s*=\s*false\s*;') {
+  throw 'Mini-program deployment requires useLocalBackend = false.'
+}
 $cloudRoot = Join-Path $repoRoot 'cloudfunctions'
 $adminRoot = Join-Path $repoRoot 'admin'
 $distRoot = Join-Path $repoRoot 'dist'
@@ -189,5 +193,11 @@ finally {
 }
 
 $finalReleaseRoot = Join-Path $distRoot $Version
+$releaseFiles = @('wc-shop-function.zip', 'wc-shop-admin-static.zip') | ForEach-Object {
+  $releaseFile = Join-Path $finalReleaseRoot $_
+  [ordered]@{ name = $_; sha256 = (Get-FileHash -LiteralPath $releaseFile -Algorithm SHA256).Hash; bytes = (Get-Item -LiteralPath $releaseFile).Length }
+}
+[ordered]@{ version = $Version; environment = $cloudEnvId; builtAt = [DateTime]::UtcNow.ToString('o'); files = @($releaseFiles) } |
+  ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $finalReleaseRoot 'release-manifest.json') -Encoding utf8
 Write-Output "function: $(Join-Path $finalReleaseRoot 'wc-shop-function.zip')  (Handler: index.main)"
 Write-Output "web:      $(Join-Path $finalReleaseRoot 'wc-shop-admin-static.zip')"

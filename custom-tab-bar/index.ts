@@ -9,8 +9,12 @@ Component({
   },
 
   methods: {
-    onChange(event) {
-      const selectedIndex = event.detail.value;
+    onItemTap(event) {
+      this.selectTab(event.currentTarget.dataset.index);
+    },
+
+    selectTab(index) {
+      const selectedIndex = Number(index);
       const selectedItem = this.data.list[selectedIndex];
       if (!selectedItem) return;
       if (!isPageNavigationEnabled(selectedItem.url)) return;
@@ -27,9 +31,7 @@ Component({
 
       this.setData({ active: selectedIndex });
       wx.switchTab({
-        url: this.data.list[selectedIndex].url.startsWith('/')
-          ? this.data.list[selectedIndex].url
-          : `/${this.data.list[selectedIndex].url}`,
+        url: selectedItem.url.startsWith('/') ? selectedItem.url : `/${selectedItem.url}`,
       });
     },
 

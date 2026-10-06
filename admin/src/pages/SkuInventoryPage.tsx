@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useBlocker, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { EmptyState, ErrorState, LoadingState, Panel, Table } from '../components/Ui';
@@ -89,8 +89,18 @@ export function SkuInventoryPage() {
         return [productId, visibleSkus(product, skus)] as const;
       }));
       if (!active) return;
-      setProducts(result.items);
-      setSkusByProduct(Object.fromEntries(skuEntries));
+      const loadedSkus = Object.fromEntries(skuEntries);
+      const minimumStock = (product: Product) => {
+        const stocks = (loadedSkus[String(product._id || product.spuId)] || []).map(variantStock).filter((stock) => stock >= 0);
+        return stocks.length ? Math.min(...stocks) : Infinity;
+      };
+      // Freeze the loaded order: saving stock must not move the product being edited.
+      setProducts([...result.items].sort((left, right) => {
+        const leftStock = minimumStock(left);
+        const rightStock = minimumStock(right);
+        return leftStock === rightStock ? 0 : leftStock < rightStock ? -1 : 1;
+      }));
+      setSkusByProduct(loadedSkus);
       setSkuCache((old) => ({ ...old, ...Object.fromEntries(skuEntries.flatMap(([, skus]) => skus.map((sku) => [String(sku._id || sku.skuId), sku] as const))) }));
       setTotal(result.total ?? result.items.length);
     };
@@ -100,18 +110,7 @@ export function SkuInventoryPage() {
     return () => { active = false; };
   }, [query, refreshKey]);
 
-  const sortedProducts = useMemo(() => {
-    const minimumStock = (product: Product) => {
-      const stocks = (skusByProduct[String(product._id || product.spuId)] || []).map(variantStock).filter((stock) => stock >= 0);
-      return stocks.length ? Math.min(...stocks) : Infinity;
-    };
-    return [...products].sort((left, right) => {
-      const leftStock = minimumStock(left);
-      const rightStock = minimumStock(right);
-      return leftStock === rightStock ? 0 : leftStock < rightStock ? -1 : 1;
-    });
-  }, [products, skusByProduct]);
-  const pageProducts = sortedProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageProducts = products.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
@@ -119,6 +118,7 @@ export function SkuInventoryPage() {
     if (saving) return;
     setPage(1);
     setQuery(queryInput.trim());
+    setRefreshKey((key) => key + 1);
   };
   useEffect(() => {
     if (saving || queryInput.trim() === query) return;

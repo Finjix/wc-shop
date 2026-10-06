@@ -38,6 +38,11 @@ export function fetchBusinessTime(params = {}) {
   });
 }
 
-export function cancelOrder(orderNo) { return request('orders.cancel', { orderNo }); }
 export function confirmOrderReceived(params = {}) { return request('orders.confirmReceived', params); }
+export function updateOrderAddress(params = {}) {
+  return request('orders.updateAddress', {
+    orderId: params.orderId || params.orderNo,
+    addressId: params.addressId || params.id,
+  });
+}
 // @ts-nocheck

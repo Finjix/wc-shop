@@ -5,8 +5,6 @@
   "usingComponents": {
     "image-processor": "/packages/form-ui/image-processor/index",
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
-    "wr-price": "/components/price/index",
-    "wr-order-goods-card": "../components/order-goods-card/index",
     "wr-reason-sheet": "../components/reason-sheet/index",
     "t-cell": "tdesign-miniprogram/cell/cell",
     "t-icon": "tdesign-miniprogram/icon/icon",

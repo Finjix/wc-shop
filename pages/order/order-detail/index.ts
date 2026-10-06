@@ -3,8 +3,19 @@
 import { formatTime } from '../utils/format';
 import { getApiErrorMessage } from '../../../utils/api';
 import { OrderButtonTypes, OrderStatus } from '../config';
-import { fetchBusinessTime, fetchOrderDetail } from '../services/orderDetail';
+import { fetchBusinessTime, fetchOrderDetail, updateOrderAddress } from '../services/orderDetail';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
+
+function refundableQuantityOf(goods = {}) {
+  return Math.max(0, Number(
+    goods.availableRefundQuantity
+      ?? goods.numOfSkuAvailable
+      ?? goods.fulfillableQuantity
+      ?? goods.remainingQuantity
+      ?? goods.buyQuantity
+      ?? 0,
+  ) || 0);
+}
 
 Page({
   data: {
@@ -28,8 +39,11 @@ Page({
   },
 
   onShow() {
-    // 当从其他页面返回，并且 backRefresh 被置为 true 时，刷新数据
-    if (!this.data.backRefresh) return;
+    // 首次显示时 onLoad 已发起请求；后续从子页面返回都重新读取订单快照。
+    if (!this.hasShownOnce) {
+      this.hasShownOnce = true;
+      return;
+    }
     this.onRefresh();
     this.setData({ backRefresh: false });
   },
@@ -84,19 +98,14 @@ Page({
     return fetchOrderDetail(params).then((res) => {
       const order = res.data;
       const hasReceived = order.orderStatus === OrderStatus.COMPLETE;
-      const orderButtons = [...(order.buttonVOs || [])];
-      const canCancel =
-        [OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_DELIVERY].includes(order.orderStatus)
-        && order.orderSubStatus !== -1;
-      const canApplyRefund = [OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(
-        order.orderStatus,
+      const refundableOrderStatus = [OrderStatus.PENDING_DELIVERY, OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(order.orderStatus);
+      const canApplyRefund = refundableOrderStatus
+        && (order.orderItemVOs || []).some((goods) => refundableQuantityOf(goods) > 0);
+      const supportedButtonTypes = Object.values(OrderButtonTypes).map(Number);
+      const orderButtons = (order.buttonVOs || []).filter((button) =>
+        supportedButtonTypes.includes(Number(button.type))
+        && (Number(button.type) !== OrderButtonTypes.APPLY_REFUND || canApplyRefund),
       );
-      if (
-        canCancel &&
-        !orderButtons.some((button) => Number(button.type) === OrderButtonTypes.CANCEL)
-      ) {
-        orderButtons.unshift({ type: OrderButtonTypes.CANCEL, name: '取消订单' });
-      }
       if (
         canApplyRefund &&
         !orderButtons.some((button) =>
@@ -136,6 +145,10 @@ Page({
             specs: (goods.specifications || []).map((s) => s.specValue),
             price: goods.actualPrice,
             num: goods.buyQuantity,
+            fulfillableQuantity: goods.fulfillableQuantity ?? goods.remainingQuantity ?? goods.buyQuantity,
+            refundableQuantity: refundableQuantityOf(goods),
+            canApplyRefund: refundableOrderStatus && Boolean(goods.skuId) && refundableQuantityOf(goods) > 0,
+            orderItemId: goods.orderItemId || goods.itemId || goods.id,
           }),
         ),
         buttons: orderButtons,
@@ -149,7 +162,7 @@ Page({
         formatCreateTime: formatTime(order.createTime, 'YYYY-MM-DD HH:mm'), // 格式化订单创建时间
         addressEditable:
           order.orderStatus === OrderStatus.PENDING_DELIVERY &&
-          order.orderSubStatus !== -1, // 订单正在取消审核时不允许修改地址（但是返回的状态码与待发货一致）
+          order.orderSubStatus !== -1 && !order.hasPendingRefund,
         showLogistics: !hasReceived,
       });
     });
@@ -186,16 +199,43 @@ Page({
     navigateToGoodsDetail(`/pages/goods/details/index?spuId=${goods.spuId}`);
   },
 
+  onApplyGoodsRefund(e) {
+    const index = Number(e.currentTarget.dataset.index);
+    const goods = this.data._order.goodsList[index];
+    if (!goods?.canApplyRefund || !goods.skuId) return;
+    const order = this.data.order || {};
+    const orderStatus = Number(order.orderStatus);
+    const canApplyReturn = [OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(orderStatus);
+    const params = {
+      orderNo: order.orderNo || this.orderNo,
+      skuId: goods.skuId,
+      spuId: goods.spuId,
+      orderStatus,
+      logisticsNo: order.logisticsVO?.logisticsNo || '',
+      canApplyReturn,
+      directApply: !canApplyReturn,
+    };
+    const query = Object.entries(params)
+      .map(([key, value]) => `${key}=${encodeURIComponent(value ?? '')}`)
+      .join('&');
+    wx.navigateTo({ url: `/pages/order/apply-service/index?${query}` });
+  },
+
   onEditAddressTap() {
     getApp().addressSelection.getAddressPromise()
       .then((address) => {
-        this.setData({
-          'order.logisticsVO.receiverName': address.name,
-          'order.logisticsVO.receiverPhone': address.phone,
-          '_order.receiverAddress': address.address,
+        wx.showLoading({ title: '正在保存' });
+        return updateOrderAddress({
+          orderId: this.data.order.orderId || this.data.order._id || this.orderNo,
+          addressId: address.addressId || address.id || address._id,
         });
       })
-      .catch(() => {});
+      .then(() => this.onRefresh())
+      .catch((error) => {
+        if (!error || error.message === 'cancel') return;
+        wx.showToast({ title: getApiErrorMessage(error, '收货地址保存失败'), icon: 'none' });
+      })
+      .finally(() => wx.hideLoading());
 
     wx.navigateTo({
       url: `/pages/user/address/list/index?selectMode=1`,
@@ -209,10 +249,10 @@ Page({
   },
 
   onDeliveryClick() {
-    const logisticsNo = this.data.order.logisticsVO?.logisticsNo;
-    if (!logisticsNo) return;
+    const logistics = this.data.order.logisticsVO || {};
+    if (!logistics.logisticsNo && !logistics.logisticsCompanyName) return;
     wx.navigateTo({
-      url: `/pages/order/logistics-webview/index?logisticsNo=${encodeURIComponent(logisticsNo)}`,
+      url: `/pages/order/delivery-detail/index?data=${encodeURIComponent(JSON.stringify(logistics))}`,
     });
   },
 

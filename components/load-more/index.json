@@ -1,10 +1,6 @@
 {
   "component": true,
   "usingComponents": {
-    "t-loading": "tdesign-miniprogram/loading/loading",
-    "t-divider": "/packages/order-ui/tdesign/divider/divider"
-  },
-  "componentPlaceholder": {
-    "t-divider": "view"
+    "t-loading": "tdesign-miniprogram/loading/loading"
   }
 }

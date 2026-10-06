@@ -17,9 +17,18 @@
   color: #bbbbbb;
 }
 
-.t-class-divider-content {
-  margin: 0 10rpx;
+.load-more__divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
   color: #bbbbbb;
+}
+
+.load-more__divider-line {
+  width: 48rpx;
+  height: 1rpx;
+  background: #e7e7e7;
 }
 .load-more .t-class-indicator {
   color: #b9b9b9 !important;

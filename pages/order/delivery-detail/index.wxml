@@ -96,4 +96,7 @@
 		</t-step>
 	</t-steps>
 </view>
+<view wx:if="{{!logisticsData.nodes.length}}" class="page-section logistics-empty">
+  暂无物流轨迹，可根据物流公司和运单号查询配送进度。
+</view>
 </scroll-view>

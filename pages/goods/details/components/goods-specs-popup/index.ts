@@ -78,7 +78,12 @@ Component({
       const sourceSpecs = this.properties.specList;
       const signature = JSON.stringify({ skuList, specList: sourceSpecs.map((group) => ({
         ...group,
-        specValueList: group.specValueList.map(({ isSelected, hasStockObj, ...option }) => option),
+        specValueList: group.specValueList.map((sourceOption) => {
+          const option = Object.assign({}, sourceOption);
+          delete option.isSelected;
+          delete option.hasStockObj;
+          return option;
+        }),
       })) });
       if (this.specDataSignature === signature) return;
       this.specDataSignature = signature;

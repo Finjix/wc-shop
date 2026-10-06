@@ -5,7 +5,14 @@ import { ServiceType, ServiceTypeDesc, ServiceStatus } from '../config';
 import { formatTime, getRightsDetail } from './api';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 import { getApiErrorMessage } from '../../../utils/api';
-import { normalizeLogistics, normalizeOrderItem, normalizeServiceType } from './contract';
+import {
+  normalizeLogistics,
+  normalizeOrderItem,
+  normalizeServiceType,
+  normalizeServiceStatus,
+  normalizeServiceButtons,
+  serviceStatusLabel,
+} from './contract';
 
 const TitleConfig = {
   [ServiceType.ORDER_CANCEL]: '退款详情',
@@ -97,16 +104,19 @@ Page({
       const rightsItem = (serviceRaw.rightsItem || serviceRaw.items || rights.items || []).map(normalizeOrderItem);
       const logisticsVO = normalizeLogistics(serviceRaw.logisticsVO || serviceRaw.logistics || {});
       const serviceType = normalizeServiceType(rights.rightsType ?? rights.type);
+      const rawStatus = rights.userRightsStatus ?? rights.rightsStatus ?? rights.status;
+      const serviceStatus = normalizeServiceStatus(rawStatus);
+      const returnAddress = serviceRaw.returnAddressSnapshot || rights.returnAddressSnapshot || {};
       const service = {
         id: rights.rightsNo || rights.id || rights._id,
         serviceNo: rights.rightsNo || rights.id || rights._id,
         storeName: rights.storeName,
         type: serviceType,
         typeDesc: ServiceTypeDesc[serviceType] || rights.typeDesc || '',
-        status: rights.rightsStatus,
+        status: serviceStatus,
         statusIcon: this.genStatusIcon(rights),
-        statusName: rights.userRightsStatusName || rights.statusName,
-        statusDesc: rights.userRightsStatusDesc || rights.statusDesc,
+        statusName: rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rawStatus, serviceType),
+        statusDesc: rights.userRightsStatusDesc || rights.statusDesc || rights.description || serviceStatusLabel(rawStatus, serviceType),
         amount: rights.refundRequestAmount ?? rights.refundAmount,
         goodsList: rightsItem.map((item, i) => ({
           id: i,
@@ -134,10 +144,19 @@ Page({
         logisticsCompanyCode: logisticsVO.logisticsCompanyCode, // 退货物流公司
         remark: logisticsVO.remark, // 退货备注
         logisticsDescription: logisticsVO.description || logisticsVO.logisticsDescription || '',
-        receiverName: logisticsVO.receiverName, // 收货人
-        receiverPhone: logisticsVO.receiverPhone, // 收货人电话
-        receiverAddress: this.composeAddress(serviceRaw), // 收货人地址
-        buttons: serviceRaw.buttonVOs || [],
+        receiverName: logisticsVO.receiverName || returnAddress.receiverName || returnAddress.name || '',
+        receiverPhone: logisticsVO.receiverPhone || returnAddress.receiverPhone || returnAddress.phone || '',
+        receiverAddress: this.composeAddress({
+          logisticsVO: {
+            ...logisticsVO,
+            receiverProvince: logisticsVO.receiverProvince || returnAddress.province,
+            receiverCity: logisticsVO.receiverCity || returnAddress.city,
+            receiverCountry: logisticsVO.receiverCountry || returnAddress.country,
+            receiverArea: logisticsVO.receiverArea || returnAddress.district,
+            receiverAddress: logisticsVO.receiverAddress || returnAddress.detail || returnAddress.address || returnAddress.fullAddress || returnAddress.addressLine,
+          },
+        }),
+        buttons: normalizeServiceButtons(rawStatus, serviceType, serviceRaw.buttonVOs || rights.buttonVOs || rights.buttons || [], logisticsVO.logisticsNo),
         logistics: logisticsVO,
       };
       const proofs = rights.rightsImageUrls || [];

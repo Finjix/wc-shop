@@ -18,20 +18,14 @@ Page({
     } catch (e) {
       console.warn('物流节点数据解析失败', e);
     }
-    if (Number(query.source) === 2) {
-      const service = {
-        company: data.logisticsCompanyName || data.company || '',
-        logisticsNo: data.logisticsNo || '',
-        phoneNumber: data.phoneNumber || '',
-        nodes: Array.isArray(data.nodes) ? data.nodes : [],
-      };
-      this.setData({
-        logisticsData: service,
-      });
-    } else if (data && typeof data === 'object') {
+    if (data && typeof data === 'object') {
       this.setData({
         logisticsData: {
+          ...this.data.logisticsData,
           ...data,
+          company: data.logisticsCompanyName || data.companyName || data.company || '',
+          logisticsNo: data.logisticsNo || data.trackingNo || data.trackingNumber || '',
+          phoneNumber: data.phoneNumber || '',
           nodes: Array.isArray(data.nodes) ? data.nodes : [],
         },
       });
