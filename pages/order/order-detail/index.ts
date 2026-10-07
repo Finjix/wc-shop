@@ -147,8 +147,6 @@ Page({
             price: goods.actualPrice,
             num: goods.buyQuantity,
             fulfillableQuantity: goods.fulfillableQuantity ?? goods.remainingQuantity ?? goods.buyQuantity,
-            refundableQuantity: refundableQuantityOf(goods),
-            canApplyRefund: refundableOrderStatus && order.orderStatus !== OrderStatus.PENDING_DELIVERY && Boolean(goods.skuId) && refundableQuantityOf(goods) > 0,
             orderItemId: goods.orderItemId || goods.itemId || goods.id,
           }),
         ),
@@ -198,28 +196,6 @@ Page({
     const { index } = e.currentTarget.dataset;
     const goods = this.data.order.orderItemVOs[index];
     navigateToGoodsDetail(`/pages/goods/details/index?spuId=${goods.spuId}`);
-  },
-
-  onApplyGoodsRefund(e) {
-    const index = Number(e.currentTarget.dataset.index);
-    const goods = this.data._order.goodsList[index];
-    if (!goods?.canApplyRefund || !goods.skuId) return;
-    const order = this.data.order || {};
-    const orderStatus = Number(order.orderStatus);
-    const canApplyReturn = [OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(orderStatus);
-    const params = {
-      orderNo: order.orderNo || this.orderNo,
-      skuId: goods.skuId,
-      spuId: goods.spuId,
-      orderStatus,
-      logisticsNo: order.logisticsVO?.logisticsNo || '',
-      canApplyReturn,
-      directApply: !canApplyReturn,
-    };
-    const query = Object.entries(params)
-      .map(([key, value]) => `${key}=${encodeURIComponent(value ?? '')}`)
-      .join('&');
-    wx.navigateTo({ url: `/pages/order/apply-service/index?${query}` });
   },
 
   onEditAddressTap() {

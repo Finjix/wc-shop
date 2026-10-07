@@ -17,6 +17,10 @@
         <view class="goods-detail">{{goodsDetail}}</view>
       </view>
     </view>
+    <view class="rating-options">
+      <view class="rating-option {{rating === 5 ? 'rating-option--selected' : ''}}" data-rating="5" bindtap="onRatingChange">好评</view>
+      <view class="rating-option {{rating === 1 ? 'rating-option--selected' : ''}}" data-rating="1" bindtap="onRatingChange">差评</view>
+    </view>
     <view class="textarea-container">
       <t-textarea
         t-class="textarea"
@@ -32,12 +36,18 @@
         media-type="{{['image']}}"
         sizeLimit="{{10485760}}"
         files="{{uploadFiles}}"
-        max="4"
+        max="3"
+        add-content=" "
         bind:remove="handleRemove"
         bind:success="handleSuccess"
         gridConfig="{{gridConfig}}"
         imageProps="{{imageProps}}"
-      />
+      >
+        <view slot="add-content" class="upload-addcontent-slot">
+          <text class="upload-addcontent-plus">＋</text>
+          <text>添加图片</text>
+        </view>
+      </t-upload>
     </view>
 
   </view>

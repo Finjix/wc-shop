@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useBlocker, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
-import { Button, Input, Tag } from 'tdesign-react';
+import { Button, Dialog, Input, Tag } from 'tdesign-react';
 import { adminApi, ApiError } from '../lib/api';
 import { useConfirm } from '../components/ConfirmProvider';
 import type { AfterSale, Comment, ListResult, Order } from '../types';
@@ -80,25 +80,14 @@ function statusTag(value: unknown) {
   return <Tag theme={['cancelled', 'refunded'].includes(key) ? 'default' : 'primary'} variant="light">{orderStatusLabel(key)}</Tag>;
 }
 
-function paymentLabel(order: Order) {
-  const status = String(order.paymentStatus ?? order.payment?.status ?? '').toLowerCase();
-  if (['partially_refunded', 'partial_refunded', 'partial_refund'].includes(status)) return '已退款';
-  if (['refunded', 'full_refund'].includes(status)) return '已退款';
-  if (['paid', 'success', '1', '2'].includes(status)) {
-    return order.payment?.mode === 'simulated' || order.paymentMode === 'simulated'
-      ? '模拟支付完成' : '已支付';
-  }
-  return '—';
-}
-
 function createdAtOf(value: Order) { return value.createdAt ?? value.createTime; }
 function amountOf(order: Order) { return order.paymentAmount ?? order.totalAmount ?? order.amount; }
-function refundAmountOf(order: Order) { return order.refundAmount ?? order.refundedAmount ?? order.totalRefundAmount; }
 function orderIdOf(order: Order, fallback = '') { return String(order._id || order.orderId || order.orderNo || fallback); }
 const PAGE_SIZE = 20;
 const orderFilters = [['', '全部状态'], ['paid', '待发货'], ['shipped', '待收货'], ['completed', '已完成'], ['cancelled', '已取消'], ['refunded', '已退款']];
 
 export function OrdersPage() {
+  const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
   const [searchParams] = useSearchParams();
   const requestedStatus = searchParams.get('status') || '';
   const initialStatus = orderFilters.some(([value]) => value === requestedStatus) ? requestedStatus : '';
@@ -123,24 +112,55 @@ export function OrdersPage() {
     {error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
     {!loading && !error && <Panel>
       <Table minWidth={970}>
-        <thead><tr><th>订单号</th><th>金额</th><th>订单状态</th><th>创建时间</th><th>操作</th></tr></thead>
+        <thead><tr><th>订单号</th><th>订单状态</th><th>创建时间</th><th>操作</th></tr></thead>
         <tbody>
-          {rows.length === 0 && <EmptyTable colSpan={5} />}
+          {rows.length === 0 && <EmptyTable colSpan={4} />}
           {rows.map((order) => {
             const id = orderIdOf(order);
             const currentStatus = orderStatusKey(order.status ?? order.orderStatusName);
             return <tr key={id}>
               <td><Link to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>{String(order.orderNo || id || '—')}</Link></td>
-              <td>{formatMoney(amountOf(order))}</td>
               <td>{statusTag(currentStatus)}</td><td>{formatDate(createdAtOf(order))}</td>
-              <td><Link className="text-button" to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>详情</Link></td>
+              <td className="order-list-actions"><Link className="text-button" to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>详情</Link>{currentStatus === 'paid' && <> <button className="text-button" type="button" onClick={() => { setShippingOrder(order); }}>发货</button></>}</td>
             </tr>;
           })}
         </tbody>
       </Table>
       <Pagination page={search.page} pageSize={PAGE_SIZE} total={total} onChange={(page) => setSearch((old) => ({ ...old, page }))} />
     </Panel>}
+    {shippingOrder && <OrderShippingDialog order={shippingOrder} onClose={() => setShippingOrder(null)} onSaved={() => { setShippingOrder(null); setRefreshKey((key) => key + 1); }} />}
   </>;
+}
+
+function OrderShippingDialog({ order, editing = false, onClose, onSaved }: { order: Order; editing?: boolean; onClose: () => void; onSaved: () => void }) {
+  const logistics = order.logistics || order.tracking || order.logisticsVO || {};
+  const [trackingNo, setTrackingNo] = useState(editing ? String(logistics.trackingNo || logistics.logisticsNo || logistics.no || '') : '');
+  const { busy, run } = useAction();
+  const save = async () => {
+    if (busy || !trackingNo.trim()) return;
+    const result = await run(editing ? 'orders.logistics.save' : 'orders.ship', { orderId: orderIdOf(order), trackingNo: trackingNo.trim() }, editing ? '物流单号已修改' : '订单已发货');
+    if (result !== undefined) onSaved();
+  };
+  return <Dialog className="shipping-dialog" width="min(900px, 92vw)" header={false} closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: editing ? '保存' : '确认发货', loading: busy, disabled: busy || !trackingNo.trim() }} cancelBtn={{ content: '取消', disabled: busy }}>
+    <ShippingOrderInfo order={order} />
+    <div className="shipping-dialog-tracking"><Field label="物流单号"><Input value={trackingNo} onChange={setTrackingNo} placeholder="请输入物流单号" /></Field></div>
+  </Dialog>;
+}
+
+function ShippingOrderInfo({ order }: { order: Order }) {
+  const { data, loading, error } = useResource<Order>('orders.get', { orderId: orderIdOf(order) });
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState message={error} />;
+  if (!data) return <EmptyState title="订单不存在" />;
+  const address = addressOf(data);
+  const items = listOf<Record<string, unknown>>(data.items || data.orderItemVOs);
+  return <div className="shipping-dialog-info">
+    <dl className="detail-list"><dt>收货人</dt><dd>{address.receiver}</dd><dt>联系电话</dt><dd>{address.phone}</dd><dt>收货地址</dt><dd>{address.address}</dd></dl>
+    <Table minWidth={400}>
+      <thead><tr><th>商品</th><th>规格</th><th>购买数量</th></tr></thead>
+      <tbody>{items.length === 0 && <EmptyTable colSpan={3} />}{items.map((item, index) => <tr key={String(item.skuId || index)}><td>{orderItemTitle(item)}</td><td>{orderItemSpecs(item)}</td><td>{itemQuantity(item)}</td></tr>)}</tbody>
+    </Table>
+  </div>;
 }
 
 function addressOf(order: Order) {
@@ -156,30 +176,20 @@ function addressOf(order: Order) {
 }
 
 function listOf<T>(value: unknown): T[] { return Array.isArray(value) ? value as T[] : readList<T>(value); }
-function quantityMapValue(map: unknown, item: Record<string, unknown>) {
-  if (!map || typeof map !== 'object') return undefined;
-  const source = map as Record<string, unknown>;
-  const skuId = String(item.skuId || item._id || '');
-  if (!skuId || !Object.prototype.hasOwnProperty.call(source, skuId)) return undefined;
-  return Math.max(0, Number(source[skuId]) || 0);
-}
 function itemQuantity(item: Record<string, unknown>) { return Math.max(0, Number(item.buyQuantity ?? item.quantity ?? item.rightsQuantity ?? 0) || 0); }
-function refundedQuantity(item: Record<string, unknown>, map?: unknown) {
-  return quantityMapValue(map, item) ?? Math.max(0, Number(item.refundedQuantity ?? item.refundQuantity ?? 0) || 0);
-}
-function shippedQuantity(item: Record<string, unknown>, map?: unknown) {
-  return quantityMapValue(map, item) ?? Math.max(0, Number(item.shippedQuantity ?? item.deliveredQuantity ?? 0) || 0);
-}
-function remainingQuantity(item: Record<string, unknown>, refundedMap?: unknown, shippedMap?: unknown) {
-  const explicit = item.remainingShipQuantity ?? item.remainingQuantity;
-  if (explicit !== undefined) return Math.max(0, Number(explicit) || 0);
-  return Math.max(0, itemQuantity(item) - refundedQuantity(item, refundedMap) - shippedQuantity(item, shippedMap));
-}
 function orderItemTitle(item: Record<string, unknown>) {
   const productSnapshot = item.productSnapshot && typeof item.productSnapshot === 'object' ? item.productSnapshot as Record<string, unknown> : {};
   const skuSnapshot = item.skuSnapshot && typeof item.skuSnapshot === 'object' ? item.skuSnapshot as Record<string, unknown> : {};
   return String(item.goodsName || item.productName || item.title || productSnapshot.title || productSnapshot.productName || skuSnapshot.title || '—');
 }
+function orderItemSpecs(item: Record<string, unknown>) {
+  const snapshot = item.skuSnapshot && typeof item.skuSnapshot === 'object' ? item.skuSnapshot as Record<string, unknown> : {};
+  const specs = listOf<Record<string, unknown>>(snapshot.specInfo || item.specInfo);
+  return specs.map((spec) => {
+    return String(spec.specValue || spec.value || '').trim();
+  }).filter(Boolean).join(' / ') || '—';
+}
+
 function orderItemAmount(item: Record<string, unknown>) {
   const saved = item.itemPaymentAmount ?? item.paymentAmount ?? item.amount;
   if (saved !== undefined) return saved;
@@ -188,66 +198,42 @@ function orderItemAmount(item: Record<string, unknown>) {
 }
 
 export function OrderDetailPage() {
+  const [shippingOpen, setShippingOpen] = useState(false);
   const { orderNo = '' } = useParams();
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
-  const [company, setCompany] = useState('');
-  const [trackingNo, setTrackingNo] = useState('');
+
   const { data, loading, error } = useResource<Order>('orders.get', { orderNo: decodeURIComponent(orderNo), orderId: decodeURIComponent(orderNo) }, refreshKey);
-  const { busy, run } = useAction();
-  useEffect(() => {
-    const logistics = data?.logistics || data?.tracking || data?.logisticsVO || {};
-    setCompany(String(logistics.companyName || logistics.logisticsCompanyName || logistics.logistics || ''));
-    setTrackingNo(String(logistics.trackingNo || logistics.logisticsNo || logistics.no || ''));
-  }, [data]);
+
   const items = listOf<Record<string, unknown>>(data?.items || data?.orderItemVOs);
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />;
   if (!data) return <EmptyState title="订单不存在" />;
   const status = orderStatusKey(data.status ?? data.orderStatusName);
   const address = addressOf(data);
-  const refundQuantities = data.refundedQuantities;
-  const shippedQuantities = data.shippedQuantities;
-  const hasShippableItems = items.length === 0 || items.some((item) => remainingQuantity(item, refundQuantities, shippedQuantities) > 0);
-  const hasActiveAfterSale = Boolean(data.hasActiveAfterSale || Number(data.pendingRefundAmount || 0) > 0);
-  const shipOrder = async () => {
-    if (busy) return;
-    if (!company.trim() || !trackingNo.trim()) { message('发货前请填写物流公司和物流单号', 'warning'); return; }
-    const result = await run('orders.ship', { orderId: orderIdOf(data, orderNo), logistics: { companyName: company.trim() }, trackingNo: trackingNo.trim() }, '订单已发货');
-    if (result !== undefined) setRefreshKey((key) => key + 1);
-  };
+  const logistics = data.logistics || data.tracking || data.logisticsVO || {};
+  const trackingNo = String(logistics.trackingNo || logistics.logisticsNo || logistics.no || '').trim();
+
   return <>
-    <PageTitle>订单详情</PageTitle>
-    <div className="page-actions"><Button variant="outline" onClick={() => navigate('/orders')}>返回列表</Button></div>
+    <div className="page-actions">{['paid', 'shipped'].includes(status) && <Button theme="primary" onClick={() => setShippingOpen(true)}>{status === 'paid' ? '发货' : '修改物流单号'}</Button>}<Button variant="outline" onClick={() => navigate('/orders')}>返回列表</Button></div>
+    {shippingOpen && <OrderShippingDialog order={data} editing={status === 'shipped'} onClose={() => setShippingOpen(false)} onSaved={() => { setShippingOpen(false); setRefreshKey((key) => key + 1); }} />}
     <div className="detail-grid">
       <Panel>
-        <div className="panel-heading"><h3>订单信息</h3>{statusTag(status)}</div>
         <dl className="detail-list">
           <dt>订单号</dt><dd>{String(data.orderNo || orderNo)}</dd>
           <dt>订单状态</dt><dd>{orderStatusLabel(status)}</dd>
-          <dt>支付状态</dt><dd>{paymentLabel(data)}</dd>
-          <dt>支付方式</dt><dd>{data.payment?.mode === 'simulated' || data.paymentMode === 'simulated' ? '模拟支付' : '—'}</dd>
           <dt>订单金额</dt><dd>{formatMoney(amountOf(data))}</dd>
-          <dt>已退款金额</dt><dd>{refundAmountOf(data) === undefined ? '¥0.00' : formatMoney(refundAmountOf(data))}</dd>
           <dt>创建时间</dt><dd>{formatDate(createdAtOf(data))}</dd>
         </dl>
-        <h3>收货信息</h3>
-        <dl className="detail-list"><dt>收货人</dt><dd>{address.receiver}</dd><dt>联系电话</dt><dd>{address.phone}</dd><dt>收货地址</dt><dd>{address.address}</dd></dl>
       </Panel>
       <Panel>
-        <h3>物流信息</h3>
-        {status === 'paid' ? <>
-          <div className="form-grid"><Field label="物流公司"><Input value={company} onChange={setCompany} placeholder="例如：中通" /></Field><Field label="物流单号"><Input value={trackingNo} onChange={setTrackingNo} placeholder="请输入物流单号" /></Field></div>
-          {hasActiveAfterSale && <div className="notice warning">订单有退款申请审核中，审核完成前暂不可发货。</div>}
-          <div className="form-actions"><Button theme="primary" disabled={busy || hasActiveAfterSale || !company.trim() || !trackingNo.trim() || !hasShippableItems} loading={busy} onClick={() => void shipOrder()}>{hasActiveAfterSale ? '售后审核中，暂不可发货' : '保存物流并发货'}</Button></div>
-        </> : <dl className="detail-list"><dt>物流公司</dt><dd>{company || '—'}</dd><dt>物流单号</dt><dd>{trackingNo || '—'}</dd></dl>}
+        <dl className="detail-list"><dt>收货人</dt><dd>{address.receiver}</dd><dt>联系电话</dt><dd>{address.phone}</dd><dt>收货地址</dt><dd>{address.address}</dd><dt>物流单号</dt><dd>{trackingNo || '无'}</dd></dl>
       </Panel>
     </div>
     <Panel>
-      <h3>商品明细</h3>
-      <Table minWidth={900}><thead><tr><th>商品</th><th>SKU</th><th>购买数量</th><th>已退款数量</th><th>已发货数量</th><th>剩余可发货</th><th>金额</th></tr></thead>
-        <tbody>{items.length === 0 && <EmptyTable colSpan={7} />}{items.map((item, index) => <tr key={String(item._id || item.skuId || index)}>
-          <td>{orderItemTitle(item)}</td><td>{String(item.skuId || '—')}</td><td>{itemQuantity(item)}</td><td>{refundedQuantity(item, refundQuantities)}</td><td>{shippedQuantity(item, shippedQuantities)}</td><td>{remainingQuantity(item, refundQuantities, shippedQuantities)}</td><td>{formatMoney(orderItemAmount(item))}</td>
+      <Table minWidth={600}><thead><tr><th>商品</th><th>规格</th><th>购买数量</th><th>金额</th></tr></thead>
+        <tbody>{items.length === 0 && <EmptyTable colSpan={4} />}{items.map((item, index) => <tr key={String(item._id || item.skuId || index)}>
+          <td>{orderItemTitle(item)}</td><td>{orderItemSpecs(item)}</td><td>{itemQuantity(item)}</td><td>{formatMoney(orderItemAmount(item))}</td>
         </tr>)}</tbody>
       </Table>
     </Panel>

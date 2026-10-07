@@ -597,13 +597,27 @@ async function adminOrderAction(runtime, data, action) {
       : legacyClaims.some((item) => [STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(item.status));
     return { ...order, hasActiveAfterSale, activeAfterSales: legacyClaims };
   }
+  if (action === 'orders.logistics.save' && order.status === STATUS.shipped) {
+    const trackingNo = string(data.trackingNo, 'trackingNo', { max: 128 });
+    return withTransaction(runtime.db, async (tx) => {
+      const current = await getDoc(tx.collection(COLLECTIONS.orders), documentId, true);
+      if (current.status !== STATUS.shipped) throw errorFrom('ORDER_STATE_INVALID');
+      const patch = {
+        tracking: { ...(current.tracking || {}), trackingNo },
+        logistics: { ...(current.logistics || {}), trackingNo, logisticsNo: trackingNo },
+        updatedAt: now(),
+      };
+      const result = await tx.collection(COLLECTIONS.orders).doc(documentId).update(patch);
+      if (affected(result) !== 1) throw errorFrom('CONFLICT');
+      return { ...current, ...patch, _id: documentId };
+    });
+  }
   if (action === 'orders.logistics.save') action = 'orders.ship';
   if (action !== 'orders.updateStatus' && action !== 'orders.ship') throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
   const next = string(data.status || (action === 'orders.ship' ? STATUS.shipped : ''), 'status', { max: 40 });
   if (action === 'orders.ship' || next === STATUS.shipped) {
     if (action !== 'orders.ship') throw errorFrom('ORDER_STATE_INVALID');
     const inputLogistics = data.logistics && typeof data.logistics === 'object' ? data.logistics : {};
-    const companyName = string(data.company || data.logisticsCompanyName || inputLogistics.companyName || inputLogistics.logisticsCompanyName || inputLogistics.carrier, 'logistics.companyName', { max: 120 });
     const trackingNo = string(data.trackingNo || data.logisticsNo || inputLogistics.trackingNo || inputLogistics.logisticsNo, 'trackingNo', { max: 128 });
     const timestamp = now();
     const hasPendingAggregate = order.pendingRefundQuantities && typeof order.pendingRefundQuantities === 'object'
@@ -631,8 +645,8 @@ async function adminOrderAction(runtime, data, action) {
         if (quantity > 0) shippedQuantities[item.skuId] = quantity;
       }
       if (!Object.keys(shippedQuantities).length) throw errorFrom('ORDER_STATE_INVALID');
-      const tracking = { carrier: companyName, trackingNo, shippedAt: timestamp };
-      const logistics = { companyName, logisticsCompanyName: companyName, trackingNo, logisticsNo: trackingNo, ...(data.logisticsCompanyCode ? { logisticsCompanyCode: String(data.logisticsCompanyCode) } : {}) };
+      const tracking = { trackingNo, shippedAt: timestamp };
+      const logistics = { trackingNo, logisticsNo: trackingNo };
       const patch = { status: STATUS.shipped, fulfillmentStatus: STATUS.shipped, shippedAt: timestamp, tracking, logistics, shippedQuantities, updatedAt: timestamp };
       const result = await tx.collection(COLLECTIONS.orders).doc(documentId).update(patch);
       if (affected(result) !== 1) throw errorFrom('CONFLICT');

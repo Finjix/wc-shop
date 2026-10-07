@@ -101,8 +101,8 @@ Page({
     this.setData({
       canApplyReturn: query.canApplyReturn === 'true',
       orderLevel: this.isOrderLevel,
-      serviceRequireType: this.isDirectApply ? 'REFUND_MONEY' : '',
-      serviceType: this.isDirectApply ? ServiceType.ONLY_REFUND : ServiceType.RETURN_GOODS,
+      serviceRequireType: 'REFUND_MONEY',
+      serviceType: ServiceType.ONLY_REFUND,
     });
     this.init();
     this.setWatcher('serviceFrom.returnNum', this.validate.bind(this));
@@ -113,10 +113,9 @@ Page({
   async init() {
     try {
       await this.refresh();
-      // 直接申请售后时默认进入“仅退款”表单，并预选未收到货。
-      if (this.isDirectApply) {
-        this.setData({ 'serviceFrom.receiptStatus': this.data.receiptStatusList[0] });
-      }
+      // 跳过售后类型选择，直接进入退款表单。
+      const received = [OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(Number(this.query.orderStatus));
+      this.switchReceiptStatus(!this.isDirectApply && received ? 1 : 0);
     } catch (error) {
       Toast({
         context: this,

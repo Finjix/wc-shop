@@ -17,7 +17,8 @@ function decodeQueryValue(value) {
 Page({
   data: {
     uploadFiles: [],
-    gridConfig: { width: 330, height: 330, column: 2 },
+    gridConfig: { width: 210, height: 210, column: 3 },
+    rating: 5,
     isAllowedSubmit: false,
     imgUrl: '',
     title: '',
@@ -47,7 +48,7 @@ Page({
     try {
       const processor = this.selectComponent('#image-processor');
       if (!processor?.prepare) throw new Error('图片组件加载中，请稍后重新选择');
-      const result = await processor.prepare(e.detail.files || [], 50);
+      const result = await processor.prepare((e.detail.files || []).slice(0, 3), 50);
       this.setData({ uploadFiles: result.files }, () => this.updateButtonStatus());
       if (result.error) Toast({ context: this, selector: '#t-toast', message: result.error, icon: '' });
     } catch (error) {
@@ -63,6 +64,11 @@ Page({
     const uploadFiles = this.data.uploadFiles.slice();
     uploadFiles.splice(index, 1);
     this.setData({ uploadFiles }, () => this.updateButtonStatus());
+  },
+
+  onRatingChange(e) {
+    if (this.data.submitting) return;
+    this.setData({ rating: Number(e.currentTarget.dataset.rating) });
   },
 
   onTextAreaChange(e) {
@@ -94,6 +100,7 @@ Page({
       spuId: this.productId,
       skuId: this.skuId,
       orderItemId: this.orderItemId,
+      rating: this.data.rating,
       commentContent: (this.textAreaValue || '').trim(),
       commentResources: uploadFiles,
     }).then(() => {

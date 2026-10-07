@@ -71,7 +71,6 @@ function buttonsForStatus(orderStatus, order, items) {
   if (orderStatus === 10) return [{ type: 4, name: '取消订单', primary: true }];
   if (orderStatus === 40) return [
     { type: 3, name: '确认收货', primary: true },
-    { type: 4, name: '申请售后' },
   ];
   if (orderStatus === 50) {
     const commented = order.commentedProductIds || [];
@@ -79,12 +78,7 @@ function buttonsForStatus(orderStatus, order, items) {
     const buttons = order.hasPendingComments === false || !pending
       ? [{ type: 10, name: '查看评价', primary: true }]
       : [{ type: 6, name: '评价', primary: true }];
-    if (items.some((item) => item.fulfillableQuantity > 0)) buttons.push({ type: 4, name: '申请售后' });
-    if (items.some((item) => item.fulfillableQuantity > 0)) buttons.push({ type: 9, name: '再次购买' });
     return buttons;
-  }
-  if (orderStatus === 80 && items.some((item) => item.fulfillableQuantity > 0)) {
-    return [{ type: 9, name: '再次购买', primary: true }];
   }
   return [];
 }
@@ -97,9 +91,9 @@ function filterOrderButtons(buttons = [], orderStatus, order, items, hasActiveAf
     const type = Number(button.type);
     if (type === 2) return false;
     if (type === 3 && hasActiveAfterSale) return false;
-    if (type === 4 && (!hasEligibleGoods || (orderStatus === 10 && hasActiveAfterSale))) return false;
+    if (type === 4 && (orderStatus !== 10 || !hasEligibleGoods || hasActiveAfterSale)) return false;
     if (type === 5 && !(order.rightsNo || order.afterSaleId)) return false;
-    if (type === 9 && !hasEligibleGoods) return false;
+    if (type === 9) return false;
     return true;
   }).map((button) => Number(button.type) === 4 && orderStatus === 10
     ? { ...button, name: '取消订单' } : button);

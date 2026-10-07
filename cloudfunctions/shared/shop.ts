@@ -591,7 +591,7 @@ async function orderIdFor(runtime, userId, requestKey) {
     if (existing) return existing.orderId;
     let orderId;
     do {
-      orderId = `${Date.now()}-${crypto.randomInt(1000, 10000)}`;
+      orderId = `${Date.now()}-${String(crypto.randomInt(0, 10000)).padStart(4, '0')}`;
     } while (await getDoc(requests, `id_${orderId}`, false)
       || await getDoc(tx.collection(COLLECTIONS.orders), orderId, false));
     await setDoc(requests, `id_${orderId}`, { _id: `id_${orderId}`, orderId, userId });
@@ -1012,7 +1012,9 @@ async function commentsAction(runtime, event, context, data, action) {
   if (listData(duplicate).length) throw errorFrom('CONFLICT', { field: 'comment' });
   const text = optionalString(data.content ?? data.commentContent, 'content', { max: 2000 }) || '';
   const sourceImages = data.images ?? data.commentResources;
-  const images = sourceImages === undefined ? [] : array(sourceImages, 'images').slice(0, 9).map((item) => string(typeof item === 'string' ? item : item && (item.image || item.fileID || item.fileId), 'images[]', { max: 1024 }));
+  const imageList = sourceImages === undefined ? [] : array(sourceImages, 'images');
+  assert(imageList.length <= 3, { field: 'images', max: 3 });
+  const images = imageList.map((item) => string(typeof item === 'string' ? item : item && (item.image || item.fileID || item.fileId), 'images[]', { max: 1024 }));
   const timestamp = now();
   const rating = data.rating ?? data.commentScore;
   const comment = { userId: identity.uid, orderId: order._id || orderId, orderNo: order.orderNo || orderId, productId, rating: rating === undefined ? 5 : integer(Number(rating), 'rating', { min: 1, max: 5 }), content: text, images, hasImage: images.length > 0, status: STATUS.pendingReview, createdAt: timestamp, updatedAt: timestamp };
