@@ -14,6 +14,8 @@ async function main() {
   collections.adminMembers['local-admin'] = { _id: 'local-admin', uid: 'local-admin', roles: ['superadmin'], status: 'active', enabled: true };
   collections.products.p1 = { _id: 'p1', spuId: 'p1', status: 'active', title: '隔离验收商品' };
   collections.skus.s1 = { _id: 's1', skuId: 's1', productId: 'p1', stockQuantity: 10, soldQuantity: 0, price: 100 };
+  collections.products.p2 = { _id: 'p2', spuId: 'p2', status: 'active', title: '隔离验收第二个商品' };
+  collections.skus.s2 = { _id: 's2', skuId: 's2', productId: 'p2', stockQuantity: 10, soldQuantity: 0, price: 250 };
   const address = { receiver: '测试用户', phone: '13800000000', province: '广东省', city: '深圳市', district: '南山区', detail: '隔离测试地址' };
   collections.addresses.a1 = { ...address, _id: 'a1', userId: 'commerce-test' };
   collections.addresses.a2 = { ...address, _id: 'a2', userId: 'commerce-test', detail: '隔离测试地址二' };
@@ -82,7 +84,27 @@ async function main() {
     const cartInput = { requestKey: 'http-cart-repeat', addressId: 'a1', items: [{ skuId: 's1', quantity: 1 }], useCart: true };
     const cartOrder = await shop('orders.create', cartInput);
     assert.equal((await shop('orders.create', cartInput))._id, cartOrder._id, 'retry after cart cleanup returns the original order');
-    console.log('HTTP commerce acceptance passed: simulated payment, idempotency, owner checks, address change, partial refund, shipment, receipt, comment, return, repeat-safe stock restoration.');
+    await shop('cart.add', { skuId: 's1', quantity: 2 });
+    await shop('cart.add', { skuId: 's2', quantity: 2 });
+    const batchInput = { requestKey: 'http-cart-split', addressId: 'a1', useCart: true };
+    const batch = await shop('orders.create', batchInput);
+    assert.equal(batch.orderCount, 2);
+    assert.equal(batch.checkoutTotalAmount, 700);
+    assert(batch.orders.every(order => order.items.length === 1));
+    assert.deepEqual((await shop('orders.create', batchInput)).orderIds, batch.orderIds);
+    assert.equal((await shop('orders.checkout', { checkoutId: batch.checkoutId })).checkoutTotalAmount, 700);
+    await shop('orders.checkout', { checkoutId: batch.checkoutId }, 'FORBIDDEN', 'another-user');
+    const group = (await admin('orders.list', { groupBy: 'address', status: 'paid', pageSize: 1 })).items[0];
+    assert.equal(group.orderCount, 3, 'same address combines independent checkouts too');
+    const shipmentInput = { orderIds: batch.orderIds, groupKey: group.key, trackingNo: 'TEST-COMBINED-1' };
+    const shipment = await admin('orders.shipBatch', shipmentInput);
+    assert.equal(shipment.total, 2);
+    assert(shipment.items.every(order => order.logistics.trackingNo === shipmentInput.trackingNo));
+    assert.equal((await shop('orders.detail', { orderId: cartOrder._id })).status, 'paid', 'unselected orders in the group are not shipped');
+    assert.equal((await admin('orders.shipBatch', shipmentInput)).shipmentBatchId, shipment.shipmentBatchId);
+    await shop('orders.confirmReceived', { orderId: batch.orderIds[0] });
+    assert.equal((await shop('orders.detail', { orderId: batch.orderIds[1] })).status, 'shipped');
+    console.log('HTTP commerce acceptance passed: simulated payment, idempotency, owner checks, address change, partial refund, shipment, receipt, comment, return, repeat-safe stock restoration, per-SKU checkout and grouped batch shipping.');
   } finally {
     server.kill();
     await new Promise(resolve => server.exitCode !== null ? resolve() : server.once('exit', resolve));

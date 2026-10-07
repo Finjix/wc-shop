@@ -11,7 +11,7 @@
       <text>{{loading ? '正在确认订单' : statusText}}</text>
 	</view>
     <view class="pay-money">
-		订单金额：
+		{{orderCount > 1 ? '订单合计' : '订单金额'}}：
 		<price
 		 wx:if="{{paymentConfirmed}}"
 		 price="{{totalPaid}}"

@@ -3,7 +3,7 @@ import { Link, useBlocker, useNavigate, useOutletContext, useParams, useSearchPa
 import { Button, Dialog, Input, Tag } from 'tdesign-react';
 import { adminApi, ApiError } from '../lib/api';
 import { useConfirm } from '../components/ConfirmProvider';
-import type { AfterSale, Comment, ListResult, Order } from '../types';
+import type { AfterSale, Comment, ListResult, Order, OrderAddressGroup } from '../types';
 import { EmptyState, EmptyTable, ErrorState, Field, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
 import type { AdminOutletContext } from '../components/Layout';
 
@@ -57,37 +57,38 @@ function PageTitle({ children }: { children: string }) {
   return <h1 className="overview-title">{children}</h1>;
 }
 
-function Pagination({ page, pageSize, total, onChange }: { page: number; pageSize: number; total: number; onChange: (page: number) => void }) {
+function Pagination({ page, pageSize, total, onChange, unit = '条' }: { page: number; pageSize: number; total: number; onChange: (page: number) => void; unit?: string }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   if (!total) return null;
   return <div className="product-list-pagination commerce-pagination">
-    <span>共 {total} 条</span>
+    <span>共 {total} {unit}</span>
     <div><Button variant="outline" disabled={page <= 1} onClick={() => onChange(page - 1)}>上一页</Button><span>{page} / {pages} 页</span><Button variant="outline" disabled={page >= pages} onClick={() => onChange(page + 1)}>下一页</Button></div>
   </div>;
 }
 
 function orderStatusKey(value: unknown) {
   const key = String(value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-  return ({ '10': 'paid', '40': 'shipped', '50': 'completed', '80': 'cancelled', pending_delivery: 'paid', pending_receipt: 'shipped', received: 'completed', complete: 'completed', canceled: 'cancelled' } as Record<string, string>)[key] || key;
+  return ({ '10': 'paid', '40': 'shipped', '50': 'completed', '60': 'refunded', pending_delivery: 'paid', pending_receipt: 'shipped', received: 'completed', complete: 'completed' } as Record<string, string>)[key] || key;
 }
 
 function orderStatusLabel(value: unknown) {
-  return ({ paid: '待发货', shipped: '待收货', completed: '已完成', cancelled: '已取消' } as Record<string, string>)[orderStatusKey(value)] || '—';
+  return ({ paid: '待发货', shipped: '待收货', completed: '已完成', refunded: '已退款' } as Record<string, string>)[orderStatusKey(value)] || '—';
 }
 
 function statusTag(value: unknown) {
   const key = orderStatusKey(value);
-  return <Tag theme={['cancelled', 'refunded'].includes(key) ? 'default' : 'primary'} variant="light">{orderStatusLabel(key)}</Tag>;
+  return <Tag theme={key === 'refunded' ? 'default' : 'primary'} variant="light">{orderStatusLabel(key)}</Tag>;
 }
 
 function createdAtOf(value: Order) { return value.createdAt ?? value.createTime; }
 function amountOf(order: Order) { return order.paymentAmount ?? order.totalAmount ?? order.amount; }
 function orderIdOf(order: Order, fallback = '') { return String(order._id || order.orderId || order.orderNo || fallback); }
 const PAGE_SIZE = 20;
-const orderFilters = [['', '全部状态'], ['paid', '待发货'], ['shipped', '待收货'], ['completed', '已完成'], ['cancelled', '已取消'], ['refunded', '已退款']];
+const orderFilters = [['', '全部状态'], ['paid', '待发货'], ['shipped', '待收货'], ['completed', '已完成'], ['refunded', '已退款']];
 
 export function OrdersPage() {
   const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
+  const [shippingGroup, setShippingGroup] = useState<OrderAddressGroup | null>(null);
   const [searchParams] = useSearchParams();
   const requestedStatus = searchParams.get('status') || '';
   const initialStatus = orderFilters.some(([value]) => value === requestedStatus) ? requestedStatus : '';
@@ -95,14 +96,14 @@ export function OrdersPage() {
   const [status, setStatus] = useState(initialStatus);
   const [search, setSearch] = useState({ orderNo: '', status: initialStatus, page: 1 });
   const [refreshKey, setRefreshKey] = useState(0);
-  const { data, loading, error } = useResource<unknown>('orders.list', { page: search.page, pageSize: PAGE_SIZE, orderNo: search.orderNo || undefined, status: search.status || undefined }, refreshKey);
-  const rows = readList<Order>(data);
-  const total = readTotal(data, rows.length);
+  const { data, loading, error } = useResource<unknown>('orders.list', { groupBy: 'address', page: search.page, pageSize: PAGE_SIZE, orderNo: search.orderNo || undefined, status: search.status || undefined }, refreshKey);
+  const groups = readList<OrderAddressGroup>(data);
+  const total = readTotal(data, groups.length);
   const submitSearch = () => {
     setSearch({ orderNo: query.trim(), status, page: 1 });
     setRefreshKey((key) => key + 1);
   };
-  return <>
+  return <div className="orders-page">
     <div className="toolbar commerce-toolbar orders-toolbar">
       <Input value={query} onChange={setQuery} placeholder="订单号" />
       <select value={status} onChange={(event) => setStatus(event.target.value)}>{orderFilters.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
@@ -110,26 +111,87 @@ export function OrdersPage() {
     </div>
     {loading && <LoadingState />}
     {error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
-    {!loading && !error && <Panel>
-      <Table minWidth={970}>
-        <thead><tr><th>订单号</th><th>订单状态</th><th>创建时间</th><th>操作</th></tr></thead>
-        <tbody>
-          {rows.length === 0 && <EmptyTable colSpan={4} />}
-          {rows.map((order) => {
-            const id = orderIdOf(order);
-            const currentStatus = orderStatusKey(order.status ?? order.orderStatusName);
-            return <tr key={id}>
-              <td><Link to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>{String(order.orderNo || id || '—')}</Link></td>
-              <td>{statusTag(currentStatus)}</td><td>{formatDate(createdAtOf(order))}</td>
-              <td className="order-list-actions"><Link className="text-button" to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>详情</Link>{currentStatus === 'paid' && <> <button className="text-button" type="button" onClick={() => { setShippingOrder(order); }}>发货</button></>}</td>
-            </tr>;
-          })}
-        </tbody>
-      </Table>
-      <Pagination page={search.page} pageSize={PAGE_SIZE} total={total} onChange={(page) => setSearch((old) => ({ ...old, page }))} />
-    </Panel>}
+    {!loading && !error && <div className={`orders-address-groups${groups.length === 0 ? ' orders-address-groups-empty' : ''}`}>
+      {groups.length === 0 && <Panel className="orders-empty-panel"><EmptyState /></Panel>}
+      {groups.map((group) => {
+        const pending = group.orders.filter(orderCanShip);
+        return <Panel key={group.key} className="orders-address-group">
+          <div className="orders-address-heading">
+            <div>
+              <strong>{group.address.receiver || '收货人未填写'} <span>{group.address.phone}</span></strong>
+              <p>{group.address.address || '收货地址未填写'}</p>
+              <small>共 {group.orderCount} 笔订单{!group.canCombine && ' · 地址信息不完整，不支持合并发货'}</small>
+            </div>
+            <Button disabled={!group.canCombine || !pending.length} onClick={() => setShippingGroup(group)}>合并发货（{pending.length} 单）</Button>
+          </div>
+          <Table minWidth={970}>
+            <thead><tr><th>订单号</th><th>商品 / 规格 / 数量</th><th>订单状态</th><th>操作</th></tr></thead>
+            <tbody>{group.orders.map((order) => {
+              const id = orderIdOf(order);
+              const currentStatus = orderStatusKey(order.status ?? order.orderStatusName);
+              return <tr key={id}>
+                <td><Link to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>{String(order.orderNo || id || '—')}</Link></td>
+                <td>{listOf<Record<string, unknown>>(order.items || order.orderItemVOs).map((item, index) => <div className="order-list-item" key={index}>{orderItemTitle(item)}<small>{orderItemSpecs(item)} × {itemQuantity(item)}</small></div>)}</td>
+                <td>{statusTag(currentStatus)}{Boolean(order.hasActiveAfterSale) && <small className="order-after-sale-note">售后处理中</small>}</td>
+                <td className="order-list-actions"><Link className="text-button" to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>详情</Link>{orderCanShip(order) && <button className="text-button" type="button" onClick={() => setShippingOrder(order)}>发货</button>}</td>
+              </tr>;
+            })}</tbody>
+          </Table>
+        </Panel>;
+      })}
+      <Pagination page={search.page} pageSize={PAGE_SIZE} total={total} unit="组地址" onChange={(page) => setSearch((old) => ({ ...old, page }))} />
+    </div>}
     {shippingOrder && <OrderShippingDialog order={shippingOrder} onClose={() => setShippingOrder(null)} onSaved={() => { setShippingOrder(null); setRefreshKey((key) => key + 1); }} />}
-  </>;
+    {shippingGroup && <BatchShippingDialog group={shippingGroup} onClose={() => setShippingGroup(null)} onSaved={() => { setShippingGroup(null); setRefreshKey((key) => key + 1); }} />}
+  </div>;
+}
+
+function shippingQuantityOf(order: Order, item: Record<string, unknown>) {
+  const refunded = order.refundedQuantities as Record<string, unknown> | undefined;
+  return Math.max(0, itemQuantity(item) - Number(item.refundedQuantity ?? refunded?.[String(item.skuId)] ?? 0));
+}
+
+function orderCanShip(order: Order) {
+  return orderStatusKey(order.status ?? order.orderStatusName) === 'paid' && !order.hasActiveAfterSale
+    && listOf<Record<string, unknown>>(order.items || order.orderItemVOs).some((item) => shippingQuantityOf(order, item) > 0);
+}
+
+function BatchShippingDialog({ group, onClose, onSaved }: { group: OrderAddressGroup; onClose: () => void; onSaved: () => void }) {
+  const candidates = group.orders.filter((order) => orderStatusKey(order.status ?? order.orderStatusName) === 'paid');
+  const eligible = candidates.filter(orderCanShip);
+  const [selected, setSelected] = useState(() => eligible.slice(0, 50).map((order) => orderIdOf(order)));
+  const [trackingNo, setTrackingNo] = useState('');
+  const { busy, run } = useAction();
+  const toggle = (id: string, checked: boolean) => {
+    if (checked && selected.length >= 50) { message('每次最多合并发货 50 单，请分批处理', 'warning'); return; }
+    setSelected((old) => checked ? [...old, id] : old.filter((value) => value !== id));
+  };
+  const save = async () => {
+    if (busy || !selected.length || !trackingNo.trim()) return;
+    const result = await run('orders.shipBatch', { orderIds: selected, groupKey: group.key, trackingNo: trackingNo.trim() }, `${selected.length} 笔订单已合并发货`);
+    if (result !== undefined) onSaved();
+  };
+  return <Dialog className="shipping-dialog" width="min(1000px, 94vw)" header="合并发货" closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: `确认发货（${selected.length} 单）`, loading: busy, disabled: busy || !selected.length || !trackingNo.trim() }} cancelBtn={{ content: '取消', disabled: busy }}>
+    <div className="shipping-dialog-info">
+      <dl className="detail-list"><dt>收货人</dt><dd>{group.address.receiver}</dd><dt>联系电话</dt><dd>{group.address.phone}</dd><dt>收货地址</dt><dd>{group.address.address}</dd></dl>
+      <p className="batch-shipping-hint">同一物流单号将写入所选订单。售后中的订单不可发货；数量已扣除退款件数。每次最多 50 单。</p>
+      <div className="batch-shipping-selection"><Button size="small" variant="outline" disabled={busy} onClick={() => setSelected(eligible.slice(0, 50).map((order) => orderIdOf(order)))}>全选可发货（最多 50 单）</Button><Button size="small" variant="text" disabled={busy} onClick={() => setSelected([])}>清空</Button></div>
+      <Table minWidth={600}>
+        <thead><tr><th>选择</th><th>订单号</th><th>商品 / 规格</th><th>发货数量</th></tr></thead>
+        <tbody>{candidates.map((order) => {
+          const id = orderIdOf(order);
+          const items = listOf<Record<string, unknown>>(order.items || order.orderItemVOs);
+          return <tr key={id}>
+            <td><input type="checkbox" aria-label={`选择订单 ${order.orderNo || id}`} checked={selected.includes(id)} disabled={busy || !orderCanShip(order)} onChange={(event) => toggle(id, event.target.checked)} /></td>
+            <td>{order.orderNo || id}{Boolean(order.hasActiveAfterSale) && <small className="order-after-sale-note">售后处理中</small>}</td>
+            <td>{items.map((item, index) => <div className="order-list-item" key={index}>{orderItemTitle(item)}<small>{orderItemSpecs(item)}</small></div>)}</td>
+            <td>{items.map((item, index) => <div className="order-list-item" key={index}>{shippingQuantityOf(order, item)}</div>)}</td>
+          </tr>;
+        })}</tbody>
+      </Table>
+    </div>
+    <div className="shipping-dialog-tracking"><Field label="物流单号"><Input value={trackingNo} onChange={setTrackingNo} disabled={busy} placeholder="请输入本次合并发货的物流单号" /></Field></div>
+  </Dialog>;
 }
 
 function OrderShippingDialog({ order, editing = false, onClose, onSaved }: { order: Order; editing?: boolean; onClose: () => void; onSaved: () => void }) {
@@ -157,8 +219,8 @@ function ShippingOrderInfo({ order }: { order: Order }) {
   return <div className="shipping-dialog-info">
     <dl className="detail-list"><dt>收货人</dt><dd>{address.receiver}</dd><dt>联系电话</dt><dd>{address.phone}</dd><dt>收货地址</dt><dd>{address.address}</dd></dl>
     <Table minWidth={400}>
-      <thead><tr><th>商品</th><th>规格</th><th>购买数量</th></tr></thead>
-      <tbody>{items.length === 0 && <EmptyTable colSpan={3} />}{items.map((item, index) => <tr key={String(item.skuId || index)}><td>{orderItemTitle(item)}</td><td>{orderItemSpecs(item)}</td><td>{itemQuantity(item)}</td></tr>)}</tbody>
+      <thead><tr><th>商品</th><th>规格</th><th>发货数量</th></tr></thead>
+      <tbody>{items.length === 0 && <EmptyTable colSpan={3} />}{items.map((item, index) => <tr key={String(item.skuId || index)}><td>{orderItemTitle(item)}</td><td>{orderItemSpecs(item)}</td><td>{shippingQuantityOf(data, item)}</td></tr>)}</tbody>
     </Table>
   </div>;
 }

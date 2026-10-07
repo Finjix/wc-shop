@@ -5,6 +5,13 @@
   min-height: 100vh;
 }
 
+.split-order-hint {
+  padding: 24rpx 32rpx;
+  color: #695941;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
 .order-sure .wx-pay-cover {
   position: fixed;
   left: 0;

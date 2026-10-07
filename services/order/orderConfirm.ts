@@ -139,9 +139,7 @@ export function fetchSettleDetail(params = {}) {
   return action('orders.preview', payload).then(normalizePreview);
 }
 
-function normalizeCreatedOrder(response) {
-  const data = dataOf(response) || {};
-  const order = data.order && typeof data.order === 'object' ? data.order : data;
+function normalizePaidOrder(order) {
   const orderNo = order.orderNo || order.orderNumber;
   const orderId = order.orderId || order.id || order._id;
   if (!orderNo && !orderId) throw domainError('ORDER_CREATE_INVALID_RESPONSE', '订单创建结果缺少订单编号');
@@ -149,24 +147,47 @@ function normalizeCreatedOrder(response) {
   const paymentStatus = String(order.paymentStatus || payment.status || '').toLowerCase();
   const rawStatus = order.orderStatus ?? order.status;
   const statusKey = String(rawStatus ?? '').toUpperCase().replace(/[- ]/g, '_');
-  const statusConfirmsPaid = rawStatus === undefined || rawStatus === null || rawStatus === ''
-    || ['10', 'PAID', 'PENDING_DELIVERY'].includes(statusKey);
-  if (paymentStatus !== 'paid' || !statusConfirmsPaid) {
+  const statusCodes = {
+    '10': 10, PAID: 10, PENDING_DELIVERY: 10,
+    '40': 40, SHIPPED: 40, PENDING_RECEIPT: 40,
+    '50': 50, RECEIVED: 50, COMPLETED: 50,
+  };
+  const orderStatus = rawStatus === undefined || rawStatus === null || rawStatus === '' ? 10 : statusCodes[statusKey];
+  if (paymentStatus !== 'paid' || !orderStatus) {
     throw domainError('ORDER_NOT_PAID', '订单尚未确认完成，请稍后重试');
   }
   return {
+    ...order,
+    orderNo: orderNo || orderId,
+    orderId: orderId || orderNo,
+    orderStatus,
+    status: orderStatus,
+    statusDesc: order.statusDesc || order.orderStatusName || ({ 10: '待发货', 40: '待收货', 50: '已完成' }[orderStatus]),
+    orderStatusName: order.orderStatusName || order.statusDesc || ({ 10: '待发货', 40: '待收货', 50: '已完成' }[orderStatus]),
+    payment,
+    paymentStatus: 'paid',
+  };
+}
+
+function normalizeCreatedOrder(response) {
+  const data = dataOf(response) || {};
+  const rawOrders = Array.isArray(data.orders) && data.orders.length ? data.orders
+    : [data.order && typeof data.order === 'object' ? data.order : data];
+  const orders = rawOrders.map(normalizePaidOrder);
+  return {
     data: {
-      ...order,
-      orderNo,
-      orderId,
-      orderStatus: 10,
-      status: 10,
-      statusDesc: order.statusDesc || order.orderStatusName || '待发货',
-      orderStatusName: order.orderStatusName || order.statusDesc || '待发货',
-      payment,
-      paymentStatus: 'paid',
+      ...data, ...orders[0], orders,
+      orderNos: orders.map((order) => order.orderNo),
+      orderIds: orders.map((order) => order.orderId),
+      orderCount: orders.length,
+      checkoutId: data.checkoutId || orders[0].orderId,
+      checkoutTotalAmount: orders.reduce((sum, order) => sum + Number(order.paymentAmount ?? order.totalAmount ?? 0), 0),
     },
   };
+}
+
+export function fetchCheckoutResult(checkoutId) {
+  return action('orders.checkout', { checkoutId });
 }
 
 function validateOrderRequest(params = {}) {

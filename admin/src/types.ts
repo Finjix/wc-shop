@@ -75,7 +75,7 @@ export interface Sku {
   [key: string]: unknown;
 }
 
-export type OrderStatus = 'paid' | 'shipped' | 'completed' | 'cancelled';
+export type OrderStatus = 'paid' | 'shipped' | 'completed' | 'refunded';
 export type OrderPaymentStatus = 'paid' | 'partially_refunded' | 'refunded';
 
 export interface Order {
@@ -104,6 +104,24 @@ export interface Order {
   logistics?: Record<string, unknown>;
   logisticsVO?: Record<string, unknown>;
   [key: string]: unknown;
+}
+
+export interface ShippingAddress {
+  receiver: string;
+  phone: string;
+  province: string;
+  city: string;
+  district: string;
+  detail: string;
+  address: string;
+}
+
+export interface OrderAddressGroup {
+  key: string;
+  address: ShippingAddress;
+  canCombine: boolean;
+  orders: Order[];
+  orderCount: number;
 }
 
 export interface Comment {

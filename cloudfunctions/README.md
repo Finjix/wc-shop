@@ -44,7 +44,7 @@ wx.cloud.callFunction({
 - `searchHistory.list/add/remove/clear`
 - `addresses.list/get/create/update/remove/setDefault`
 - `cart.get/add/update/remove/clear`
-- `orders.preview/create/list/count/businessTime/detail/confirmReceived/updateAddress/delete`
+- `orders.preview/create/checkout/list/count/businessTime/detail/confirmReceived/updateAddress/delete`
 - `comments.list/count/create`
 - `afterSales.reasons/preview/list/detail/create/withdraw/cancel/confirmReceived/submitTracking`
 - `storage.tempUrls`、`storage.processImage`
@@ -55,7 +55,7 @@ wx.cloud.callFunction({
 - `categories.*`、`products.*`、`skus.*`（list/get/create/update/delete；delete 为下架）
 - `inventory.adjust`
 - `home.list/get/upsert`
-- `orders.list/get/updateStatus/ship`
+- `orders.list/get/updateStatus/ship/shipBatch/logistics.save`
 - `comments.list/get/updateStatus/reply/delete`
 - `afterSales.list/get/review/confirmReturn`
 - `settings.list/get/upsert`
@@ -68,19 +68,22 @@ wx.cloud.callFunction({
 
 - 金额单位统一为整数“分”，订单服务端重新读取 SKU 价格，绝不信任客户端传来的金额或商品快照。
 - `orders.create` 只接受 `{ skuId, quantity }`，校验 SKU 仍属于商品规格、关联商品 `status === "active"` 和库存后才创建订单；上下架由商品状态控制。
-- 创建订单使用文档数据库事务；事务内只通过已解析的 SKU 文档 `_id` 重新读取和更新库存，不使用事务不支持的 `where` 查询，库存不足或写冲突会回滚整个订单。
+- 创建订单按归并后的 SKU 拆单，每单只包含一个 SKU 及其全部购买数量，不创建额外的合并父订单。整批创建使用一个文档数据库事务；事务内只通过已解析的 SKU 文档 `_id` 重新读取和更新库存，不使用事务不支持的 `where` 查询，库存不足或写冲突会回滚全部订单、库存和购物车清理。
+- 多商品 `orders.create` 响应兼容首单字段，并额外返回 `orders`、`orderIds`、`orderNos`、`orderCount`、`checkoutId` 和 `checkoutTotalAmount`；`checkoutId` 为首单 ID。`orders.checkout({ checkoutId })` 仅向所属用户返回本次全部订单和合计金额。每张订单保存 `checkoutId/checkoutOrderIds`，每单独立付款记录、收货、评价和售后，同一 key 重试不会补造订单或重复扣库存。
+- 后台 `orders.list({ groupBy: "address", ...filters })` 按同一用户、收货人、电话、省市区和详细地址归组后分页，返回 `{ items: [{ key, address, orders, orderCount, canCombine }], total, totalOrders, page, pageSize }`；`total` 是地址组数量。不传 `groupBy` 保持原订单列表结构；地址文档 ID 不参与归组，不完整地址不合并。
+- 后台 `orders.shipBatch({ orderIds, groupKey, trackingNo })` 对所选同地址订单一次性发货（最多 50 单），所有订单使用同一单号。事务内再次校验地址组、待发货状态及售后，并仅发出未退款数量；任一订单校验失败则整批回滚。保存 `shipmentBatchId/shipmentOrderIds`，相同订单集合和单号可安全重试。
 - 订单保存 `productSnapshot`、`skuSnapshot`、`addressSnapshot`；下单事务内直接记为 `paid`，并保存 `payment.mode: simulated`、`paymentAmount`、`paidAt`。服务端决定模拟支付成功，不返回也不接受真实支付参数。
 - `requestKey`/`idempotencyKey` 是创建订单的必填字段；同一用户和 key 使用不同参数会返回 `IDEMPOTENCY_CONFLICT`。
 - 不自动迁移或删除历史数据：旧的待支付记录保持原字段和状态，服务端读取不会将其改成已付款或取消，也不会自动回滚其库存。
 - 已收货、已完成订单映射前端状态 50；全额退款的商品不再进入待评价，待评价查询只包含尚有未退款商品未评价的订单。评价通过确定性文档 ID 和订单事务阻止重复提交，用户可查看自己尚未审核的评价，公开评价不返回用户及订单标识。
 - 售后按实际购买的 SKU 和数量计算退款金额。仅本人可撤销待审核申请；管理员只能将待审核申请审核通过或拒绝。模拟退款只处理标记为 `payment.mode: simulated` 的新订单，不为历史订单补造支付记录；纯退款审核通过即完成模拟退款，退货退款审核后保存商家退货地址快照、录入寄回单号并由管理员确认收货后退款。
-- 已付款且未发货仅可申请仅退款；发货后可申请仅退款或退货退款。申请、审核、退款、发货、收货地址变更和库存更新使用事务约束状态、金额和数量。未发货仅退款恢复库存和销量；已发货仅退款不恢复库存；退货退款在收货确认后恢复库存和销量。全部退款后未发货订单关闭为 `cancelled`，已发货订单关闭为 `completed`；部分退款通过 `paymentStatus: partially_refunded` 与 `refundAmount/refundedQuantities` 表示，不中断仍需履约的剩余商品。
+- 已付款且未发货仅可申请仅退款；发货后可申请仅退款或退货退款。申请、审核、退款、发货、收货地址变更和库存更新使用事务约束状态、金额和数量。未发货仅退款恢复库存和销量；已发货仅退款不恢复库存；退货退款在收货确认后恢复库存和销量。全部退款后订单状态为 `refunded`（已退款）；部分退款通过 `paymentStatus: partially_refunded` 与 `refundAmount/refundedQuantities` 表示，不中断仍需履约的剩余商品。
 - `settings` 的 `global` 记录可包含 `returnAddress: { receiver, phone, province, city, district, detail }`；服务端校验手机号和完整地址，未配置时拒绝退货退款申请。
-- 订单不提供通用取消入口；未发货订单完成全额退款后关闭为 `cancelled`。模拟下单与模拟退款不调用支付或物流第三方接口。
+- 订单不提供取消入口或取消接口；已支付订单只能申请售后退款，完成全额退款后状态为 `refunded`（已退款）。模拟下单与模拟退款不调用支付或物流第三方接口。
 
 ## 集合结构与建议索引
 
-核心集合：`categories`、`products`、`skus`、`addresses`、`carts`、`orders`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`、`adminMembers`；不建立用户档案集合。
+核心集合：`categories`、`products`、`skus`、`addresses`、`carts`、`orders`、`orderRequests`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`、`adminMembers`；不建立用户档案集合。
 
 建议在 CloudBase 数据库中建立以下索引（均为非唯一，除非控制台明确支持并确认现有数据无重复）：
 
@@ -100,13 +103,14 @@ wx.cloud.callFunction({
 - `products`: `title`, `primaryImage`, `images`, `categoryIds`, `status`, `sort`, `minSalePrice`, `maxSalePrice`
 - `skus`: `productId`, `skuId`, `specInfo`, `salePrice`, `stockQuantity`, `soldQuantity`
 - `addresses/carts`: 均带 `userId`；购物车文档 `_id` 推荐直接使用 UID
-- `orders`: `userId`, `status`, `paymentStatus`, `items`, `addressSnapshot`, `subtotal`, `shippingFee`, `totalAmount`, `requestHash`, `commentedProductIds`, `hasPendingComments`, `afterSaleIds`
+- `orders`: `userId`, `status`, `paymentStatus`, `items`, `addressSnapshot`, `subtotal`, `shippingFee`, `totalAmount`, `requestHash`, `checkoutId`, `checkoutOrderIds`, `shipmentBatchId`, `shipmentOrderIds`, `commentedProductIds`, `hasPendingComments`, `afterSaleIds`
+- `orderRequests`: 用户与请求 key 的确定性映射，保存首单 `orderId`、全部 `orderIds` 和请求哈希；另有订单 ID 预留记录
 - `adminMembers`: `_id`/`uid`, `roles`, `status`, `enabled`
 
 ## 状态枚举
 
 - 通用：`active`, `inactive`
-- 订单履约状态：`paid`, `shipped`, `received`, `completed`, `cancelled`；其中 `cancelled` 用于未发货订单全额退款关闭
+- 订单履约状态：`paid`, `shipped`, `received`, `completed`, `refunded`；其中 `refunded` 用于订单全额退款完成
 - 售后/审核：`pending_review`, `approved`, `rejected`, `refunding`, `refunded`, `withdrawn`
 - 支付状态：`paid`, `partially_refunded`, `refunded`；新订单支付方式为 `simulated`
 

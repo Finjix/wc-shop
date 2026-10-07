@@ -62,8 +62,6 @@ const afterSaleTypeLabels: Record<string, string> = {
   refund: '仅退款',
   only_refund: '仅退款',
   refund_money: '仅退款',
-  '30': '取消订单',
-  order_cancel: '取消订单',
 };
 
 const afterSaleStatusLabels: Record<string, string> = {
@@ -197,9 +195,10 @@ export function OverviewPage() {
         <Link className="metric-link" to="/orders?status=paid"><Metric label="待发货" value={value(['pendingShipmentCount', 'pendingDeliveryCount'])} /></Link>
         <Link className="metric-link" to="/after-sales?status=pending_review"><Metric label="待售后" value={value(['pendingAfterSaleCount', 'pendingAfterSalesCount', 'pendingReviewAfterSalesCount'])} /></Link>
       </div>
-      {warnings.length > 0 && <Panel className="overview-inventory-warnings">
+      <Panel className="overview-inventory-warnings">
         <div className="panel-heading"><h3>库存预警</h3></div>
         <div className="overview-inventory-warning-body">
+        {warnings.length === 0 && <EmptyState description="暂无" />}
         {warnings.length > 0 && <Table>
           <thead><tr><th>商品</th><th>规格</th><th>当前库存</th><th>操作</th></tr></thead>
           <tbody>{visibleWarnings.map((item) => <tr key={`${item.productId}:${item.skuId}`}>
@@ -213,7 +212,7 @@ export function OverviewPage() {
           <span>{warningPage} / {warningPageCount} 页</span>
           <Button variant="outline" disabled={warningPage >= warningPageCount} onClick={() => setWarningPage((current) => current + 1)}>下一页</Button>
         </div>}
-      </Panel>}
+      </Panel>
     </>}
     </div>
   </>;

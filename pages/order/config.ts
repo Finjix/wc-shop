@@ -4,30 +4,26 @@ export const OrderStatus = {
   PENDING_DELIVERY: 10, // 待发货
   PENDING_RECEIPT: 40, // 待收货
   COMPLETE: 50, // 已完成/待评价
-  CANCELED: 80, // 已取消
-  CANCELED_PAYMENT: 80, // 已支付后取消
-  CANCELED_REJECTION: 80, // 拒收
+  REFUNDED: 60, // 已退款
 };
 
 export const OrderStatusDesc = {
   [OrderStatus.PENDING_DELIVERY]: '待发货',
   [OrderStatus.PENDING_RECEIPT]: '待收货',
   [OrderStatus.COMPLETE]: '已完成',
-  [OrderStatus.CANCELED]: '已取消',
+  [OrderStatus.REFUNDED]: '已退款',
 };
 
 export function normalizeOrderStatus(status) {
-  if (typeof status === 'number') return status;
   const aliases = {
     PENDING_DELIVERY: OrderStatus.PENDING_DELIVERY,
     PENDING_RECEIPT: OrderStatus.PENDING_RECEIPT,
     COMPLETE: OrderStatus.COMPLETE,
     COMPLETED: OrderStatus.COMPLETE,
-    CANCELED: OrderStatus.CANCELED,
-    CANCELLED: OrderStatus.CANCELED,
+    REFUNDED: OrderStatus.REFUNDED,
   };
   const normalized = aliases[String(status ?? '').toUpperCase()] ?? Number(status);
-  return [OrderStatus.PENDING_DELIVERY, OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE, OrderStatus.CANCELED].includes(normalized)
+  return [OrderStatus.PENDING_DELIVERY, OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE, OrderStatus.REFUNDED].includes(normalized)
     ? normalized
     : 0;
 }
@@ -46,13 +42,11 @@ export const AfterServiceStatus = {
 export const ServiceType = {
   RETURN_GOODS: 10, // 退货退款
   ONLY_REFUND: 20, // 仅退款
-  ORDER_CANCEL: 30, // 支付后取消
 };
 
 export const ServiceTypeDesc = {
   [ServiceType.RETURN_GOODS]: '退货',
   [ServiceType.ONLY_REFUND]: '退款',
-  [ServiceType.ORDER_CANCEL]: '支付后取消',
 };
 
 // 订单按钮类型
@@ -98,7 +92,6 @@ export const LogisticsNodeTypes = {
   SUBMITTED: 200001, // 已提交订单
   PAYMENTED: 200002, // 已付款/已下单
   SHIPPED: 200003, // 已发货
-  CANCELED: 200004, // 已取消
   RECEIVED: 200005, // 已签收
   ADDRESS_CHANGED: 200006, // 已修改地址
   IN_TRANSIT: 200007, // 运输中
@@ -108,7 +101,6 @@ export const LogisticsIconMap = {
   [LogisticsNodeTypes.SUBMITTED]: '',
   [LogisticsNodeTypes.PAYMENTED]: 'credit_card',
   [LogisticsNodeTypes.SHIPPED]: 'deliver',
-  [LogisticsNodeTypes.CANCELED]: '',
   [LogisticsNodeTypes.RECEIVED]: 'check',
   [LogisticsNodeTypes.ADDRESS_CHANGED]: '',
   [LogisticsNodeTypes.IN_TRANSIT]: 'yunshuzhong',

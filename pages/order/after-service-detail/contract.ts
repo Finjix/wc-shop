@@ -14,10 +14,6 @@ const SERVICE_TYPE_ALIASES = {
   'only-refund': 20,
   onlyrefund: 20,
   refund_money: 20,
-  '30': 30,
-  order_cancel: 30,
-  'order-cancel': 30,
-  ordercancel: 30,
 };
 
 const SERVICE_STATUS_ALIASES = {

@@ -579,6 +579,29 @@ async function previewOrder(runtime, event, context, data) {
   return orderDraft(runtime, identity, input, source, false);
 }
 
+async function reserveOrderId(tx, userId) {
+  const requests = tx.collection(COLLECTIONS.orderRequests);
+  let orderId;
+  do {
+    orderId = `${Date.now()}${crypto.randomInt(10, 100)}`;
+  } while (await getDoc(requests, `id_${orderId}`, false)
+    || await getDoc(tx.collection(COLLECTIONS.orders), orderId, false));
+  await setDoc(requests, `id_${orderId}`, { _id: `id_${orderId}`, orderId, userId });
+  return orderId;
+}
+
+async function createdOrderResult(runtime, first) {
+  const ids = first.checkoutOrderIds || [first._id];
+  if (ids.length === 1) return { ...first, paymentRequired: false };
+  const orders = await Promise.all(ids.map((id) => getDoc(collection(runtime, COLLECTIONS.orders), id, true)));
+  return {
+    ...first, orders, orderIds: ids, orderNos: orders.map((order) => order.orderNo),
+    orderCount: orders.length,
+    checkoutTotalAmount: orders.reduce((sum, order) => sum + order.totalAmount, 0),
+    paymentRequired: false,
+  };
+}
+
 async function orderIdFor(runtime, userId, requestKey) {
   const hash = crypto.createHash('sha256').update(`${userId}:${requestKey}`).digest('hex').slice(0, 32);
   // 保留旧请求的重试兼容，历史订单 ID 不迁移。
@@ -587,14 +610,8 @@ async function orderIdFor(runtime, userId, requestKey) {
   return withTransaction(runtime.db, async (tx) => {
     const requests = tx.collection(COLLECTIONS.orderRequests);
     const existing = await getDoc(requests, hash, false);
-    if (existing?.cancelled) throw errorFrom('ORDER_STATE_INVALID');
     if (existing) return existing.orderId;
-    let orderId;
-    do {
-      orderId = `${Date.now()}-${String(crypto.randomInt(0, 10000)).padStart(4, '0')}`;
-    } while (await getDoc(requests, `id_${orderId}`, false)
-      || await getDoc(tx.collection(COLLECTIONS.orders), orderId, false));
-    await setDoc(requests, `id_${orderId}`, { _id: `id_${orderId}`, orderId, userId });
+    const orderId = await reserveOrderId(tx, userId);
     await setDoc(requests, hash, { _id: hash, userId, requestKey, orderId, createdAt: now() });
     return orderId;
   });
@@ -623,13 +640,13 @@ async function createOrder(runtime, event, context, data) {
       const requestHash = hashRequest(explicitNormalized);
       if (existing.requestHash && existing.requestHash !== requestHash) throw errorFrom('IDEMPOTENCY_CONFLICT');
     } else if (!matchesCartRetry(existing)) throw errorFrom('IDEMPOTENCY_CONFLICT');
-    return existing;
+    return createdOrderResult(runtime, existing);
   }
   const cart = input.useCart ? await getCart(runtime, identity) : null;
   const cartItems = cart?.items.filter((item) => item.isSelected).map((item) => ({ skuId: item.skuId, quantity: item.quantity })) || [];
   if (input.useCart && !explicitNormalized && !cartItems.length) {
     const raced = await getDoc(collection(runtime, COLLECTIONS.orders), orderId, false);
-    if (raced && matchesCartRetry(raced)) return raced;
+    if (raced && matchesCartRetry(raced)) return createdOrderResult(runtime, raced);
     throw errorFrom('INVALID_ARGUMENT', { field: 'items' });
   }
   const source = explicitNormalized || (input.useCart ? cartItems : input.items || input.goodsRequestList);
@@ -637,15 +654,17 @@ async function createOrder(runtime, event, context, data) {
   const requestHash = hashRequest(normalizedItems);
   const concurrent = await getDoc(collection(runtime, COLLECTIONS.orders), orderId, false);
   if (concurrent) {
-    if (concurrent.requestHash && concurrent.requestHash !== requestHash && !matchesCartRetry(concurrent)) throw errorFrom('IDEMPOTENCY_CONFLICT');
-    return concurrent;
+    if (concurrent.requestHash && concurrent.requestHash !== requestHash
+      && (explicitNormalized || !matchesCartRetry(concurrent))) throw errorFrom('IDEMPOTENCY_CONFLICT');
+    return createdOrderResult(runtime, concurrent);
   }
   const draft = await orderDraft(runtime, identity, input, normalizedItems);
   const result = await withTransaction(runtime.db, async (tx) => {
     const orders = tx.collection(COLLECTIONS.orders);
     const race = await getDoc(orders, orderId, false);
     if (race) {
-      if (race.requestHash && race.requestHash !== requestHash) throw errorFrom('IDEMPOTENCY_CONFLICT');
+      if (race.requestHash && race.requestHash !== requestHash
+        && (explicitNormalized || !matchesCartRetry(race))) throw errorFrom('IDEMPOTENCY_CONFLICT');
       return race;
     }
     const confirmedItems = [];
@@ -671,46 +690,65 @@ async function createOrder(runtime, event, context, data) {
     const subtotal = confirmedItems.reduce((sum, item) => sum + item.amount, 0);
     if (!Number.isSafeInteger(subtotal)) throw errorFrom('INVALID_ARGUMENT', { field: 'totalAmount' });
     const timestamp = now();
-    const order = {
-      _id: orderId,
-      orderNo: orderId,
-      userId: identity.uid,
-      requestKey: requestKey || null,
-      requestHash,
-      requestMode,
-      requestAddressId: addressId,
-      requestRemark: remark,
-      status: STATUS.paid,
-      paymentStatus: 'paid',
-      payment: { mode: 'simulated', status: 'paid', amount: subtotal + draft.shippingFee, transactionId: `sim_${orderId}`, paidAt: timestamp },
-      paymentAmount: subtotal + draft.shippingFee,
-      paidAt: timestamp,
-      inventoryReserved: true,
-      refundAmount: 0,
-      refundedQuantities: {},
-      pendingRefundAmount: 0,
-      pendingRefundQuantities: {},
-      items: confirmedItems,
-      addressSnapshot: clone(confirmedAddress),
-      subtotal,
-      shippingFee: draft.shippingFee,
-      totalAmount: subtotal + draft.shippingFee,
-      hasPendingComments: true,
-      commentedProductIds: [],
-      remark: optionalString(input.remark, 'remark', { max: 240 }) || '',
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
-    await setDoc(orders, orderId, order);
+    const checkoutOrderIds = [orderId];
+    for (let index = 1; index < confirmedItems.length; index += 1) {
+      checkoutOrderIds.push(await reserveOrderId(tx, identity.uid));
+    }
+    // One SKU (including its full quantity) per order. All orders, stock changes
+    // and cart removal commit together; the first order anchors checkout retries.
+    const created = [];
+    for (const [index, item] of confirmedItems.entries()) {
+      const id = checkoutOrderIds[index];
+      const shippingFee = index === 0 ? draft.shippingFee : 0;
+      const totalAmount = item.amount + shippingFee;
+      const order = {
+        _id: id,
+        orderNo: id,
+        checkoutId: orderId,
+        checkoutOrderIds,
+        userId: identity.uid,
+        requestKey,
+        requestHash,
+        requestMode,
+        requestAddressId: addressId,
+        requestRemark: remark,
+        status: STATUS.paid,
+        paymentStatus: 'paid',
+        payment: { mode: 'simulated', status: 'paid', amount: totalAmount, transactionId: `sim_${id}`, paidAt: timestamp },
+        paymentAmount: totalAmount,
+        paidAt: timestamp,
+        inventoryReserved: true,
+        refundAmount: 0,
+        refundedQuantities: {},
+        pendingRefundAmount: 0,
+        pendingRefundQuantities: {},
+        items: [item],
+        addressSnapshot: clone(confirmedAddress),
+        subtotal: item.amount,
+        shippingFee,
+        totalAmount,
+        hasPendingComments: true,
+        commentedProductIds: [],
+        remark: optionalString(input.remark, 'remark', { max: 240 }) || '',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      await setDoc(orders, id, order);
+      created.push(order);
+    }
+    const requestId = crypto.createHash('sha256').update(`${identity.uid}:${requestKey}`).digest('hex').slice(0, 32);
+    const requests = tx.collection(COLLECTIONS.orderRequests);
+    const reservation = await getDoc(requests, requestId, true);
+    await setDoc(requests, requestId, { ...reservation, orderIds: checkoutOrderIds, requestHash, totalAmount: subtotal + draft.shippingFee });
     if (cart) {
       const storedCart = await getDoc(tx.collection(COLLECTIONS.carts), identity.uid, false);
       const orderedSkuIds = new Set(draft.items.map((item) => String(item.skuId)));
       const remaining = (storedCart?.items || []).filter((item) => !item.isSelected || !orderedSkuIds.has(String(item.skuId)));
       await setDoc(tx.collection(COLLECTIONS.carts), identity.uid, { _id: identity.uid, userId: identity.uid, items: remaining, updatedAt: timestamp });
     }
-    return order;
+    return created[0];
   });
-  return { ...result, paymentRequired: false };
+  return createdOrderResult(runtime, result);
 }
 
 async function listOrders(runtime, event, context, data) {
@@ -722,20 +760,16 @@ async function listOrders(runtime, event, context, data) {
     10: [STATUS.paid],
     40: [STATUS.shipped],
     50: [STATUS.received, STATUS.completed],
-    80: [STATUS.cancelled],
+    60: [STATUS.refunded],
   };
   const where = { userId: identity.uid };
   const statuses = statusGroups[requested] || (requested ? [String(requested)] : null);
-  if (statuses?.length === 1 && statuses[0] === STATUS.cancelled) {
-    return { items: [], page: paging.page, pageNum: paging.page, pageSize: paging.pageSize, total: 0 };
-  }
-  if (!statuses && runtime.db.command?.neq) where.status = runtime.db.command.neq(STATUS.cancelled);
   if (statuses && statuses.length === 1) where.status = statuses[0];
   else if (statuses && runtime.db.command?.in) where.status = runtime.db.command.in(statuses);
   if (runtime.db.command?.neq) where.deletedByUser = runtime.db.command.neq(true);
   if (input.pendingCommentOnly || !runtime.db.command?.neq || (statuses && statuses.length > 1 && !runtime.db.command?.in)) {
     let rows = (await all(collection(runtime, COLLECTIONS.orders), where))
-      .filter((order) => !order.deletedByUser && order.status !== STATUS.cancelled && (!statuses || statuses.includes(order.status)))
+      .filter((order) => !order.deletedByUser && (!statuses || statuses.includes(order.status)))
       .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')) || String(b._id).localeCompare(String(a._id)));
     rows = await Promise.all(rows.map((order) => orderWithComments(runtime, order)));
     if (input.pendingCommentOnly) rows = rows.filter((order) => [STATUS.received, STATUS.completed].includes(order.status) && order.hasPendingComments);
@@ -747,7 +781,7 @@ async function listOrders(runtime, event, context, data) {
     skip: (paging.page - 1) * paging.pageSize,
     limit: paging.pageSize,
   });
-  let items = result.items.filter((item) => !item.deletedByUser && item.status !== STATUS.cancelled);
+  let items = result.items.filter((item) => !item.deletedByUser);
   if (statuses && !(runtime.db.command?.in) && statuses.length > 1) items = items.filter((item) => statuses.includes(item.status));
   items = await Promise.all(items.map((order) => orderWithComments(runtime, order)));
   return { items, page: paging.page, pageNum: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? items.length : result.total };
@@ -785,6 +819,14 @@ async function orderDetail(runtime, event, context, data) {
   if (!order) throw errorFrom('NOT_FOUND');
   if (order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
   return orderWithComments(runtime, order, true);
+}
+
+async function checkoutDetail(runtime, event, context, data) {
+  const identity = requireUser(event, context, runtime);
+  const id = string(data.checkoutId, 'checkoutId', { max: 128 });
+  const first = await getDoc(collection(runtime, COLLECTIONS.orders), id, true);
+  if (first.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+  return createdOrderResult(runtime, first);
 }
 
 async function orderWithComments(runtime, order, includeAfterSalesList = false) {
@@ -837,57 +879,6 @@ async function updateOrderState(runtime, event, context, data, action) {
   const order = await getDoc(orders, id, true);
   if (order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
   const timestamp = now();
-  if (action === 'orders.cancel') {
-    return withTransaction(runtime.db, async (tx) => {
-      const current = await getDoc(tx.collection(COLLECTIONS.orders), id, true);
-      if (current.userId !== identity.uid) throw errorFrom('FORBIDDEN');
-      if (current.status === STATUS.cancelled) return { ...current, cancelled: true };
-      if (current.status !== STATUS.paid || (current.fulfillmentStatus && current.fulfillmentStatus !== STATUS.paid)) throw errorFrom('ORDER_STATE_INVALID');
-      const active = await transactionClaims(tx, current);
-      if (Number(current.pendingRefundAmount) > 0
-        || Object.values(current.pendingRefundQuantities || {}).some((quantity) => Number(quantity) > 0)
-        || active.some((claim) => ACTIVE_AFTER_SALE.includes(claim.status))) throw errorFrom('CONFLICT', { field: 'afterSale' });
-      if (current.payment?.mode !== 'simulated') throw errorFrom('ORDER_STATE_INVALID');
-      if (current.inventoryReserved) {
-        for (const item of current.items || []) {
-          const quantity = Math.max(0, Number(item.quantity) - Number(current.refundedQuantities?.[item.skuId] || 0));
-          if (!quantity) continue;
-          const skuId = item.skuSnapshot?._id || item.skuId;
-          const skus = tx.collection(COLLECTIONS.skus);
-          const sku = await getDoc(skus, skuId, true);
-          const result = await skus.doc(skuId).update({
-            stockQuantity: skuStock(sku) + quantity,
-            soldQuantity: Math.max(0, valueNumber(sku.soldQuantity, 0) - quantity),
-            updatedAt: timestamp,
-          });
-          if (affected(result) !== 1) throw errorFrom('CONFLICT');
-        }
-      }
-      // 保留取消标记，原创建请求重试不能重新下单。
-      if (current.requestKey) {
-        const hash = crypto.createHash('sha256').update(`${identity.uid}:${current.requestKey}`).digest('hex').slice(0, 32);
-        await setDoc(tx.collection(COLLECTIONS.orderRequests), hash, {
-          _id: hash, userId: identity.uid, orderId: id, cancelled: true, cancelledAt: timestamp,
-        });
-      }
-      const patch = {
-        status: STATUS.cancelled,
-        deletedByUser: true,
-        fulfillmentStatus: STATUS.cancelled,
-        paymentStatus: 'refunded',
-        payment: { ...current.payment, status: 'refunded', refundedAt: timestamp },
-        refundAmount: current.paymentAmount ?? current.totalAmount,
-        refundedQuantities: Object.fromEntries((current.items || []).map((item) => [item.skuId, item.quantity])),
-        inventoryReserved: false,
-        hasPendingComments: false,
-        cancelledAt: timestamp,
-        updatedAt: timestamp,
-      };
-      const result = await tx.collection(COLLECTIONS.orders).doc(id).update(patch);
-      if (affected(result) !== 1) throw errorFrom('CONFLICT');
-      return { ...current, ...patch, cancelled: true };
-    });
-  }
   if (action === 'orders.updateAddress') {
     const addressId = string(input.addressId || input.userAddressReq?.addressId || input.userAddressReq?.id || input.userAddressReq?._id, 'addressId', { max: 128 });
     return withTransaction(runtime.db, async (tx) => {
@@ -922,7 +913,7 @@ async function updateOrderState(runtime, event, context, data, action) {
   if (action === 'orders.delete') {
     return withTransaction(runtime.db, async (tx) => {
       const current = await getDoc(tx.collection(COLLECTIONS.orders), id, true);
-      if (current.userId !== identity.uid || ![STATUS.cancelled, STATUS.completed].includes(current.status)) throw errorFrom('ORDER_STATE_INVALID');
+      if (current.userId !== identity.uid || ![STATUS.refunded, STATUS.completed].includes(current.status)) throw errorFrom('ORDER_STATE_INVALID');
       const patch = { deletedByUser: true, updatedAt: timestamp };
       const result = await tx.collection(COLLECTIONS.orders).doc(id).update(patch);
       if (affected(result) !== 1) throw errorFrom('CONFLICT');
@@ -1174,12 +1165,9 @@ async function finishSimulatedRefund(tx, afterSale, order, timestamp) {
     refundedQuantities,
     ...await pendingAggregate(tx, order, afterSale, timestamp, false),
     paymentStatus: fullRefund ? 'refunded' : 'partially_refunded',
-    status: fullRefund
-      ? (previouslyFulfilled === STATUS.paid ? STATUS.cancelled : STATUS.completed)
-      : order.status,
+    status: fullRefund ? STATUS.refunded : order.status,
     ...(fullRefund && previouslyFulfilled === STATUS.paid ? { inventoryReserved: false } : {}),
-    ...(fullRefund && previouslyFulfilled === STATUS.paid ? { cancelledAt: timestamp } : {}),
-    ...(fullRefund && previouslyFulfilled !== STATUS.paid ? { completedAt: timestamp } : {}),
+    ...(fullRefund ? { refundedAt: timestamp } : {}),
     updatedAt: timestamp,
   };
   if (!fullRefund && !order.fulfillmentStatus && order.status === STATUS.paid) orderPatch.fulfillmentStatus = STATUS.paid;
@@ -1435,11 +1423,12 @@ async function shopEndpoint(event, context, runtime, action, data) {
   if (action.startsWith('cart.')) return cartAction(runtime, event, context, data, action);
   if (action === 'orders.preview') return previewOrder(runtime, event, context, data);
   if (action === 'orders.create') return createOrder(runtime, event, context, data);
+  if (action === 'orders.checkout') return checkoutDetail(runtime, event, context, data);
   if (action === 'orders.list') return listOrders(runtime, event, context, data);
   if (action === 'orders.count') return orderCount(runtime, event, context);
   if (action === 'orders.businessTime') return { telphone: '', telephone: '', phone: '' };
   if (action === 'orders.detail') return orderDetail(runtime, event, context, data);
-  if (action === 'orders.cancel' || action === 'orders.confirmReceived' || action === 'orders.delete' || action === 'orders.updateAddress') return updateOrderState(runtime, event, context, data, action);
+  if (action === 'orders.confirmReceived' || action === 'orders.delete' || action === 'orders.updateAddress') return updateOrderState(runtime, event, context, data, action);
   if (action.startsWith('comments.')) return commentsAction(runtime, event, context, data, action);
   if (action.startsWith('afterSales.')) return afterSalesAction(runtime, event, context, data, action);
   throw errorFrom('INVALID_ARGUMENT', { field: 'action' });

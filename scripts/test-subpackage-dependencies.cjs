@@ -96,7 +96,7 @@ async function dialogScenario(file) {
   const component = { properties: { confirmBtn: '确认', cancelBtn: '取消', showOverlay: true }, setData(data) { this.data = data; } };
   const state = { page: { selectComponent: () => component } };
   const dialog = loadDialog(file, state);
-  const options = { title: '取消订单？', confirmBtn: { content: '确认取消', rootClass: 'custom-button' } };
+  const options = { title: '确认收货？', confirmBtn: { content: '确认收货', rootClass: 'custom-button' } };
   const confirm = dialog.confirm(options);
   assert.equal(state.selector, '#t-dialog');
   assert.equal(component.data.visible, true);

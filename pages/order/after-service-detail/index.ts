@@ -15,7 +15,6 @@ import {
 } from './contract';
 
 const TitleConfig = {
-  [ServiceType.ORDER_CANCEL]: '退款详情',
   [ServiceType.ONLY_REFUND]: '退款详情',
   [ServiceType.RETURN_GOODS]: '退货退款详情',
 };
@@ -258,7 +257,7 @@ Page({
       case ServiceStatus.REFUNDED: {
         return 'succeed';
       }
-      // 已取消、已关闭
+      // 已撤销、已关闭
       case ServiceStatus.CLOSED: {
         return 'indent_close';
       }

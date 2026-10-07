@@ -23,7 +23,6 @@ const STATUS = Object.freeze({
   shipped: 'shipped',
   received: 'received',
   completed: 'completed',
-  cancelled: 'cancelled',
   refundRequested: 'refund_requested',
   refunding: 'refunding',
   refunded: 'refunded',
@@ -38,7 +37,7 @@ const ORDER_STATUS = Object.freeze([
   STATUS.shipped,
   STATUS.received,
   STATUS.completed,
-  STATUS.cancelled,
+  STATUS.refunded,
 ]);
 
 const AFTER_SALE_STATUS = Object.freeze([

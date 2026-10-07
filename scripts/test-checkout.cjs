@@ -220,6 +220,80 @@ async function run() {
   mocks[path.join(root, 'utils/api.ts')].request = originalRequest;
   console.log('PASS lost create response retries the same key and returns the simulated paid order');
 
+  const batchResponse = {
+    checkoutId: 'batch-order-1',
+    orders: [
+      { _id: 'batch-order-1', orderNo: 'batch-order-1', status: 'paid', paymentStatus: 'paid', payment: { mode: 'simulated' }, paymentAmount: 200 },
+      { _id: 'batch-order-2', orderNo: 'batch-order-2', status: 'paid', paymentStatus: 'paid', payment: { mode: 'simulated' }, paymentAmount: 500 },
+    ],
+  };
+  const batchGoods = [goods, { skuId: 'sku-2', storeId: 'default', quantity: 2 }];
+  const batchKeys = [];
+  const batchPayloads = [];
+  let loseBatchResponse = false;
+  let unconfirmedBatch = false;
+  mocks[path.join(root, 'utils/api.ts')].request = async (action, payload) => {
+    if (action === 'orders.create') {
+      batchKeys.push(payload.requestKey);
+      batchPayloads.push(payload);
+      if (loseBatchResponse) { loseBatchResponse = false; throw new Error('batch response lost after commit'); }
+      return unconfirmedBatch ? { ...batchResponse, orders: [batchResponse.orders[0], { ...batchResponse.orders[1], paymentStatus: 'pending' }] } : batchResponse;
+    }
+    if (action === 'orders.checkout') {
+      assert.equal(payload.checkoutId, 'batch-order-1');
+      return batchResponse;
+    }
+    const response = await originalRequest(action, payload);
+    if (action === 'orders.preview' && payload.items.length === 2) return {
+      ...response, totalAmount: 700,
+      items: [...response.items, { skuId: 'sku-2', quantity: 2, unitPrice: 250, productSnapshot: { _id: 'product-2', title: '第二个商品' }, skuSnapshot: {} }],
+    };
+    return response;
+  };
+  const batch = await service.createOrder({ goodsRequestList: batchGoods, addressId: 'address-1', requestKey: 'batch-test', useCart: true });
+  assert.equal(batch.data.orderCount, 2);
+  assert.equal(batch.data.checkoutTotalAmount, 700);
+  assert.equal(batch.data.orderNos.join(','), 'batch-order-1,batch-order-2');
+  unconfirmedBatch = true;
+  await assert.rejects(service.createOrder({ goodsRequestList: batchGoods, addressId: 'address-1', requestKey: 'batch-unconfirmed' }), (error) => error.code === 'ORDER_NOT_PAID');
+  unconfirmedBatch = false;
+  batchResponse.orders[1].status = 'shipped';
+  const progressed = await service.createOrder({ goodsRequestList: batchGoods, addressId: 'address-1', requestKey: 'batch-progressed-retry' });
+  assert.equal(progressed.data.orders[1].orderStatus, 40, 'late checkout retries retain an already-shipped order status');
+  batchResponse.orders[1].status = 'paid';
+  service.setPendingGoodsRequestList(batchGoods);
+  const batchPage = { ...pageDefinition, data: structuredClone(pageDefinition.data), setData(patch) { Object.assign(this.data, patch); } };
+  batchPage.onLoad({ type: 'cart' });
+  await flush();
+  batchPage.handleOptionsParams({ userAddressReq: withAddress.data.userAddress });
+  await flush();
+  assert.equal(batchPage.data.splitOrderCount, 2);
+  assert.equal(batchPage.data.settleDetailData.totalPayAmount, 700);
+  loseBatchResponse = true;
+  batchPage.submitOrder();
+  await flush();
+  assert.ok(batchPage.createRequestId);
+  assert.equal(service.getPendingGoodsRequestList().length, 2);
+  batchPage.submitOrder();
+  await flush();
+  assert.equal(batchKeys.at(-1), batchKeys.at(-2));
+  assert.equal(batchPayloads.at(-1).items.length, 2, 'all selected SKUs use one atomic checkout request');
+  assert.ok(navigation.at(-1).includes('checkoutId=batch-order-1'));
+  assert.equal(service.getPendingGoodsRequestList(), null);
+
+  load('pages/order/pay-result/index.ts');
+  const resultPage = { ...pageDefinition, data: structuredClone(pageDefinition.data), setData(patch) { Object.assign(this.data, patch); } };
+  resultPage.onLoad({ orderNo: 'batch-order-1', checkoutId: 'batch-order-1', totalPaid: '999999' });
+  await flush();
+  assert.equal(resultPage.data.orderCount, 2);
+  assert.equal(resultPage.data.totalPaid, 700, 'result sums server-paid orders, not the first order or query-string amounts');
+  assert.equal(resultPage.data.paymentConfirmed, true);
+  assert.ok(resultPage.data.statusText.includes('2 笔订单'));
+  resultPage.onTapReturn({ currentTarget: { dataset: { type: 'orderList' } } });
+  assert.equal(navigation.at(-1), '/pages/order/order-list/index');
+  mocks[path.join(root, 'utils/api.ts')].request = originalRequest;
+  console.log('PASS split checkout normalizes every paid order, retries one key, and shows the combined server-confirmed result');
+
   const cartService = load('services/cart/cart.ts');
   const cart = await cartService.fetchCartGroupData();
   const cartGoods = cart.data.storeGoods[0].promotionGoodsList[0].goodsPromotionList[0];

@@ -11,6 +11,7 @@ const { imageLifecycleRuntime, referencePage, cleanup, replaceReference } = requ
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
 const { skuPrice, skuStock, moderateAfterSale, confirmAfterSaleReturn } = require('./shop');
 const { HOME_CONFIG_SLOT, validateHomeConfig, productIds: homeProductIds } = require('./home-config');
+const { shippingAddressOf, shippingGroupKey } = require('./order-shipping');
 
 async function findProduct(collection, id) {
   const direct = await getDoc(collection, id, false);
@@ -139,7 +140,7 @@ async function saveProductWithVariants(runtime, data) {
   variants.forEach((variant) => assert(!variant.skuId || existingById.has(variant.skuId), { field: 'variants.skuId' }));
   const timestamp = now();
   const prices = variants.map((item) => item.salePrice);
-  const specList = [{ specId: 'spec', title: '规格', specValueList: variants.map((item) => ({ specValueId: item.skuId || `sku_${crypto.randomUUID()}`, specValue: item.name })) }];
+  const specList = [{ specId: 'spec', title: '规格', specValueList: variants.map((item) => ({ specValueId: item.skuId, specValue: item.name })) }];
   const patch = {
     ...allowedFields(data, ['title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'tags', 'description']),
     specList,
@@ -159,6 +160,16 @@ async function saveProductWithVariants(runtime, data) {
   const result = await withTransaction(runtime.db, async (tx) => {
     const txProducts = tx.collection(COLLECTIONS.products);
     const txSkus = tx.collection(COLLECTIONS.skus);
+    // Allocate inside the transaction so concurrent saves cannot overwrite a SKU.
+    let skuTimestamp = Date.now();
+    for (const [index, specValue] of specList[0].specValueList.entries()) {
+      if (variants[index].skuId) continue;
+      let skuId;
+      do {
+        skuId = `sku-${skuTimestamp++}`;
+      } while (await getDoc(txSkus, skuId, false));
+      specValue.specValueId = skuId;
+    }
     for (const variant of variants) {
       if (!variant.skuId || variant.stockQuantity === undefined) continue;
       const latest = await getDoc(txSkus, variant.skuId, true);
@@ -541,47 +552,128 @@ function nextOrderStatus(current, next) {
   return next;
 }
 
-async function adminOrderAction(runtime, data, action) {
-  const orders = col(runtime, COLLECTIONS.orders);
-  if (action === 'orders.list') {
-    const status = data.status ? string(data.status, 'status', { max: 40 }) : '';
-    const where = status ? { status } : {};
-    if (status === STATUS.completed && runtime.db.command?.in) where.status = runtime.db.command.in([STATUS.received, STATUS.completed]);
-    if (status === 'partial_refunded' || status === 'partially_refunded') {
-      delete where.status;
-      where.paymentStatus = 'partially_refunded';
-    }
-    if (status === 'refunded') {
-      delete where.status;
-      const refundStatuses = ['refunded', 'partially_refunded', 'partial_refunded', 'partial_refund'];
-      if (runtime.db.command?.in) {
-        where.paymentStatus = runtime.db.command.in(refundStatuses);
-      } else {
-        const paging = page(data);
-        const filters = {
-          ...(data.userId ? { userId: string(data.userId, 'userId', { max: 128 }) } : {}),
-          ...(data.orderNo ? { orderNo: string(data.orderNo, 'orderNo', { max: 128 }) } : {}),
-        };
-        const rows = (await all(orders, filters)).filter((item) => refundStatuses.includes(item.paymentStatus))
-          .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-        return { items: rows.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map(({ addressSnapshot: _addressSnapshot, address: _address, userAddress: _userAddress, userAddressReq: _userAddressReq, ...summary }) => ({ ...summary, hasActiveAfterSale: Number(summary.pendingRefundAmount || 0) > 0 })), page: paging.page, pageSize: paging.pageSize, total: rows.length };
-      }
-    }
-    if (data.userId) where.userId = string(data.userId, 'userId', { max: 128 });
-    if (data.orderNo) where.orderNo = string(data.orderNo, 'orderNo', { max: 128 });
-    if (status === STATUS.completed && !runtime.db.command?.in) {
-      const paging = page(data);
-      let rows = await all(orders, { ...(data.userId ? { userId: String(data.userId) } : {}), ...(data.orderNo ? { orderNo: String(data.orderNo) } : {}) });
-      rows = rows.filter((item) => [STATUS.received, STATUS.completed].includes(item.status)).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-      return { items: rows.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map(({ addressSnapshot: _addressSnapshot, address: _address, ...summary }) => summary), page: paging.page, pageSize: paging.pageSize, total: rows.length };
-    }
+function pendingAfterSaleAggregate(order) {
+  if (!order.pendingRefundQuantities || typeof order.pendingRefundQuantities !== 'object'
+    || !Number.isSafeInteger(Number(order.pendingRefundAmount))) return null;
+  return Number(order.pendingRefundAmount) > 0 || Object.values(order.pendingRefundQuantities).some((quantity) => Number(quantity) > 0);
+}
+
+async function legacyShippingClaims(runtime, order) {
+  return pendingAfterSaleAggregate(order) === null
+    ? all(col(runtime, COLLECTIONS.afterSales), { orderId: order._id }) : [];
+}
+
+function activeShippingClaim(claim) {
+  return [STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(claim.status);
+}
+
+async function adminOrderSummary(runtime, order) {
+  const aggregate = pendingAfterSaleAggregate(order);
+  const hasActiveAfterSale = aggregate ?? (await legacyShippingClaims(runtime, order)).some(activeShippingClaim);
+  const { addressSnapshot: _snapshot, address: _address, userAddress: _userAddress, userAddressReq: _request, ...summary } = order;
+  return { ...summary, hasActiveAfterSale };
+}
+
+async function listAdminOrders(runtime, data) {
+  const status = data.status ? string(data.status, 'status', { max: 40 }) : '';
+  const where = {
+    ...(data.userId ? { userId: string(data.userId, 'userId', { max: 128 }) } : {}),
+    ...(data.orderNo ? { orderNo: string(data.orderNo, 'orderNo', { max: 128 }) } : {}),
+  };
+  const statuses = status === STATUS.completed ? [STATUS.received, STATUS.completed] : null;
+  const refunds = status === 'refunded' ? ['refunded', 'partially_refunded', 'partial_refunded', 'partial_refund'] : null;
+  if (statuses && runtime.db.command?.in) where.status = runtime.db.command.in(statuses);
+  else if (refunds && runtime.db.command?.in) where.paymentStatus = runtime.db.command.in(refunds);
+  else if (['partial_refunded', 'partially_refunded'].includes(status)) where.paymentStatus = 'partially_refunded';
+  else if (status && !statuses && !refunds) where.status = status;
+  const fallback = (statuses || refunds) && !runtime.db.command?.in;
+  if (data.groupBy !== 'address' && !fallback) {
     const result = await listCollection(runtime, COLLECTIONS.orders, data, where);
-    result.items = result.items.map((item) => {
-      const { addressSnapshot: _addressSnapshot, address: _address, userAddress: _userAddress, userAddressReq: _userAddressReq, ...summary } = item;
-      return { ...summary, hasActiveAfterSale: Number(summary.pendingRefundAmount || 0) > 0 };
-    });
+    result.items = await Promise.all(result.items.map((order) => adminOrderSummary(runtime, order)));
     return result;
   }
+  const paging = page(data);
+  const rows = (await all(col(runtime, COLLECTIONS.orders), where))
+    .filter((order) => (!statuses || statuses.includes(order.status)) && (!refunds || refunds.includes(order.paymentStatus)))
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')) || String(b._id).localeCompare(String(a._id)));
+  if (data.groupBy !== 'address') {
+    return { items: await Promise.all(rows.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map((order) => adminOrderSummary(runtime, order))), ...paging, total: rows.length };
+  }
+  // Group before paginating, so an address's orders cannot be split across pages.
+  const groups = new Map();
+  for (const order of rows) {
+    const addressKey = shippingGroupKey(order);
+    const key = addressKey || `ungrouped_${order._id}`;
+    if (!groups.has(key)) groups.set(key, { key, address: shippingAddressOf(order), canCombine: Boolean(addressKey), orders: [] });
+    groups.get(key).orders.push(order);
+  }
+  const selected = [...groups.values()].slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize);
+  const items = await Promise.all(selected.map(async (group) => ({
+    ...group, orderCount: group.orders.length,
+    orders: await Promise.all(group.orders.map((order) => adminOrderSummary(runtime, order))),
+  })));
+  return { items, ...paging, total: groups.size, totalOrders: rows.length };
+}
+
+async function orderShipmentPatch(tx, current, oldClaims, trackingNo, timestamp) {
+  if (current.status !== STATUS.paid) throw errorFrom('ORDER_STATE_INVALID');
+  const aggregate = pendingAfterSaleAggregate(current);
+  let hasActiveAfterSale = aggregate;
+  if (aggregate === null) {
+    const ids = [...new Set([...(current.afterSaleIds || []), ...oldClaims.map((item) => item._id)].filter(Boolean))];
+    const claims = await Promise.all(ids.map((id) => getDoc(tx.collection(COLLECTIONS.afterSales), id, false)));
+    hasActiveAfterSale = claims.filter(Boolean).some(activeShippingClaim);
+  }
+  if (hasActiveAfterSale) throw errorFrom('CONFLICT', { field: 'afterSale', orderId: current._id });
+  const shippedQuantities = {};
+  for (const item of current.items || []) {
+    const quantity = Number(item.quantity || 0) - Number(current.refundedQuantities?.[item.skuId] || 0);
+    if (quantity > 0) shippedQuantities[item.skuId] = quantity;
+  }
+  if (!Object.keys(shippedQuantities).length) throw errorFrom('ORDER_STATE_INVALID');
+  return {
+    status: STATUS.shipped, fulfillmentStatus: STATUS.shipped, shippedAt: timestamp,
+    tracking: { trackingNo, shippedAt: timestamp }, logistics: { trackingNo, logisticsNo: trackingNo },
+    shippedQuantities, updatedAt: timestamp,
+  };
+}
+
+async function shipOrderBatch(runtime, data) {
+  assert(Array.isArray(data.orderIds) && data.orderIds.length > 0 && data.orderIds.length <= 50, { field: 'orderIds', max: 50 });
+  const ids = data.orderIds.map((id) => string(id, 'orderIds[]', { max: 128 }));
+  assert(new Set(ids).size === ids.length, { field: 'orderIds' });
+  const groupKey = string(data.groupKey, 'groupKey', { max: 64 });
+  const trackingNo = string(data.trackingNo, 'trackingNo', { max: 128 });
+  const batchId = crypto.createHash('sha256').update(JSON.stringify([groupKey, [...ids].sort(), trackingNo])).digest('hex');
+  const existing = await Promise.all(ids.map((id) => getDoc(col(runtime, COLLECTIONS.orders), id, true)));
+  const oldClaims = await Promise.all(existing.map((order) => legacyShippingClaims(runtime, order)));
+  return withTransaction(runtime.db, async (tx) => {
+    const orders = tx.collection(COLLECTIONS.orders);
+    const current = await Promise.all(ids.map((id) => getDoc(orders, id, true)));
+    if (current.some((order) => shippingGroupKey(order) !== groupKey)) throw errorFrom('CONFLICT', { field: 'address' });
+    if (current.every((order) => [STATUS.shipped, STATUS.received, STATUS.completed].includes(order.status)
+      && order.shipmentBatchId === batchId && order.tracking?.trackingNo === trackingNo)) {
+      return { items: current, total: current.length, shipmentBatchId: batchId, trackingNo };
+    }
+    const timestamp = now();
+    const patches = [];
+    for (const [index, order] of current.entries()) {
+      patches.push({
+        ...await orderShipmentPatch(tx, order, oldClaims[index], trackingNo, timestamp),
+        shipmentBatchId: batchId, shipmentOrderIds: ids,
+      });
+    }
+    for (const [index, id] of ids.entries()) {
+      if (affected(await orders.doc(id).update(patches[index])) !== 1) throw errorFrom('CONFLICT');
+    }
+    return { items: current.map((order, index) => ({ ...order, ...patches[index] })), total: current.length, shipmentBatchId: batchId, trackingNo };
+  });
+}
+
+async function adminOrderAction(runtime, data, action) {
+  const orders = col(runtime, COLLECTIONS.orders);
+  if (action === 'orders.list') return listAdminOrders(runtime, data);
+  if (action === 'orders.shipBatch') return shipOrderBatch(runtime, data);
   const id = string(data.orderId || data.orderNo, 'orderId', { max: 128 });
   const direct = await getDoc(orders, id, false);
   const fallback = direct ? null : await orders.where({ orderNo: id }).limit(1).get();
@@ -620,34 +712,10 @@ async function adminOrderAction(runtime, data, action) {
     const inputLogistics = data.logistics && typeof data.logistics === 'object' ? data.logistics : {};
     const trackingNo = string(data.trackingNo || data.logisticsNo || inputLogistics.trackingNo || inputLogistics.logisticsNo, 'trackingNo', { max: 128 });
     const timestamp = now();
-    const hasPendingAggregate = order.pendingRefundQuantities && typeof order.pendingRefundQuantities === 'object'
-      && Number.isSafeInteger(Number(order.pendingRefundAmount));
-    const oldClaims = hasPendingAggregate ? [] : await all(col(runtime, COLLECTIONS.afterSales), { orderId: documentId });
+    const oldClaims = await legacyShippingClaims(runtime, order);
     return withTransaction(runtime.db, async (tx) => {
       const current = await getDoc(tx.collection(COLLECTIONS.orders), documentId, true);
-      if (current.status !== STATUS.paid) throw errorFrom('ORDER_STATE_INVALID');
-      const aggregateExists = current.pendingRefundQuantities && typeof current.pendingRefundQuantities === 'object'
-        && Number.isSafeInteger(Number(current.pendingRefundAmount));
-      const ids = aggregateExists ? [] : Array.from(new Set([...(current.afterSaleIds || []), ...oldClaims.map((item) => item._id)].filter(Boolean)));
-      const claims = [];
-      for (const claimId of ids) {
-        const claim = await getDoc(tx.collection(COLLECTIONS.afterSales), claimId, false);
-        if (claim) claims.push(claim);
-      }
-      const hasActiveAfterSale = aggregateExists
-        ? Number(current.pendingRefundAmount) > 0 || Object.values(current.pendingRefundQuantities).some((quantity) => Number(quantity) > 0)
-        : claims.some((item) => [STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(item.status));
-      if (hasActiveAfterSale) throw errorFrom('CONFLICT', { field: 'afterSale' });
-      const refunded = current.refundedQuantities || {};
-      const shippedQuantities = {};
-      for (const item of current.items || []) {
-        const quantity = Number(item.quantity || 0) - Number(refunded[item.skuId] || 0);
-        if (quantity > 0) shippedQuantities[item.skuId] = quantity;
-      }
-      if (!Object.keys(shippedQuantities).length) throw errorFrom('ORDER_STATE_INVALID');
-      const tracking = { trackingNo, shippedAt: timestamp };
-      const logistics = { trackingNo, logisticsNo: trackingNo };
-      const patch = { status: STATUS.shipped, fulfillmentStatus: STATUS.shipped, shippedAt: timestamp, tracking, logistics, shippedQuantities, updatedAt: timestamp };
+      const patch = await orderShipmentPatch(tx, current, oldClaims, trackingNo, timestamp);
       const result = await tx.collection(COLLECTIONS.orders).doc(documentId).update(patch);
       if (affected(result) !== 1) throw errorFrom('CONFLICT');
       return { ...current, ...patch, _id: documentId };

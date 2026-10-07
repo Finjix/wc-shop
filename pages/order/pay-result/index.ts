@@ -1,10 +1,12 @@
 // @ts-nocheck
 import { fetchOrderDetail } from '../services/orderDetail';
+import { fetchCheckoutResult } from '../../../services/order/orderConfirm';
 
 Page({
   data: {
     totalPaid: 0,
     orderNo: '',
+    orderCount: 1,
     statusText: '正在读取订单状态…',
     paymentConfirmed: false,
     loading: true,
@@ -15,7 +17,7 @@ Page({
   },
 
   onLoad(options) {
-    const { orderNo = '', groupId = '' } = options;
+    const { orderNo = '', checkoutId = '', groupId = '' } = options;
     this.setData({
       orderNo,
       groupId,
@@ -24,14 +26,22 @@ Page({
       this.setData({ loading: false, statusText: '订单编号缺失，请在订单列表中查看' });
       return;
     }
-    fetchOrderDetail({ orderNo }).then((result) => {
-      const order = result.data || {};
-      const status = String(order.orderStatus ?? order.status ?? '').toUpperCase().replace(/[- ]/g, '_');
-      const paymentStatus = String(order.paymentStatus || order.payment?.status || order.paymentVO?.status || '').toLowerCase();
-      const paid = paymentStatus === 'paid' && ['10', 'PAID', 'PENDING_DELIVERY'].includes(status);
+    const readResult = checkoutId ? fetchCheckoutResult(checkoutId) : fetchOrderDetail({ orderNo });
+    readResult.then((result) => {
+      const data = result.data || {};
+      const orders = Array.isArray(data.orders) && data.orders.length ? data.orders : [data];
+      const paid = orders.every((order) => {
+        const status = String(order.orderStatus ?? order.status ?? '').toUpperCase().replace(/[- ]/g, '_');
+        const paymentStatus = String(order.paymentStatus || order.payment?.status || order.paymentVO?.status || '').toLowerCase();
+        return paymentStatus === 'paid' && ['10', '40', '50', 'PAID', 'PENDING_DELIVERY', 'SHIPPED', 'RECEIVED', 'COMPLETED'].includes(status);
+      });
+      const awaitingShipment = orders.every((order) => ['10', 'PAID', 'PENDING_DELIVERY'].includes(String(order.orderStatus ?? order.status ?? '').toUpperCase().replace(/[- ]/g, '_')));
       this.setData({
-        totalPaid: paid ? (order.paymentAmount ?? order.totalAmount ?? 0) : 0,
-        statusText: paid ? '模拟支付完成，等待商家发货' : '订单尚未确认完成，请到订单列表查看最新状态',
+        orderCount: orders.length,
+        totalPaid: paid ? orders.reduce((sum, order) => sum + Number(order.paymentAmount ?? order.totalAmount ?? 0), 0) : 0,
+        statusText: paid
+          ? (orders.length > 1 ? `模拟支付完成，已生成 ${orders.length} 笔订单` : awaitingShipment ? '模拟支付完成，等待商家发货' : '模拟支付完成，请到订单列表查看发货进度')
+          : '订单尚未确认完成，请到订单列表查看最新状态',
         paymentConfirmed: paid,
         loading: false,
       });
@@ -47,7 +57,7 @@ Page({
       wx.switchTab({ url: '/pages/home/home' });
     } else if (target === 'orderList') {
       wx.navigateTo({
-        url: `/pages/order/order-list/index?orderNo=${orderNo}`,
+        url: '/pages/order/order-list/index',
       });
     } else if (target === 'order') {
       wx.navigateTo({

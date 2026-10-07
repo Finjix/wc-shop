@@ -33,6 +33,7 @@ Page({
       inValidGoodsList: [], // 失效或者库存不足
     }, // 获取结算页详情 data
     orderCardList: [], // 仅用于商品卡片展示
+    splitOrderCount: 0,
     userAddressReq: null,
     popupShow: false, // 不在配送范围 失效 库存不足 商品展示弹框
     storeInfoList: [],
@@ -155,6 +156,7 @@ Page({
     this.setData({
       settleDetailData: data,
       scrollEnabled: goodsCount > 1,
+      splitOrderCount: goodsCount,
     });
     this.isInvalidOrder(data);
   },
@@ -327,8 +329,9 @@ Page({
         clearPendingGoodsRequestList();
         const orderNo = res?.data?.orderNo;
         if (orderNo) {
+          const checkout = res.data.orderCount > 1 ? `&checkoutId=${encodeURIComponent(res.data.checkoutId)}` : '';
           wx.redirectTo({
-            url: `/pages/order/pay-result/index?orderNo=${encodeURIComponent(orderNo)}`,
+            url: `/pages/order/pay-result/index?orderNo=${encodeURIComponent(orderNo)}${checkout}`,
           });
         } else {
           wx.redirectTo({ url: '/pages/order/order-list/index' });

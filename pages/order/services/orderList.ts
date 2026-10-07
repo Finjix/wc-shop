@@ -3,7 +3,7 @@
 import { request } from '../../../utils/api';
 import { resolveOrderImages } from '../../../utils/images';
 
-const STATUS_LABELS = { 0: '订单状态不可用', 10: '待发货', 40: '待收货', 50: '已完成', 80: '已取消' };
+const STATUS_LABELS = { 0: '订单状态不可用', 10: '待发货', 40: '待收货', 50: '已完成', 60: '已退款' };
 
 function dataOf(response) {
   const value = response?.data ?? response;
@@ -11,7 +11,7 @@ function dataOf(response) {
 }
 
 function statusOf(status) {
-  if (typeof status === 'number') return [10, 40, 50, 80].includes(status) ? status : 0;
+  if (typeof status === 'number') return [10, 40, 50, 60].includes(status) ? status : 0;
   const aliases = {
     PAID: 10,
     PARTIALLY_REFUNDED: 10,
@@ -21,11 +21,10 @@ function statusOf(status) {
     RECEIVED: 50,
     COMPLETE: 50,
     COMPLETED: 50,
-    CANCELED: 80,
-    CANCELLED: 80,
+    REFUNDED: 60,
   };
   const normalized = aliases[String(status ?? '').toUpperCase()] ?? Number(status);
-  return [10, 40, 50, 80].includes(normalized) ? normalized : 0;
+  return [10, 40, 50, 60].includes(normalized) ? normalized : 0;
 }
 
 function normalizeItem(goods = {}) {
@@ -68,7 +67,7 @@ function pagingOf(parameter = {}) {
 }
 
 function buttonsForStatus(orderStatus, order, items) {
-  if (orderStatus === 10) return [{ type: 4, name: '取消订单', primary: true }];
+  if (orderStatus === 10) return [{ type: 4, name: '申请退款', primary: true }];
   if (orderStatus === 40) return [
     { type: 3, name: '确认收货', primary: true },
   ];
@@ -96,7 +95,7 @@ function filterOrderButtons(buttons = [], orderStatus, order, items, hasActiveAf
     if (type === 9) return false;
     return true;
   }).map((button) => Number(button.type) === 4 && orderStatus === 10
-    ? { ...button, name: '取消订单' } : button);
+    ? { ...button, name: '申请退款' } : button);
 }
 
 export function normalizeOrder(order = {}) {

@@ -74,7 +74,8 @@ a { color: var(--text); text-decoration: none; }
 .overview-page .overview-title { margin-bottom: 0; }
 .overview-inventory-warnings { height: auto; box-sizing: border-box; display: flex; flex-direction: column; }
 .overview-inventory-warning-body { min-height: 0; overflow: auto; }
-.overview-inventory-warning-body > .empty-state { min-height: 0; box-sizing: border-box; }
+.overview-inventory-warning-body > .empty-state { min-height: 0; box-sizing: border-box; padding: 0 20px 20px; }
+.overview-inventory-warning-body > .empty-state span { color: var(--muted); font-size: 11px; font-weight: 400; }
 .overview-inventory-warnings table { table-layout: fixed; }
 .overview-warning-actions { display: flex; align-items: center; gap: 16px; }
 .overview-inventory-warnings td { height: 44px; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -133,6 +134,21 @@ tbody tr.product-list-inactive, tbody tr.product-list-inactive:hover { backgroun
 .sku-inventory-panel td:last-child { white-space: nowrap; }
 .text-button { display: inline-block; padding: 4px 7px; color: #333; }
 .text-button:hover { color: #000; text-decoration: underline; }
+.orders-page { display: flex; flex-direction: column; min-height: calc(100dvh - var(--page-padding-top) - var(--page-padding-bottom)); }
+.orders-address-groups { display: grid; gap: 16px; }
+.orders-address-groups-empty { display: flex; flex-direction: column; flex: 1; }
+.orders-empty-panel { flex: 1; margin-bottom: 0; }
+.orders-address-heading { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+.orders-address-heading > div { flex: 1; min-width: 240px; overflow-wrap: anywhere; }
+.orders-address-heading strong { font-size: 15px; }
+.orders-address-heading strong span { margin-left: 12px; font-weight: 400; }
+.orders-address-heading p { margin: 8px 0; color: #555; }
+.orders-address-heading small, .order-list-item small { color: var(--subtle); }
+.order-list-item { line-height: 1.7; }
+.order-list-item small, .order-after-sale-note { display: block; }
+.order-after-sale-note { margin-top: 5px; color: #a5813b; }
+.batch-shipping-hint { color: #666; line-height: 1.7; }
+.batch-shipping-selection { display: flex; gap: 8px; margin: 12px 0; }
 .order-list-actions .text-button { padding-left: 0; padding-right: 0; margin-right: 16px; }
 .order-list-actions button.text-button { border: 0; background: transparent; font: inherit; cursor: pointer; }
 .shipping-dialog .t-dialog { padding: 32px; }
