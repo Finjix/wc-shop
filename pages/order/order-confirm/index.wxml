@@ -35,7 +35,6 @@
       </view>
     </view>
   </view>
-  <view wx:if="{{splitOrderCount > 1}}" class="split-order-hint">本次将按商品生成 {{splitOrderCount}} 笔独立订单，可分别查看物流和申请售后。</view>
   <view class="wx-pay-cover">
     <view class="wx-pay">
       <price decimalSmaller fill class="price" price="{{settleDetailData.totalPayAmount || '0'}}" />

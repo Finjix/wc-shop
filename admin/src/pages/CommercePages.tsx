@@ -118,11 +118,13 @@ export function OrdersPage() {
         return <Panel key={group.key} className="orders-address-group">
           <div className="orders-address-heading">
             <div>
-              <strong>{group.address.receiver || '收货人未填写'} <span>{group.address.phone}</span></strong>
-              <p>{group.address.address || '收货地址未填写'}</p>
-              <small>共 {group.orderCount} 笔订单{!group.canCombine && ' · 地址信息不完整，不支持合并发货'}</small>
+              <div className="orders-address-summary">
+                <strong>{group.address.receiver || '收货人未填写'} <span>{group.address.phone}</span></strong>
+                <span className="orders-address-text">{group.address.address || '收货地址未填写'}</span>
+              </div>
+              {!group.canCombine && <small>地址信息不完整，不支持合并发货</small>}
             </div>
-            <Button disabled={!group.canCombine || !pending.length} onClick={() => setShippingGroup(group)}>合并发货（{pending.length} 单）</Button>
+            <Button disabled={!group.canCombine || !pending.length} onClick={() => setShippingGroup(group)}>合并发货</Button>
           </div>
           <Table minWidth={970}>
             <thead><tr><th>订单号</th><th>商品 / 规格 / 数量</th><th>订单状态</th><th>操作</th></tr></thead>
@@ -159,11 +161,10 @@ function orderCanShip(order: Order) {
 function BatchShippingDialog({ group, onClose, onSaved }: { group: OrderAddressGroup; onClose: () => void; onSaved: () => void }) {
   const candidates = group.orders.filter((order) => orderStatusKey(order.status ?? order.orderStatusName) === 'paid');
   const eligible = candidates.filter(orderCanShip);
-  const [selected, setSelected] = useState(() => eligible.slice(0, 50).map((order) => orderIdOf(order)));
+  const [selected, setSelected] = useState(() => eligible.map((order) => orderIdOf(order)));
   const [trackingNo, setTrackingNo] = useState('');
   const { busy, run } = useAction();
   const toggle = (id: string, checked: boolean) => {
-    if (checked && selected.length >= 50) { message('每次最多合并发货 50 单，请分批处理', 'warning'); return; }
     setSelected((old) => checked ? [...old, id] : old.filter((value) => value !== id));
   };
   const save = async () => {
@@ -171,11 +172,9 @@ function BatchShippingDialog({ group, onClose, onSaved }: { group: OrderAddressG
     const result = await run('orders.shipBatch', { orderIds: selected, groupKey: group.key, trackingNo: trackingNo.trim() }, `${selected.length} 笔订单已合并发货`);
     if (result !== undefined) onSaved();
   };
-  return <Dialog className="shipping-dialog" width="min(1000px, 94vw)" header="合并发货" closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: `确认发货（${selected.length} 单）`, loading: busy, disabled: busy || !selected.length || !trackingNo.trim() }} cancelBtn={{ content: '取消', disabled: busy }}>
+  return <Dialog className="shipping-dialog" placement="center" width="min(1000px, 94vw)" header="合并发货" closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: '确定', loading: busy, disabled: busy || !selected.length || !trackingNo.trim() }} cancelBtn={{ content: '取消', disabled: busy }}>
     <div className="shipping-dialog-info">
       <dl className="detail-list"><dt>收货人</dt><dd>{group.address.receiver}</dd><dt>联系电话</dt><dd>{group.address.phone}</dd><dt>收货地址</dt><dd>{group.address.address}</dd></dl>
-      <p className="batch-shipping-hint">同一物流单号将写入所选订单。售后中的订单不可发货；数量已扣除退款件数。每次最多 50 单。</p>
-      <div className="batch-shipping-selection"><Button size="small" variant="outline" disabled={busy} onClick={() => setSelected(eligible.slice(0, 50).map((order) => orderIdOf(order)))}>全选可发货（最多 50 单）</Button><Button size="small" variant="text" disabled={busy} onClick={() => setSelected([])}>清空</Button></div>
       <Table minWidth={600}>
         <thead><tr><th>选择</th><th>订单号</th><th>商品 / 规格</th><th>发货数量</th></tr></thead>
         <tbody>{candidates.map((order) => {
@@ -203,7 +202,7 @@ function OrderShippingDialog({ order, editing = false, onClose, onSaved }: { ord
     const result = await run(editing ? 'orders.logistics.save' : 'orders.ship', { orderId: orderIdOf(order), trackingNo: trackingNo.trim() }, editing ? '物流单号已修改' : '订单已发货');
     if (result !== undefined) onSaved();
   };
-  return <Dialog className="shipping-dialog" width="min(900px, 92vw)" header={false} closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: editing ? '保存' : '确认发货', loading: busy, disabled: busy || !trackingNo.trim() }} cancelBtn={{ content: '取消', disabled: busy }}>
+  return <Dialog className="shipping-dialog" placement="center" width="min(900px, 92vw)" header={false} closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: '确定', loading: busy, disabled: busy || !trackingNo.trim() }} cancelBtn={{ content: '取消', disabled: busy }}>
     <ShippingOrderInfo order={order} />
     <div className="shipping-dialog-tracking"><Field label="物流单号"><Input value={trackingNo} onChange={setTrackingNo} placeholder="请输入物流单号" /></Field></div>
   </Dialog>;

@@ -638,7 +638,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
       </div>
     </Panel>}
     </>}{editorMode && routeEditLoading && <LoadingState />}
-    {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions floating-save-actions"><Button variant="outline" disabled={busy || Boolean(uploading)} onClick={cancelEditor}>取消</Button><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} disabled={!editorDirty || busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存</Button></div><div className="form-grid">
+    {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions floating-save-actions"><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} disabled={!editorDirty || busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存</Button><Button variant="outline" disabled={busy || Boolean(uploading)} onClick={cancelEditor}>取消</Button></div><div className="form-grid">
        <Field label="商品名称"><Input value={draft.title} onChange={(value) => setValue('title', value)} placeholder="请输入商品名称" /></Field>
        <Field label="分类" fileUpload hint={categoriesError || undefined}><CategoryPicker value={draft.categoryId} onChange={(id) => setValue('categoryId', id)} options={categoryOptions} disabled={categoriesLoading || Boolean(categoriesError)} /></Field>
        <div className="variant-field"><strong>商品规格</strong>

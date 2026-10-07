@@ -17,8 +17,4 @@ App({
     }
     updateManager();
   },
-  recommendationSession: 0,
-  onShow() {
-    this.recommendationSession += 1;
-  },
 });

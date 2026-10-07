@@ -39,14 +39,14 @@ function readConfig(rows: HomeRecord[]): HomeConfig {
   const stored = rows.find((row) => row.slot === SLOT && row.type === 'pageConfig')?.payload as Partial<HomeConfig> | undefined;
   const draft = defaultConfig();
   if (stored) {
-    const banners = Array.isArray(stored.banners) ? stored.banners.slice(0, 6).map((entry) => ({ ...blankLink(), ...entry })) : [];
+    const banners = Array.isArray(stored.banners) ? stored.banners.slice(0, 4).map((entry) => ({ ...blankLink(), ...entry })) : [];
     while (banners.length > 1 && !banners[banners.length - 1].image && !banners[banners.length - 1].productId) banners.pop();
     return {
       searchText: stored.searchText === LEGACY_SEARCH_TEXT ? '' : stored.searchText ?? draft.searchText,
       bannerText: [LEGACY_BANNER_TEXT, OLD_BANNER_TEXT].includes(stored.bannerText || '') ? '' : stored.bannerText ?? draft.bannerText,
       banners: banners.length ? banners : [blankLink()],
       promos: draft.promos.map((fallback, index) => ({ ...fallback, ...stored.promos?.[index] })),
-      sections: Array.isArray(stored.sections) && stored.sections.length ? stored.sections.map((section) => ({
+      sections: Array.isArray(stored.sections) && stored.sections.length ? stored.sections.slice(0, 4).map((section) => ({
         id: section.id,
         title: section.title,
         productIds: [...section.productIds],
@@ -54,7 +54,7 @@ function readConfig(rows: HomeRecord[]): HomeConfig {
     };
   }
   const legacyBanners = rows.filter((row) => row.type === 'banner' && row.status !== 'inactive').sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0));
-  draft.banners = legacyBanners.slice(0, 6).map((row) => {
+  draft.banners = legacyBanners.slice(0, 4).map((row) => {
     const payload = row.payload && typeof row.payload === 'object' ? row.payload as Record<string, unknown> : {};
     return {
       image: String(row.image || row.content || ''),
@@ -289,7 +289,7 @@ export function HomeContentPage() {
     <div className="floating-save-actions"><Button theme="primary" loading={saving} disabled={!dirty || saving || draftImages.processing} onClick={() => void save()}>保存</Button></div>
     <Panel><div className="panel-heading"><h3>顶部搜索栏</h3></div><Field label="滚动文字"><Input value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={120} /></Field></Panel>
 
-    <Panel><div className="panel-heading"><h3>轮播图（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 6} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button></div></div>
+    <Panel><div className="panel-heading"><h3>轮播图（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 4} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button></div></div>
       {config.banners.map((entry, index) => <div className="home-config-entry" key={index}>
         <div className="home-config-entry-head"><strong>轮播 {index + 1}</strong><Button size="small" variant="text" disabled={config.banners.length <= 1} onClick={() => setConfig((old) => ({ ...old, banners: old.banners.filter((_, i) => i !== index) }))}>删除</Button></div>
         {imageLinkFields('banners', entry, index)}
@@ -308,7 +308,7 @@ export function HomeContentPage() {
       </div>}
     </Panel>
 
-    <Panel><div className="panel-heading"><h3>商品区</h3><div className="home-config-panel-actions"><Button disabled={config.sections.length >= 6} onClick={() => setConfig((old) => ({ ...old, sections: [...old.sections, blankSection()] }))}>新增商品区</Button></div></div>
+    <Panel><div className="panel-heading"><h3>商品区</h3><div className="home-config-panel-actions"><Button disabled={config.sections.length >= 4} onClick={() => setConfig((old) => ({ ...old, sections: [...old.sections, blankSection()] }))}>新增商品区</Button></div></div>
       {config.sections.map((section, sectionIndex) => <div className="home-config-entry" key={section.id}>
         <div className="home-config-entry-head"><strong>商品区 {sectionIndex + 1}</strong><div><Button size="small" variant="text" disabled={section.productIds.length >= 6} onClick={() => resizeSectionProducts(sectionIndex, 2)}>增加商品</Button><Button size="small" variant="text" disabled={section.productIds.length <= 2} onClick={() => resizeSectionProducts(sectionIndex, -2)}>减少商品</Button><Button size="small" variant="text" disabled={config.sections.length <= 1} onClick={() => setConfig((old) => ({ ...old, sections: old.sections.filter((item) => item.id !== section.id) }))}>删除</Button></div></div>
         <Field label="标题"><Input value={section.title} onChange={(value) => updateSection(sectionIndex, { title: value })} placeholder="商品区标题" /></Field>

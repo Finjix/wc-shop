@@ -1,7 +1,7 @@
 <view class="address-item-wrapper item-wrapper-class">
   <t-swipe-cell class="swipe-out">
     <view
-      class="address {{isDrawLine ? 'draw-line' : ''}}"
+      class="address {{address.checked ? 'address--selected' : ''}} {{isDrawLine ? 'draw-line' : ''}}"
       bindtap="onSelect"
       catchlongpress="onLongPress"
       data-item="{{address}}"
@@ -13,7 +13,10 @@
         <view class="title title-class">
           <text class="text-style">{{address.name}}</text>
           <text>{{address.phoneNumber || ''}}</text>
-          <text wx:if="{{address.isDefault == 1}}" class="tag tag-default">默认</text>
+          <view class="address-actions">
+            <text wx:if="{{address.isDefault == 1}}" class="tag tag-default">默认</text>
+            <view class="address-edit" catchtap="onEdit" data-item="{{address}}">修改</view>
+          </view>
         </view>
         <view class="label-adds">
           <text class="adds address-info-class">

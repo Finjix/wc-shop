@@ -68,7 +68,7 @@ export function toProductListPayload(params = {}) {
     page: Number(params.page || params.pageNum) || 1,
     pageSize: Number(params.pageSize) || 30,
     orderBy: sort === 1 ? 'price' : undefined,
-    direction: sort === 1 && sortType === 1 ? 'desc' : 'asc',
+    direction: sort === 3 || (sort === 1 && sortType === 1) ? 'desc' : 'asc',
   };
 }
 

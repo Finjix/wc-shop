@@ -49,11 +49,6 @@
 						{{ goods.num }}
 					</view>
 				</block>
-				<block wx:else>
-					<view class="no_storage">
-						<view>请重新选择商品规格</view>
-					</view>
-				</block>
 			</view>
 			<slot name="append-body" />
 		</view>

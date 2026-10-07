@@ -53,7 +53,6 @@
 				</block>
 				<block wx:else>
 					<view class="no_storage">
-						<view>请重新选择商品规格</view>
 						<view class="no_storage__right">重选</view>
 					</view>
 				</block>

@@ -67,7 +67,7 @@ function pagingOf(parameter = {}) {
 }
 
 function buttonsForStatus(orderStatus, order, items) {
-  if (orderStatus === 10) return [{ type: 4, name: '申请退款', primary: true }];
+  if (orderStatus === 10) return [{ type: 4, name: '售后申请', primary: true }];
   if (orderStatus === 40) return [
     { type: 3, name: '确认收货', primary: true },
   ];
@@ -95,7 +95,7 @@ function filterOrderButtons(buttons = [], orderStatus, order, items, hasActiveAf
     if (type === 9) return false;
     return true;
   }).map((button) => Number(button.type) === 4 && orderStatus === 10
-    ? { ...button, name: '申请退款' } : button);
+    ? { ...button, name: '售后申请' } : button);
 }
 
 export function normalizeOrder(order = {}) {

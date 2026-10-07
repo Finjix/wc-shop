@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 /* eslint-disable no-param-reassign */
+import { showConfirmModal } from '../../../../utils/confirm-modal';
 import {
   fetchDeliveryAddressList,
   persistAddress,
@@ -63,9 +64,7 @@ Page({
     const { id } = this.data;
     fetchDeliveryAddressList().then((addressList) => {
       addressList.forEach((address) => {
-        if (String(address.id ?? address.addressId) === String(id)) {
-          address.checked = true;
-        }
+        address.checked = this.selectMode && id !== '' && String(addressIdOf(address)) === String(id);
       });
       this.hasLoaded = true;
       this.setData({ addressList });
@@ -163,9 +162,9 @@ Page({
     const id = this.getAddressId(e);
     if (id === undefined || id === null) return;
 
-    wx.showModal({
+    showConfirmModal({
       title: '删除收货地址',
-      confirmText: '删除',
+      confirmText: '确定',
       confirmColor: '#695941',
       success: (result) => {
         if (result.confirm) this.deleteAddressById(id);
@@ -175,8 +174,8 @@ Page({
   editAddressHandle({ detail }) {
     this.waitForNewAddress();
 
-    const { id } = detail || {};
-    wx.navigateTo({ url: `/pages/user/address/edit/index?id=${id}` });
+    const id = addressIdOf(detail || {});
+    wx.navigateTo({ url: `/pages/user/address/edit/index?id=${encodeURIComponent(id)}` });
   },
   selectHandle({ detail }) {
     if (this.selectMode) {

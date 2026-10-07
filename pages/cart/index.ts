@@ -13,21 +13,7 @@ import {
   updateCartStoreSelection,
 } from '../../services/cart/cart';
 import { setPendingGoodsRequestList } from '../../services/order/orderConfirm';
-import { fetchAllGoodsList } from '../../services/good/fetchGoods';
-import { resolveGoodsListImages } from '../../services/good/resolveImages';
 import { navigateToGoodsDetail } from '../../utils/goods-detail-navigation';
-
-const RECOMMENDED_GOODS_COUNT = 6;
-const RECOMMENDATION_HISTORY_KEY = 'cart-recommendation-history';
-
-function shuffleGoods(goodsList) {
-  const shuffled = goodsList.slice();
-  for (let index = shuffled.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
-  }
-  return shuffled;
-}
 
 Page({
   data: {
@@ -35,9 +21,6 @@ Page({
     statusBarHeight: 0,
     navBarHeight: 44,
     customNavHeight: 44,
-    recommendedLeft: [],
-    recommendedRight: [],
-    recommendedLoading: false,
     specPopup: {
       show: false,
       title: '',
@@ -62,7 +45,6 @@ Page({
   },
 
   onLoad() {
-    this.recommendedSpuIds = new Set();
     const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const menuButtonInfo = wx.getMenuButtonBoundingClientRect();
     const statusBarHeight = windowInfo.statusBarHeight || 0;
@@ -147,103 +129,12 @@ Page({
       cartGroupData.isAllSelected = hasSelectableGoods && isAllSelected;
       cartGroupData.selectedGoodsCount = selectedGoodsCount;
       cartGroupData.totalAmount = String(selectedGoodsAmount);
-      const session = getApp().recommendationSession;
-      const shouldRefreshRecommendations = this.recommendationSession !== session
-        || (!this.data.recommendedLoading && !this.data.recommendedLeft.length && !this.data.recommendedRight.length);
       this.setData({ cartGroupData, cartLoadError: false });
-      if (shouldRefreshRecommendations) {
-        if (cartGroupData.isNotEmpty) {
-          this.recommendationSession = session;
-          this.loadRecommendedGoods(cartGroupData);
-        } else {
-          this.recommendedSpuIds = new Set();
-          this.setData({
-            recommendedLeft: [],
-            recommendedRight: [],
-            recommendedLoading: false,
-          });
-        }
-      }
     }).catch((error) => {
       if (refreshId !== this.cartRefreshId) return;
       console.error('load cart error:', error);
       this.setData({ cartLoadError: true });
     });
-  },
-
-  getCartGoodsSignature(cartGroupData) {
-    const cartSpuIds = [];
-    (cartGroupData.storeGoods || []).forEach((store) => {
-      (store.promotionGoodsList || []).forEach((promotion) => {
-        (promotion.goodsPromotionList || []).forEach((goods) => {
-          cartSpuIds.push(String(goods.spuId));
-        });
-      });
-      (store.shortageGoodsList || []).forEach((goods) => {
-        cartSpuIds.push(String(goods.spuId));
-      });
-    });
-    return Array.from(new Set(cartSpuIds)).sort().join(',');
-  },
-
-  loadRecommendedGoods(cartGroupData) {
-    const cartSpuIds = new Set();
-    cartGroupData.storeGoods.forEach((store) => {
-      store.promotionGoodsList.forEach((promotion) => {
-        promotion.goodsPromotionList.forEach((goods) => {
-          cartSpuIds.add(String(goods.spuId));
-        });
-      });
-      store.shortageGoodsList.forEach((goods) => {
-        cartSpuIds.add(String(goods.spuId));
-      });
-    });
-
-    this.recommendedSpuIds = cartSpuIds;
-    this.setData({
-      recommendedLeft: [],
-      recommendedRight: [],
-      recommendedLoading: true,
-    });
-    const requestId = (this.recommendationRequestId || 0) + 1;
-    this.recommendationRequestId = requestId;
-    fetchAllGoodsList()
-      .then(async (goodsList) => {
-        if (requestId !== this.recommendationRequestId) return;
-        if (!Array.isArray(goodsList)) {
-          this.setData({ recommendedLoading: false });
-          return;
-        }
-
-        let history = [];
-        try { const stored = wx.getStorageSync(RECOMMENDATION_HISTORY_KEY); if (Array.isArray(stored)) history = stored; } catch {}
-        const previousIds = new Set(history);
-        const fresh = shuffleGoods(goodsList.filter((goods) => !previousIds.has(String(goods.spuId))));
-        const repeated = shuffleGoods(goodsList.filter((goods) => previousIds.has(String(goods.spuId))));
-        let selected = shuffleGoods([...fresh, ...repeated].slice(0, RECOMMENDED_GOODS_COUNT));
-        if (selected.length > 1 && selected.every((goods, index) => String(goods.spuId) === history[index])) {
-          selected = [...selected.slice(1), selected[0]];
-        }
-        const recommendedGoods = await resolveGoodsListImages(selected);
-        if (requestId !== this.recommendationRequestId) return;
-        try { wx.setStorageSync(RECOMMENDATION_HISTORY_KEY, selected.map((goods) => String(goods.spuId))); } catch {}
-        const recommendedLeft = [];
-        const recommendedRight = [];
-        recommendedGoods.forEach((goods) => {
-          const targetColumn = recommendedLeft.length <= recommendedRight.length ? recommendedLeft : recommendedRight;
-          targetColumn.push(goods);
-        });
-
-        this.setData({
-          recommendedLeft,
-          recommendedRight,
-          recommendedLoading: false,
-        });
-      })
-      .catch(() => {
-        if (requestId !== this.recommendationRequestId) return;
-        this.setData({ recommendedLoading: false });
-      });
   },
 
   findGoods(spuId, skuId) {
@@ -394,13 +285,6 @@ Page({
   goGoodsDetail(e) {
     const { spuId, storeId } = e.detail.goods;
     navigateToGoodsDetail(`/pages/goods/details/index?spuId=${spuId}&storeId=${storeId}`);
-  },
-
-  goRecommendedGoodsDetail(e) {
-    const { spuId } = e.currentTarget.dataset;
-    if (spuId === undefined || spuId === null || spuId === '') return;
-
-    navigateToGoodsDetail(`/pages/goods/details/index?spuId=${spuId}`);
   },
 
   clearInvalidGoods() {

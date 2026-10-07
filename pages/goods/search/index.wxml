@@ -47,7 +47,7 @@
     content="{{dialog.message}}"
     bindconfirm="confirm"
     bind:close="close"
-    confirm-btn="确定"
+    confirm-btn="{{ {content: '确定', style: 'order: -1; margin-left: 0;'} }}"
     cancel-btn="{{dialog.showCancelButton ? '取消' : null}}"
     t-class-confirm="dialog__button-confirm"
     t-class-cancel="dialog__button-cancel"

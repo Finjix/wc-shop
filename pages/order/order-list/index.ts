@@ -126,7 +126,7 @@ Page({
               fulfillableQuantity: goods.fulfillableQuantity,
               remainingQuantity: goods.remainingQuantity,
               })),
-              buttons: order.buttonVOs || [],
+              buttons: (order.buttonVOs || []).filter((button) => Number(button.type) !== OrderButtonTypes.APPLY_REFUND),
               groupInfoVo: order.groupInfoVo,
               freightFee: order.freightFee,
             };

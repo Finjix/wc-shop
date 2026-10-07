@@ -16,6 +16,7 @@
         address="{{address}}"
         data-id="{{address.id}}"
         bind:onSelect="selectHandle"
+        bind:onEdit="editAddressHandle"
         bind:onDelete="deleteAddressHandle"
         bind:onLongPress="onAddressLongPress"
       />

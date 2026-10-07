@@ -121,7 +121,7 @@ Page({
         orderButtons.splice(
           actionIndex === -1 ? orderButtons.length : actionIndex,
           0,
-          { type: OrderButtonTypes.APPLY_REFUND, name: order.orderStatus === OrderStatus.PENDING_DELIVERY ? '申请退款' : '申请售后' },
+          { type: OrderButtonTypes.APPLY_REFUND, name: '售后申请' },
         );
       }
       const _order = {
@@ -215,8 +215,11 @@ Page({
       })
       .finally(() => wx.hideLoading());
 
+    const order = this.data.order;
+    const address = order.addressSnapshot || order.userAddressReq || {};
+    const addressId = address.addressId ?? address.id ?? address._id ?? order.addressId ?? '';
     wx.navigateTo({
-      url: `/pages/user/address/list/index?selectMode=1`,
+      url: `/pages/user/address/list/index?selectMode=1&id=${encodeURIComponent(addressId)}`,
     });
   },
 

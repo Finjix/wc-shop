@@ -91,8 +91,8 @@ Component({
         context,
         title: '是否撤销退货申请？',
         content: '撤销后可重新提交售后申请。',
-        confirmBtn: '撤销申请',
-        cancelBtn: '暂不撤销',
+        confirmBtn: '确定',
+        cancelBtn: '取消',
       })
         .then(() => {
           const params = { rightsNo: this.data.currentService.id };

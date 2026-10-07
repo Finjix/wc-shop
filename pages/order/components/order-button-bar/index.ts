@@ -104,7 +104,7 @@ Component({
         context: this,
         title: '确认是否已经收到货？',
         content: '',
-        confirmBtn: '确认收货',
+        confirmBtn: '确定',
         cancelBtn: '取消',
       })
         .then(() => confirmOrderReceived({ orderNo: order.orderNo }))

@@ -17,7 +17,7 @@ Page({
     current: 0,
     autoplay: true,
     duration: '500',
-    interval: 2000,
+    interval: 2500,
     swiperImageProps: { mode: 'aspectFill', showMenuByLongpress: true },
     searchTop: 0,
     searchLeft: 0,
@@ -59,7 +59,7 @@ Page({
       const products = home.productsById || {};
       const legacyBanners = (home.items || []).filter((item) => item.type === 'banner');
       const banners = Array.isArray(config.banners) ? config.banners : legacyBanners.map((item) => ({ image: item.image || item.content, productId: item.payload?.productId || '' }));
-      const slides = banners.slice(0, 6).flatMap((entry) => {
+      const slides = banners.slice(0, 4).flatMap((entry) => {
         const product = products[entry.productId];
         if (!entry.image || (entry.productId && !product)) return [];
         return [{
@@ -78,7 +78,7 @@ Page({
         };
       }).filter(Boolean);
       const featuredSections = Array.isArray(config.sections) && config.sections.length
-        ? config.sections.map((section) => ({
+        ? config.sections.slice(0, 4).map((section) => ({
           id: section.id,
           title: section.title || '',
           products: (section.productIds || []).flatMap((id, index) => {

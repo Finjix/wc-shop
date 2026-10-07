@@ -28,6 +28,10 @@ Component({
     'delete-class',
   ],
   methods: {
+    onEdit(e) {
+      const { item } = e.currentTarget.dataset;
+      this.triggerEvent('onEdit', item);
+    },
     onDelete(e) {
       const { item } = e.currentTarget.dataset;
       this.triggerEvent('onDelete', item);

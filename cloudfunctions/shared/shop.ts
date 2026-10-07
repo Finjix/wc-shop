@@ -7,6 +7,7 @@ const {
 const { errorFrom } = require('./errors');
 const { getDoc, setDoc, list, all, count, listData, affected, withTransaction } = require('./db');
 const { HOME_CONFIG_SLOT, productIds } = require('./home-config');
+const { searchTerms, matchesProductSearch } = require('./product-search');
 const { requireUser } = require('./auth');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
@@ -69,8 +70,6 @@ function pick(source, fields) {
     return result;
   }, {});
 }
-
-function escapeRegExp(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
 async function getSku(runtime, skuId, required) {
   const sku = await findDoc(runtime, COLLECTIONS.skus, skuId, 'skuId');
@@ -142,25 +141,55 @@ async function readProducts(runtime, data) {
     where.minSalePrice = command.and(command.gte(minPrice), command.lte(maxPrice));
   } else if (Number.isFinite(minPrice) && command && command.gte) where.minSalePrice = command.gte(minPrice);
   else if (Number.isFinite(maxPrice) && command && command.lte) where.minSalePrice = command.lte(maxPrice);
-  let keyword;
-  if (data.keyword) {
-    keyword = string(data.keyword, 'keyword', { max: 80 });
-    if (typeof runtime.db.RegExp === 'function') where.title = runtime.db.RegExp({ regexp: escapeRegExp(keyword), options: 'i' });
-  }
+  const keyword = data.keyword ? string(data.keyword, 'keyword', { max: 80 }) : '';
   const sort = Number(data.sort);
-  const orderField = data.orderBy === 'price' || sort === 1 ? 'minSalePrice' : sort === 2 ? 'soldQuantity' : sort === 3 ? 'createdAt' : 'sort';
+  if (keyword || sort === 3) {
+    // Cross-field search and SKU ordering must run before pagination.
+    let products = await all(collection(runtime, COLLECTIONS.products), where);
+    products = products.filter((item) => (!Number.isFinite(minPrice) || Number(item.minSalePrice) >= minPrice)
+      && (!Number.isFinite(maxPrice) || Number(item.minSalePrice) <= maxPrice));
+    const byRef = new Map();
+    products.forEach((product) => {
+      [product._id, product.spuId].filter(Boolean).forEach((ref) => byRef.set(String(ref), product));
+    });
+    const newestSku = new Map();
+    const productSkus = new Map();
+    for (const sku of await all(collection(runtime, COLLECTIONS.skus))) {
+      const product = byRef.get(String(productIdForSku(sku)));
+      if (!product || !skuBelongsToProduct(product, sku)) continue;
+      if (!productSkus.has(product._id)) productSkus.set(product._id, []);
+      productSkus.get(product._id).push(sku);
+      const match = /^sku-(\d+)$/.exec(String(sku.skuId || sku._id || ''));
+      const timestamp = match ? Number(match[1]) : 0;
+      if (Number.isSafeInteger(timestamp)) newestSku.set(product._id, Math.max(newestSku.get(product._id) || 0, timestamp));
+    }
+    if (keyword) {
+      const categories = new Map((await all(collection(runtime, COLLECTIONS.categories))).map((category) => [String(category._id), category]));
+      const terms = searchTerms(keyword);
+      products = products.filter((product) => matchesProductSearch(product, productSkus.get(product._id) || [], categories, terms));
+    }
+    const direction = data.direction === 'asc' ? 1 : -1;
+    const nameOrder = (a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'zh-CN')
+      || String(a._id).localeCompare(String(b._id));
+    products.sort((a, b) => {
+      if (sort === 3) return (newestSku.get(b._id) || 0) - (newestSku.get(a._id) || 0) || nameOrder(a, b);
+      if (sort === 1 || data.orderBy === 'price') return (Number(a.minSalePrice || 0) - Number(b.minSalePrice || 0)) * direction || nameOrder(a, b);
+      if (sort === 2) return (Number(a.soldQuantity || 0) - Number(b.soldQuantity || 0)) * direction || nameOrder(a, b);
+      return nameOrder(a, b);
+    });
+    return {
+      items: products.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map(publicProduct),
+      page: paging.page, pageSize: paging.pageSize, total: products.length,
+    };
+  }
+  const orderField = data.orderBy === 'price' || sort === 1 ? 'minSalePrice' : sort === 2 ? 'soldQuantity' : 'title';
   const result = await list(collection(runtime, COLLECTIONS.products), {
     where,
-    orderBy: { field: orderField, direction: data.direction === 'asc' ? 'asc' : 'desc' },
+    orderBy: { field: orderField, direction: orderField === 'title' ? 'asc' : data.direction === 'asc' ? 'asc' : 'desc' },
     skip: (paging.page - 1) * paging.pageSize,
     limit: paging.pageSize,
   });
-  let items = result.items;
-  if (keyword && typeof runtime.db.RegExp !== 'function') {
-    const normalizedKeyword = keyword.toLowerCase();
-    items = items.filter((item) => `${item.title || ''} ${item.etitle || ''}`.toLowerCase().includes(normalizedKeyword));
-  }
-  return { items: items.map(publicProduct), page: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? items.length : result.total };
+  return { items: result.items.map(publicProduct), page: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? result.items.length : result.total };
 }
 
 async function readProductDetail(runtime, data) {

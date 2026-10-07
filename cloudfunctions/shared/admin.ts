@@ -639,7 +639,7 @@ async function orderShipmentPatch(tx, current, oldClaims, trackingNo, timestamp)
 }
 
 async function shipOrderBatch(runtime, data) {
-  assert(Array.isArray(data.orderIds) && data.orderIds.length > 0 && data.orderIds.length <= 50, { field: 'orderIds', max: 50 });
+  assert(Array.isArray(data.orderIds) && data.orderIds.length > 0, { field: 'orderIds' });
   const ids = data.orderIds.map((id) => string(id, 'orderIds[]', { max: 128 }));
   assert(new Set(ids).size === ids.length, { field: 'orderIds' });
   const groupKey = string(data.groupKey, 'groupKey', { max: 64 });

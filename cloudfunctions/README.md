@@ -71,7 +71,7 @@ wx.cloud.callFunction({
 - 创建订单按归并后的 SKU 拆单，每单只包含一个 SKU 及其全部购买数量，不创建额外的合并父订单。整批创建使用一个文档数据库事务；事务内只通过已解析的 SKU 文档 `_id` 重新读取和更新库存，不使用事务不支持的 `where` 查询，库存不足或写冲突会回滚全部订单、库存和购物车清理。
 - 多商品 `orders.create` 响应兼容首单字段，并额外返回 `orders`、`orderIds`、`orderNos`、`orderCount`、`checkoutId` 和 `checkoutTotalAmount`；`checkoutId` 为首单 ID。`orders.checkout({ checkoutId })` 仅向所属用户返回本次全部订单和合计金额。每张订单保存 `checkoutId/checkoutOrderIds`，每单独立付款记录、收货、评价和售后，同一 key 重试不会补造订单或重复扣库存。
 - 后台 `orders.list({ groupBy: "address", ...filters })` 按同一用户、收货人、电话、省市区和详细地址归组后分页，返回 `{ items: [{ key, address, orders, orderCount, canCombine }], total, totalOrders, page, pageSize }`；`total` 是地址组数量。不传 `groupBy` 保持原订单列表结构；地址文档 ID 不参与归组，不完整地址不合并。
-- 后台 `orders.shipBatch({ orderIds, groupKey, trackingNo })` 对所选同地址订单一次性发货（最多 50 单），所有订单使用同一单号。事务内再次校验地址组、待发货状态及售后，并仅发出未退款数量；任一订单校验失败则整批回滚。保存 `shipmentBatchId/shipmentOrderIds`，相同订单集合和单号可安全重试。
+- 后台 `orders.shipBatch({ orderIds, groupKey, trackingNo })` 对所选同地址订单一次性发货（单批不设业务数量上限），所有订单使用同一单号。事务内再次校验地址组、待发货状态及售后，并仅发出未退款数量；任一订单校验失败则整批回滚。保存 `shipmentBatchId/shipmentOrderIds`，相同订单集合和单号可安全重试。
 - 订单保存 `productSnapshot`、`skuSnapshot`、`addressSnapshot`；下单事务内直接记为 `paid`，并保存 `payment.mode: simulated`、`paymentAmount`、`paidAt`。服务端决定模拟支付成功，不返回也不接受真实支付参数。
 - `requestKey`/`idempotencyKey` 是创建订单的必填字段；同一用户和 key 使用不同参数会返回 `IDEMPOTENCY_CONFLICT`。
 - 不自动迁移或删除历史数据：旧的待支付记录保持原字段和状态，服务端读取不会将其改成已付款或取消，也不会自动回滚其库存。

@@ -254,8 +254,9 @@ Page({
 
     let id = '';
 
-    if (userAddressReq?.id) {
-      id = `&id=${userAddressReq.id}`;
+    const addressId = userAddressReq?.addressId ?? userAddressReq?.id ?? userAddressReq?._id;
+    if (addressId !== undefined && addressId !== null && addressId !== '') {
+      id = `&id=${encodeURIComponent(addressId)}`;
     }
 
     wx.navigateTo({

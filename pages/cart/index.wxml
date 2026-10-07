@@ -36,45 +36,6 @@
   <view class="cart-load-error__retry" bindtap="onRetryCart">重试</view>
 </view>
 
-<view wx:if="{{cartGroupData && cartGroupData.isNotEmpty && !cartLoadError && (recommendedLeft.length || recommendedRight.length)}}" class="cart-recommend-section">
-    <view class="cart-recommend-title">
-      <view class="cart-recommend-title__line" />
-      <text>推荐商品</text>
-      <view class="cart-recommend-title__line" />
-    </view>
-    <view class="cart-recommend-frame">
-      <view class="cart-recommend-column">
-          <view
-            wx:for="{{recommendedLeft}}"
-            wx:key="spuId"
-            class="hot-product-card cart-recommend-card"
-          data-spu-id="{{item.spuId}}"
-          bindtap="goRecommendedGoodsDetail"
-          >
-            <view class="hot-product-card__image-wrap cart-recommend-card__image-wrap">
-            <image class="hot-product-card__image" src="{{item.thumb}}" mode="aspectFill" lazy-load />
-            </view>
-          </view>
-      </view>
-      <view class="cart-recommend-column">
-        <view
-          wx:for="{{recommendedRight}}"
-          wx:key="spuId"
-          class="hot-product-card cart-recommend-card"
-          data-spu-id="{{item.spuId}}"
-          bindtap="goRecommendedGoodsDetail"
-          >
-            <view class="hot-product-card__image-wrap cart-recommend-card__image-wrap">
-            <image class="hot-product-card__image" src="{{item.thumb}}" mode="aspectFill" lazy-load />
-            </view>
-          </view>
-      </view>
-    </view>
-</view>
-
-<view wx:if="{{cartGroupData && cartGroupData.isNotEmpty && !cartLoadError && !recommendedLeft.length && !recommendedRight.length && recommendedLoading}}" class="cart-recommend-loading">
-
-</view>
 </view>
 </scroll-view>
 
@@ -114,10 +75,9 @@
   id="t-dialog"
   t-class-confirm="cart-delete-dialog-confirm"
   visible="{{deleteDialogVisible}}"
-  title="确认移出购物车"
-  content="确定要将该商品移出购物车吗？"
+  title="移出购物车"
   bindconfirm="confirmDeleteGoods"
   bind:close="closeDeleteDialog"
-  confirm-btn="确定"
+  confirm-btn="{{ {content: '确定', style: 'order: -1; margin-left: 0;'} }}"
   cancel-btn="取消"
 />

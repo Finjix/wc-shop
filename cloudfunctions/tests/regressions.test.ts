@@ -244,6 +244,83 @@ async function testPageNumIsAcceptedAsPage() {
   assert.deepStrictEqual(page({ pageNum: '4', pageSize: 5 }), { page: 4, pageSize: 5 });
 }
 
+async function testProductSearchAcrossNamesCategoriesAndSpecs() {
+  const runtime = makeRuntime();
+  runtime.records.categories = {
+    drinks: { _id: 'drinks', name: '饮品', status: 'active' },
+    coffee: { _id: 'coffee', name: '咖啡', parentId: 'drinks', status: 'active' },
+    hidden: { _id: 'hidden', name: '隐藏分类', status: 'inactive' },
+  };
+  runtime.records.products = {
+    arabica: { _id: 'arabica', title: 'Arabica豆', status: 'active', minSalePrice: 200, categoryIds: ['coffee'], specList: [{ specValueList: [{ specValueId: 'sku-1780000000010', specValue: '大份500g' }] }] },
+    blend: { _id: 'blend', title: 'Blend豆', status: 'active', minSalePrice: 100, categoryIds: ['coffee'], specList: [{ specValueList: [{ specValueId: 'sku-1780000000020', specValue: '小份250g' }] }] },
+    cup: { _id: 'cup', title: '陶瓷杯', status: 'active', minSalePrice: 300 },
+    unavailable: { _id: 'unavailable', title: '咖啡大份', status: 'inactive', categoryIds: ['coffee'] },
+  };
+  runtime.records.skus = {
+    'sku-1780000000010': { _id: 'sku-1780000000010', productId: 'arabica', specInfo: [{ specValue: '浅烘焙' }] },
+    'sku-1780000000020': { _id: 'sku-1780000000020', productId: 'blend', specInfo: [{ specValue: '深烘焙' }] },
+    removed: { _id: 'removed', productId: 'cup', specInfo: [{ specValue: '已删除规格' }], deletedByAdmin: true },
+    unconfigured: { _id: 'unconfigured', productId: 'arabica', specInfo: [{ specValue: '未配置规格' }] },
+  };
+  const read = (keyword, extra = {}) => shopEndpoint({}, {}, runtime, 'products.list', { keyword, ...extra });
+  const ids = (response) => response.items.map((item) => item._id);
+  assert.deepStrictEqual(ids(await read('ARABICA')), ['arabica']);
+  assert.deepStrictEqual(ids(await read('饮品')), ['arabica', 'blend']);
+  assert.deepStrictEqual(ids(await read('咖啡')), ['arabica', 'blend']);
+  assert.deepStrictEqual(ids(await read('500g')), ['arabica']);
+  assert.deepStrictEqual(ids(await read('浅烘焙')), ['arabica']);
+  assert.deepStrictEqual(ids(await read('咖啡 大份')), ['arabica']);
+  assert.deepStrictEqual(ids(await read('咖啡大份')), ['arabica']);
+  assert.deepStrictEqual(ids(await read('饮品 ARABICA 500g 浅烘焙')), ['arabica']);
+  assert.deepStrictEqual(ids(await read('咖啡 陶瓷杯')), []);
+  assert.deepStrictEqual(ids(await read('已删除规格')), []);
+  assert.deepStrictEqual(ids(await read('未配置规格')), []);
+  assert.deepStrictEqual(ids(await read('.*')), []);
+  assert.deepStrictEqual(ids(await read('咖啡', { sort: 1, direction: 'asc' })), ['blend', 'arabica']);
+  assert.deepStrictEqual(ids(await read('咖啡', { sort: 3 })), ['blend', 'arabica']);
+  assert.deepStrictEqual(ids(await read('咖啡', { minPrice: 150 })), ['arabica']);
+  const secondPage = await read('饮品', { page: 2, pageSize: 1 });
+  assert.deepStrictEqual(ids(secondPage), ['blend']);
+  assert.strictEqual(secondPage.total, 2);
+  for (let index = 0; index < 105; index += 1) {
+    const id = `extra-${index}`;
+    runtime.records.products[id] = { _id: id, title: id, status: 'active', categoryIds: ['coffee'], minSalePrice: 1 };
+  }
+  const lastPage = await read('饮品', { page: 6, pageSize: 20 });
+  assert.strictEqual(lastPage.total, 107);
+  assert.strictEqual(lastPage.items.length, 7, 'cross-field filtering and totals cover every database page');
+}
+
+async function testProductListSortsByNameSkuAndPrice() {
+  const runtime = makeRuntime();
+  runtime.records.products = {
+    a: { _id: 'a', title: 'Apple', status: 'active', minSalePrice: 300, sort: 99, createdAt: '2026-12-01' },
+    b: { _id: 'b', title: 'Banana', status: 'active', minSalePrice: 100, sort: 1, createdAt: '2026-01-01', specList: [{ specValueList: [{ specValueId: 'sku-1780000000030' }] }] },
+    c: { _id: 'c', title: 'Cherry', status: 'active', minSalePrice: 200, sort: 50, createdAt: '2026-06-01' },
+    hidden: { _id: 'hidden', title: 'Hidden', status: 'inactive', minSalePrice: 1 },
+  };
+  runtime.records.skus = Object.fromEntries([
+    ['a', 10], ['a', 20], ['b', 30], ['c', 15], ['hidden', 90],
+  ].map(([productId, offset]) => {
+    const skuId = `sku-${1780000000000 + offset}`;
+    return [skuId, { _id: skuId, skuId, productId }];
+  }));
+  runtime.records.skus['sku-1780000000099'] = { _id: 'sku-1780000000099', productId: 'a', deletedByAdmin: true };
+  runtime.records.skus['sku-1780000000098'] = { _id: 'sku-1780000000098', productId: 'b' };
+  const ids = (response) => response.items.map((product) => product._id);
+  const read = (data) => shopEndpoint({}, {}, runtime, 'products.list', data);
+  assert.deepStrictEqual(ids(await read({ sort: 0 })), ['a', 'b', 'c']);
+  assert.deepStrictEqual(ids(await read({ sort: 3 })), ['b', 'a', 'c']);
+  const secondPage = await read({ sort: 3, page: 2, pageSize: 1 });
+  assert.deepStrictEqual(ids(secondPage), ['a']);
+  assert.strictEqual(secondPage.total, 3);
+  assert.deepStrictEqual(ids(await read({ sort: 3, keyword: 'Apple' })), ['a']);
+  assert.deepStrictEqual(ids(await read({ sort: 3, minPrice: 200 })), ['a', 'c']);
+  assert.deepStrictEqual(ids(await read({ sort: 1, direction: 'asc' })), ['b', 'c', 'a']);
+  assert.deepStrictEqual(ids(await read({ sort: 1, direction: 'desc' })), ['a', 'c', 'b']);
+}
+
 async function testSkuTimestampIdsAvoidCollisions() {
   const runtime = makeBatchRuntime();
   const context = { auth: { uid: 'admin-1' } };
@@ -760,10 +837,12 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [{ image: '', productId: 'product-1' }] }).banners[0], { image: '', productId: 'product-1' });
   assert.throws(() => validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: Array(8).fill('product-1') }] }), appError('INVALID_ARGUMENT'));
   assert.deepStrictEqual(validateHomeConfig({ ...config, sections: [] }).sections, []);
-  assert.throws(() => validateHomeConfig({ ...config, sections: Array(7).fill(config.sections[0]) }), appError('INVALID_ARGUMENT'));
-  assert.strictEqual(validateHomeConfig({ ...config, banners: Array(6).fill(blankLink) }).banners.length, 6);
+  const sections = Array.from({ length: 4 }, (_, index) => ({ ...config.sections[0], id: `section-${index}` }));
+  assert.strictEqual(validateHomeConfig({ ...config, sections }).sections.length, 4);
+  assert.throws(() => validateHomeConfig({ ...config, sections: [...sections, { ...config.sections[0], id: 'section-4' }] }), appError('INVALID_ARGUMENT'));
+  assert.strictEqual(validateHomeConfig({ ...config, banners: Array(4).fill(blankLink) }).banners.length, 4);
   assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [] }).banners, []);
-  assert.throws(() => validateHomeConfig({ ...config, banners: Array(7).fill(blankLink) }), appError('INVALID_ARGUMENT'));
+  assert.throws(() => validateHomeConfig({ ...config, banners: Array(5).fill(blankLink) }), appError('INVALID_ARGUMENT'));
 
   const runtime = makeRuntime();
   runtime.records.homeContents = {
@@ -1265,6 +1344,32 @@ async function testAddressGroupingPrecedesPaginationAndSeparatesRecipients() {
   }
 }
 
+async function testBatchShippingHasNoBusinessCountLimit() {
+  const runtime = makeBatchRuntime();
+  const admin = { auth: { uid: 'admin-1' } };
+  const original = await shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'orders.create', {
+    requestKey: 'large-batch-ship', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+  });
+  const ids = [original._id];
+  for (let index = 1; index < 120; index += 1) {
+    const id = `large-batch-${index}`;
+    runtime.records.orders[id] = { ...JSON.parse(JSON.stringify(original)), _id: id, orderNo: id };
+    ids.push(id);
+  }
+  const group = (await adminEndpoint({}, admin, runtime, 'orders.list', { groupBy: 'address' })).items[0];
+  assert.strictEqual(group.orderCount, 120);
+  const input = { orderIds: ids, groupKey: group.key, trackingNo: 'LARGE-BATCH-001' };
+  const result = await adminEndpoint({}, admin, runtime, 'orders.shipBatch', input);
+  assert.strictEqual(result.total, 120);
+  ids.forEach((id) => {
+    assert.strictEqual(runtime.records.orders[id].status, 'shipped');
+    assert.strictEqual(runtime.records.orders[id].tracking.trackingNo, input.trackingNo);
+  });
+  const repeated = await adminEndpoint({}, admin, runtime, 'orders.shipBatch', input);
+  assert.strictEqual(repeated.total, 120);
+  assert.strictEqual(repeated.shipmentBatchId, result.shipmentBatchId);
+}
+
 async function testBatchShippingRechecksAddressStateAndRefundsAtomically() {
   const runtime = makeBatchRuntime();
   const user = { auth: { uid: 'user-1' } };
@@ -1462,12 +1567,15 @@ const cases = [
   { name: 'multi-product checkout creates one order per SKU atomically and preserves retries and independent refunds', run: testMultiProductCheckoutIsAtomicAndIdempotent },
   { name: 'split checkout rolls back stock and cart changes and preserves historical combined orders', run: testSplitCheckoutRollbackAndLegacyCompatibility },
   { name: 'address groups paginate after grouping and isolate users and recipients', run: testAddressGroupingPrecedesPaginationAndSeparatesRecipients },
+  { name: 'batch shipping supports more than 50 orders and safe retries without a business count limit', run: testBatchShippingHasNoBusinessCountLimit },
   { name: 'batch shipping rechecks address, status and refund quantities atomically and supports safe retries', run: testBatchShippingRechecksAddressStateAndRefundsAtomically },
   { name: 'pre-shipment partial refunds leave the correct quantity for shipment and review', run: testPreShipmentPartialRefundLeavesAccurateShippedQuantity },
   { name: 'return refund, partial shipment and fully refunded comment eligibility follow the state machine', run: testReturnRefundStateMachineAndPartialShipmentAccounting },
   { name: 'legacy paid orders do not receive synthetic payment records for refunds', run: testLegacyPaidOrdersDoNotGainSyntheticPaymentRecords },
   { name: 'dashboard counts are complete beyond the SDK default query limit', run: testDashboardCountsBeyondSdkQueryLimit },
   { name: 'image uploads preserve bytes with unrestricted prepared admin and user output', run: testImageUploads },
+  { name: 'product search combines segmented terms across names, parent/child categories and configured specs before pagination', run: testProductSearchAcrossNamesCategoriesAndSpecs },
+  { name: 'product lists sort by title, newest configured SKU timestamp and ascending/descending price before pagination', run: testProductListSortsByNameSkuAndPrice },
   { name: 'timestamp SKU IDs stay unique across variants and saves without overwriting existing SKUs', run: testSkuTimestampIdsAvoidCollisions },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
   { name: 'product save manages SKU inventory and images without SKU status', run: testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus },

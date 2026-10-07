@@ -142,20 +142,21 @@ tbody tr.product-list-inactive, tbody tr.product-list-inactive:hover { backgroun
 .orders-address-heading > div { flex: 1; min-width: 240px; overflow-wrap: anywhere; }
 .orders-address-heading strong { font-size: 15px; }
 .orders-address-heading strong span { margin-left: 12px; font-weight: 400; }
-.orders-address-heading p { margin: 8px 0; color: #555; }
+.orders-address-summary { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 20px; }
+.orders-address-summary strong { flex-shrink: 0; }
+.orders-address-text { color: #555; }
 .orders-address-heading small, .order-list-item small { color: var(--subtle); }
 .order-list-item { line-height: 1.7; }
 .order-list-item small, .order-after-sale-note { display: block; }
 .order-after-sale-note { margin-top: 5px; color: #a5813b; }
-.batch-shipping-hint { color: #666; line-height: 1.7; }
-.batch-shipping-selection { display: flex; gap: 8px; margin: 12px 0; }
 .order-list-actions .text-button { padding-left: 0; padding-right: 0; margin-right: 16px; }
 .order-list-actions button.text-button { border: 0; background: transparent; font: inherit; cursor: pointer; }
-.shipping-dialog .t-dialog { padding: 32px; }
+.shipping-dialog .t-dialog { padding: 32px; max-height: calc(100dvh - 96px); display: flex; flex-direction: column; }
+.shipping-dialog .t-dialog__header, .shipping-dialog .t-dialog__footer { flex-shrink: 0; }
 .shipping-dialog-tracking { margin-top: 32px; }
 .shipping-dialog-info .detail-list { row-gap: 16px; margin-bottom: 28px; }
 .shipping-dialog-info th, .shipping-dialog-info td { padding-top: 18px; padding-bottom: 18px; }
-.shipping-dialog .t-dialog__body { max-height: 70vh; overflow-y: auto; }
+.shipping-dialog .t-dialog__body { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; }
 .shipping-dialog .t-dialog__footer { padding-top: 28px; }
 .long-text { max-width: 330px; line-height: 1.55; }
 .warning-text { color: #333; font-weight: 650; }
@@ -409,6 +410,9 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .commerce-proof-image { width: 104px; height: 104px; object-fit: contain; border: 1px solid var(--line); background: var(--surface-muted); }
 .commerce-image-pending { color: var(--subtle); font-size: 11px; }
 .commerce-reply-preview { margin-top: 8px; color: var(--muted); font-size: 11px; }
+.t-dialog__footer { display: flex; justify-content: flex-end; gap: var(--td-comp-margin-s); }
+.t-dialog__footer .t-button + .t-button { margin-left: 0; }
+.t-dialog__footer .t-dialog__confirm { order: -1; }
 .commerce-detail-dialog { width: min(760px, 100%); }
 .commerce-detail-dialog .detail-list { margin-bottom: 20px; }
 .commerce-detail-dialog h3 { margin-top: 18px; }

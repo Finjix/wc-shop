@@ -72,6 +72,32 @@ async function testAddressSelection() {
   console.log('PASS actual order/address page callbacks share App state; cancellation clears pending requests');
 }
 
+async function testAddressEditDefaultSwitch() {
+  load('pages/user/address/edit/index.ts');
+  const edit = {
+    ...page,
+    data: JSON.parse(JSON.stringify(page.data)),
+    privateData: {},
+    setData(values, done) { Object.assign(this.data, values); done?.(); },
+    onVerifyInputLegal() { return { isLegal: true, tips: '' }; },
+  };
+  const service = load('services/address/fetchAddress.ts');
+  const originalFetch = service.fetchDeliveryAddress;
+  try {
+    for (const value of [true, 1, '1', 'true', false, 0, '0', 'false']) {
+      service.fetchDeliveryAddress = async () => ({ addressId: 'address-test', name: '测试', isDefault: value });
+      await edit.getAddressDetail('address-test');
+      assert.equal(edit.data.locationState.isDefault, [true, 1, '1', 'true'].includes(value));
+      assert.equal(typeof edit.data.locationState.isDefault, 'boolean');
+      assert.equal(edit.data.locationState.isEdit, true);
+      assert.equal(edit.data.locationState.addressId, 'address-test');
+    }
+  } finally {
+    service.fetchDeliveryAddress = originalFetch;
+  }
+  console.log('PASS address editing restores the default switch as a boolean for numeric, string and boolean flags');
+}
+
 function loadDialog(file, state) {
   const exports = {};
   const props = {};
@@ -96,12 +122,17 @@ async function dialogScenario(file) {
   const component = { properties: { confirmBtn: '确认', cancelBtn: '取消', showOverlay: true }, setData(data) { this.data = data; } };
   const state = { page: { selectComponent: () => component } };
   const dialog = loadDialog(file, state);
-  const options = { title: '确认收货？', confirmBtn: { content: '确认收货', rootClass: 'custom-button' } };
+  const options = { title: '确认收货？', confirmBtn: { content: '确定', rootClass: 'custom-button' } };
   const confirm = dialog.confirm(options);
   assert.equal(state.selector, '#t-dialog');
   assert.equal(component.data.visible, true);
-  assert.equal(component.data.confirmBtn, options.confirmBtn);
+  assert.equal(component.data.confirmBtn.content, options.confirmBtn.content);
+  assert.equal(component.data.confirmBtn.rootClass, options.confirmBtn.rootClass);
   const data = JSON.parse(JSON.stringify(component.data));
+  if (file === 'pages/order/utils/dialog.ts') {
+    assert.match(component.data.confirmBtn.style, /order: -1/);
+    delete data.confirmBtn.style;
+  }
   component._onConfirm('confirm');
   assert.equal(await confirm, 'confirm');
   const cancelled = dialog.confirm({ context: state.page, selector: '#custom-dialog' });
@@ -109,7 +140,19 @@ async function dialogScenario(file) {
   component._onCancel('cancel');
   assert.equal(await caught, 'cancel');
   assert.equal(state.selector, '#custom-dialog');
+  if (file === 'pages/order/utils/dialog.ts') {
+    const custom = dialog.confirm({ confirmBtn: { content: '删除', disabled: true }, cancelBtn: '暂不删除' });
+    assert.equal(component.data.confirmBtn.content, '确定');
+    assert.equal(component.data.confirmBtn.disabled, true);
+    assert.equal(component.data.cancelBtn, '取消');
+    component._onConfirm();
+    await custom;
+  }
   const alert = dialog.alert({ content: '请选择订单' });
+  if (file === 'pages/order/utils/dialog.ts') {
+    assert.equal(component.data.confirmBtn.content, '确定');
+    assert.equal(component.data.cancelBtn, '');
+  }
   component._onConfirm();
   await alert;
   await assert.rejects(dialog.confirm({ context: { selectComponent: () => null } }));
@@ -119,6 +162,7 @@ async function dialogScenario(file) {
 async function run() {
   testAsyncComponents();
   await testAddressSelection();
+  await testAddressEditDefaultSwitch();
   assert.deepEqual(await dialogScenario('pages/order/utils/dialog.ts'), await dialogScenario('node_modules/tdesign-miniprogram/miniprogram_dist/dialog/index.js'));
   console.log('PASS subpackage Dialog matches TDesign confirm/cancel/alert and preserves button styling');
   const order = load('pages/order/utils/format.ts');

@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import Toast from 'tdesign-miniprogram/toast/index';
+import { showConfirmModal } from '../../../../utils/confirm-modal';
 import { fetchDeliveryAddress, persistAddress } from '../../../../services/address/fetchAddress';
 import { areaData } from '../../utils/areaData';
 
@@ -69,27 +70,21 @@ Page({
     }
   },
   getAddressDetail(id) {
-    fetchDeliveryAddress(id).then((detail) => {
+    return fetchDeliveryAddress(id).then((detail) => {
       if (!detail) {
         Toast({ context: this, selector: '#t-toast', message: '地址不存在，请重新添加', icon: '' });
         return;
       }
-      this.setData({ locationState: detail }, () => {
-        const { isLegal, tips } = this.onVerifyInputLegal();
-        this.setData({
-          submitActive: isLegal,
-        });
-        this.privateData.verifyTips = tips;
-      });
+      this.applyLocationState(detail);
     });
   },
   applyLocationState(params = {}) {
     const locationState = {
       ...this.data.locationState,
       ...params,
-      addressId: params.addressId || params.id || '',
-      isDefault: params.isDefault === true || Number(params.isDefault) === 1,
-      isEdit: Boolean(params.addressId || params.id),
+      addressId: params.addressId || params.id || params._id || '',
+      isDefault: params.isDefault === true || params.isDefault === 'true' || Number(params.isDefault) === 1,
+      isEdit: Boolean(params.addressId || params.id || params._id),
     };
     this.setData({ locationState }, () => {
       const { isLegal, tips } = this.onVerifyInputLegal();
@@ -205,12 +200,12 @@ Page({
       wx.getSetting({
         success: (res) => {
           if (res.authSetting[code] === false) {
-            wx.showModal({
+            showConfirmModal({
               title: `获取${name}失败`,
               content: `获取${name}失败，请在【右上角】-小程序【设置】项中，将【${name}】开启。`,
-              confirmText: '去设置',
+              confirmText: '确定',
               confirmColor: '#695941',
-              cancelColor: '取消',
+              cancelText: '取消',
               success(res) {
                 if (res.confirm) {
                   wx.openSetting({

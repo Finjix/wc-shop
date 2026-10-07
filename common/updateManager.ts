@@ -1,5 +1,7 @@
 // @ts-nocheck
 
+import { showConfirmModal } from '../utils/confirm-modal';
+
 let initialized = false;
 
 export default () => {
@@ -17,7 +19,7 @@ export default () => {
   });
 
   updateManager.onUpdateReady(function () {
-    wx.showModal({
+    showConfirmModal({
       title: '更新提示',
       content: '新版本已经准备好，是否重启应用？',
       success(res) {

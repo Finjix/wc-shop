@@ -207,7 +207,7 @@ Page({
     });
     this.inputDialog.setData({
       cancelBtn: '取消',
-      confirmBtn: '确定',
+      confirmBtn: { content: '确定', style: 'order: -1; margin-left: 0;' },
     });
     this.inputDialog._onConfirm = () => {
       Toast({
