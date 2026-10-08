@@ -130,11 +130,7 @@
           <view class="service-id-row__label">订单编号</view>
           <view class="service-id-row__value">{{service.orderNo}}</view>
         </view>
-        <view class="service-id-row">
-          <view class="service-id-row__label">服务单号</view>
-          <view class="service-id-row__value">{{service.rightsNo}}</view>
-          <view class="service-id-row__copy" hover-class="text-btn--active" bindtap="onServiceNoCopy">复制</view>
-        </view>
+
         <t-cell
           bordered="{{false}}"
           t-class="t-refund-wrapper"

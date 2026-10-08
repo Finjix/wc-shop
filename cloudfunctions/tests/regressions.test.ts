@@ -85,7 +85,7 @@ function makeRuntime() {
         skuId: 'sku-new',
         productId: 'product-1',
         stockQuantity: 10,
-        price: 100,
+        salePrice: 100,
       },
     },
     products: {
@@ -240,8 +240,8 @@ async function testTrustedIdentityDoesNotComeFromEventUserInfo() {
 }
 
 async function testPageNumIsAcceptedAsPage() {
-  assert.deepStrictEqual(page({ pageNum: 3, pageSize: 10 }), { page: 3, pageSize: 10 });
-  assert.deepStrictEqual(page({ pageNum: '4', pageSize: 5 }), { page: 4, pageSize: 5 });
+  assert.deepStrictEqual(page({ page: 3, pageSize: 10 }), { page: 3, pageSize: 10 });
+  assert.deepStrictEqual(page({ pageNum: 4, pageSize: 5 }), { page: 1, pageSize: 5 });
 }
 
 async function testProductSearchAcrossNamesCategoriesAndSpecs() {
@@ -490,8 +490,8 @@ async function testDeletingProductClearsHomeLinksWithoutRemovingSlots() {
   const payload = {
     searchText: '欢迎', bannerText: '公告',
     banners: [{ image: 'banner.jpg', productId: 'product-1' }],
-    promos: [{ image: 'promo.jpg', productId: 'legacy-product-1' }, { image: 'other.jpg', productId: 'other-product' }],
-    sections: [{ id: 'section-1', title: '推荐', productIds: ['product-1', 'other-product', 'legacy-product-1'] }],
+    promos: [{ image: 'promo.jpg', productId: 'product-1' }, { image: 'other.jpg', productId: 'other-product' }],
+    sections: [{ id: 'section-1', title: '推荐', productIds: ['product-1', 'other-product', 'product-1'] }],
   };
   runtime.records.homeContents = { 'home.page-config': { _id: 'home.page-config', payload } };
   await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.delete', { id: 'product-1' });
@@ -533,15 +533,14 @@ async function testHomeCleanupPreservesActiveLegacyProductLinks() {
   };
   runtime.records.homeContents = { 'home.page-config': { _id: 'home.page-config', payload } };
   const call = (action, data) => adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, action, data);
-  const product = await call('products.get', { id: 'legacy-product-1' });
-  assert.strictEqual(product._id, 'product-1');
+  await assert.rejects(() => call('products.get', { id: 'legacy-product-1' }), appError('NOT_FOUND'));
   assert.strictEqual((await call('products.get', { id: 'product-1' }))._id, 'product-1');
   await assert.rejects(() => call('products.get', { id: 'missing-product' }), appError('NOT_FOUND'));
   for (const action of ['home.get', 'home.clearUnavailableLinks']) {
     const result = await call(action, { id: 'home.page-config' });
-    assert.deepStrictEqual(result.payload.banners, payload.banners);
-    assert.deepStrictEqual(result.payload.promos, payload.promos);
-    assert.deepStrictEqual(result.payload.sections[0].productIds, ['legacy-product-1', 'product-1', '']);
+    assert.deepStrictEqual(result.payload.banners, [{ image: 'banner.jpg', productId: '' }]);
+    assert.deepStrictEqual(result.payload.promos, [{ image: 'promo.jpg', productId: '' }, { image: '', productId: '' }]);
+    assert.deepStrictEqual(result.payload.sections[0].productIds, ['', 'product-1', '']);
   }
   for (const patch of [{ status: 'inactive' }, { status: 'active', deletedByAdmin: true }]) {
     Object.assign(runtime.records.products['product-1'], patch);
@@ -850,7 +849,7 @@ async function testHomeConfigLimitsAndLegacyResponse() {
     'home.page-config': { _id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', payload: config, status: 'active', sort: -100 },
   };
   const result = await shopEndpoint({}, {}, runtime, 'home.get', {});
-  assert.strictEqual(result.items.length, 2, 'legacy items remain available');
+  assert.strictEqual(result.items, undefined, 'old banner records are not returned');
   assert.deepStrictEqual(result.config, config);
   assert.strictEqual(result.productsById['product-1'].title, '测试商品');
 
@@ -936,7 +935,7 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
   assert.strictEqual(runtime.records.categories[parent._id].status, 'inactive');
   assert.strictEqual(runtime.records.categories[child._id].status, 'inactive');
   assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, []);
-  assert.strictEqual(runtime.records.products['product-1'].categoryId, null);
+  assert.strictEqual(runtime.records.products['product-1'].categoryId, child._id, 'unused old fields are not migrated');
   assert.strictEqual(runtime.records.products['product-1'].status, 'active');
   assert.deepStrictEqual((await shopEndpoint({}, {}, runtime, 'categories.list', {})).items, []);
 
@@ -952,8 +951,8 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
   runtime.records.products['legacy-product'] = { _id: 'legacy-product', categoryId: nextParent._id, categoryIds: [] };
   const lastChild = await adminEndpoint({}, context, runtime, 'categories.save', { name: '鞋带', parentId: nextParent._id });
   assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [repaired._id]);
-  assert.deepStrictEqual(runtime.records.products['legacy-product'].categoryIds, [repaired._id]);
-  assert.strictEqual(runtime.records.products['legacy-product'].categoryId, null);
+  assert.deepStrictEqual(runtime.records.products['legacy-product'].categoryIds, []);
+  assert.strictEqual(runtime.records.products['legacy-product'].categoryId, nextParent._id, 'old category fields are not migrated');
   await adminEndpoint({}, context, runtime, 'products.update', { id: 'product-1', categoryIds: [nextParent._id] });
   assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [repaired._id]);
   await adminEndpoint({}, context, runtime, 'categories.reorder', { parentId: nextParent._id, ids: [lastChild._id, repaired._id, nextChild._id] });
@@ -970,7 +969,7 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
 
 function receivedOrder(items = [{ productId: 'product-1', skuId: 'sku-new', quantity: 2, unitPrice: 100, amount: 200 }]) {
   const amount = items.reduce((sum, item) => sum + item.amount, 0);
-  return { _id: 'order-1', orderNo: 'order-1', userId: 'user-1', status: 'received', fulfillmentStatus: 'received', items, totalAmount: amount, paymentAmount: amount, paymentStatus: 'paid', payment: { mode: 'simulated', amount, status: 'paid' } };
+  return { _id: 'order-1', orderNo: 'order-1', userId: 'user-1', status: 'received', fulfillmentStatus: 'received', items, totalAmount: amount, paymentAmount: amount, paymentStatus: 'paid', payment: { mode: 'simulated', amount, status: 'paid' }, refundAmount: 0, refundedQuantities: {}, pendingRefundAmount: 0, pendingRefundQuantities: {}, afterSaleIds: [] };
 }
 
 async function testOnlyActiveAdminsAreAllowed() {
@@ -1048,7 +1047,7 @@ async function testCommentsAreAtomicPrivateAndQueryableByOwner() {
 async function testReceivedOrdersAndPendingCommentPagination() {
   const runtime = makeRuntime();
   for (let i = 0; i < 12; i += 1) runtime.records.orders[`order-${i}`] = { ...receivedOrder(), _id: `order-${i}`, createdAt: String(i).padStart(2, '0') };
-  runtime.records.orders.shipped = { _id: 'shipped', userId: 'user-1', status: 'shipped' };
+  runtime.records.orders.shipped = { ...receivedOrder(), _id: 'shipped', status: 'shipped' };
   const context = { auth: { uid: 'user-1' } };
   const received = await shopEndpoint({}, context, runtime, 'orders.list', { orderStatus: 50 });
   assert.strictEqual(received.total, 12);
@@ -1083,7 +1082,7 @@ async function testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims() {
   ];
   runtime.records.orders['order-1'] = receivedOrder(items);
   const context = { auth: { uid: 'user-1' } };
-  const input = { orderId: 'order-1', reason: '质量问题', rightsItem: [{ skuId: 'sku-B', rightsQuantity: 1 }], refundRequestAmount: 200,
+  const input = { orderId: 'order-1', type: 20, reason: '质量问题', rightsItem: [{ skuId: 'sku-B', rightsQuantity: 1 }], refundRequestAmount: 200,
     images: Array.from({ length: 3 }, (_, index) => `cloud://test/user/after-sales/${index}.webp`) };
   for (const invalid of [
     { ...input, rightsItem: [{ skuId: 'unknown', rightsQuantity: 1 }] },
@@ -1190,8 +1189,8 @@ function makeBatchRuntime() {
   const runtime = makeRuntime();
   runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
   runtime.records.products['product-2'] = { _id: 'product-2', spuId: 'product-2', title: '第二个商品', status: 'active' };
-  runtime.records.skus['sku-second'] = { _id: 'sku-second', skuId: 'sku-second', productId: 'product-2', stockQuantity: 6, price: 250 };
-  runtime.records.skus['sku-variant'] = { _id: 'sku-variant', skuId: 'sku-variant', productId: 'product-1', stockQuantity: 5, price: 150 };
+  runtime.records.skus['sku-second'] = { _id: 'sku-second', skuId: 'sku-second', productId: 'product-2', stockQuantity: 6, salePrice: 250 };
+  runtime.records.skus['sku-variant'] = { _id: 'sku-variant', skuId: 'sku-variant', productId: 'product-1', stockQuantity: 5, salePrice: 150 };
   return runtime;
 }
 
@@ -1286,9 +1285,9 @@ async function testSplitCheckoutRollbackAndLegacyCompatibility() {
   const legacy = { _id: id, orderNo: id, userId: 'user-1', status: 'paid', paymentStatus: 'paid', items: input.items, totalAmount: 700 };
   legacyRuntime.records.orders[id] = legacy;
   const repeated = await shopEndpoint({}, context, legacyRuntime, 'orders.create', { ...input, requestKey: legacyKey });
-  assert.strictEqual(repeated._id, id);
-  assert.strictEqual(repeated.items.length, 2, 'historical combined orders are not rewritten');
-  assert.strictEqual(legacyRuntime.writes.length, 0);
+  assert.notStrictEqual(repeated._id, id, 'old hashed IDs no longer resolve current requests');
+  assert.strictEqual(repeated.orders.length, 2);
+  assert.deepStrictEqual(legacyRuntime.records.orders[id], legacy, 'old data is not migrated');
 
   const conflictRuntime = makeBatchRuntime();
   const conflicting = await Promise.allSettled([
@@ -1316,8 +1315,8 @@ async function testAddressGroupingPrecedesPaginationAndSeparatesRecipients() {
     ['other-user', { userId: 'user-2' }],
     ['missing-1', { addressSnapshot: null }], ['missing-2', { addressSnapshot: null }],
   ]) runtime.records.orders[id] = makeOrder(id, patch);
-  delete runtime.records.orders['group-0'].pendingRefundQuantities;
-  runtime.records.afterSales = { legacy: { _id: 'legacy', orderId: 'group-0', status: 'pending_review' } };
+  runtime.records.orders['group-0'].pendingRefundQuantities = { 'sku-new': 1 };
+  runtime.records.orders['group-0'].pendingRefundAmount = 100;
   const first = await adminEndpoint({}, context, runtime, 'orders.list', { groupBy: 'address', pageSize: 1 });
   assert.strictEqual(first.total, 7);
   assert.strictEqual(first.totalOrders, 126);
@@ -1448,6 +1447,10 @@ async function testPreShipmentPartialRefundLeavesAccurateShippedQuantity() {
   const created = await shopEndpoint({}, user, runtime, 'orders.create', {
     requestKey: 'refund-before-ship', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 3 }],
   });
+  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'orders.logistics.save', {
+    orderId: created._id, trackingNo: 'MUST-NOT-SHIP',
+  }), appError('ORDER_STATE_INVALID'));
+  assert.strictEqual(runtime.records.orders[created._id].status, 'paid');
   const application = await shopEndpoint({}, user, runtime, 'afterSales.create', {
     orderId: created._id, type: 20, reason: '退其中一件', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
   });
@@ -1489,9 +1492,9 @@ async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
   await assert.rejects(() => shopEndpoint({}, user, runtime, 'afterSales.create', {
     orderId: created._id, type: 10, reason: '退货退款', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
   }), appError('RETURN_ADDRESS_REQUIRED'));
-  const address = { receiver: '退货收件人', phone: '13800000000', province: '浙江省', city: '杭州市', district: '西湖区', detail: '退货地址 1 号' };
+  const address = { receiver: '退货收件人', phone: '13800000000', detail: '浙江省杭州市西湖区退货地址 1 号' };
   const savedSettings = await adminEndpoint({}, admin, runtime, 'settings.upsert', { key: 'global', value: { returnAddress: address } });
-  assert.deepStrictEqual(savedSettings.value.returnAddress, { ...address, name: address.receiver });
+  assert.deepStrictEqual(savedSettings.value.returnAddress, address);
   const invalidAddress = { ...address, phone: 'bad' };
   await assert.rejects(() => adminEndpoint({}, admin, runtime, 'settings.upsert', { key: 'global', value: { returnAddress: invalidAddress } }), appError('INVALID_ARGUMENT'));
 
@@ -1500,7 +1503,7 @@ async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
   });
   const approved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: returned._id, status: 'approved' });
   assert.strictEqual(approved.status, 'approved');
-  assert.strictEqual(approved.returnAddressSnapshot.detail, '退货地址 1 号');
+  assert.strictEqual(approved.returnAddressSnapshot.detail, address.detail);
   const tracking = await shopEndpoint({}, user, runtime, 'afterSales.submitTracking', {
     afterSaleId: returned._id, logisticsCompanyName: '中通', trackingNo: 'ZT003',
   });
@@ -1565,7 +1568,7 @@ const cases = [
   { name: 'new orders simulate payment and a full pre-shipment refund restores inventory exactly once', run: testSimulatedPaymentAddressChangeAndFullRefundRestoreInventory },
   { name: 'cart checkout removes only selected items and remains idempotent after retries', run: testCartCheckoutRetryAfterAtomicRemovalIsIdempotent },
   { name: 'multi-product checkout creates one order per SKU atomically and preserves retries and independent refunds', run: testMultiProductCheckoutIsAtomicAndIdempotent },
-  { name: 'split checkout rolls back stock and cart changes and preserves historical combined orders', run: testSplitCheckoutRollbackAndLegacyCompatibility },
+  { name: 'split checkout rolls back stock and cart changes without resolving old hashed order IDs', run: testSplitCheckoutRollbackAndLegacyCompatibility },
   { name: 'address groups paginate after grouping and isolate users and recipients', run: testAddressGroupingPrecedesPaginationAndSeparatesRecipients },
   { name: 'batch shipping supports more than 50 orders and safe retries without a business count limit', run: testBatchShippingHasNoBusinessCountLimit },
   { name: 'batch shipping rechecks address, status and refund quantities atomically and supports safe retries', run: testBatchShippingRechecksAddressStateAndRefundsAtomically },
@@ -1585,7 +1588,7 @@ const cases = [
     name: 'event.userInfo is not trusted as identity',
     run: testTrustedIdentityDoesNotComeFromEventUserInfo,
   },
-  { name: 'pageNum is accepted as page', run: testPageNumIsAcceptedAsPage },
+  { name: 'pagination accepts page and ignores old pageNum', run: testPageNumIsAcceptedAsPage },
   {
     name: 'duplicate SKU quantities are capped after merge',
     run: testMergedSkuQuantityIsCapped,
@@ -1611,9 +1614,9 @@ const cases = [
   { name: 'order creation rechecks product status inside transaction', run: testOrderCreationRechecksProductStatus },
   { name: 'paid orders reject direct cancellation and refund only through reviewed after-sales', run: testPaidOrdersCannotBeCancelled },
   { name: 'dashboard product count is not limited to the first page', run: testDashboardProductCountUsesCountQuery },
-  { name: 'home configuration limits and legacy response', run: testHomeConfigLimitsAndLegacyResponse },
+  { name: 'home configuration limits and current-only response', run: testHomeConfigLimitsAndLegacyResponse },
   { name: 'deleting a product clears home links while preserving slots', run: testDeletingProductClearsHomeLinksWithoutRemovingSlots },
-  { name: 'home cleanup preserves active legacy product links and clears unavailable aliases', run: testHomeCleanupPreservesActiveLegacyProductLinks },
+  { name: 'home cleanup rejects old product aliases and preserves current document IDs', run: testHomeCleanupPreservesActiveLegacyProductLinks },
   { name: 'inactive products are pinned before pagination', run: testInactiveProductsArePinnedBeforePagination },
   { name: 'two-level categories validate hierarchy and clear products on deletion', run: testTwoLevelCategoriesAndCascadeDeletion },
 ];

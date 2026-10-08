@@ -6,13 +6,13 @@ import { fetchGood } from '../../../../services/good/fetchGood';
 const shortageImg = 'https://tdesign.gtimg.com/miniprogram/template/retail/cart/shortage.png';
 
 function skuStock(sku = {}) {
-  const value = sku.stockQuantity ?? sku.stock ?? sku.stockInfo?.stockQuantity;
+  const value = sku.stockQuantity;
   const stockQuantity = Number(value);
   return Number.isFinite(stockQuantity) ? Math.max(0, stockQuantity) : 0;
 }
 
 function skuPrice(sku = {}, fallback = 0) {
-  return sku.salePrice ?? sku.price ?? sku.priceInfo?.find((item) => item.priceType === 1)?.price ?? fallback;
+  return sku.salePrice ?? fallback;
 }
 
 Component({
@@ -152,35 +152,9 @@ Component({
             skuId: sku.skuId ?? sku._id,
             price: skuPrice(sku, details.minSalePrice),
             stockQuantity: skuStock(sku),
-            stockKnown: sku.stockQuantity !== undefined || sku.stock !== undefined || sku.stockInfo?.stockQuantity !== undefined,
+            stockKnown: sku.stockQuantity !== undefined,
           }));
-          let currentSku = skuList.find((sku) => String(sku.skuId) === String(goods.skuId));
-          if (!currentSku && goods.specInfo?.length && details.specList?.length) {
-            const fallbackSpecInfo = goods.specInfo
-              .map((item) => {
-                const group = details.specList.find((spec) => spec.title === item.specTitle);
-                const value = group?.specValueList?.find((specValue) => specValue.specValue === item.specValue);
-                if (!group || !value) return null;
-                return {
-                  specId: group.specId,
-                  specTitle: group.title,
-                  specValueId: value.specValueId,
-                  specValue: value.specValue,
-                };
-              })
-              .filter(Boolean);
-            if (fallbackSpecInfo.length === details.specList.length) {
-              currentSku = {
-                skuId: goods.skuId,
-                skuImage: goods.thumb,
-                price: goods.price,
-                stockQuantity: goods.stockQuantity || 0,
-                stockKnown: goods.stockKnown === true,
-                specInfo: fallbackSpecInfo,
-              };
-              skuList.unshift(currentSku);
-            }
-          }
+          const currentSku = skuList.find((sku) => String(sku.skuId) === String(goods.skuId));
           this.setData({
             specPopup: {
               show: true,
@@ -238,7 +212,7 @@ Component({
         thumb: sku.skuImage || currentGoods.thumb,
         primaryImage: sku.skuImage || currentGoods.primaryImage || currentGoods.thumb,
         stockQuantity: skuStock(sku),
-        stockKnown: sku.stockQuantity !== undefined || sku.stock !== undefined || sku.stockInfo?.stockQuantity !== undefined,
+        stockKnown: sku.stockQuantity !== undefined,
         stockStatus: skuStock(sku) > 0,
         specInfo,
         specs: specInfo.map((item) => item.specValue),

@@ -377,7 +377,7 @@ Page({
         if (!res) return;
         const data = res && res.data ? res.data : res;
         const rightsNo = data && (data.rightsNo || data.afterSaleId || data.id || data._id);
-        if (!rightsNo) throw new Error('云端未返回售后单号，申请结果待确认');
+        if (!rightsNo) throw new Error('云端未返回售后记录标识，申请结果待确认');
         this.applySubmitSucceeded = true;
         Toast({
           context: this,

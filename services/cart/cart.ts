@@ -6,29 +6,24 @@ import { resolveGoodsListImages } from '../good/resolveImages';
 
 const skuStockCache = new Map();
 
-function dataOf(response) {
-  const value = response?.data ?? response;
-  return value?.data && typeof value.data === 'object' && !Array.isArray(value.data) ? value.data : value;
-}
+function dataOf(response) { return response; }
 
 function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== '');
 }
 
 function getSkuSnapshot(goods = {}) {
-  return goods.skuSnapshot && typeof goods.skuSnapshot === 'object'
-    ? goods.skuSnapshot
-    : (goods.sku && typeof goods.sku === 'object' ? goods.sku : {});
+  return goods.skuSnapshot || {};
 }
 
 function getStockInfo(goods = {}, liveSku) {
-  const liveStock = liveSku?.stockQuantity ?? liveSku?.stock ?? liveSku?.stockInfo?.stockQuantity;
+  const liveStock = liveSku?.stockQuantity;
   const storedStock = goods.stockKnown === false
     ? undefined
-    : firstDefined(goods.stockQuantity, goods.stock, goods.stockInfo?.stockQuantity);
+    : goods.stockQuantity;
   const snapshotStock = goods.stockKnown === false
     ? undefined
-    : firstDefined(goods.skuSnapshot?.stockQuantity, goods.skuSnapshot?.stock, goods.skuSnapshot?.stockInfo?.stockQuantity);
+    : goods.skuSnapshot?.stockQuantity;
   const rawStock = firstDefined(liveStock, storedStock, snapshotStock);
   if (rawStock === undefined) return { stockQuantity: 0, stockKnown: false };
   const stockQuantity = Number(rawStock);
@@ -41,12 +36,8 @@ function getSkuPrice(goods = {}, snapshot = {}, liveSku) {
   return firstDefined(
     goods.unitPrice,
     goods.price,
-    goods.settlePrice,
-    goods.actualPrice,
     liveSku?.salePrice,
-    liveSku?.price,
-    liveSku?.priceInfo?.find((item) => item.priceType === 1)?.price,
-    snapshot.price,
+    snapshot.salePrice,
     0,
   );
 }
@@ -54,12 +45,12 @@ function getSkuPrice(goods = {}, snapshot = {}, liveSku) {
 function normalizeGoods(goods = {}, store = {}, liveSku) {
   const snapshot = getSkuSnapshot(goods);
   const stock = getStockInfo({ ...goods, skuSnapshot: snapshot }, liveSku);
-  const skuId = firstDefined(goods.skuId, goods.skuID, snapshot.skuId, liveSku?.skuId, liveSku?._id);
-  const spuId = firstDefined(goods.spuId, goods.spuID, goods.productId, liveSku?.productId, liveSku?.spuId);
+  const skuId = goods.skuId;
+  const spuId = goods.productId;
   const liveSpecInfo = Array.isArray(liveSku?.specInfo) && liveSku.specInfo.length > 0
     ? liveSku.specInfo
     : null;
-  const specInfo = liveSpecInfo || firstDefined(goods.specInfo, goods.specifications, snapshot.specInfo, []);
+  const specInfo = liveSpecInfo || goods.specInfo || snapshot.specInfo || [];
   const price = getSkuPrice(goods, snapshot, liveSku);
   const image = liveSku?.skuImage || goods.image || snapshot.skuImage || goods.thumb || goods.primaryImage || goods.goodsPictureUrl || '';
   return {
@@ -89,11 +80,10 @@ function normalizeGoods(goods = {}, store = {}, liveSku) {
 }
 
 function normalizeCart(response) {
-  const raw = dataOf(response) || {};
-  const source = raw.cartGroupData || raw.cart || raw;
-  let stores = Array.isArray(source.storeGoods) ? source.storeGoods : [];
-  const items = source.items || source.cartItems || source.list;
-  if (!stores.length && Array.isArray(items)) {
+  const source = response.data;
+  let stores = [];
+  const items = source.items;
+  if (items.length) {
     const byStore = new Map();
     items.forEach((item) => {
       const storeId = item.storeId ?? 0;
@@ -113,12 +103,12 @@ function normalizeCart(response) {
     })),
     shortageGoodsList: (Array.isArray(store.shortageGoodsList) ? store.shortageGoodsList : []).map((goods) => normalizeGoods(goods, store)),
   }));
-  const invalidGoodItems = (source.invalidGoodItems || source.invalidItems || []).map((goods) => normalizeGoods(goods));
+  const invalidGoodItems = [];
   const hasStoreItems = storeGoods.some((store) => (
     (store.promotionGoodsList || []).some((promotion) => (promotion.goodsPromotionList || []).length > 0)
     || (store.shortageGoodsList || []).length > 0
   ));
-  return { ...source, storeGoods, invalidGoodItems, isNotEmpty: Boolean(hasStoreItems || invalidGoodItems.length), totalAmount: source.totalAmount ?? source.selectedAmount ?? '0' };
+  return { ...source, storeGoods, invalidGoodItems, isNotEmpty: Boolean(hasStoreItems || invalidGoodItems.length), totalAmount: source.totalAmount ?? '0' };
 }
 
 function getStoreGoodsEntries(store) {

@@ -139,7 +139,8 @@ tbody tr.product-list-inactive, tbody tr.product-list-inactive:hover { backgroun
 .orders-address-groups-empty { display: flex; flex-direction: column; flex: 1; }
 .orders-empty-panel { flex: 1; margin-bottom: 0; }
 .orders-address-heading { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
-.orders-address-heading > div { flex: 1; min-width: 240px; overflow-wrap: anywhere; }
+.orders-address-heading > div:first-child { flex: 1; min-width: 240px; overflow-wrap: anywhere; }
+.orders-address-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .orders-address-heading strong { font-size: 15px; }
 .orders-address-heading strong span { margin-left: 12px; font-weight: 400; }
 .orders-address-summary { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 20px; }
@@ -398,6 +399,7 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .nav-link-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: auto; }
 .commerce-toolbar { flex-wrap: wrap; }
 .orders-toolbar { margin-bottom: 20px; }
+.after-sales-address-link { margin-left: auto; white-space: nowrap; }
 .orders-toolbar .t-input, .orders-toolbar select, .orders-toolbar .t-button { height: var(--td-comp-size-m, 32px); box-sizing: border-box; }
 .orders-toolbar select { padding-top: 0; padding-bottom: 0; font-size: var(--td-font-size-body-medium, 14px); }
 .commerce-toolbar > :first-child { flex: 1 1 240px; width: auto; max-width: 360px; }

@@ -1,88 +1,16 @@
 // @ts-nocheck
 
-const SERVICE_TYPE_ALIASES = {
-  '10': 10,
-  return: 10,
-  return_goods: 10,
-  'return-goods': 10,
-  returngoods: 10,
-  refund_goods: 10,
-  refund_goods_money: 10,
-  '20': 20,
-  refund: 20,
-  only_refund: 20,
-  'only-refund': 20,
-  onlyrefund: 20,
-  refund_money: 20,
-};
+// 当前云端状态到组件数字状态的转换；数字值用于已转换的组件模型。
+const STATUS_CODES = { pending_review: 100, approved: 110, refunding: 130, refunded: 160, rejected: 170, withdrawn: 170 };
+const DISPLAY_STATUS_CODES = new Set([100, 110, 120, 130, 140, 150, 160, 170]);
 
-const SERVICE_STATUS_ALIASES = {
-  '10': 100,
-  '100': 100,
-  pending: 100,
-  pending_review: 100,
-  'pending-review': 100,
-  pendingreview: 100,
-  refund_requested: 100,
-  refundrequested: 100,
-  '20': 110,
-  '110': 110,
-  approved: 110,
-  verified: 110,
-  pending_delivery: 120,
-  'pending-delivery': 120,
-  pendingdelivery: 120,
-  '120': 120,
-  '30': 140,
-  '40': 150,
-  pending_receipt: 130,
-  'pending-receipt': 130,
-  pendingreceipt: 130,
-  refunding: 130,
-  '130': 130,
-  received: 140,
-  '140': 140,
-  exception: 150,
-  abnormal: 150,
-  '150': 150,
-  refunded: 160,
-  '50': 160,
-  refund_success: 160,
-  refundsuccess: 160,
-  '160': 160,
-  rejected: 170,
-  closed: 170,
-  cancelled: 170,
-  canceled: 170,
-  withdrawn: 170,
-  '60': 170,
-  '170': 170,
-};
-
-function normalizedKey(value) {
-  return String(value).trim().toLowerCase().replace(/\s+/g, '_');
-}
-
-export function normalizeServiceType(value, fallback = null) {
-  if (value === undefined || value === null || value === '') return fallback;
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return SERVICE_TYPE_ALIASES[String(value)] ?? fallback;
-  }
-  return SERVICE_TYPE_ALIASES[normalizedKey(value)] ?? fallback;
-}
-
+export function normalizeServiceType(value, fallback = null) { return [10, 20].includes(Number(value)) ? Number(value) : fallback; }
 export function normalizeServiceStatus(value, fallback = null) {
-  if (value === undefined || value === null || value === '') return fallback;
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return SERVICE_STATUS_ALIASES[String(value)] ?? value;
-  }
-  return SERVICE_STATUS_ALIASES[normalizedKey(value)] ?? fallback;
+  return DISPLAY_STATUS_CODES.has(value) ? value : STATUS_CODES[value] ?? fallback;
 }
-
 export function serviceStatusLabel(value, serviceType) {
-  const raw = normalizedKey(value);
-  if (['rejected', 'refused', 'declined'].includes(raw)) return '申请已驳回';
-  if (['cancelled', 'canceled', 'withdrawn', 'closed'].includes(raw)) return '已撤销';
+  if (value === 'rejected') return '申请已驳回';
+  if (value === 'withdrawn') return '已撤销';
   const status = normalizeServiceStatus(value);
   if (status === 100) return '等待商家审核';
   if (status === 110) return Number(serviceType) === 10 ? '审核通过，请填写退货物流' : '退款处理中';
@@ -94,101 +22,36 @@ export function serviceStatusLabel(value, serviceType) {
   if (status === 170) return '已关闭';
   return '处理中';
 }
-
 export function normalizeServiceButtons(value, serviceType, buttons = [], logisticsNo = '') {
-  if (Array.isArray(buttons) && buttons.length) return buttons;
+  if (buttons.length) return buttons;
   const status = normalizeServiceStatus(value);
   if (status === 100) return [{ type: 2, name: '撤销申请' }];
-  if ([110, 120].includes(status) && Number(serviceType) === 10) return [{ type: 3, name: '填写退货物流' }];
-  if ([130, 140, 150].includes(status) && logisticsNo) return [{ type: 5, name: '查看退货物流' }];
+  if (status === 110 && Number(serviceType) === 10) return [{ type: 3, name: '填写退货物流' }];
+  if (status === 130 && logisticsNo) return [{ type: 5, name: '查看退货物流' }];
   return [];
 }
 
-function firstValue(source, keys) {
-  for (const key of keys) {
-    if (source && source[key] !== undefined && source[key] !== null && source[key] !== '') {
-      return source[key];
-    }
-  }
-  return '';
-}
-
+// 此方法也处理已转换的申请商品模型，其 goodsName/specInfo 是当前页面字段。
 export function normalizeOrderItem(item = {}) {
-  const productSnapshot = item.productSnapshot || item.product || {};
-  const skuSnapshot = item.skuSnapshot || item.sku || {};
-  const productId = firstValue(item, ['productId', 'spuId', 'product_id'])
-    || firstValue(productSnapshot, ['spuId', 'productId', '_id']);
-  const skuId = firstValue(item, ['skuId', 'sku_id'])
-    || firstValue(skuSnapshot, ['skuId', '_id']);
+  const product = item.productSnapshot || {};
+  const sku = item.skuSnapshot || {};
   return {
     ...item,
-    goodsName: item.goodsName || item.title || productSnapshot.title || '',
-    goodsPictureUrl: item.goodsPictureUrl || item.thumb || item.skuImage || skuSnapshot.skuImage || productSnapshot.primaryImage || productSnapshot.images?.[0] || '',
-    specInfo: item.specInfo || item.specifications || skuSnapshot.specInfo || [],
-    itemRefundAmount: item.itemRefundAmount ?? item.refundAmount ?? item.amount
-      ?? (Number(item.unitPrice ?? item.price ?? 0) * Number(item.rightsQuantity ?? item.quantity ?? 0)),
-    productId,
-    spuId: firstValue(item, ['spuId', 'productId']) || productId,
-    skuId,
-    orderItemId: firstValue(item, ['orderItemId', 'itemId', '_id']),
+    productId: item.productId,
+    spuId: item.productId,
+    skuId: item.skuId,
+    goodsName: item.goodsName || product.title || '',
+    goodsPictureUrl: item.goodsPictureUrl || sku.skuImage || product.primaryImage || '',
+    specInfo: item.specInfo || sku.specInfo || [],
+    itemRefundAmount: item.amount,
+    orderItemId: item.orderItemId || '',
   };
 }
-
-export function normalizeLogistics(logistics = {}) {
-  const source = logistics || {};
-  return {
-    ...source,
-    logisticsNo: firstValue(source, ['logisticsNo', 'trackingNo', 'trackingNumber', 'waybillNo']),
-    logisticsCompanyName: firstValue(source, ['logisticsCompanyName', 'companyName', 'deliveryCompanyName']),
-    logisticsCompanyCode: firstValue(source, ['logisticsCompanyCode', 'companyCode', 'deliveryCompanyCode']),
-    remark: firstValue(source, ['remark', 'description', 'logisticsDescription']),
-  };
+export function normalizeLogistics(source = {}) {
+  return { ...source, logisticsNo: source.trackingNo || '', logisticsCompanyName: source.logisticsCompanyName || '', logisticsCompanyCode: source.logisticsCompanyCode || '', remark: source.remark || '' };
 }
-
 export function normalizeDeliveryCompany(company) {
-  if (typeof company === 'string') {
-    const name = company.trim();
-    return name ? { name, code: name } : null;
-  }
-  if (!company || typeof company !== 'object') return null;
-  const name = firstValue(company, ['name', 'companyName', 'logisticsCompanyName', 'deliveryCompanyName', 'title']);
-  const code = firstValue(company, ['code', 'companyCode', 'logisticsCompanyCode', 'deliveryCompanyCode', 'value', 'key', 'id']) || name;
-  return name ? { ...company, name, code } : null;
+  return company && typeof company === 'object' && company.name ? { name: company.name, code: company.code } : null;
 }
-
-const DELIVERY_COMPANY_KEYS = [
-  'deliveryCompanyList',
-  'deliveryCompanies',
-  'logisticsCompanyList',
-  'logisticsCompanies',
-  'companyList',
-  'companies',
-];
-
-export function normalizeDeliveryCompanyList(value) {
-  if (Array.isArray(value)) {
-    return value.map(normalizeDeliveryCompany).filter(Boolean);
-  }
-  if (!value || typeof value !== 'object') return [];
-  for (const key of DELIVERY_COMPANY_KEYS) {
-    if (Array.isArray(value[key])) return normalizeDeliveryCompanyList(value[key]);
-  }
-  if (value.data !== undefined && value.data !== value) return normalizeDeliveryCompanyList(value.data);
-  if (value.result !== undefined && value.result !== value) return normalizeDeliveryCompanyList(value.result);
-  return [];
-}
-
-export function extractDeliveryCompanyList(value) {
-  const direct = normalizeDeliveryCompanyList(value);
-  if (direct.length) return direct;
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return direct;
-  const nestedKeys = ['data', 'result', 'detail', 'item', 'record'];
-  for (const key of nestedKeys) {
-    if (value[key] !== undefined) {
-      const nested = extractDeliveryCompanyList(value[key]);
-      if (nested.length) return nested;
-    }
-  }
-  return direct;
-}
-// @ts-nocheck
+export function normalizeDeliveryCompanyList(value) { return value.map(normalizeDeliveryCompany).filter(Boolean); }
+export function extractDeliveryCompanyList(value) { return normalizeDeliveryCompanyList(value.deliveryCompanyList || []); }

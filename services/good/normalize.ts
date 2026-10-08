@@ -1,75 +1,39 @@
 // @ts-nocheck
 
-function firstValue(...values) {
-  return values.find((value) => value !== undefined && value !== null && value !== '');
-}
-
+// 云端使用当前商品结构；这里仅转换成小程序组件的展示字段。
 export function normalizeGoodsItem(item = {}) {
-  return {
-    ...item,
-    spuId: firstValue(item.spuId, item.id, item._id, ''),
-    thumb: firstValue(item.thumb, item.primaryImage, item.image, ''),
-    title: firstValue(item.title, item.name, ''),
-    price: firstValue(item.price, item.minSalePrice, 0),
-  };
+  return { ...item, spuId: item._id, thumb: item.primaryImage || '', title: item.title || '', price: item.minSalePrice || 0 };
 }
 
-export function getGoodsItems(result) {
-  if (Array.isArray(result)) return result;
-  if (!result || typeof result !== 'object') return [];
-  return result.goodsList || result.spuList || result.items || result.list || result.products || [];
-}
+export function getGoodsItems(result) { return result.items; }
+export function normalizeGoodsList(result) { return getGoodsItems(result).map(normalizeGoodsItem); }
 
-export function normalizeGoodsList(result) {
-  return getGoodsItems(result).map(normalizeGoodsItem);
-}
-
-export function normalizeSearchResult(result) {
-  const source = result && typeof result === 'object' && !Array.isArray(result) ? result : {};
-  const spuList = normalizeGoodsList(result);
-  return {
-    ...source,
-    pageNum: Number(source.pageNum || source.page) || 1,
-    pageSize: Number(source.pageSize) || spuList.length,
-    totalCount: Number(firstValue(source.totalCount, source.total, source.count, spuList.length)) || 0,
-    spuList,
-  };
+export function normalizeSearchResult(source) {
+  const spuList = normalizeGoodsList(source);
+  return { ...source, pageNum: source.page, pageSize: source.pageSize, totalCount: source.total, spuList };
 }
 
 export function normalizeCategoryList(result) {
-  const rows = Array.isArray(result) ? result : result && typeof result === 'object'
-    ? result.list || result.items || result.categories || result.categoryList || [] : [];
-  if (!Array.isArray(rows)) return [];
-  const active = rows.filter((item) => item && item.status !== 'inactive');
-  const parents = active.filter((item) => !item.parentId);
+  const active = result.items.filter((item) => item.status === 'active' || item.status === undefined);
   const sort = (left, right) => (Number(left.sort) || 0) - (Number(right.sort) || 0)
-    || String(left.createdAt || left._id || left.id).localeCompare(String(right.createdAt || right._id || right.id));
-  return parents.sort(sort).map((parent) => ({
+    || String(left.createdAt || left._id).localeCompare(String(right.createdAt || right._id));
+  return active.filter((item) => !item.parentId).sort(sort).map((parent) => ({
     ...parent,
-    children: active.filter((item) => item.parentId && String(item.parentId) === String(parent._id || parent.id)).sort(sort),
+    children: active.filter((item) => String(item.parentId) === String(parent._id)).sort(sort),
   }));
 }
 
-export function normalizeHomeContent(result) {
-  const source = result && typeof result === 'object' && !Array.isArray(result) ? result : {};
-  const items = Array.isArray(source.items) ? source.items : [];
-  const homeGoods = items.flatMap((item) => item.goodsList || item.products || (item.product ? [item.product] : []));
-  const goodsList = normalizeGoodsList({ items: source.productItems || homeGoods });
-  const explicitImages = [source.imgSrcs, source.swiperImages, source.bannerImages].find((value) => Array.isArray(value) && value.length > 0);
-  const imgSrcs = explicitImages || items.filter((item) => item.type === 'banner').map((item) => item.image || item.imageUrl || item.cover || item.content || '').filter(Boolean);
-  return { ...source, goodsList, imgSrcs: Array.isArray(imgSrcs) ? imgSrcs : [] };
-}
+export function normalizeHomeContent(source) { return source; }
 
 export function toProductListPayload(params = {}) {
+  const { pageNum, ...payload } = params;
   const sort = Number(params.sort);
   const sortType = Number(params.sortType);
   return {
-    ...params,
-    page: Number(params.page || params.pageNum) || 1,
+    ...payload,
+    page: Number(pageNum) || 1,
     pageSize: Number(params.pageSize) || 30,
     orderBy: sort === 1 ? 'price' : undefined,
     direction: sort === 3 || (sort === 1 && sortType === 1) ? 'desc' : 'asc',
   };
 }
-
-// @ts-nocheck

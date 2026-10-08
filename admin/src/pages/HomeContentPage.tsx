@@ -10,9 +10,6 @@ import { ErrorState, Field, ImageFilePicker, LoadingState, Panel } from '../comp
 const SLOT = 'home.page-config';
 const CONTENT_PLACEHOLDER = '请输入内容';
 const PRODUCT_PICKER_PAGE_SIZE = 6;
-const LEGACY_SEARCH_TEXT = '欢迎光临番薯鞋店！';
-const LEGACY_BANNER_TEXT = '急速发货 | 品质保证 | 退货无忧';
-const OLD_BANNER_TEXT = '急速发货 | 品质保证 | 售后无忧';
 
 type ImageLink = { image: string; productId: string };
 type ProductSection = { id: string; title: string; productIds: string[] };
@@ -42,8 +39,8 @@ function readConfig(rows: HomeRecord[]): HomeConfig {
     const banners = Array.isArray(stored.banners) ? stored.banners.slice(0, 4).map((entry) => ({ ...blankLink(), ...entry })) : [];
     while (banners.length > 1 && !banners[banners.length - 1].image && !banners[banners.length - 1].productId) banners.pop();
     return {
-      searchText: stored.searchText === LEGACY_SEARCH_TEXT ? '' : stored.searchText ?? draft.searchText,
-      bannerText: [LEGACY_BANNER_TEXT, OLD_BANNER_TEXT].includes(stored.bannerText || '') ? '' : stored.bannerText ?? draft.bannerText,
+      searchText: stored.searchText ?? draft.searchText,
+      bannerText: stored.bannerText ?? draft.bannerText,
       banners: banners.length ? banners : [blankLink()],
       promos: draft.promos.map((fallback, index) => ({ ...fallback, ...stored.promos?.[index] })),
       sections: Array.isArray(stored.sections) && stored.sections.length ? stored.sections.slice(0, 4).map((section) => ({
@@ -53,15 +50,6 @@ function readConfig(rows: HomeRecord[]): HomeConfig {
       })) : [blankSection()],
     };
   }
-  const legacyBanners = rows.filter((row) => row.type === 'banner' && row.status !== 'inactive').sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0));
-  draft.banners = legacyBanners.slice(0, 4).map((row) => {
-    const payload = row.payload && typeof row.payload === 'object' ? row.payload as Record<string, unknown> : {};
-    return {
-      image: String(row.image || row.content || ''),
-      productId: String(payload.productId || ''),
-    };
-  });
-  if (!draft.banners.length) draft.banners = [blankLink()];
   return draft;
 }
 

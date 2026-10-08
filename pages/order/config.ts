@@ -15,14 +15,7 @@ export const OrderStatusDesc = {
 };
 
 export function normalizeOrderStatus(status) {
-  const aliases = {
-    PENDING_DELIVERY: OrderStatus.PENDING_DELIVERY,
-    PENDING_RECEIPT: OrderStatus.PENDING_RECEIPT,
-    COMPLETE: OrderStatus.COMPLETE,
-    COMPLETED: OrderStatus.COMPLETE,
-    REFUNDED: OrderStatus.REFUNDED,
-  };
-  const normalized = aliases[String(status ?? '').toUpperCase()] ?? Number(status);
+  const normalized = Number(status);
   return [OrderStatus.PENDING_DELIVERY, OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE, OrderStatus.REFUNDED].includes(normalized)
     ? normalized
     : 0;

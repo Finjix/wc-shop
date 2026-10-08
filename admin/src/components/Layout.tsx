@@ -13,8 +13,8 @@ const navItems = [
   { to: '/skus', label: '库存' },
   { to: '/categories', label: '分类' },
   { to: '/orders', label: '订单' },
+  { to: '/after-sales', label: '售后' },
   { to: '/comments', label: '评价', disabled: true },
-  { to: '/after-sales', label: '售后', disabled: true },
 ];
 
 export function AdminLayout() {

@@ -430,7 +430,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     setDraft(product ? {
       ...emptyProduct,
       title: product.title || '',
-      categoryId: String(product.categoryIds?.[0] || product.categoryId || ''),
+      categoryId: String(product.categoryIds?.[0] || ''),
       primaryImage: product.primaryImage || product.images?.[0] || '',
       detailImages: productDetailImages(product),
     } : emptyProduct);

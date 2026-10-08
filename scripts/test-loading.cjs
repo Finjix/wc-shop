@@ -42,9 +42,11 @@ function load(file) {
   return exports;
 }
 const snapshot = {
+  productId: 'p1', skuId: 's1', availableRefundQuantity: 2, fulfillableQuantity: 2, amount: 200,
   quantity: 2, unitPrice: 100, productSnapshot: { _id: 'p1', title: '商品', primaryImage: 'local://cover.webp' },
   skuSnapshot: { _id: 's1', specInfo: [{ specValue: '标准' }] },
 };
+const currentOrder = { _id: 'o1', orderNo: 'o1', status: 'paid', commentedProductIds: [], pendingRefundAmount: 0, activeAfterSaleCount: 0, addressSnapshot: { receiver: '收货人', phone: '13800000000', detail: '测试街道' } };
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 function instance(definition) {
   return { ...definition, data: { ...definition.data }, setData(value) { Object.assign(this.data, value); } };
@@ -65,7 +67,7 @@ async function run() {
   assert.match(afterServiceMarkupForConfirm, /t-dialog id="t-dialog" t-class-confirm="commerce-dialog-confirm"/);
   assert.match(themeStyles, /\.commerce-dialog-confirm\s*\{[^}]*--td-button-primary-text-color:\s*#695941;/);
   const orderDetailMarkup = fs.readFileSync(path.join(root, 'pages/order/order-detail/index.wxml'), 'utf8');
-  assert.match(orderDetailMarkup, /catchtap="onApplyGoodsRefund"/);
+  assert.doesNotMatch(orderDetailMarkup, /catchtap="onApplyGoodsRefund"/);
   console.log('PASS order and after-sales confirmation dialogs use a visible shared primary-text style');
   const homeStyles = fs.readFileSync(path.join(root, 'pages/home/home.wxss'), 'utf8');
   const homeMarkup = fs.readFileSync(path.join(root, 'pages/home/home.wxml'), 'utf8');
@@ -108,28 +110,28 @@ async function run() {
   const resource = comments.pageList[0].commentResources[0];
   assert.equal(resource.image, 'https://example.test/comment.webp');
   assert.equal(resource.fileID, 'cloud://comment.webp');
-  const payload = load('pages/goods/services/comments/api.ts').normalizeCommentPayload({ commentResources: [resource] });
+  const payload = load('pages/goods/services/comments/api.ts').normalizeCommentPayload({ commentResources: [resource.fileID] });
   assert.equal(payload.images[0], 'cloud://comment.webp');
-  respond = async (action) => action === 'orders.list' ? { orders: [{ items: [snapshot] }] } : { items: [snapshot] };
-  const list = await load('pages/order/services/orderList.ts').fetchOrders();
+  respond = async (action) => action === 'orders.list' ? { items: [{ ...currentOrder, items: [snapshot] }] } : { ...currentOrder, items: [snapshot] };
+  const list = await load('pages/order/services/orderList.ts').fetchOrders({ parameter: { page: 1 } });
   const detail = await load('pages/order/services/orderDetail.ts').fetchOrderDetail({ orderNo: 'o1' });
   assert.equal(list.data.orders[0].orderItemVOs[0].goodsPictureUrl, 'https://example.test/cover.webp');
   assert.equal(detail.data.orderItemVOs[0].goodsPictureUrl, 'https://example.test/cover.webp');
   respond = async (action) => action === 'orders.list' ? {
-    orders: [{ status: 'paid', activeAfterSaleStatus: 'pending_review', items: [{
+    items: [{ ...currentOrder, status: 'paid', pendingRefundAmount: 100, activeAfterSaleStatus: 'pending_review', items: [{
       ...snapshot, quantity: 3, refundedQuantity: 1, remainingQuantity: 2, fulfillableQuantity: 2,
     }] }],
   } : {};
-  const activeRefundOrder = await load('pages/order/services/orderList.ts').fetchOrders();
+  const activeRefundOrder = await load('pages/order/services/orderList.ts').fetchOrders({ parameter: { page: 1 } });
   const activeRefund = activeRefundOrder.data.orders[0];
   assert.equal(activeRefund.orderStatus, 10);
   assert.equal(activeRefund.orderStatusName, '退款审核中');
   assert.equal(activeRefund.orderItemVOs[0].fulfillableQuantity, 2);
-  assert.ok(activeRefund.buttonVOs.some((button) => Number(button.type) === 4));
+  assert.ok(!activeRefund.buttonVOs.some((button) => Number(button.type) === 4));
   console.log('PASS simulated-paid order and pending refund normalize with remaining quantity');
   const orderListApi = load('pages/order/services/orderList.ts');
   const unsupportedLegacyOrder = orderListApi.normalizeOrder({
-    status: 5,
+    ...currentOrder, status: 5,
     orderStatusName: 'legacy-state',
     items: [snapshot],
     buttonVOs: [{ type: 2, name: 'legacy-action' }],
@@ -138,7 +140,7 @@ async function run() {
   assert.equal(unsupportedLegacyOrder.orderStatusName, '订单状态不可用');
   assert.equal(unsupportedLegacyOrder.buttonVOs.length, 0);
   const processingOrder = orderListApi.normalizeOrder({
-    status: 'paid', activeAfterSaleStatus: 'processing', activeAfterSaleCount: 1, pendingRefundAmount: 100,
+    ...currentOrder, status: 'paid', activeAfterSaleStatus: 'processing', activeAfterSaleCount: 1, pendingRefundAmount: 100,
     items: [{ ...snapshot, remainingQuantity: 2, fulfillableQuantity: 2 }],
     buttonVOs: [
       { type: 3, name: '确认收货' }, { type: 4, name: '申请售后' },
@@ -147,15 +149,15 @@ async function run() {
   });
   assert.equal(processingOrder.orderStatusName, '售后处理中');
   assert.equal(processingOrder.hasPendingRefund, true);
-  assert.ok(processingOrder.buttonVOs.some((button) => Number(button.type) === 4), 'remaining items may go through server preview');
+  assert.ok(!processingOrder.buttonVOs.some((button) => Number(button.type) === 4), 'active claims must prevent another submission');
   assert.ok(!processingOrder.buttonVOs.some((button) => Number(button.type) === 3), 'do not confirm receipt while after-sales work is active');
   assert.ok(!processingOrder.buttonVOs.some((button) => Number(button.type) === 5), 'do not open a detail without a specific after-sale id');
-  const noRemainingOrder = orderListApi.normalizeOrder({ status: 'paid', items: [{ ...snapshot, fulfillableQuantity: 0 }], buttonVOs: [{ type: 4, name: '申请售后' }] });
+  const noRemainingOrder = orderListApi.normalizeOrder({ ...currentOrder, status: 'paid', items: [{ ...snapshot, fulfillableQuantity: 0 }], buttonVOs: [{ type: 4, name: '申请售后' }] });
   assert.ok(!noRemainingOrder.buttonVOs.some((button) => Number(button.type) === 4));
-  const pendingReviewDetail = orderListApi.normalizeOrder({ status: 'paid', afterSalesList: [{ status: 'pending_review' }], items: [snapshot] });
+  const pendingReviewDetail = orderListApi.normalizeOrder({ ...currentOrder, status: 'paid', afterSalesList: [{ status: 'pending_review' }], items: [snapshot] });
   assert.equal(pendingReviewDetail.orderStatusName, '退款审核中');
   console.log('PASS active after-sales list label and action filtering; detailed pending-review label preserved');
-  respond = async () => ({ status: 'received', hasPendingComments: false, items: [snapshot],
+  respond = async () => ({ ...currentOrder, status: 'received', hasPendingComments: false, items: [snapshot],
     addressSnapshot: { receiver: '收货人', phone: '13800000000', province: '广东省', city: '深圳市', district: '南山区', detail: '测试街道' } });
   const received = await load('pages/order/services/orderDetail.ts').fetchOrderDetail({ orderNo: 'o1' });
   assert.equal(received.data.orderStatus, 50);
@@ -171,20 +173,27 @@ async function run() {
   assert.equal(firstQuery.pageNum, 1);
   assert.equal(nextQuery.pageNum, 2);
   respond = async (action) => action === 'afterSales.list'
-    ? { items: [{ items: [snapshot] }] } : { items: [snapshot], images: ['cloud://proof.webp'] };
+    ? { items: [{ _id: 'r1', type: 20, status: 'pending_review', items: [snapshot], images: [] }] } : { _id: 'r1', type: 20, status: 'pending_review', items: [snapshot], images: ['cloud://proof.webp'] };
   const rights = await load('pages/order/after-service-detail/api.ts').getRightsDetail({ rightsNo: 'r1' });
   assert.equal(rights.data[0].rightsItem[0].goodsName, '商品');
   assert.equal(rights.data[0].rightsItem[0].goodsPictureUrl, 'https://example.test/cover.webp');
   assert.equal(rights.data[0].rights.rightsImageUrls[0], 'https://example.test/proof.webp');
   const rightsList = await load('pages/order/after-service-list/api.ts').getRightsList();
   assert.equal(rightsList.data.dataList[0].rightsItem[0].goodsPictureUrl, 'https://example.test/cover.webp');
-  respond = async () => ({ items: [snapshot, { ...snapshot, skuSnapshot: { _id: 's2' } }] });
+  respond = async () => ({ _id: 'r1', orderNo: 'o1', type: 10, status: 'approved', amount: 200, createdAt: '2026-01-01', items: [snapshot], images: [], returnAddressSnapshot: { receiver: '退货收件人', phone: '13800000000', detail: '完整退货地址' } });
+  load('pages/order/after-service-detail/index.ts');
+  const returnDetail = instance(page);
+  returnDetail.rightsNo = 'r1';
+  await returnDetail.getService();
+  assert.equal(returnDetail.data.service.receiverName, '退货收件人');
+  assert.equal(returnDetail.data.service.receiverAddress, '完整退货地址');
+  respond = async () => ({ items: [snapshot, { ...snapshot, skuId: 's2', skuSnapshot: { _id: 's2' } }] });
   const preview = await load('pages/order/apply-service/api.ts').fetchRightsPreview({ orderNo: 'o1', skuId: 's1' });
   assert.equal(preview.data.goodsList.length, 1);
   assert.equal(preview.data.goodsList[0].skuId, 's1');
   assert.equal(preview.data.goodsList[0].goodsInfo.skuImage, 'https://example.test/cover.webp');
   assert.equal(preview.data.refundableAmount, 200);
-  respond = async () => ({ items: [{ ...snapshot, quantity: 3, refundedQuantity: 1, remainingQuantity: 2, fulfillableQuantity: 2 }] });
+  respond = async () => ({ items: [{ ...snapshot, quantity: 3, refundedQuantity: 1, remainingQuantity: 2, availableRefundQuantity: 2, fulfillableQuantity: 2 }] });
   const remainingPreview = await load('pages/order/apply-service/api.ts').fetchRightsPreview({ orderNo: 'o1' });
   assert.equal(remainingPreview.data.goodsList[0].boughtQuantity, 2);
   assert.equal(remainingPreview.data.goodsList[0].refundableAmount, 200);
@@ -204,7 +213,7 @@ async function run() {
   console.log('PASS partial-refund preview uses backend available quantity and recomputes the maximum amount');
   let orderDetailStatus = 'paid';
   respond = async (action) => action === 'orders.detail' ? ({
-    orderNo: 'order-refund', status: orderDetailStatus,
+    ...currentOrder, orderNo: 'order-refund', status: orderDetailStatus,
     items: [{ ...snapshot, quantity: 3, availableRefundQuantity: 2, remainingQuantity: 3, pendingRefundQuantity: 1, fulfillableQuantity: 3 }],
   }) : {};
   load('pages/order/order-detail/index.ts');
@@ -220,25 +229,17 @@ async function run() {
   const orderDetailPage = instance(page);
   orderDetailPage.orderNo = 'order-refund';
   await orderDetailPage.getDetail();
-  assert.equal(orderDetailPage.data._order.goodsList[0].refundableQuantity, 2);
-  assert.equal(orderDetailPage.data._order.goodsList[0].canApplyRefund, true);
-  orderDetailPage.onApplyGoodsRefund({ currentTarget: { dataset: { index: '0' } } });
-  assert.match(pageNavigations.at(-1), /skuId=s1/);
-  assert.match(pageNavigations.at(-1), /orderStatus=10/);
-  assert.match(pageNavigations.at(-1), /directApply=true/);
+  assert.equal(orderDetailPage.data._order.goodsList[0].fulfillableQuantity, 3);
+  assert.equal(orderDetailPage.data.order.orderStatus, 10);
   orderDetailStatus = 'completed';
   await orderDetailPage.getDetail();
   assert.equal(orderDetailPage.data.order.orderStatus, 50);
-  orderDetailPage.onApplyGoodsRefund({ currentTarget: { dataset: { index: '0' } } });
-  assert.match(pageNavigations.at(-1), /orderStatus=50/);
-  assert.match(pageNavigations.at(-1), /canApplyReturn=true/);
-  assert.match(pageNavigations.at(-1), /directApply=false/);
-  assert.match(fs.readFileSync(path.join(root, 'pages/order/order-detail/index.wxml'), 'utf8'), /catchtap="onApplyGoodsRefund"/);
-  console.log('PASS per-item after-sales navigation is SKU-scoped, stops product-tap propagation, and allows returns for completed orders');
+  assert.doesNotMatch(fs.readFileSync(path.join(root, 'pages/order/order-detail/index.wxml'), 'utf8'), /catchtap="onApplyGoodsRefund"/);
+  console.log('PASS current single-SKU orders use order-level actions and preserve received status');
   let submittedClaim;
   respond = async (action, payload) => { assert.equal(action, 'afterSales.create'); submittedClaim = payload; return {}; };
   await load('pages/order/apply-service/api.ts').dispatchApplyService({
-    rights: { orderNo: 'o1', rightsType: 20, refundRequestAmount: 100, rightsReasonDesc: '质量问题' },
+    rights: { orderNo: 'o1', rightsType: 20, refundRequestAmount: 100, rightsReasonDesc: '质量问题', rightsImageUrls: [] },
     rightsItem: [{ skuId: 's1', productId: 'p1', rightsQuantity: 1 }],
   });
   assert.equal(submittedClaim.refundRequestAmount, 100);
@@ -251,9 +252,8 @@ async function run() {
   await load('pages/order/after-service-detail/api.ts').cancelRights({ rightsNo: 'r1' });
   assert.equal(snapshot.productSnapshot.primaryImage, 'local://cover.webp');
   const goods = load('services/good/resolveImages.ts');
-  const home = await goods.resolveHomeContentImages({ swiperImages: ['local://banner.webp'], items: [{ type: 'banner', cover: 'cloud://banner.webp' }] });
-  assert.equal(home.swiperImages[0], 'https://example.test/banner.webp');
-  assert.equal(home.items[0].image, 'https://example.test/banner.webp');
+  const home = await goods.resolveHomeContentImages({ config: { banners: [{ image: 'local://banner.webp' }], promos: [] }, productsById: {} });
+  assert.equal(home.config.banners[0].image, 'https://example.test/banner.webp');
   const categories = await goods.resolveCategoryListImages([{ image: 'cloud://parent.webp', children: [{ image: 'local://child.webp' }] }]);
   assert.equal(categories[0].image, 'https://example.test/parent.webp');
   const wxs = { module: { exports: {} }, getRegExp: (source, flags) => new RegExp(source, flags) };
@@ -296,7 +296,7 @@ async function run() {
   const orderpage = instance(orderDetailDefinition); orderpage.orderNo = 'missing'; orderpage.getStoreDetail = () => {};
   await orderpage.init();
   assert.equal(orderpage.data.pageLoading, false); assert.equal(orderpage.data.loadError, '订单不存在');
-  respond = async () => ({ items: [snapshot] });
+  respond = async () => ({ ...currentOrder, items: [snapshot] });
   await orderpage.init(); assert.equal(orderpage.data.loadError, '');
   assert.equal(orderpage.data._order.goodsList[0].thumb, 'https://example.test/cover.webp');
   load('pages/goods/details/index.ts');

@@ -4,12 +4,9 @@ import { request } from '../../../utils/api';
 
 function normalizeTrackingPayload(params = {}) {
   return {
-    ...params,
-    afterSaleId: params.afterSaleId || params.rightsNo,
-    trackingNo: params.trackingNo || params.logisticsNo,
-    logisticsNo: params.logisticsNo || params.trackingNo,
-    logisticsCompanyCode: params.logisticsCompanyCode || params.companyCode || '',
-    logisticsCompanyName: params.logisticsCompanyName || params.companyName || '',
+    afterSaleId: params.afterSaleId,
+    trackingNo: params.trackingNo,
+    logisticsCompanyName: params.logisticsCompanyName,
   };
 }
 

@@ -196,7 +196,7 @@ Page({
   },
 
   getSkuStockQuantity(sku) {
-    const stock = sku?.stockQuantity ?? sku?.stock ?? sku?.stockInfo?.stockQuantity;
+    const stock = sku?.stockQuantity;
     const quantity = Number(stock);
     return Number.isFinite(quantity) ? Math.max(0, quantity) : 0;
   },
@@ -287,8 +287,8 @@ Page({
     const sku = Array.isArray(selectItem) ? selectItem[0] : selectItem;
     if (!sku || !sku.skuId) return null;
 
-    const salePrice = sku.price || (sku.priceInfo || []).find((item) => item.priceType === 1)?.price;
-    const stockQuantity = Math.max(0, Number(sku.quantity || sku.stockInfo?.stockQuantity || 0));
+    const salePrice = sku.price;
+    const stockQuantity = Math.max(0, Number(sku.quantity) || 0);
     const specInfo = (sku.specInfo || []).map((item) => {
       const spec = (details.specList || []).find((specItem) => specItem.specId === item.specId);
       const value = (spec?.specValueList || []).find((valueItem) => valueItem.specValueId === item.specValueId);
@@ -388,11 +388,10 @@ Page({
         minSalePrice,
       } = details;
       skuList.forEach((item) => {
-        const salePrice = (item.priceInfo || []).find((price) => price.priceType === 1);
         skuArray.push({
           skuId: item.skuId,
           quantity: this.getSkuStockQuantity(item),
-          price: salePrice ? salePrice.price : minSalePrice,
+          price: item.salePrice,
           skuImage: item.skuImage,
           specInfo: item.specInfo,
         });

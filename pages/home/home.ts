@@ -57,8 +57,7 @@ Page({
       if (this.loadVersion !== version) return;
       const config = home.config || {};
       const products = home.productsById || {};
-      const legacyBanners = (home.items || []).filter((item) => item.type === 'banner');
-      const banners = Array.isArray(config.banners) ? config.banners : legacyBanners.map((item) => ({ image: item.image || item.content, productId: item.payload?.productId || '' }));
+      const banners = config.banners || [];
       const slides = banners.slice(0, 4).flatMap((entry) => {
         const product = products[entry.productId];
         if (!entry.image || (entry.productId && !product)) return [];

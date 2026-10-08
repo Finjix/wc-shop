@@ -26,9 +26,8 @@ function memberIsAllowed(member: AdminMember | null) {
 }
 
 async function loadAdminMember(): Promise<AdminMember> {
-  const result = await adminApi.call<AdminMember | { member?: AdminMember }>('admin.me');
-  if (result && typeof result === 'object' && 'member' in result && result.member) return result.member as AdminMember;
-  return result as AdminMember;
+  const result = await adminApi.call<{ member: AdminMember }>('admin.me');
+  return result.member;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

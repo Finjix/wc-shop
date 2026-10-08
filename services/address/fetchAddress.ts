@@ -5,63 +5,56 @@ import { request } from '../../utils/api';
 let cachedAddressList = null;
 let addressMutationQueue = Promise.resolve();
 
-function firstValue(source, keys, fallback = '') {
-  for (const key of keys) {
-    if (source[key] !== undefined && source[key] !== null && source[key] !== '') return source[key];
-  }
-  return fallback;
-}
-
 function addressIdOf(address = {}) {
-  const value = address.addressId ?? address.id ?? address._id;
+  const value = address.addressId ?? address._id;
   return value === undefined || value === null || value === '' ? '' : String(value);
 }
 
 function isDefaultAddress(address = {}) {
-  return address.isDefault === true
-    || address.isDefault === 1
-    || address.isDefault === '1'
-    || address.isDefault === 'true';
+  return address.isDefault === true || address.isDefault === 1;
 }
 
 export function normalizeAddress(address = {}) {
   const addressId = addressIdOf(address);
-  const provinceName = firstValue(address, ['provinceName', 'province']);
-  const cityName = firstValue(address, ['cityName', 'city']);
-  const districtName = firstValue(address, ['districtName', 'district', 'countyName', 'countryName']);
-  const detailAddress = firstValue(address, ['detailAddress', 'detail', 'detailInfo']);
-  const displayAddress = firstValue(address, ['address'])
-    || `${provinceName}${cityName}${districtName}${detailAddress}`;
+  const provinceName = address.province || '';
+  const cityName = address.city || '';
+  const districtName = address.district || '';
+  const detailAddress = address.detail || '';
+  const displayAddress = `${provinceName}${cityName}${districtName}${detailAddress}`;
   return {
     ...address,
     id: addressId,
     addressId,
-    name: firstValue(address, ['name', 'receiver']),
-    phone: firstValue(address, ['phone', 'phoneNumber']),
-    phoneNumber: firstValue(address, ['phoneNumber', 'phone']),
+    name: address.receiver,
+    phone: address.phone,
+    phoneNumber: address.phone,
     provinceName,
-    provinceCode: firstValue(address, ['provinceCode']),
+    provinceCode: address.provinceCode || '',
     cityName,
-    cityCode: firstValue(address, ['cityCode']),
+    cityCode: address.cityCode || '',
     districtName,
-    districtCode: firstValue(address, ['districtCode']),
+    districtCode: address.districtCode || '',
     detailAddress,
     address: displayAddress,
-    tag: firstValue(address, ['tag', 'addressTag']),
-    addressTag: firstValue(address, ['addressTag', 'tag']),
+    tag: address.tag || '',
+    addressTag: address.tag || '',
     isDefault: isDefaultAddress(address) ? 1 : 0,
   };
 }
 
 function toCloudAddress(address = {}) {
   const payload = {
-    receiver: firstValue(address, ['receiver', 'name']),
-    phone: firstValue(address, ['phone', 'phoneNumber']),
-    province: firstValue(address, ['province', 'provinceName']),
-    city: firstValue(address, ['city', 'cityName']),
-    district: firstValue(address, ['district', 'districtName', 'countryName']),
-    detail: firstValue(address, ['detail', 'detailAddress', 'detailInfo', 'address']),
-    postalCode: firstValue(address, ['postalCode', 'zipCode']),
+    receiver: address.name,
+    phone: address.phone,
+    province: address.provinceName,
+    city: address.cityName,
+    district: address.districtName,
+    detail: address.detailAddress,
+    postalCode: address.postalCode,
+    tag: address.addressTag,
+    provinceCode: address.provinceCode,
+    cityCode: address.cityCode,
+    districtCode: address.districtCode,
     isDefault: isDefaultAddress(address),
   };
   const addressId = addressIdOf(address);
@@ -70,10 +63,7 @@ function toCloudAddress(address = {}) {
 }
 
 function getAddressList(result) {
-  if (Array.isArray(result)) return result;
-  if (!result || typeof result !== 'object') return [];
-  const list = result.addressList || result.items || result.list || result.addresses || [];
-  return Array.isArray(list) ? list : [];
+  return result.items;
 }
 
 function cacheAddressList(addressList) {
@@ -88,10 +78,7 @@ function enqueueAddressMutation(operation) {
 }
 
 function mergeSavedAddress(originalAddress, result) {
-  const savedSource = result && typeof result === 'object'
-    ? (result.address && typeof result.address === 'object' ? result.address : result)
-    : {};
-  return normalizeAddress({ ...originalAddress, ...savedSource });
+  return normalizeAddress(result);
 }
 
 function updateCachedAddress(savedAddress) {
@@ -157,7 +144,7 @@ export function fetchDeliveryAddress(id = '') {
     return fetchDeliveryAddressList().then((addressList) => addressList.find((item) => item.isDefault) || addressList[0] || null);
   }
   return request('addresses.get', { addressId: id })
-    .then((result) => (result ? normalizeAddress(result.address || result) : null));
+    .then((result) => (result ? normalizeAddress(result) : null));
 }
 
 /** 获取收货地址列表，不读取本地存储。 */

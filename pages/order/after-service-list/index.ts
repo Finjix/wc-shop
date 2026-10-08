@@ -134,8 +134,7 @@ Page({
             const rightsItem = _data.rightsItem || _data.items || [];
             const logistics = _data.logisticsVO || _data.logistics || {};
             return {
-              id: rights.rightsNo || rights.id || rights._id,
-              serviceNo: rights.rightsNo || rights.id || rights._id,
+              id: rights._id,
               storeName: rights.storeName,
               type: normalizeServiceType(rights.rightsType ?? rights.type),
               typeDesc: ServiceTypeDesc[normalizeServiceType(rights.rightsType ?? rights.type)] || rights.typeDesc || '',

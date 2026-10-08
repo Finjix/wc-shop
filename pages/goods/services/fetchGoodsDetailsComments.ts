@@ -4,9 +4,9 @@ import { request } from '../../../utils/api';
 import { fetchComments } from './comments/fetchComments';
 
 export function getGoodsDetailsCommentsCount(spuId = '') {
-  return request('comments.count', { spuId }).then((result) => {
+  return request('comments.count', { productId: spuId }).then((result) => {
     const source = result || {};
-    const commentCount = Number(source.commentCount ?? source.total ?? 0) || 0;
+    const commentCount = Number(source.commentCount) || 0;
     const goodCount = Number(source.goodCount || 0);
     return {
       ...source,

@@ -18,8 +18,10 @@ async function run() {
     { skuId: 'sku-a', quantity: 5 },
     { skuId: 'sku-b', quantity: 1 },
   ]);
-  assert.strictEqual(skuPrice({ priceInfo: [{ priceType: 1, price: '12900' }] }), 12900);
-  assert.strictEqual(skuStock({ stockInfo: { stockQuantity: 7 } }), 7);
+  assert.strictEqual(skuPrice({ salePrice: 12900 }), 12900);
+  assert.strictEqual(skuStock({ stockQuantity: 7 }), 7);
+  assert.strictEqual(skuPrice({ priceInfo: [{ priceType: 1, price: '12900' }] }), 0);
+  assert.strictEqual(skuStock({ stockInfo: { stockQuantity: 7 } }), -1);
   assert.strictEqual(scopeFor('products.update'), 'catalog');
   assert.strictEqual(scopeFor('orders.ship'), 'orders');
   assert.strictEqual(scopeFor('settings.upsert'), 'settings');

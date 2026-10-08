@@ -36,7 +36,6 @@ export interface Product {
   primaryImage?: string;
   images?: string[];
   detailImages?: string[];
-  categoryId?: Id;
   categoryIds?: Id[];
   minSalePrice?: number | string;
   maxSalePrice?: number | string;
@@ -75,7 +74,7 @@ export interface Sku {
   [key: string]: unknown;
 }
 
-export type OrderStatus = 'paid' | 'shipped' | 'completed' | 'refunded';
+export type OrderStatus = 'paid' | 'shipped' | 'received' | 'completed' | 'refunded';
 export type OrderPaymentStatus = 'paid' | 'partially_refunded' | 'refunded';
 
 export interface Order {
@@ -100,9 +99,7 @@ export interface Order {
   tracking?: Record<string, unknown>;
   refundStatus?: string;
   items?: unknown[];
-  orderItemVOs?: unknown[];
   logistics?: Record<string, unknown>;
-  logisticsVO?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -146,15 +143,10 @@ export interface Comment {
 
 export interface AfterSale {
   _id?: Id;
-  afterSaleId?: Id;
-  afterSaleNo?: string;
-  rightsNo?: string;
   orderNo?: string;
   userId?: string;
-  type?: string | number;
-  rightsType?: string | number;
+  type?: number;
   status?: string;
-  rightsStatus?: string | number;
   reason?: string;
   description?: string;
   amount?: number | string;
@@ -167,9 +159,7 @@ export interface AfterSale {
   trackingNo?: string;
   orderId?: Id;
   items?: unknown[];
-  rightsItem?: unknown[];
   returnAddressSnapshot?: Record<string, unknown>;
-  resources?: unknown[];
   createdAt?: string | number;
   [key: string]: unknown;
 }

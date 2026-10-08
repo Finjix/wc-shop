@@ -18,8 +18,7 @@ export async function createComment(params = {}) {
   const resources = Array.isArray(params.commentResources) ? params.commentResources : [];
   const uploaded = await Promise.all(resources.map(uploadCommentResource));
   return request('comments.create', normalizeCommentPayload({ ...params, commentResources: uploaded })).then((result) => {
-    const data = result && result.data !== undefined ? result.data : result;
-    return normalizeComment(data) || data;
+    return normalizeComment(result);
   });
 }
 // @ts-nocheck

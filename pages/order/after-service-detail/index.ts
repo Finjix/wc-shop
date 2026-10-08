@@ -6,9 +6,6 @@ import { formatTime, getRightsDetail } from './api';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 import { getApiErrorMessage } from '../../../utils/api';
 import {
-  normalizeLogistics,
-  normalizeOrderItem,
-  normalizeServiceType,
   normalizeServiceStatus,
   normalizeServiceButtons,
   serviceStatusLabel,
@@ -99,16 +96,15 @@ Page({
       // 滤掉填写运单号、修改运单号按钮，这两个按钮特殊处理，不在底部按钮栏展示
       if (!serviceRaw.buttonVOs) serviceRaw.buttonVOs = [];
       const deliveryButton = {};
-      const rights = serviceRaw.rights || serviceRaw;
-      const rightsItem = (serviceRaw.rightsItem || serviceRaw.items || rights.items || []).map(normalizeOrderItem);
-      const logisticsVO = normalizeLogistics(serviceRaw.logisticsVO || serviceRaw.logistics || {});
-      const serviceType = normalizeServiceType(rights.rightsType ?? rights.type);
-      const rawStatus = rights.userRightsStatus ?? rights.rightsStatus ?? rights.status;
+      const rights = serviceRaw.rights;
+      const rightsItem = serviceRaw.rightsItem;
+      const logisticsVO = serviceRaw.logisticsVO;
+      const serviceType = rights.rightsType;
+      const rawStatus = rights.userRightsStatus;
       const serviceStatus = normalizeServiceStatus(rawStatus);
-      const returnAddress = serviceRaw.returnAddressSnapshot || rights.returnAddressSnapshot || {};
+      const returnAddress = serviceRaw.returnAddressSnapshot || {};
       const service = {
-        id: rights.rightsNo || rights.id || rights._id,
-        serviceNo: rights.rightsNo || rights.id || rights._id,
+        id: rights._id,
         storeName: rights.storeName,
         type: serviceType,
         typeDesc: ServiceTypeDesc[serviceType] || rights.typeDesc || '',
@@ -128,7 +124,6 @@ Page({
           rightsQuantity: item.rightsQuantity ?? item.quantity,
         })),
         orderNo: rights.orderNo || rights.orderId, // 订单编号
-        rightsNo: rights.rightsNo || rights.id || rights._id, // 售后服务单号
         rightsReasonDesc: rights.rightsReasonDesc, // 申请售后原因
         isRefunded: Number(rights.userRightsStatus) === ServiceStatus.REFUNDED, // 是否已退款
         refundMethodList: (serviceRaw.refundMethodList || []).map((m) => ({
@@ -143,19 +138,10 @@ Page({
         logisticsCompanyCode: logisticsVO.logisticsCompanyCode, // 退货物流公司
         remark: logisticsVO.remark, // 退货备注
         logisticsDescription: logisticsVO.description || logisticsVO.logisticsDescription || '',
-        receiverName: logisticsVO.receiverName || returnAddress.receiverName || returnAddress.name || '',
-        receiverPhone: logisticsVO.receiverPhone || returnAddress.receiverPhone || returnAddress.phone || '',
-        receiverAddress: this.composeAddress({
-          logisticsVO: {
-            ...logisticsVO,
-            receiverProvince: logisticsVO.receiverProvince || returnAddress.province,
-            receiverCity: logisticsVO.receiverCity || returnAddress.city,
-            receiverCountry: logisticsVO.receiverCountry || returnAddress.country,
-            receiverArea: logisticsVO.receiverArea || returnAddress.district,
-            receiverAddress: logisticsVO.receiverAddress || returnAddress.detail || returnAddress.address || returnAddress.fullAddress || returnAddress.addressLine,
-          },
-        }),
-        buttons: normalizeServiceButtons(rawStatus, serviceType, serviceRaw.buttonVOs || rights.buttonVOs || rights.buttons || [], logisticsVO.logisticsNo),
+        receiverName: returnAddress.receiver || '',
+        receiverPhone: returnAddress.phone || '',
+        receiverAddress: returnAddress.detail || '',
+        buttons: normalizeServiceButtons(rawStatus, serviceType, serviceRaw.buttonVOs, logisticsVO.logisticsNo),
         logistics: logisticsVO,
       };
       const proofs = rights.rightsImageUrls || [];
@@ -168,19 +154,6 @@ Page({
         showProofs: proofs.length > 0,
       });
     });
-  },
-
-  composeAddress(service) {
-    const logistics = service.logisticsVO || service.logistics || {};
-    return [
-      logistics.receiverProvince,
-      logistics.receiverCity,
-      logistics.receiverCountry,
-      logistics.receiverArea,
-      logistics.receiverAddress,
-    ]
-      .filter((item) => !!item)
-      .join(' ');
   },
 
   onRefresh() {
@@ -235,12 +208,6 @@ Page({
     const goods = (this.data.serviceRaw.rightsItem || [])[index];
     if (!goods || !goods.spuId) return;
     navigateToGoodsDetail(`/pages/goods/details/index?spuId=${encodeURIComponent(goods.spuId)}`);
-  },
-
-  onServiceNoCopy() {
-    wx.setClipboardData({
-      data: this.data.service.serviceNo,
-    });
   },
 
   onAddressCopy() {

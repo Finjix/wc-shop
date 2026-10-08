@@ -13,8 +13,7 @@ export function variantName(sku: Sku, product: Product) {
 }
 
 export function variantStock(sku: Sku) {
-  const stockInfo = sku.stockInfo as { stockQuantity?: unknown } | undefined;
-  const source = sku.stockQuantity ?? sku.stock ?? stockInfo?.stockQuantity;
+  const source = sku.stockQuantity;
   const value = Number(source);
   return source !== undefined && Number.isSafeInteger(value) && value >= 0 ? value : -1;
 }

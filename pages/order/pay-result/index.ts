@@ -31,11 +31,9 @@ Page({
       const data = result.data || {};
       const orders = Array.isArray(data.orders) && data.orders.length ? data.orders : [data];
       const paid = orders.every((order) => {
-        const status = String(order.orderStatus ?? order.status ?? '').toUpperCase().replace(/[- ]/g, '_');
-        const paymentStatus = String(order.paymentStatus || order.payment?.status || order.paymentVO?.status || '').toLowerCase();
-        return paymentStatus === 'paid' && ['10', '40', '50', 'PAID', 'PENDING_DELIVERY', 'SHIPPED', 'RECEIVED', 'COMPLETED'].includes(status);
+        return order.paymentStatus === 'paid' && ['paid', 'shipped', 'received', 'completed'].includes(order.status);
       });
-      const awaitingShipment = orders.every((order) => ['10', 'PAID', 'PENDING_DELIVERY'].includes(String(order.orderStatus ?? order.status ?? '').toUpperCase().replace(/[- ]/g, '_')));
+      const awaitingShipment = orders.every((order) => order.status === 'paid');
       this.setData({
         orderCount: orders.length,
         totalPaid: paid ? orders.reduce((sum, order) => sum + Number(order.paymentAmount ?? order.totalAmount ?? 0), 0) : 0,

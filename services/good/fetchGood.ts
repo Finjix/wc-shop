@@ -4,8 +4,8 @@ import { request } from '../../utils/api';
 import { resolveProductDetailImages } from './resolveImages';
 
 export async function fetchGood(ID = '') {
-  const result = await request('products.detail', { spuId: ID });
-  const details = result && result.product ? { ...result.product, skuList: result.skus || [] } : result;
+  const result = await request('products.detail', { productId: ID });
+  const details = { ...result.product, skuList: result.skus };
   if (!details || typeof details !== 'object') {
     const error = new Error('商品不存在或已下架');
     error.code = 'PRODUCT_NOT_FOUND';
@@ -14,10 +14,10 @@ export async function fetchGood(ID = '') {
   const resolvedDetails = await resolveProductDetailImages(details);
   return {
     ...resolvedDetails,
-    spuId: resolvedDetails.spuId || resolvedDetails._id || ID,
-    desc: Array.isArray(resolvedDetails.detailImages) && resolvedDetails.detailImages.length
-      ? resolvedDetails.detailImages
-      : Array.isArray(resolvedDetails.desc) ? resolvedDetails.desc : [],
+    spuId: resolvedDetails._id,
+    isPutOnSale: resolvedDetails.status === 'active' ? 1 : 0,
+    available: resolvedDetails.status === 'active',
+    desc: resolvedDetails.detailImages || [],
     specList: Array.isArray(resolvedDetails.specList) ? resolvedDetails.specList : [],
     skuList: Array.isArray(resolvedDetails.skuList) ? resolvedDetails.skuList : [],
   };

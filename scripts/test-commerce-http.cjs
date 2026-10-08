@@ -13,9 +13,9 @@ async function main() {
   const collections = Object.fromEntries(['categories', 'products', 'skus', 'addresses', 'carts', 'orders', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings', 'adminMembers'].map(name => [name, {}]));
   collections.adminMembers['local-admin'] = { _id: 'local-admin', uid: 'local-admin', roles: ['superadmin'], status: 'active', enabled: true };
   collections.products.p1 = { _id: 'p1', spuId: 'p1', status: 'active', title: '隔离验收商品' };
-  collections.skus.s1 = { _id: 's1', skuId: 's1', productId: 'p1', stockQuantity: 10, soldQuantity: 0, price: 100 };
+  collections.skus.s1 = { _id: 's1', skuId: 's1', productId: 'p1', stockQuantity: 10, soldQuantity: 0, salePrice: 100 };
   collections.products.p2 = { _id: 'p2', spuId: 'p2', status: 'active', title: '隔离验收第二个商品' };
-  collections.skus.s2 = { _id: 's2', skuId: 's2', productId: 'p2', stockQuantity: 10, soldQuantity: 0, price: 250 };
+  collections.skus.s2 = { _id: 's2', skuId: 's2', productId: 'p2', stockQuantity: 10, soldQuantity: 0, salePrice: 250 };
   const address = { receiver: '测试用户', phone: '13800000000', province: '广东省', city: '深圳市', district: '南山区', detail: '隔离测试地址' };
   collections.addresses.a1 = { ...address, _id: 'a1', userId: 'commerce-test' };
   collections.addresses.a2 = { ...address, _id: 'a2', userId: 'commerce-test', detail: '隔离测试地址二' };
@@ -70,11 +70,11 @@ async function main() {
     await shop('afterSales.create', { orderId: order._id, type: 10, reason: '测试退货', rightsItem: [{ skuId: 's1', rightsQuantity: 2 }] }, 'RETURN_ADDRESS_REQUIRED');
     await admin('settings.upsert', { key: 'global', value: { returnAddress: address } });
     const returned = await shop('afterSales.create', { orderId: order._id, type: 10, reason: '测试退货', rightsItem: [{ skuId: 's1', rightsQuantity: 2 }] });
-    const approved = await admin('afterSales.review', { id: returned._id, decision: 'approve' });
+    const approved = await admin('afterSales.review', { id: returned._id, status: 'approved' });
     assert.equal(approved.status, 'approved'); assert.equal(approved.returnAddressSnapshot.receiver, address.receiver);
-    await shop('afterSales.submitTracking', { afterSaleId: returned._id, logisticsNo: 'TEST-RETURN-1', logisticsCompanyName: '手工记录' });
-    await admin('afterSales.confirmReturn', { id: returned._id });
-    await admin('afterSales.confirmReturn', { id: returned._id });
+    await shop('afterSales.submitTracking', { afterSaleId: returned._id, trackingNo: 'TEST-RETURN-1', logisticsCompanyName: '手工记录' });
+    await admin('afterSales.confirmReturn', { afterSaleId: returned._id });
+    await admin('afterSales.confirmReturn', { afterSaleId: returned._id });
     detail = await shop('orders.detail', { orderId: order._id });
     assert.equal(detail.paymentStatus, 'refunded'); assert.equal(detail.refundAmount, 300);
     const saved = JSON.parse(fs.readFileSync(path.join(folder, '.local-backend.json'), 'utf8'));

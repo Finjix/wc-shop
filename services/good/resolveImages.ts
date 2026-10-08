@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { resolveImage, resolveImageList } from '../../utils/images';
+import { resolveImage } from '../../utils/images';
 
 export function resolveGoodsListImages(items = []) {
   return Promise.all((Array.isArray(items) ? items : []).map(async (item) => {
@@ -28,11 +28,10 @@ export function resolveCategoryListImages(list = []) {
 }
 
 export async function resolveProductDetailImages(product = {}) {
-  const [primaryImage, images, detailImages, desc, skuList] = await Promise.all([
+  const [primaryImage, images, detailImages, skuList] = await Promise.all([
     resolveImage(product.primaryImage),
     Promise.all((Array.isArray(product.images) ? product.images : []).map(resolveImage)),
     Promise.all((Array.isArray(product.detailImages) ? product.detailImages : []).map(resolveImage)),
-    Promise.all((Array.isArray(product.desc) ? product.desc : []).map(resolveImage)),
     Promise.all((Array.isArray(product.skuList) ? product.skuList : []).map(async (sku) => ({
       ...sku,
       skuImage: await resolveImage(sku.skuImage),
@@ -43,20 +42,11 @@ export async function resolveProductDetailImages(product = {}) {
     primaryImage: primaryImage || images[0] || '',
     images,
     detailImages,
-    desc,
     skuList,
   };
 }
 
 export async function resolveHomeContentImages(result = {}) {
-  const items = Array.isArray(result.items)
-    ? await Promise.all(result.items.map(async (item) => ({
-      ...item,
-      image: await resolveImage(item.image || item.imageUrl || item.cover),
-      goodsList: await resolveGoodsListImages(item.goodsList || item.products || (item.product ? [item.product] : [])),
-      content: item.type === 'banner' ? await resolveImage(item.content) : item.content,
-    })))
-    : result.items;
   const config = result.config && typeof result.config === 'object'
     ? {
       ...result.config,
@@ -68,10 +58,5 @@ export async function resolveHomeContentImages(result = {}) {
     const [resolved] = await resolveGoodsListImages([product]);
     return [id, resolved];
   }));
-  return { ...result, items, config, productsById: Object.fromEntries(productEntries),
-    productItems: result.productItems ? await resolveGoodsListImages(result.productItems) : undefined,
-    imgSrcs: await resolveImageList(result.imgSrcs),
-    swiperImages: await resolveImageList(result.swiperImages),
-    bannerImages: await resolveImageList(result.bannerImages),
-  };
+  return { config, productsById: Object.fromEntries(productEntries) };
 }

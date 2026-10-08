@@ -44,7 +44,7 @@ function array(value, field) {
 
 function page(input) {
   const source = input || {};
-  const pageValue = source.page === undefined ? source.pageNum : source.page;
+  const pageValue = source.page;
   return {
     page: pageValue === undefined ? 1 : integer(Number(pageValue), 'page', { min: 1, max: 100000 }),
     pageSize: source.pageSize === undefined ? 20 : integer(source.pageSize, 'pageSize', { min: 1, max: 100 }),

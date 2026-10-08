@@ -5,10 +5,7 @@ import { normalizeAddress } from '../address/fetchAddress';
 
 let pendingGoodsRequestList = null;
 
-function dataOf(response) {
-  const value = response?.data ?? response;
-  return value?.data && typeof value.data === 'object' && !Array.isArray(value.data) ? value.data : value;
-}
+function dataOf(response) { return response.data; }
 
 function clone(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
@@ -37,7 +34,7 @@ function addressIdOf(params = {}) {
 }
 
 function buildOrderPayload(params, goodsRequestList) {
-  const requestKey = params.requestKey || params.idempotencyKey;
+  const requestKey = params.requestKey;
   const payload = {
     items: goodsRequestList.map((goods) => ({ skuId: String(goods.skuId), quantity: goods.quantity })),
     addressId: addressIdOf(params),
@@ -57,7 +54,7 @@ function domainError(code, message) {
 }
 
 function action(name, payload = {}) {
-  return request(name, payload).then((response) => ({ data: dataOf(response) })).catch((error) => {
+  return request(name, payload).then((data) => ({ data })).catch((error) => {
     if (error && !error.msg) error.msg = error.message;
     throw error;
   });
@@ -78,7 +75,7 @@ export function clearPendingGoodsRequestList() {
 async function normalizePreview(response) {
   const data = dataOf(response) || {};
   const resolvedItems = Array.isArray(data.items) ? data.items : [];
-  const fallbackStoreGoods = resolvedItems.length > 0
+  const storeGoodsList = resolvedItems.length > 0
     ? [{
       storeId: 'default',
       storeName: '',
@@ -99,21 +96,18 @@ async function normalizePreview(response) {
       }),
     }]
     : [];
-  const storeGoodsList = Array.isArray(data.storeGoodsList) && data.storeGoodsList.length
-    ? data.storeGoodsList
-    : fallbackStoreGoods;
-  const totalGoodsCount = data.totalGoodsCount ?? data.goodsCount ?? resolvedItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  const address = data.userAddress || data.userAddressReq || data.addressSnapshot || null;
+  const totalGoodsCount = resolvedItems.reduce((sum, item) => sum + item.quantity, 0);
+  const address = data.addressSnapshot;
   return {
     data: {
       ...data,
       settleType: data.settleType === undefined ? 1 : data.settleType,
       userAddress: address ? normalizeAddress(address) : null,
       totalGoodsCount,
-      totalAmount: data.totalAmount ?? data.goodsAmount ?? '0',
-      totalPayAmount: data.totalPayAmount ?? data.paymentAmount ?? data.totalAmount ?? '0',
-      totalSalePrice: data.totalSalePrice ?? data.totalAmount ?? '0',
-      totalDeliveryFee: data.totalDeliveryFee ?? data.deliveryFee ?? '0',
+      totalAmount: data.totalAmount,
+      totalPayAmount: data.totalAmount,
+      totalSalePrice: data.totalAmount,
+      totalDeliveryFee: data.shippingFee,
       storeGoodsList: await Promise.all(storeGoodsList.map(async (store) => ({
         ...store,
         skuDetailVos: await Promise.all((Array.isArray(store.skuDetailVos) ? store.skuDetailVos : []).map(async (goods) => ({
@@ -140,19 +134,13 @@ export function fetchSettleDetail(params = {}) {
 }
 
 function normalizePaidOrder(order) {
-  const orderNo = order.orderNo || order.orderNumber;
-  const orderId = order.orderId || order.id || order._id;
+  const orderNo = order.orderNo;
+  const orderId = order._id;
   if (!orderNo && !orderId) throw domainError('ORDER_CREATE_INVALID_RESPONSE', '订单创建结果缺少订单编号');
-  const payment = order.payment || order.paymentVO || {};
+  if (!order.payment) throw domainError('ORDER_NOT_PAID', '订单尚未确认完成，请稍后重试');
+  const payment = order.payment;
   const paymentStatus = String(order.paymentStatus || payment.status || '').toLowerCase();
-  const rawStatus = order.orderStatus ?? order.status;
-  const statusKey = String(rawStatus ?? '').toUpperCase().replace(/[- ]/g, '_');
-  const statusCodes = {
-    '10': 10, PAID: 10, PENDING_DELIVERY: 10,
-    '40': 40, SHIPPED: 40, PENDING_RECEIPT: 40,
-    '50': 50, RECEIVED: 50, COMPLETED: 50,
-  };
-  const orderStatus = rawStatus === undefined || rawStatus === null || rawStatus === '' ? 10 : statusCodes[statusKey];
+  const orderStatus = { paid: 10, shipped: 40, received: 50, completed: 50 }[order.status];
   if (paymentStatus !== 'paid' || !orderStatus) {
     throw domainError('ORDER_NOT_PAID', '订单尚未确认完成，请稍后重试');
   }
@@ -172,7 +160,7 @@ function normalizePaidOrder(order) {
 function normalizeCreatedOrder(response) {
   const data = dataOf(response) || {};
   const rawOrders = Array.isArray(data.orders) && data.orders.length ? data.orders
-    : [data.order && typeof data.order === 'object' ? data.order : data];
+    : [data];
   const orders = rawOrders.map(normalizePaidOrder);
   return {
     data: {

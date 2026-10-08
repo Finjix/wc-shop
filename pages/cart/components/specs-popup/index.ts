@@ -78,17 +78,11 @@ Component({
     },
 
     getStockQuantity(sku) {
-      if (sku.stockQuantity !== undefined) return Number(sku.stockQuantity) || 0;
-      if (sku.stock !== undefined) return Number(sku.stock) || 0;
-      if (sku.stockInfo?.stockQuantity !== undefined) return Number(sku.stockInfo.stockQuantity) || 0;
-      if (sku.inventory !== undefined) return Number(sku.inventory) || 0;
-      return Number(sku.quantity) || 0;
+      return Number(sku.stockQuantity) || 0;
     },
 
     getSkuPrice(sku) {
-      if (sku.price !== undefined && sku.price !== null) return sku.price;
-      if (sku.salePrice !== undefined && sku.salePrice !== null) return sku.salePrice;
-      return sku.priceInfo?.find((item) => item.priceType === 1)?.price || this.properties.price;
+      return sku.salePrice;
     },
 
     hasSkuValue(sku, specId, valueId) {

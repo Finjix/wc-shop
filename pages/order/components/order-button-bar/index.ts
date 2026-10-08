@@ -107,9 +107,13 @@ Component({
         confirmBtn: '确定',
         cancelBtn: '取消',
       })
-        .then(() => confirmOrderReceived({ orderNo: order.orderNo }))
-        .then(() => this.finishAction('已确认收货'))
-        .catch((error) => { if (error) this.showActionError(error); });
+        .then(() => {
+          return confirmOrderReceived({ orderNo: order.orderNo })
+            .then(() => this.finishAction('已确认收货'))
+            .catch((error) => this.showActionError(error));
+        }, () => {
+          // 取消弹窗会 reject 携带事件对象，不属于订单操作失败。
+        });
     },
 
     onBuyAgain(order) {

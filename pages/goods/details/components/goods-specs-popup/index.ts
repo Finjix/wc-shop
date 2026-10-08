@@ -261,9 +261,7 @@ Component({
 
     getStockQuantity(sku) {
       if (!sku) return 0;
-      if (sku.quantity !== undefined) return Math.max(0, Number(sku.quantity) || 0);
-      if (sku.stockQuantity !== undefined) return Math.max(0, Number(sku.stockQuantity) || 0);
-      return Math.max(0, Number(sku.stockInfo?.stockQuantity) || 0);
+      return Math.max(0, Number(sku.quantity) || 0);
     },
 
     getCompatibleStockQuantity(selectedSku) {
