@@ -126,6 +126,9 @@
       <!-- 退款信息 -->
       <view class="service-section__pay">
         <t-cell bordered="{{false}}" title="退款信息" t-class="t-refund-wrapper" t-class-title="t-refund-title" />
+        <t-cell bordered="{{false}}" title="收货状态" note="{{service.receiptStatusDesc}}" />
+        <t-cell bordered="{{false}}" title="退款诉求" note="{{service.requestedTypeDesc}}" />
+        <t-cell bordered="{{false}}" title="商家处理方式" note="{{service.decidedTypeDesc}}" />
         <view class="service-id-row">
           <view class="service-id-row__label">订单编号</view>
           <view class="service-id-row__value">{{service.orderNo}}</view>

@@ -1073,7 +1073,8 @@ async function pendingAggregate(tx, order, claim, timestamp, persist = true) {
   for (const item of claim.items || []) quantities[item.skuId] = Math.max(0, Number(quantities[item.skuId] || 0) - Number(item.quantity || 0));
   const patch = {
     pendingRefundQuantities: quantities,
-    pendingRefundAmount: Math.max(0, amount - Number(claim.amount || claim.refundRequestAmount || 0)),
+    // 审核可能降低退款金额，释放的仍是申请时占用的上限。
+    pendingRefundAmount: Math.max(0, amount - Number(claim.reservedRefundAmount ?? claim.refundRequestAmount ?? claim.amount ?? 0)),
     updatedAt: timestamp,
   };
   if (persist) {
@@ -1107,18 +1108,20 @@ async function finishSimulatedRefund(tx, afterSale, order, timestamp) {
   }
   const cumulativeRefund = settledAmount + amount;
   const fullRefund = cumulativeRefund >= paidAmount;
+  const allItemsRefunded = (order.items || []).every((item) => Number(refundedQuantities[item.skuId] || 0) >= Number(item.quantity));
+  const refundClosed = fullRefund || allItemsRefunded;
   const previouslyFulfilled = order.fulfillmentStatus || order.status;
   const orderPatch = {
     refundAmount: cumulativeRefund,
     refundedQuantities,
     ...await pendingAggregate(tx, order, afterSale, timestamp, false),
     paymentStatus: fullRefund ? 'refunded' : 'partially_refunded',
-    status: fullRefund ? STATUS.refunded : order.status,
-    ...(fullRefund && previouslyFulfilled === STATUS.paid ? { inventoryReserved: false } : {}),
-    ...(fullRefund ? { refundedAt: timestamp } : {}),
+    status: refundClosed ? STATUS.refunded : order.status,
+    fulfillmentStatus: previouslyFulfilled,
+    ...(refundClosed && previouslyFulfilled === STATUS.paid ? { inventoryReserved: false } : {}),
+    ...(refundClosed ? { refundedAt: timestamp } : {}),
     updatedAt: timestamp,
   };
-  if (!fullRefund && !order.fulfillmentStatus && order.status === STATUS.paid) orderPatch.fulfillmentStatus = STATUS.paid;
   const restoreInventory = (previouslyFulfilled === STATUS.paid && !isReturn) || isReturn;
   if (restoreInventory) {
     for (const item of afterSale.items || []) {
@@ -1136,6 +1139,11 @@ async function finishSimulatedRefund(tx, afterSale, order, timestamp) {
   const orderResult = await tx.collection(COLLECTIONS.orders).doc(order._id || order.orderNo).update(orderPatch);
   if (affected(orderResult) !== 1) throw errorFrom('CONFLICT');
   const refundPatch = {
+    amount,
+    type: afterSale.type,
+    requestedType: afterSale.requestedType ?? afterSale.type,
+    decidedType: afterSale.decidedType ?? afterSale.type,
+    reviewedAt: afterSale.reviewedAt ?? timestamp,
     status: STATUS.refunded,
     refundMode: 'simulated',
     refundedAt: timestamp,
@@ -1153,9 +1161,16 @@ async function afterSalesAction(runtime, event, context, data, action) {
   if (action === 'afterSales.list') {
     const paging = page(data);
     const where = { userId: identity.uid };
-    if (data.status) where.status = String(data.status);
+    const statuses = data.status === 'closed' ? [STATUS.rejected, STATUS.withdrawn] : null;
+    if (statuses && runtime.db.command?.in) where.status = runtime.db.command.in(statuses);
+    else if (data.status && !statuses) where.status = String(data.status);
     if (data.type !== undefined && data.type !== '') where.type = afterSaleType(data.type);
     if (data.orderId || data.orderNo) where.orderId = string(data.orderId || data.orderNo, 'orderId', { max: 128 });
+    if (statuses && !runtime.db.command?.in) {
+      const rows = (await all(afterSales, where)).filter((item) => statuses.includes(item.status))
+        .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')) || String(b._id).localeCompare(String(a._id)));
+      return { items: rows.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize), ...paging, total: rows.length };
+    }
     const result = await list(afterSales, { where, orderBy: { field: 'createdAt', direction: 'desc' }, skip: (paging.page - 1) * paging.pageSize, limit: paging.pageSize });
     return { items: result.items, page: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? result.items.length : result.total };
   }
@@ -1234,9 +1249,13 @@ async function afterSalesAction(runtime, event, context, data, action) {
   const type = afterSaleType(data.type);
   if (![STATUS.paid, STATUS.shipped, STATUS.received, STATUS.completed].includes(order.status)) throw errorFrom('ORDER_STATE_INVALID');
   if (order.status === STATUS.paid && type !== 20) throw errorFrom('ORDER_STATE_INVALID');
-  if (type === 10 && !await returnAddressFrom(collection(runtime, COLLECTIONS.settings))) throw errorFrom('RETURN_ADDRESS_REQUIRED');
   if (order.payment?.mode !== 'simulated' || order.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
   const id = `as_${crypto.randomUUID()}`;
+  // 旧订单可能未保存售后索引；索引不参与金额/数量校验，只在本次写入时补齐。
+  // 查询放在事务外；事务内优先使用最新索引，保留并发申请已写入的记录。
+  const legacyAfterSaleIds = order.afterSaleIds === undefined
+    ? (await all(afterSales, { orderId: order._id || orderId })).map((record) => record._id)
+    : [];
   return withTransaction(runtime.db, async (tx) => {
     const orders = tx.collection(COLLECTIONS.orders);
     const current = await getDoc(orders, order._id || orderId, true);
@@ -1244,12 +1263,15 @@ async function afterSalesAction(runtime, event, context, data, action) {
     if (![STATUS.paid, STATUS.shipped, STATUS.received, STATUS.completed].includes(current.status)) throw errorFrom('ORDER_STATE_INVALID');
     if (current.status === STATUS.paid && type !== 20) throw errorFrom('ORDER_STATE_INVALID');
     if (current.payment?.mode !== 'simulated' || current.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
-    const returnAddress = type === 10 ? await returnAddressFrom(tx.collection(COLLECTIONS.settings)) : null;
-    if (type === 10 && !returnAddress) throw errorFrom('RETURN_ADDRESS_REQUIRED');
+    const receiptStatus = data.receiptStatus === undefined
+      ? (current.status === STATUS.paid ? 2 : 1)
+      : integer(data.receiptStatus, 'receiptStatus', { min: 1, max: 2 });
+    if (current.status === STATUS.paid) assert(receiptStatus === 2, { field: 'receiptStatus' });
+    if ([STATUS.received, STATUS.completed].includes(current.status)) assert(receiptStatus === 1, { field: 'receiptStatus' });
     const items = requestedAfterSaleItems(current, data);
     const productIds = Array.from(new Set(items.map((item) => item.productId)));
     const txAfterSales = tx.collection(COLLECTIONS.afterSales);
-    const priorIds = current.afterSaleIds;
+    const priorIds = current.afterSaleIds === undefined ? legacyAfterSaleIds : current.afterSaleIds;
     const hasCurrentAggregates = current.refundedQuantities && typeof current.refundedQuantities === 'object'
       && current.pendingRefundQuantities && typeof current.pendingRefundQuantities === 'object'
       && Number.isSafeInteger(Number(current.refundAmount)) && Number.isSafeInteger(Number(current.pendingRefundAmount));
@@ -1272,9 +1294,8 @@ async function afterSalesAction(runtime, event, context, data, action) {
     assert(settledAmount + activeAmount + amount <= paidAmount, { field: 'refundRequestAmount', max: Math.max(0, paidAmount - settledAmount - activeAmount) });
     const timestamp = now();
     const item = { _id: id, userId: identity.uid, orderId: current._id || orderId, orderNo: current.orderNo || orderId,
-      productId: productIds[0], productIds, type, reason, description, images, items,
-      amount, refundRequestAmount: amount, status: STATUS.pendingReview,
-      ...(returnAddress ? { returnAddressRequestedSnapshot: returnAddress } : {}),
+      productId: productIds[0], productIds, type, requestedType: type, reason, description, images, items,
+      receiptStatus, amount, refundRequestAmount: amount, reservedRefundAmount: amount, status: STATUS.pendingReview,
       createdAt: timestamp, updatedAt: timestamp };
     await setDoc(txAfterSales, id, item);
     const pendingRefundQuantities = { ...activeQuantities };
@@ -1312,14 +1333,23 @@ async function moderateAfterSale(runtime, data) {
       if (affected(result) !== 1) throw errorFrom('CONFLICT');
       return { ...current, ...patch, _id: existing._id };
     }
-    if (Number(current.type) === 20) {
+    const type = afterSaleType(data.type ?? current.type);
+    if ((order.fulfillmentStatus || order.status) === STATUS.paid && type !== 20) throw errorFrom('ORDER_STATE_INVALID');
+    const maximum = (current.items || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const paidAmount = Number(order.paymentAmount ?? order.payment?.amount ?? order.totalAmount);
+    const reservedAmount = Number(current.reservedRefundAmount ?? current.refundRequestAmount ?? current.amount);
+    const otherPendingAmount = Math.max(0, Number(order.pendingRefundAmount) - reservedAmount);
+    const limit = Math.min(maximum, reservedAmount, paidAmount - Number(order.refundAmount) - otherPendingAmount);
+    assert(Number.isSafeInteger(limit) && limit >= 1, { field: 'amount' });
+    const amount = integer(data.amount ?? current.amount, 'amount', { min: 1, max: limit });
+    const decisionPatch = { amount, type, requestedType: current.requestedType ?? current.type, decidedType: type, reviewedAt: timestamp };
+    if (type === 20) {
       if (order.payment?.mode !== 'simulated' || order.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
-      return finishSimulatedRefund(tx, { ...current, status: STATUS.approved }, order, timestamp);
+      return finishSimulatedRefund(tx, { ...current, ...decisionPatch, status: STATUS.approved }, order, timestamp);
     }
-    if (Number(current.type) !== 10) throw errorFrom('ORDER_STATE_INVALID');
-    const address = current.returnAddressRequestedSnapshot || await returnAddressFrom(tx.collection(COLLECTIONS.settings));
+    const address = await returnAddressFrom(tx.collection(COLLECTIONS.settings));
     if (!address) throw errorFrom('RETURN_ADDRESS_REQUIRED');
-    const patch = { status: STATUS.approved, returnAddressSnapshot: clone(address), reviewedAt: timestamp, updatedAt: timestamp };
+    const patch = { ...decisionPatch, status: STATUS.approved, returnAddressSnapshot: clone(address), updatedAt: timestamp };
     const result = await tx.collection(COLLECTIONS.afterSales).doc(existing._id).update(patch);
     if (affected(result) !== 1) throw errorFrom('CONFLICT');
     return { ...current, ...patch, _id: existing._id };

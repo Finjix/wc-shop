@@ -16,7 +16,8 @@ export function normalizeRecord(record) {
       rightsStatus: status,
       userRightsStatus: status,
       userRightsStatusName: serviceStatusLabel(record.status, type),
-      userRightsStatusDesc: record.description || serviceStatusLabel(record.status, type),
+      userRightsStatusDesc: record.status === 'rejected' && record.reviewReason
+        ? `驳回原因：${record.reviewReason}` : serviceStatusLabel(record.status, type),
       rightsReasonDesc: record.reason,
       refundAmount: record.amount,
       refundRequestAmount: record.amount,
@@ -30,7 +31,7 @@ export function normalizeRecord(record) {
 }
 
 export function getRightsList({ parameter = {} } = {}) {
-  const statusMap = { 10: 'pending_review', 20: 'approved', 30: 'refunding', 50: 'refunded', 60: 'rejected' };
+  const statusMap = { 10: 'pending_review', 20: 'approved', 30: 'refunding', 50: 'refunded', 60: 'closed' };
   return request('afterSales.list', {
     page: parameter.pageNum,
     pageSize: parameter.pageSize,

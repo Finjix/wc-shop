@@ -121,7 +121,7 @@ Page({
         orderButtons.splice(
           actionIndex === -1 ? orderButtons.length : actionIndex,
           0,
-          { type: OrderButtonTypes.APPLY_REFUND, name: '售后申请' },
+          { type: OrderButtonTypes.APPLY_REFUND, name: order.orderStatus === OrderStatus.PENDING_DELIVERY ? '取消订单' : '售后申请', primary: false },
         );
       }
       const _order = {

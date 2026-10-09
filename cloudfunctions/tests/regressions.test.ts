@@ -1489,9 +1489,14 @@ async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
   assert.strictEqual(shipped.status, 'shipped');
   assert.strictEqual(shipped.tracking.trackingNo, 'SF002');
   assert.strictEqual(shipped.shippedQuantities['sku-new'], 2);
-  await assert.rejects(() => shopEndpoint({}, user, runtime, 'afterSales.create', {
+  const requestWithoutAddress = await shopEndpoint({}, user, runtime, 'afterSales.create', {
     orderId: created._id, type: 10, reason: '退货退款', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
+  });
+  assert.strictEqual(requestWithoutAddress.requestedType, 10);
+  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'afterSales.review', {
+    id: requestWithoutAddress._id, status: 'approved', type: 10,
   }), appError('RETURN_ADDRESS_REQUIRED'));
+  await shopEndpoint({}, user, runtime, 'afterSales.withdraw', { afterSaleId: requestWithoutAddress._id });
   const address = { receiver: '退货收件人', phone: '13800000000', detail: '浙江省杭州市西湖区退货地址 1 号' };
   const savedSettings = await adminEndpoint({}, admin, runtime, 'settings.upsert', { key: 'global', value: { returnAddress: address } });
   assert.deepStrictEqual(savedSettings.value.returnAddress, address);
@@ -1499,9 +1504,12 @@ async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
   await assert.rejects(() => adminEndpoint({}, admin, runtime, 'settings.upsert', { key: 'global', value: { returnAddress: invalidAddress } }), appError('INVALID_ARGUMENT'));
 
   const returned = await shopEndpoint({}, user, runtime, 'afterSales.create', {
-    orderId: created._id, type: 10, reason: '质量问题', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
+    orderId: created._id, type: 20, reason: '质量问题', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
   });
-  const approved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: returned._id, status: 'approved' });
+  const approved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: returned._id, status: 'approved', type: 10 });
+  assert.strictEqual(approved.requestedType, 20);
+  assert.strictEqual(approved.decidedType, 10);
+  assert.strictEqual(runtime.records.afterSales[returned._id].type, 10);
   assert.strictEqual(approved.status, 'approved');
   assert.strictEqual(approved.returnAddressSnapshot.detail, address.detail);
   const tracking = await shopEndpoint({}, user, runtime, 'afterSales.submitTracking', {
@@ -1523,9 +1531,12 @@ async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
   assert.strictEqual(partialDetail.items[0].remainingQuantity, 1);
 
   const lastItem = await shopEndpoint({}, user, runtime, 'afterSales.create', {
-    orderId: created._id, type: 20, reason: '最后一件仅退款', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
+    orderId: created._id, type: 10, reason: '最后一件退货诉求', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
   });
-  const finalRefund = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: lastItem._id, status: 'approved' });
+  const finalRefund = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: lastItem._id, status: 'approved', type: 20 });
+  assert.strictEqual(finalRefund.requestedType, 10);
+  assert.strictEqual(finalRefund.decidedType, 20);
+  assert.strictEqual(runtime.records.afterSales[lastItem._id].type, 20);
   assert.strictEqual(finalRefund.status, 'refunded');
   assert.strictEqual(runtime.records.orders[created._id].status, 'refunded');
   assert.strictEqual(runtime.records.orders[created._id].paymentStatus, 'refunded');
@@ -1534,6 +1545,181 @@ async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
   assert.strictEqual(detail.items[0].remainingQuantity, 0);
   assert.strictEqual(detail.hasPendingComments, false);
   await assert.rejects(() => shopEndpoint({}, user, runtime, 'comments.create', { orderId: created._id, productId: 'product-1', content: '已全退商品' }), appError('FORBIDDEN'));
+}
+
+async function testAdminStatusRechecksAfterConcurrentRefund() {
+  for (const next of ['received', 'completed']) {
+    const runtime = makeRuntime();
+    const user = { auth: { uid: 'user-1' } }, admin = { auth: { uid: 'admin-1' } };
+    runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
+    const order = await shopEndpoint({}, user, runtime, 'orders.create', {
+      requestKey: `race-${next}`, addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+    });
+    await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: order._id, trackingNo: 'SF001' });
+    if (next === 'completed') {
+      await adminEndpoint({}, admin, runtime, 'orders.updateStatus', { orderId: order._id, status: 'received' });
+      assert.strictEqual(runtime.records.orders[order._id].fulfillmentStatus, 'received');
+    }
+    const claim = await shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: order._id, type: 20, reason: '退款' });
+    const baseCollection = runtime.db.collection;
+    let inject = true;
+    runtime.db.collection = (name) => {
+      const ref = baseCollection(name);
+      if (name !== 'orders') return ref;
+      return { ...ref, doc(id) {
+        const doc = ref.doc(id);
+        return { ...doc, async get() {
+          const snapshot = await doc.get();
+          if (inject) {
+            inject = false;
+            await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: claim._id, status: 'approved', type: 20 });
+          }
+          return snapshot;
+        } };
+      } };
+    };
+    await assert.rejects(() => adminEndpoint({}, admin, runtime, 'orders.updateStatus', {
+      orderId: order._id, status: next,
+    }), appError('ORDER_STATE_INVALID'));
+    assert.strictEqual(runtime.records.orders[order._id].status, 'refunded');
+    assert.strictEqual(runtime.records.orders[order._id].paymentStatus, 'refunded');
+  }
+}
+
+async function testMerchantRefundAmountsAndReservationRelease() {
+  const runtime = makeRuntime();
+  const user = { auth: { uid: 'user-1' } }, admin = { auth: { uid: 'admin-1' } };
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
+  const order = await shopEndpoint({}, user, runtime, 'orders.create', {
+    requestKey: 'merchant-amount', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 2 }],
+  });
+  const first = await shopEndpoint({}, user, runtime, 'afterSales.create', {
+    orderId: order._id, type: 20, receiptStatus: 2, reason: '取消一件', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
+  });
+  for (const amount of [0, -1, 101, 0.5, '50']) {
+    await assert.rejects(() => adminEndpoint({}, admin, runtime, 'afterSales.review', {
+      id: first._id, status: 'approved', type: 20, amount,
+    }), appError('INVALID_ARGUMENT'));
+    assert.strictEqual(runtime.records.afterSales[first._id].status, 'pending_review');
+    assert.strictEqual(runtime.records.orders[order._id].pendingRefundAmount, 100);
+  }
+  const refund = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: first._id, status: 'approved', type: 20, amount: 50 });
+  assert.strictEqual(refund.amount, 50);
+  assert.strictEqual(runtime.records.afterSales[first._id].amount, 50);
+  assert.strictEqual(runtime.records.orders[order._id].refundAmount, 50);
+  assert.strictEqual(runtime.records.orders[order._id].pendingRefundAmount, 0);
+  assert.strictEqual(runtime.records.orders[order._id].pendingRefundQuantities['sku-new'], 0);
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 9);
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: first._id, status: 'approved', type: 20, amount: 50 });
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 9);
+  const shipped = await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: order._id, trackingNo: 'SF001' });
+  assert.strictEqual(shipped.shippedQuantities['sku-new'], 1);
+  runtime.records.settings = { global: { _id: 'global', value: { returnAddress: { receiver: '商家', phone: '13800000000', detail: '退货地址' } } } };
+  const last = await shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: order._id, type: 10, receiptStatus: 1, reason: '退货', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }] });
+  const approved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: last._id, status: 'approved', type: 10, amount: 30 });
+  assert.strictEqual(approved.amount, 30);
+  assert.strictEqual(runtime.records.orders[order._id].pendingRefundAmount, 100, 'keep original reservation until refund completes');
+  await shopEndpoint({}, user, runtime, 'afterSales.submitTracking', { afterSaleId: last._id, trackingNo: 'ZT001' });
+  await adminEndpoint({}, admin, runtime, 'afterSales.confirmReturn', { afterSaleId: last._id });
+  await adminEndpoint({}, admin, runtime, 'afterSales.confirmReturn', { afterSaleId: last._id });
+  const final = runtime.records.orders[order._id];
+  assert.strictEqual(final.refundAmount, 80);
+  assert.strictEqual(final.paymentStatus, 'partially_refunded');
+  assert.strictEqual(final.status, 'refunded', 'all goods resolved closes the order even when merchant refunds less');
+  assert.strictEqual(final.pendingRefundAmount, 0);
+  assert.strictEqual(final.refundedQuantities['sku-new'], 2);
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
+  await assert.rejects(() => shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: order._id, type: 20, reason: '重复申请' }), appError('ORDER_STATE_INVALID'));
+
+  // Ending a discounted pre-shipment refund must not leave an unshippable paid order.
+  const cancelled = await shopEndpoint({}, user, runtime, 'orders.create', {
+    requestKey: 'discounted-cancel', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+  });
+  const cancelClaim = await shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: cancelled._id, type: 20, reason: '取消' });
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: cancelClaim._id, status: 'approved', type: 20, amount: 1 });
+  assert.strictEqual(runtime.records.orders[cancelled._id].status, 'refunded');
+  assert.strictEqual(runtime.records.orders[cancelled._id].inventoryReserved, false);
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
+
+  // A discounted refund releases only its own reservation, not another SKU's claim.
+  runtime.records.orders['order-1'] = receivedOrder([
+    { productId: 'product-1', skuId: 'sku-new', quantity: 1, unitPrice: 100, amount: 100 },
+    { productId: 'product-2', skuId: 'sku-other', quantity: 1, unitPrice: 200, amount: 200 },
+  ]);
+  const claimFor = (skuId) => shopEndpoint({}, user, runtime, 'afterSales.create', {
+    orderId: 'order-1', type: 20, reason: '退款', rightsItem: [{ skuId, rightsQuantity: 1 }],
+  });
+  const claimA = await claimFor('sku-new'), claimB = await claimFor('sku-other');
+  assert.strictEqual(runtime.records.orders['order-1'].pendingRefundAmount, 300);
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: claimA._id, status: 'approved', amount: 50 });
+  assert.strictEqual(runtime.records.orders['order-1'].pendingRefundAmount, 200);
+  assert.strictEqual(runtime.records.orders['order-1'].pendingRefundQuantities['sku-other'], 1);
+  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'afterSales.review', { id: claimB._id, status: 'approved', amount: 201 }), appError('INVALID_ARGUMENT'));
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: claimB._id, status: 'rejected', reason: '不支持退款' });
+  assert.strictEqual(runtime.records.orders['order-1'].pendingRefundAmount, 0);
+  assert.strictEqual(runtime.records.orders['order-1'].refundAmount, 50);
+}
+
+async function testLegacyOrdersWithoutAfterSaleIndexCanApply() {
+  const runtime = makeRuntime();
+  const user = { auth: { uid: 'user-1' } };
+  const order = await shopEndpoint({}, user, runtime, 'orders.create', {
+    requestKey: 'missing-after-sale-index', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+  });
+  delete runtime.records.orders[order._id].afterSaleIds;
+  const writeCount = runtime.writes.length;
+  await shopEndpoint({}, user, runtime, 'afterSales.preview', { orderId: order._id });
+  assert.strictEqual(runtime.writes.length, writeCount, 'preview must not migrate old orders');
+  const claim = await shopEndpoint({}, user, runtime, 'afterSales.create', {
+    orderId: order._id, type: 20, receiptStatus: 2, reason: '取消订单',
+  });
+  assert.deepStrictEqual(runtime.records.orders[order._id].afterSaleIds, [claim._id]);
+  assert.strictEqual(runtime.records.orders[order._id].pendingRefundAmount, 100);
+  assert.strictEqual(runtime.records.orders[order._id].paymentAmount, 100);
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 9);
+  await shopEndpoint({}, user, runtime, 'afterSales.withdraw', { afterSaleId: claim._id });
+  // Restore historical IDs rather than overwriting the index with only the new claim.
+  delete runtime.records.orders[order._id].afterSaleIds;
+  const second = await shopEndpoint({}, user, runtime, 'afterSales.create', {
+    orderId: order._id, type: 20, receiptStatus: 2, reason: '重新申请',
+  });
+  assert.deepStrictEqual(runtime.records.orders[order._id].afterSaleIds, [claim._id, second._id]);
+  await assert.rejects(() => shopEndpoint({}, user, runtime, 'afterSales.create', {
+    orderId: order._id, type: 20, receiptStatus: 2, reason: '重复申请',
+  }), appError('CONFLICT'));
+}
+
+async function testReceiptStatusAndClosedAfterSales() {
+  const runtime = makeRuntime();
+  const user = { auth: { uid: 'user-1' } }, admin = { auth: { uid: 'admin-1' } };
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
+  const order = await shopEndpoint({}, user, runtime, 'orders.create', {
+    requestKey: 'receipt', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+  });
+  const apply = (receiptStatus) => shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: order._id, type: 20, reason: '退款', receiptStatus });
+  await assert.rejects(() => apply(1), appError('INVALID_ARGUMENT'));
+  const pending = await apply(2);
+  assert.strictEqual(pending.receiptStatus, 2);
+  await shopEndpoint({}, user, runtime, 'afterSales.withdraw', { afterSaleId: pending._id });
+  await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: order._id, trackingNo: 'SF001' });
+  const shipped = await apply(1);
+  assert.strictEqual(shipped.receiptStatus, 1);
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: shipped._id, status: 'rejected', reason: '超过售后期' });
+  await shopEndpoint({}, user, runtime, 'orders.confirmReceived', { orderId: order._id });
+  await assert.rejects(() => apply(2), appError('INVALID_ARGUMENT'));
+  for (const invalid of [0, 3, '1']) await assert.rejects(() => apply(invalid), appError('INVALID_ARGUMENT'));
+  const received = await apply(1);
+  assert.strictEqual((await shopEndpoint({}, user, runtime, 'afterSales.detail', { afterSaleId: received._id })).receiptStatus, 1);
+  runtime.records.afterSales.foreign = { ...pending, _id: 'foreign', userId: 'another-user', status: 'withdrawn' };
+  for (const fallback of [false, true]) {
+    if (fallback) delete runtime.db.command.in;
+    const closed = await shopEndpoint({}, user, runtime, 'afterSales.list', { status: 'closed', page: 1, pageSize: 1 });
+    assert.strictEqual(closed.total, 2);
+    assert.strictEqual(closed.items.length, 1);
+    const next = await shopEndpoint({}, user, runtime, 'afterSales.list', { status: 'closed', page: 2, pageSize: 1 });
+    assert.deepStrictEqual(new Set([...closed.items, ...next.items].map((item) => item.status)), new Set(['withdrawn', 'rejected']));
+    assert.strictEqual(closed.items[0].userId, 'user-1');
+  }
 }
 
 async function testLegacyPaidOrdersDoNotGainSyntheticPaymentRecords() {
@@ -1574,6 +1760,10 @@ const cases = [
   { name: 'batch shipping rechecks address, status and refund quantities atomically and supports safe retries', run: testBatchShippingRechecksAddressStateAndRefundsAtomically },
   { name: 'pre-shipment partial refunds leave the correct quantity for shipment and review', run: testPreShipmentPartialRefundLeavesAccurateShippedQuantity },
   { name: 'return refund, partial shipment and fully refunded comment eligibility follow the state machine', run: testReturnRefundStateMachineAndPartialShipmentAccounting },
+  { name: 'admin status transitions recheck concurrent refunds atomically', run: testAdminStatusRechecksAfterConcurrentRefund },
+  { name: 'merchant refund amounts release reservations and close resolved orders without duplicate inventory', run: testMerchantRefundAmountsAndReservationRelease },
+  { name: 'legacy paid orders without an after-sale index can apply without resetting financial aggregates', run: testLegacyOrdersWithoutAfterSaleIndexCanApply },
+  { name: 'receipt status is persisted and closed after-sales include rejected and withdrawn before pagination', run: testReceiptStatusAndClosedAfterSales },
   { name: 'legacy paid orders do not receive synthetic payment records for refunds', run: testLegacyPaidOrdersDoNotGainSyntheticPaymentRecords },
   { name: 'dashboard counts are complete beyond the SDK default query limit', run: testDashboardCountsBeyondSdkQueryLimit },
   { name: 'image uploads preserve bytes with unrestricted prepared admin and user output', run: testImageUploads },

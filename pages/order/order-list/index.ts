@@ -126,7 +126,12 @@ Page({
               fulfillableQuantity: goods.fulfillableQuantity,
               remainingQuantity: goods.remainingQuantity,
               })),
-              buttons: (order.buttonVOs || []).filter((button) => Number(button.type) !== OrderButtonTypes.APPLY_REFUND),
+              buttons: (order.buttonVOs || [])
+                .filter((button) => Number(button.type) !== OrderButtonTypes.APPLY_REFUND
+                  || order.orderStatus === OrderStatus.PENDING_DELIVERY)
+                .map((button) => Number(button.type) === OrderButtonTypes.APPLY_REFUND
+                  ? { ...button, name: '取消订单', primary: false }
+                  : button),
               groupInfoVo: order.groupInfoVo,
               freightFee: order.freightFee,
             };

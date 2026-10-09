@@ -674,14 +674,19 @@ async function adminOrderAction(runtime, data, action) {
     });
   }
   if (next === STATUS.paid) throw errorFrom('PAYMENT_NOT_CONFIGURED');
-  nextOrderStatus(order.status, next);
-  const patch = { status: next, updatedAt: now() };
-  if (next === STATUS.received) patch.receivedAt = now();
-  if (next === STATUS.completed) patch.completedAt = now();
-  if (data.tracking) patch.tracking = allowedFields(data.tracking, ['carrier', 'trackingNo', 'shippedAt']);
-  const result = await orders.doc(documentId).update(patch);
-  if (affected(result) !== 1) throw errorFrom('CONFLICT');
-  return { ...order, ...patch, _id: documentId };
+  return withTransaction(runtime.db, async (tx) => {
+    const collection = tx.collection(COLLECTIONS.orders);
+    const current = await getDoc(collection, documentId, true);
+    nextOrderStatus(current.status, next);
+    const timestamp = now();
+    const patch = { status: next, fulfillmentStatus: next, updatedAt: timestamp };
+    if (next === STATUS.received) patch.receivedAt = timestamp;
+    if (next === STATUS.completed) patch.completedAt = timestamp;
+    if (data.tracking) patch.tracking = allowedFields(data.tracking, ['carrier', 'trackingNo', 'shippedAt']);
+    const result = await collection.doc(documentId).update(patch);
+    if (affected(result) !== 1) throw errorFrom('CONFLICT');
+    return { ...current, ...patch, _id: documentId };
+  });
 }
 
 async function dashboardSummary(runtime) {

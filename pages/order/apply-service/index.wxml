@@ -64,12 +64,17 @@
   <view wx:else class="service-form">
     <view class="service-from-group">
       <t-cell-group>
-        <t-cell title="商品收货状态" arrow note="{{serviceFrom.receiptStatus.desc}}" bind:tap="onApplyGoodsStatus" />
+        <t-cell title="收货状态" arrow="{{!receiptStatusLocked}}" note="{{serviceFrom.receiptStatus.desc}}" bind:tap="onApplyGoodsStatus" />
       </t-cell-group>
     </view>
-    <view class="service-from-group">
+    <view wx:if="{{showRefundType}}" class="service-from-group">
       <t-cell-group>
-        <t-cell wx:if="{{!orderLevel}}" title="退款商品数量">
+        <t-cell title="退款方式" arrow note="{{serviceRequireType === 'REFUND_GOODS' ? '退货退款' : '仅退款'}}" bind:tap="onSelectRefundType" />
+      </t-cell-group>
+    </view>
+    <view wx:if="{{!orderLevel}}" class="service-from-group">
+      <t-cell-group>
+        <t-cell title="退款商品数量">
           <t-stepper
             slot="note"
             theme="filled"
@@ -78,15 +83,6 @@
             value="{{serviceFrom.returnNum}}"
             bindchange="onChangeReturnNum"
           />
-        </t-cell>
-        <t-cell
-          title="退款金额"
-          t-class-description="refund-money__description"
-          description="{{amountTip}}"
-        >
-          <view class="service-from-group__wrapper" slot="note">
-            <text class="refund-money-price">¥{{refundAmountText}}</text>
-          </view>
         </t-cell>
       </t-cell-group>
     </view>

@@ -101,6 +101,8 @@ Page({
     this.setData({
       canApplyReturn: query.canApplyReturn === 'true',
       orderLevel: this.isOrderLevel,
+      receiptStatusLocked: [OrderStatus.PENDING_DELIVERY, OrderStatus.COMPLETE].includes(Number(query.orderStatus)),
+      showRefundType: [OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(Number(query.orderStatus)),
       serviceRequireType: 'REFUND_MONEY',
       serviceType: ServiceType.ONLY_REFUND,
     });
@@ -113,9 +115,12 @@ Page({
   async init() {
     try {
       await this.refresh();
-      // 跳过售后类型选择，直接进入退款表单。
+      // 用户选择仅表达诉求，最终处理方式由商家审核决定。
+      if (this.data.showRefundType) {
+        this.setData({ serviceRequireType: 'REFUND_GOODS', serviceType: ServiceType.RETURN_GOODS });
+      }
       const received = [OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(Number(this.query.orderStatus));
-      this.switchReceiptStatus(!this.isDirectApply && received ? 1 : 0);
+      this.switchReceiptStatus(received ? 1 : 0);
     } catch (error) {
       Toast({
         context: this,
@@ -210,6 +215,25 @@ Page({
     });
   },
 
+  onSelectRefundType() {
+    reasonSheet({
+      show: true,
+      title: '请选择退款方式',
+      options: [
+        { title: '仅退款', checked: this.data.serviceRequireType === 'REFUND_MONEY' },
+        { title: '退货退款', checked: this.data.serviceRequireType === 'REFUND_GOODS' },
+      ],
+      showConfirmButton: true,
+      emptyTip: '请选择退款方式',
+    }).then((indexes) => {
+      if (indexes[0] === 1) {
+        this.setData({ serviceRequireType: 'REFUND_GOODS', serviceType: ServiceType.RETURN_GOODS });
+      } else {
+        this.setData({ serviceRequireType: 'REFUND_MONEY', serviceType: ServiceType.ONLY_REFUND });
+      }
+    });
+  },
+
   onApplyOnlyRefund() {
     wx.setNavigationBarTitle({ title: '售后申请' });
     this.setData({
@@ -277,6 +301,7 @@ Page({
   },
 
   onApplyGoodsStatus() {
+    if (this.data.receiptStatusLocked) return;
     reasonSheet({
       show: true,
       title: '请选择收货状态',

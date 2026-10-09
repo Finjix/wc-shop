@@ -3,8 +3,8 @@
 import { request } from '../../../utils/api';
 import { resolveOrderImages } from '../../../utils/images';
 
-const STATUS_CODES = { paid: 10, shipped: 40, received: 50, completed: 50 };
-const STATUS_LABELS = { 0: '订单状态不可用', 10: '待发货', 40: '待收货', 50: '已完成' };
+const STATUS_CODES = { paid: 10, shipped: 40, received: 50, completed: 50, refunded: 60 };
+const STATUS_LABELS = { 0: '订单状态不可用', 10: '待发货', 40: '待收货', 50: '已完成', 60: '已退款' };
 
 function normalizeItem(item) {
   const product = item.productSnapshot;
@@ -24,7 +24,7 @@ function normalizeItem(item) {
 }
 
 function buttonsForStatus(status, order, items, hasActiveAfterSale) {
-  if (status === 10 && !hasActiveAfterSale && items.some((item) => item.fulfillableQuantity > 0)) return [{ type: 4, name: '售后申请', primary: true }];
+  if (status === 10 && !hasActiveAfterSale && items.some((item) => item.fulfillableQuantity > 0)) return [{ type: 4, name: '取消订单', primary: false }];
   if (status === 40 && !hasActiveAfterSale) return [{ type: 3, name: '确认收货', primary: true }];
   if (status === 50) return order.hasPendingComments
     ? [{ type: 6, name: '评价', primary: true }]

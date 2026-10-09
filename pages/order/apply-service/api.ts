@@ -48,10 +48,10 @@ export async function dispatchApplyService(params = {}) {
   return request('afterSales.create', {
     orderId: rights.orderNo,
     type: rights.rightsType,
+    receiptStatus: rights.receiptStatus,
     reason: rights.rightsReasonDesc,
     description: params.refundMemo,
     images,
-    refundRequestAmount: rights.refundRequestAmount,
     rightsItem: params.rightsItem.map((item) => ({ skuId: item.skuId, rightsQuantity: item.rightsQuantity })),
   }).then((data) => ({ data }));
 }
