@@ -12,6 +12,8 @@ const { assert, string, optionalString, integer, page, clone } = require('./vali
 const { skuPrice, skuStock, moderateAfterSale, confirmAfterSaleReturn } = require('./shop');
 const { HOME_CONFIG_SLOT, validateHomeConfig, productIds: homeProductIds } = require('./home-config');
 const { shippingAddressOf, shippingGroupKey } = require('./order-shipping');
+const { presentAfterSale } = require('./after-sale-policy');
+const { orderDisplayStatus } = require('./order-display-status');
 
 async function findProduct(collection, id) {
   return getDoc(collection, id, false);
@@ -509,11 +511,82 @@ function pendingAfterSaleAggregate(order) {
   return Number(order.pendingRefundAmount) > 0 || Object.values(order.pendingRefundQuantities).some((quantity) => Number(quantity) > 0);
 }
 
+function orderCanDelete() { return true; }
+
+async function releaseUnshippedInventory(tx, order) {
+  const fulfillment = order.fulfillmentStatus || order.status;
+  if (!order.inventoryReserved || [STATUS.shipped, STATUS.received, STATUS.completed].includes(fulfillment)) return;
+  const skus = tx.collection(COLLECTIONS.skus);
+  const quantities = new Map();
+  for (const item of order.items || []) {
+    const remaining = Number(item.quantity || 0) - Number(order.refundedQuantities?.[item.skuId] || 0)
+      - Number(order.shippedQuantities?.[item.skuId] || 0);
+    assert(Number.isSafeInteger(remaining) && remaining >= 0, { field: 'quantity' });
+    if (!remaining) continue;
+    const skuId = item.skuSnapshot?._id || item.skuId;
+    quantities.set(skuId, (quantities.get(skuId) || 0) + remaining);
+  }
+  for (const [skuId, quantity] of quantities) {
+    const sku = await getDoc(skus, skuId, false);
+    if (!sku) continue; // 已不存在的 SKU 没有可释放的库存记录。
+    const patch = {
+      stockQuantity: skuStock(sku) + quantity,
+      soldQuantity: Math.max(0, Number(sku.soldQuantity || 0) - quantity),
+      updatedAt: now(),
+    };
+    if (affected(await skus.doc(skuId).update(patch)) !== 1) throw errorFrom('CONFLICT');
+  }
+}
+
+function afterSaleCanDelete(record) {
+  return [STATUS.refunded, STATUS.rejected, STATUS.withdrawn].includes(record.status);
+}
+
+function adminAfterSaleSummary(record) {
+  return { ...presentAfterSale(record), canDeleteAdmin: afterSaleCanDelete(record) };
+}
+
+async function deleteCommerceRecord(runtime, name, id) {
+  // 旧订单可能缺少索引，查询在事务外补齐；事务内合并最新索引并重新校验状态。
+  const legacyClaims = name === COLLECTIONS.orders
+    ? await allMatching(col(runtime, COLLECTIONS.afterSales), { orderId: id }) : [];
+  return withTransaction(runtime.db, async (tx) => {
+    const collection = tx.collection(name);
+    const current = await getDoc(collection, id, false);
+    if (!current) return { _id: id, deleted: true };
+    const allowed = name === COLLECTIONS.orders ? orderCanDelete(current) : afterSaleCanDelete(current);
+    if (!allowed) throw errorFrom('ORDER_STATE_INVALID');
+    if (name === COLLECTIONS.orders) {
+      const claims = tx.collection(COLLECTIONS.afterSales);
+      const ids = [...new Set([...(current.afterSaleIds || []), ...legacyClaims.map((claim) => claim._id)])];
+      const linked = [];
+      for (const claimId of ids) {
+        const claim = await getDoc(claims, claimId, false);
+        if (!claim || claim.orderId !== id) continue;
+        linked.push(claimId);
+      }
+      await releaseUnshippedInventory(tx, current);
+      for (const claimId of linked) {
+        if (affected(await claims.doc(claimId).remove()) !== 1) throw errorFrom('CONFLICT');
+      }
+    } else {
+      const orders = tx.collection(COLLECTIONS.orders);
+      const order = await getDoc(orders, current.orderId, false);
+      if (order) {
+        const patch = { afterSaleIds: (order.afterSaleIds || []).filter((claimId) => claimId !== id), updatedAt: now() };
+        if (affected(await orders.doc(current.orderId).update(patch)) !== 1) throw errorFrom('CONFLICT');
+      }
+    }
+    if (affected(await collection.doc(id).remove()) !== 1) throw errorFrom('CONFLICT');
+    return { _id: id, deleted: true };
+  });
+}
+
 async function adminOrderSummary(runtime, order) {
   const hasActiveAfterSale = pendingAfterSaleAggregate(order);
   if (hasActiveAfterSale === null) throw errorFrom('ORDER_STATE_INVALID');
   const { addressSnapshot: _snapshot, address: _address, userAddress: _userAddress, userAddressReq: _request, ...summary } = order;
-  return { ...summary, hasActiveAfterSale };
+  return { ...summary, displayStatus: orderDisplayStatus(order), hasActiveAfterSale, canDeleteAdmin: orderCanDelete(order) };
 }
 
 async function listAdminOrders(runtime, data) {
@@ -524,11 +597,13 @@ async function listAdminOrders(runtime, data) {
   };
   const statuses = status === STATUS.completed ? [STATUS.received, STATUS.completed] : null;
   const refunds = status === 'refunded' ? ['refunded', 'partially_refunded', 'partial_refunded', 'partial_refund'] : null;
-  if (statuses && runtime.db.command?.in) where.status = runtime.db.command.in(statuses);
+  if (status === 'cancelled') where.status = STATUS.refunded;
+  else if (statuses && runtime.db.command?.in) where.status = runtime.db.command.in(statuses);
   else if (refunds && runtime.db.command?.in) where.paymentStatus = runtime.db.command.in(refunds);
   else if (['partial_refunded', 'partially_refunded'].includes(status)) where.paymentStatus = 'partially_refunded';
   else if (status && !statuses && !refunds) where.status = status;
-  const fallback = (statuses || refunds) && !runtime.db.command?.in;
+  // 展示状态必须先筛选再分页/分组，不能把取消订单混进“已退款”。
+  const fallback = status === 'cancelled' || status === 'refunded' || ((statuses || refunds) && !runtime.db.command?.in);
   if (data.groupBy !== 'address' && !fallback) {
     const result = await listCollection(runtime, COLLECTIONS.orders, data, where);
     result.items = await Promise.all(result.items.map((order) => adminOrderSummary(runtime, order)));
@@ -536,7 +611,10 @@ async function listAdminOrders(runtime, data) {
   }
   const paging = page(data);
   const rows = (await all(col(runtime, COLLECTIONS.orders), where))
-    .filter((order) => (!statuses || statuses.includes(order.status)) && (!refunds || refunds.includes(order.paymentStatus)))
+    .filter((order) => (!statuses || statuses.includes(order.status))
+      && (!refunds || refunds.includes(order.paymentStatus))
+      && (status !== 'cancelled' || orderDisplayStatus(order) === 'cancelled')
+      && (status !== 'refunded' || orderDisplayStatus(order) !== 'cancelled'))
     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')) || String(b._id).localeCompare(String(a._id)));
   if (data.groupBy !== 'address') {
     return { items: await Promise.all(rows.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map((order) => adminOrderSummary(runtime, order))), ...paging, total: rows.length };
@@ -636,12 +714,16 @@ async function adminOrderAction(runtime, data, action) {
   }
   const id = string(data.orderId || data.orderNo, 'orderId', { max: 128 });
   const order = await getDoc(orders, id, false);
-  if (!order) throw errorFrom('NOT_FOUND');
+  if (!order) {
+    if (action === 'orders.delete') return { _id: id, deleted: true };
+    throw errorFrom('NOT_FOUND');
+  }
   const documentId = order._id || id;
+  if (action === 'orders.delete') return deleteCommerceRecord(runtime, COLLECTIONS.orders, documentId);
   if (action === 'orders.get') {
     const hasActiveAfterSale = pendingAfterSaleAggregate(order);
     if (hasActiveAfterSale === null) throw errorFrom('ORDER_STATE_INVALID');
-    return { ...order, hasActiveAfterSale };
+    return { ...order, displayStatus: orderDisplayStatus(order), hasActiveAfterSale, canDeleteAdmin: orderCanDelete(order) };
   }
   if (action === 'orders.logistics.save' && order.status === STATUS.shipped) {
     const trackingNo = string(data.trackingNo, 'trackingNo', { max: 128 });
@@ -750,7 +832,11 @@ async function moderationAction(runtime, data, action, name) {
     if (data.orderNo || data.orderId) where.orderNo = string(data.orderNo || data.orderId, 'orderNo', { max: 128 });
     if (name === COLLECTIONS.afterSales && data.type !== undefined && data.type !== '') where.type = Number(data.type);
     const result = await listCollection(runtime, name, data, where);
-    return result;
+    return name === COLLECTIONS.afterSales ? { ...result, items: result.items.map(adminAfterSaleSummary) } : result;
+  }
+  if (name === COLLECTIONS.afterSales && action === 'afterSales.delete') {
+    const id = string(data.afterSaleId || data.id, 'id', { max: 128 });
+    return deleteCommerceRecord(runtime, name, id);
   }
   if (name === COLLECTIONS.afterSales && !action.endsWith('.get')) throw errorFrom('ORDER_STATE_INVALID');
   if (action === 'comments.reply') {
@@ -764,7 +850,7 @@ async function moderationAction(runtime, data, action, name) {
   }
   const id = string(data.commentId || data.afterSaleId || data.id, 'id', { max: 128 });
   const existing = await getDoc(collection, id, true);
-  if (action.endsWith('.get')) return existing;
+  if (action.endsWith('.get')) return name === COLLECTIONS.afterSales ? adminAfterSaleSummary(existing) : existing;
   if (action.endsWith('.delete')) {
     await collection.doc(id).update({ status: STATUS.inactive, updatedAt: now() });
     return { ...existing, status: STATUS.inactive, _id: id };

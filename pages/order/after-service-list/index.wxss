@@ -2,50 +2,54 @@
   background-color: #fff;
 }
 
-.service-summary {
-  display: flex;
-  justify-content: space-between;
-  padding: 24rpx 20rpx 12rpx;
-  color: #695941;
+.service-type {
+  color: #666666;
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+
+.service-status {
+  color: var(--app-theme-text-color, #695941);
   font-size: 26rpx;
+  line-height: 40rpx;
+}
+
+.service-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72rpx;
+}
+
+.service-total {
+  display: flex;
+  align-items: baseline;
+  flex: none;
+  color: #333;
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+
+.service-total__label {
+  margin-right: 8rpx;
+}
+
+.service-actions .service-total__price {
+  color: #000;
+  font-size: 36rpx;
+  font-weight: bold;
+}
+
+.service-actions__buttons {
+  flex: 1;
+  min-width: 0;
+  margin-left: 24rpx;
 }
 
 .list-loading {
   height: 100rpx;
 }
 
-
-.page-container .order-goods-card-footer {
-  display: flex;
-  width: calc(100% - 190rpx);
-  justify-content: space-between;
-  position: absolute;
-  bottom: 20rpx;
-  left: 190rpx;
-}
-
-.page-container .order-goods-card-footer .order-goods-card-footer-num {
-  color: #999;
-  line-height: 40rpx;
-}
-
-.page-container .order-goods-card-footer .order-goods-card-footer-price-class {
-  font-size: 36rpx;
-  color: #333;
-  font-family: DIN Alternate;
-}
-
-.page-container .order-goods-card-footer .order-goods-card-footer-price-decimal {
-  font-size: 28rpx;
-  color: #333;
-  font-family: DIN Alternate;
-}
-
-.page-container .order-goods-card-footer .order-goods-card-footer-price-symbol {
-  color: #333;
-  font-size: 24rpx;
-  font-family: DIN Alternate;
-}
 
 .page-container .wr-goods-card__specs {
   margin: 14rpx 20rpx 0 0;
@@ -84,10 +88,6 @@
 
 .t-class-indicator {
   color: #b9b9b9 !important;
-}
-
-.page-container .header-class {
-  margin-bottom: 5rpx !important;
 }
 
 .t-button {

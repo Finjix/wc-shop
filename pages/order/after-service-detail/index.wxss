@@ -43,9 +43,10 @@
 }
 
 .service-detail .service-detail__header {
-  padding: 60rpx 0 48rpx 40rpx;
+  position: relative;
+  padding: 60rpx 0 24rpx 40rpx;
   box-sizing: border-box;
-  height: 220rpx;
+  min-height: 144rpx;
   background-color: #fff;
 }
 .service-detail .service-detail__header .title,
@@ -364,6 +365,25 @@
   color: #666;
 }
 
+.refund-reason {
+  padding: 18rpx 32rpx;
+  font-size: 26rpx;
+  line-height: 40rpx;
+  text-align: left;
+}
+
+.refund-reason-label {
+  color: #666;
+  white-space: nowrap;
+}
+
+.refund-reason-value {
+  margin-top: 16rpx;
+  color: #333;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .t-refund-grid-image {
   width: 212rpx !important;
   height: 212rpx !important;
@@ -379,20 +399,12 @@
   padding-bottom: 18rpx !important;
 }
 
-.service-id-row {
+.service-id-note {
   display: flex;
   align-items: center;
-  box-sizing: border-box;
-  min-height: 76rpx;
-  padding: 18rpx 32rpx;
+  justify-content: flex-end;
   font-size: 26rpx;
-  color: #666;
-}
-
-.service-id-row__label {
-  flex: none;
-  width: 132rpx;
-  white-space: nowrap;
+  color: #333;
 }
 
 .service-id-row__value {
@@ -449,6 +461,23 @@
 
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+.service-detail--with-bottom-bar {
+  padding-bottom: calc(112rpx + env(safe-area-inset-bottom));
+}
+
+.service-detail__bottom-bar {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 10;
+  background: #fff;
+  height: 112rpx;
+  padding: 0 32rpx env(safe-area-inset-bottom);
+  display: flex;
+  align-items: center;
 }
 
 .service-section-logistics {

@@ -78,6 +78,7 @@ export type OrderStatus = 'paid' | 'shipped' | 'received' | 'completed' | 'refun
 export type OrderPaymentStatus = 'paid' | 'partially_refunded' | 'refunded';
 
 export interface Order {
+  canDeleteAdmin?: boolean;
   _id?: Id;
   orderId?: Id;
   orderNo?: string;
@@ -142,6 +143,11 @@ export interface Comment {
 }
 
 export interface AfterSale {
+  canDeleteAdmin?: boolean;
+  scenario?: 'cancel_order' | 'after_sale';
+  presentation?: { typeLabel: string; receiptStatusLabel: string };
+  reviewPolicy?: { allowedTypes: number[]; fixedType: number | null; fullRefundOnly: boolean; maximumAmount: number };
+  actions?: { withdraw: boolean; reapply: boolean; countInBadge: boolean };
   _id?: Id;
   orderNo?: string;
   userId?: string;

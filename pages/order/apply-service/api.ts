@@ -38,15 +38,19 @@ export function dispatchConfirmReceived(params = {}) {
 }
 async function uploadAfterSaleImage(image) {
   // 上传组件提供本地路径；已上传文件仍可直接提交。
-  const path = typeof image === 'string' ? image : image.url;
-  if (!path || /^(cloud:|local:|data:|https?:\/\/(?!tmp\/))/i.test(path)) return path;
+  const path = typeof image === 'string' ? image : image.url || image.tempFilePath || image.path;
+  const isLocalPath = path && (path.startsWith(wx.env.USER_DATA_PATH)
+    || /^(wxfile:|https?:\/\/(?:tmp|usr)\/)/i.test(path));
+  if (!path || (!isLocalPath && /^(cloud:|local:|data:|https?:\/\/)/i.test(path))) return path;
   return uploadCloudFile(path, 'after-sales');
 }
 export async function dispatchApplyService(params = {}) {
   const rights = params.rights;
   const images = (await Promise.all(rights.rightsImageUrls.map(uploadAfterSaleImage))).filter(Boolean);
-  return request('afterSales.create', {
-    orderId: rights.orderNo,
+  const action = rights.reapplyId ? 'afterSales.reapply' : 'afterSales.create';
+  const target = rights.reapplyId ? { afterSaleId: rights.reapplyId } : { orderId: rights.orderNo };
+  return request(action, {
+    ...target,
     type: rights.rightsType,
     receiptStatus: rights.receiptStatus,
     reason: rights.rightsReasonDesc,

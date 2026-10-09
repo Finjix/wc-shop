@@ -35,6 +35,7 @@ const router = createHashRouter([
         { path: 'orders/:orderNo', element: <OrderDetailPage /> },
         { path: 'comments', element: <CommentsPage /> },
         { path: 'after-sales', element: <AfterSalesPage /> },
+        { path: 'after-sales/:afterSaleId', element: <AfterSalesPage /> },
         { path: 'after-sales/address', element: <SettingsPage /> },
         { path: 'settings', element: <Navigate to="/after-sales/address" replace /> },
       ],

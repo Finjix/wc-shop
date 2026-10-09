@@ -40,19 +40,25 @@ export function normalizeOrder(order) {
   const logistics = order.logistics || {};
   const hasPendingReview = order.afterSalesList?.some((record) => record.status === 'pending_review') || order.activeAfterSaleStatus === 'pending_review';
   const hasActiveAfterSale = hasPendingReview || Number(order.activeAfterSaleCount) > 0 || order.pendingRefundAmount > 0;
+  const isCancelled = orderStatus === 60 && (order.closureScenario === 'cancel_order' || order.fulfillmentStatus === 'paid');
   return {
     ...order,
     orderId: order._id,
     orderStatus,
     commentableProductId: items.find((item) => item.fulfillableQuantity > 0 && !order.commentedProductIds.includes(item.spuId))?.spuId,
-    orderStatusName: hasPendingReview ? '退款审核中' : hasActiveAfterSale ? '售后处理中' : STATUS_LABELS[orderStatus],
+    orderStatusName: hasPendingReview ? '售后审核中' : hasActiveAfterSale ? '售后处理中' : isCancelled ? '已取消' : STATUS_LABELS[orderStatus],
     hasPendingRefund: hasActiveAfterSale,
     hasActiveAfterSale,
     freightFee: order.shippingFee,
     goodsAmountApp: order.subtotal,
     createTime: order.createdAt,
     orderItemVOs: items,
-    buttonVOs: buttonsForStatus(orderStatus, order, items, hasActiveAfterSale),
+    buttonVOs: [
+      ...buttonsForStatus(orderStatus, order, items, hasActiveAfterSale),
+      ...(order.afterSalesList || []).filter((record) => record.actions?.withdraw ?? record.status === 'pending_review').map((record) => ({
+        type: 12, name: '撤销售后', primary: false, rightsNo: record._id || record.rightsNo,
+      })),
+    ],
     logisticsVO: {
       ...logistics,
       receiverName: address.receiver,
@@ -68,15 +74,33 @@ export function normalizeOrder(order) {
 
 export function fetchOrders(params = {}) {
   const parameter = params.parameter;
-  return request('orders.list', parameter).then(async (data) => ({
-    data: {
-      orders: await Promise.all(data.items.map((order) => resolveOrderImages(normalizeOrder(order)))),
-      page: data.page,
-      pageNum: data.page,
-      pageSize: data.pageSize,
-      totalCount: data.total,
-    },
-  }));
+  return request('orders.list', parameter).then(async (data) => {
+    // 兼容尚未返回售后明细的订单列表接口。
+    const missingRecords = data.items.filter((order) => !Array.isArray(order.afterSalesList)
+      && (Number(order.activeAfterSaleCount) > 0 || Number(order.pendingRefundAmount) > 0));
+    if (missingRecords.length) {
+      const records = [];
+      let page = 1;
+      let result;
+      do {
+        result = await request('afterSales.list', { status: 'pending_review', page, pageSize: 20 });
+        records.push(...result.items);
+        page++;
+      } while (result.items.length && records.length < result.total);
+      missingRecords.forEach((order) => {
+        order.afterSalesList = records.filter((record) => record.orderId === order._id);
+      });
+    }
+    return {
+      data: {
+        orders: await Promise.all(data.items.map((order) => resolveOrderImages(normalizeOrder(order)))),
+        page: data.page,
+        pageNum: data.page,
+        pageSize: data.pageSize,
+        totalCount: data.total,
+      },
+    };
+  });
 }
 
 export function fetchOrdersCount(params = {}) {

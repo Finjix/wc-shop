@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import Toast from 'tdesign-miniprogram/toast/index';
-import { ServiceType, ServiceTypeDesc, ServiceStatus } from '../config';
+import { ServiceType, ServiceTypeDesc, ServiceStatus, ServiceButtonTypes } from '../config';
 import { formatTime, getRightsDetail } from './api';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 import { getApiErrorMessage } from '../../../utils/api';
@@ -102,15 +102,16 @@ Page({
       const serviceType = rights.rightsType;
       const rawStatus = rights.userRightsStatus;
       const serviceStatus = normalizeServiceStatus(rawStatus);
+      const buttons = normalizeServiceButtons(rawStatus, serviceType, serviceRaw.buttonVOs, logisticsVO.logisticsNo, serviceRaw.actions);
       const returnAddress = serviceRaw.returnAddressSnapshot || {};
       const service = {
         id: rights._id,
         storeName: rights.storeName,
         type: serviceType,
-        receiptStatusDesc: Number(rights.receiptStatus) === 1 ? '已收到货' : Number(rights.receiptStatus) === 2 ? '未收到货' : '未记录',
+        receiptStatusDesc: serviceRaw.presentation?.receiptStatusLabel || (Number(rights.receiptStatus) === 1 ? '已收到货' : Number(rights.receiptStatus) === 2 ? '未收到货' : '未记录'),
         requestedTypeDesc: ServiceTypeDesc[rights.requestedType ?? serviceType] || '',
         decidedTypeDesc: rights.decidedType ? ServiceTypeDesc[rights.decidedType] : rights.reviewedAt && ['approved', 'refunding', 'refunded'].includes(rights.status) ? ServiceTypeDesc[serviceType] : '待商家审核决定',
-        typeDesc: ServiceTypeDesc[serviceType] || rights.typeDesc || '',
+        typeDesc: serviceRaw.presentation?.typeLabel || ServiceTypeDesc[serviceType] || rights.typeDesc || '',
         status: serviceStatus,
         statusIcon: this.genStatusIcon(rights),
         statusName: rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rawStatus, serviceType),
@@ -144,7 +145,8 @@ Page({
         receiverName: returnAddress.receiver || '',
         receiverPhone: returnAddress.phone || '',
         receiverAddress: returnAddress.detail || '',
-        buttons: normalizeServiceButtons(rawStatus, serviceType, serviceRaw.buttonVOs, logisticsVO.logisticsNo),
+        buttons,
+        bottomActions: buttons.some((button) => [ServiceButtonTypes.REVOKE, ServiceButtonTypes.REAPPLY].includes(button.type)),
         logistics: logisticsVO,
       };
       const proofs = rights.rightsImageUrls || [];
@@ -159,7 +161,11 @@ Page({
     });
   },
 
-  onRefresh() {
+  onRefresh(event) {
+    if (event?.detail?.deleted) {
+      wx.navigateBack();
+      return;
+    }
     this.init();
   },
 
@@ -211,6 +217,12 @@ Page({
     const goods = (this.data.serviceRaw.rightsItem || [])[index];
     if (!goods || !goods.spuId) return;
     navigateToGoodsDetail(`/pages/goods/details/index?spuId=${encodeURIComponent(goods.spuId)}`);
+  },
+
+  onOrderNoCopy() {
+    const orderNo = this.data.service.orderNo;
+    if (!orderNo) return;
+    wx.setClipboardData({ data: String(orderNo) });
   },
 
   onAddressCopy() {

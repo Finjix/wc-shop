@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "退款/售后",
+  "navigationBarTitleText": "售后",
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
@@ -8,7 +8,7 @@
     "wr-after-service-button-bar": "../components/after-service-button-bar/index",
     "wr-price": "/components/price/index",
     "wr-order-card": "../components/order-card/index",
-    "wr-goods-card": "../components/goods-card/index",
+    "specs-goods-card": "../components/specs-goods-card/index",
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-toast": "tdesign-miniprogram/toast/toast",
     "t-dialog": "tdesign-miniprogram/dialog/dialog",

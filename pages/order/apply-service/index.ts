@@ -101,6 +101,7 @@ Page({
     this.setData({
       canApplyReturn: query.canApplyReturn === 'true',
       orderLevel: this.isOrderLevel,
+      'serviceFrom.remark': '',
       receiptStatusLocked: [OrderStatus.PENDING_DELIVERY, OrderStatus.COMPLETE].includes(Number(query.orderStatus)),
       showRefundType: [OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(Number(query.orderStatus)),
       serviceRequireType: 'REFUND_MONEY',
@@ -120,7 +121,8 @@ Page({
         this.setData({ serviceRequireType: 'REFUND_GOODS', serviceType: ServiceType.RETURN_GOODS });
       }
       const received = [OrderStatus.PENDING_RECEIPT, OrderStatus.COMPLETE].includes(Number(this.query.orderStatus));
-      this.switchReceiptStatus(received ? 1 : 0);
+      const fixedReceipt = this.data.applicationPolicy?.receiptStatus;
+      this.switchReceiptStatus(fixedReceipt === 2 ? 0 : received ? 1 : 0);
     } catch (error) {
       Toast({
         context: this,
@@ -167,7 +169,9 @@ Page({
         goods.numOfSkuAvailable ?? goods.boughtQuantity ?? goods.quantity ?? 0,
       ) > 0);
       const returnAddressConfigured = preview.returnAddressConfigured ?? preview.hasReturnAddress;
-      const canApplyReturn = this.data.canApplyReturn && returnAddressConfigured !== false;
+      const policy = preview.applicationPolicy;
+      const allowsReturn = policy ? policy.allowedTypes.includes(ServiceType.RETURN_GOODS) : this.data.canApplyReturn;
+      const canApplyReturn = allowsReturn && returnAddressConfigured !== false;
       if (!availableGoods.length) {
         throw new Error('该订单没有可申请售后的商品');
       }
@@ -185,8 +189,14 @@ Page({
         boughtQuantity: goods.boughtQuantity,
       }));
       this.setData({
+        applicationPolicy: policy || null,
+        scenario: preview.scenario || '',
+        showRefundType: policy ? policy.allowedTypes.length > 1 : this.data.showRefundType,
+        receiptStatusLocked: policy?.receiptStatus !== null && policy?.receiptStatus !== undefined
+          ? true : this.data.receiptStatusLocked,
+        'serviceFrom.remark': this.data.serviceFrom.remark || policy?.defaultReason || '',
         canApplyReturn,
-        returnAddressMissing: this.data.canApplyReturn && returnAddressConfigured === false,
+        returnAddressMissing: allowsReturn && returnAddressConfigured === false,
         goodsInfo: goodsInfoList[0] || {},
         goodsInfoList,
         refundAmountText: priceFormat(refundableAmount, 2),
@@ -389,6 +399,7 @@ Page({
             receiptStatus: this.data.serviceFrom.receiptStatus.status,
             rightsImageUrls: this.data.serviceFrom.rightsImageUrls,
             rightsReasonDesc: this.data.serviceFrom.remark,
+            reapplyId: this.query.reapplyId,
             rightsType: normalizedType,
             type: normalizedType,
           },
@@ -410,6 +421,22 @@ Page({
           message: '申请成功',
           icon: '',
         });
+        const pages = getCurrentPages();
+        pages.forEach((page) => {
+          if (['pages/order/after-service-list/index', 'pages/order/order-list/index', 'pages/order/order-detail/index'].includes(page.route)) {
+            page.setData({ backRefresh: true });
+          }
+          if (page.route === 'pages/usercenter/index') page.refreshOrderCounts?.();
+        });
+        if (this.query.reapply === 'true') {
+          const listIndex = pages.findIndex((page) => page.route === 'pages/order/after-service-list/index');
+          if (listIndex >= 0) {
+            wx.navigateBack({ delta: pages.length - 1 - listIndex });
+          } else {
+            wx.redirectTo({ url: '/pages/order/after-service-list/index' });
+          }
+          return;
+        }
         wx.redirectTo({
           url: `/pages/order/after-service-detail/index?rightsNo=${encodeURIComponent(rightsNo)}`,
         });

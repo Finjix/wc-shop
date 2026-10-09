@@ -271,8 +271,9 @@
   background: #f5f5f5 !important;
   border-radius: 16rpx;
 }
-.service-from-group__textarea .t-textarea__wrapper .t-textarea__wrapper-textarea {
-  height: 136rpx;
+.service-from-group__textarea .refund-reason-input {
+  min-height: 400rpx;
+  line-height: 44rpx;
   box-sizing: border-box;
 }
 .service-from-group__grid {

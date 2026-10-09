@@ -14,4 +14,14 @@ export function getRightsDetail({ rightsNo }) {
 }
 
 export function confirmReceived(params = {}) { return request('afterSales.confirmReceived', params); }
-export function cancelRights(params = {}) { return request('afterSales.withdraw', { afterSaleId: params.rightsNo }); }
+export async function cancelRights(params = {}) {
+  const result = await request('afterSales.withdraw', { afterSaleId: params.rightsNo });
+  getCurrentPages().forEach((page) => {
+    if (page.route === 'pages/usercenter/index') {
+      page.refreshOrderCounts?.();
+    } else if (['pages/order/order-list/index', 'pages/order/order-detail/index', 'pages/order/after-service-list/index'].includes(page.route)) {
+      page.setData({ backRefresh: true });
+    }
+  });
+  return result;
+}

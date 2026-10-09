@@ -152,6 +152,7 @@ tbody tr.product-list-inactive, tbody tr.product-list-inactive:hover { backgroun
 .order-after-sale-note { margin-top: 5px; color: #a5813b; }
 .order-list-actions .text-button { padding-left: 0; padding-right: 0; margin-right: 16px; }
 .order-list-actions button.text-button { border: 0; background: transparent; font: inherit; cursor: pointer; }
+.order-list-actions button.text-button:disabled { color: var(--subtle); cursor: not-allowed; text-decoration: none; }
 .shipping-dialog .t-dialog { padding: 32px; max-height: calc(100dvh - 96px); display: flex; flex-direction: column; }
 .shipping-dialog .t-dialog__header, .shipping-dialog .t-dialog__footer { flex-shrink: 0; }
 .shipping-dialog-tracking { margin-top: 32px; }
@@ -233,8 +234,13 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .form-panel .form-grid { margin-bottom: 18px; }
 .editor-panel { border-color: var(--line-strong); background: var(--surface); }
 .product-editor-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 18px; }
-.product-editor-actions.floating-save-actions { flex-direction: column-reverse; margin-bottom: 0; }
-.product-editor-actions.floating-save-actions .t-button { width: 100%; }
+.product-editor-actions.floating-save-actions { flex-direction: column; margin-bottom: 0; }
+.product-editor-actions.floating-save-actions .t-button {
+  width: 100%;
+  height: var(--td-comp-size-m, 32px);
+  min-height: var(--td-comp-size-m, 32px);
+  font-size: var(--td-font-size-body-medium, 14px);
+}
 .form-actions { display: flex; gap: 8px; margin-top: 18px; }
 .file-list { display: flex; flex-direction: column; gap: 4px; margin-top: 7px; }
 .file-list code { word-break: break-all; font-size: 10px; color: #555; background: var(--surface-muted); border: 1px solid #ededed; border-radius: 0; padding: 5px; }
@@ -281,6 +287,34 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .home-config-dialog h3 { margin: 0 0 10px; font-size: 18px; }
 .home-config-dialog p { margin: 0 0 22px; color: var(--muted); font-size: 13px; }
 .home-config-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.rejection-field-heading { display: flex; align-items: center; justify-content: space-between; }
+.rejection-character-count { text-align: right; font-size: 12px; font-weight: normal; color: var(--subtle); }
+.rejection-dialog-actions { margin-top: 20px; gap: 12px; }
+.rejection-dialog-actions .t-button { min-width: 80px; }
+.approval-dialog h3 { margin: 0 0 16px; font-size: 16px; }
+.approval-dialog > p { margin: 0 0 24px; color: var(--muted); font-size: 12px; }
+.approval-dialog .field { margin-bottom: 20px; gap: 8px; }
+.approval-dialog .field input, .approval-dialog .field select {
+  width: 100%;
+  height: var(--td-comp-size-m, 32px);
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.approval-dialog .field input:focus, .approval-dialog .field select:focus {
+  outline: 1px solid var(--ink);
+  outline-offset: -1px;
+}
+.approval-dialog .field > small { font-size: 12px; line-height: 1.5; }
+.approval-cancellation-summary { display: grid; gap: 20px; font-size: 12px; }
+.approval-cancellation-summary > div { display: flex; justify-content: space-between; gap: 16px; }
+.approval-cancellation-summary span { color: var(--muted); }
+.approval-cancellation-summary strong { color: var(--text); font-weight: 500; }
+.approval-dialog-actions { margin-top: 24px; gap: 12px; }
+.approval-dialog-actions .t-button { min-width: 80px; }
 .inline-action { display: flex; gap: 5px; align-items: center; }
 .inline-action .t-input { width: 100px; }
 .tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
@@ -416,7 +450,26 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .t-dialog__footer .t-button + .t-button { margin-left: 0; }
 .t-dialog__footer .t-dialog__confirm { order: -1; }
 .commerce-detail-dialog { width: min(760px, 100%); }
+.after-sales-detail-toolbar { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+.after-sales-page .after-sales-detail-panel { width: 100%; box-sizing: border-box; flex: 1; }
+.after-sales-detail-panel .commerce-image-row {
+  margin: 24px 0;
+  gap: 12px;
+}
+.after-sales-detail-panel .commerce-proof-image { display: block; flex-shrink: 0; }
+.after-sales-detail-panel .form-actions { margin-top: 24px; }
 .commerce-detail-dialog .detail-list { margin-bottom: 20px; }
+.after-sales-page th, .after-sales-page td,
+.after-sales-page .commerce-detail-dialog,
+.after-sales-page .detail-list dt, .after-sales-page .detail-list dd { text-align: left; }
+.after-sales-page td:first-child > .text-button { padding-left: 0; }
+.after-sales-page .commerce-actions .t-button + .t-button { margin-left: 16px; }
+.after-sales-page .commerce-actions .t-button--variant-text {
+  padding-left: 0;
+  padding-right: 0;
+  min-width: 0;
+  justify-content: flex-start;
+}
 .commerce-detail-dialog h3 { margin-top: 18px; }
 .commerce-settings-note { margin: 0 0 18px; color: var(--muted); font-size: 12px; }
 .commerce-work-queue-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }

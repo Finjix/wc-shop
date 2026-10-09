@@ -6,8 +6,17 @@ const COMPLETE_ORDER_STATUS = 50;
 
 function fetchOrderCounts() { return request('orders.count').then((data) => data.items); }
 
-function fetchAfterSalesCount() {
-  return request('afterSales.list', { page: 1, pageSize: 1 }).then((data) => data.total);
+async function fetchAfterSalesCount() {
+  let count = 0;
+  let loaded = 0;
+  let page = 1;
+  let data;
+  do {
+    data = await request('afterSales.list', { page: page++, pageSize: 20 });
+    loaded += data.items.length;
+    count += data.items.filter((record) => ['pending_review', 'approved', 'refunding'].includes(record.status)).length;
+  } while (data.items.length && loaded < data.total);
+  return count;
 }
 
 const toolData = [
@@ -41,7 +50,7 @@ const orderTagInfos = [
     status: 1,
   },
   {
-    title: '退款/售后',
+    title: '售后',
     iconName: 'exchang',
     orderNum: 0,
     tabType: 0,

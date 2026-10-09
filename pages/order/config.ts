@@ -44,6 +44,7 @@ export const ServiceTypeDesc = {
 
 // 订单按钮类型
 export const OrderButtonTypes = {
+  CANCEL_AFTER_SALE: 12, // 撤销售后
   CONFIRM: 3, // 确认收货
   APPLY_REFUND: 4, // 申请售后
   VIEW_REFUND: 5, // 查看退款
@@ -56,6 +57,7 @@ export const OrderButtonTypes = {
 
 // 售后服务按钮类型
 export const ServiceButtonTypes = {
+  REAPPLY: 6, // 再次申请
   REVOKE: 2, // 撤销
   FILL_TRACKING_NO: 3, // 填写运单号
   CHANGE_TRACKING_NO: 4, // 修改运单号

@@ -25,7 +25,7 @@ export function normalizeRecord(record) {
       rightsImageUrls: record.images,
     },
     rightsItem: record.items.map(normalizeOrderItem),
-    buttonVOs: normalizeServiceButtons(record.status, type, [], record.trackingNo || ''),
+    buttonVOs: normalizeServiceButtons(record.status, type, [], record.trackingNo || '', record.actions),
     logisticsVO: normalizeLogistics(record),
   };
 }
@@ -42,7 +42,7 @@ export function getRightsList({ parameter = {} } = {}) {
       pageNum: data.page,
       pageSize: data.pageSize,
       totalCount: data.total,
-      dataList: await Promise.all(data.items.map((record) => resolveRightsImages(normalizeRecord(record)))),
+      dataList: await Promise.all(data.items.filter((record) => record.status !== 'withdrawn').map((record) => resolveRightsImages(normalizeRecord(record)))),
       states: {},
     },
   }));

@@ -5,6 +5,7 @@ import Toast from 'tdesign-miniprogram/toast/index';
 import Dialog from '../../utils/dialog';
 import { OrderButtonTypes } from '../../config';
 import { confirmOrderReceived } from '../../services/orderDetail';
+import { cancelRights } from '../../after-service-detail/api';
 import { addGoodsToCart } from '../../../../services/cart/cart';
 import { getApiErrorMessage } from '../../../../utils/api';
 
@@ -76,6 +77,9 @@ Component({
     onOrderBtnTap(e) {
       const type = Number(e.currentTarget.dataset.type);
       switch (type) {
+        case OrderButtonTypes.CANCEL_AFTER_SALE:
+          this.onCancelAfterSale(e.currentTarget.dataset.rightsNo);
+          break;
         case OrderButtonTypes.CONFIRM:
           this.onConfirm(this.data.currentOrder);
           break;
@@ -97,6 +101,19 @@ Component({
         case OrderButtonTypes.REBUY:
           this.onBuyAgain(this.data.currentOrder);
       }
+    },
+
+    onCancelAfterSale(rightsNo) {
+      if (!rightsNo) return;
+      Dialog.confirm({
+        context: this,
+        title: '是否撤销售后申请？',
+        content: '',
+        confirmBtn: '确定',
+        cancelBtn: '取消',
+      }).then(() => cancelRights({ rightsNo })
+        .then(() => this.finishAction('售后申请已撤销'))
+        .catch((error) => this.showActionError(error)), () => {});
     },
 
     onConfirm(order) {

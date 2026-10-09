@@ -4,6 +4,7 @@ import Dialog from '../../utils/dialog';
 import Toast from 'tdesign-miniprogram/toast/index';
 
 import { cancelRights } from '../../after-service-detail/api';
+import { fetchOrderDetail } from '../../services/orderDetail';
 import { ServiceButtonTypes } from '../../config';
 
 Component({
@@ -43,6 +44,9 @@ Component({
     onServiceBtnTap(e) {
       const type = Number(e.currentTarget.dataset.type);
       switch (type) {
+        case ServiceButtonTypes.REAPPLY:
+          this.onReapply(this.data.currentService);
+          break;
         case ServiceButtonTypes.REVOKE:
           this.onConfirm(this.data.currentService);
           break;
@@ -55,6 +59,33 @@ Component({
         case ServiceButtonTypes.VIEW_DELIVERY:
           this.viewDelivery(this.data.currentService);
           break;
+      }
+    },
+
+    async onReapply(service) {
+      if (this.reapplying) return;
+      this.reapplying = true;
+      try {
+        const { data: order } = await fetchOrderDetail({ orderNo: service.orderNo });
+        const canApplyReturn = [40, 50].includes(Number(order.orderStatus));
+        const params = {
+          orderNo: order.orderNo,
+          orderStatus: order.orderStatus,
+          orderAmt: order.goodsAmountApp,
+          payAmt: order.paymentAmount,
+          canApplyReturn,
+          orderLevel: true,
+          directApply: !canApplyReturn,
+          reapply: true,
+          reapplyId: service.id,
+        };
+        const query = Object.keys(params).map((key) => `${key}=${encodeURIComponent(params[key] ?? '')}`).join('&');
+        wx.navigateTo({ url: `/pages/order/apply-service/index?${query}` });
+      } catch (error) {
+        const pages = getCurrentPages();
+        Toast({ context: pages[pages.length - 1], selector: '#t-toast', message: error?.message || '加载订单失败，请稍后重试', icon: '' });
+      } finally {
+        this.reapplying = false;
       }
     },
 
@@ -90,7 +121,7 @@ Component({
       Dialog.confirm({
         context,
         title: '是否撤销退货申请？',
-        content: '撤销后可重新提交售后申请。',
+        content: '',
         confirmBtn: '确定',
         cancelBtn: '取消',
       })
@@ -102,7 +133,7 @@ Component({
               selector: '#t-toast',
               message: '售后申请已撤销',
             });
-            this.triggerEvent('refresh');
+            this.triggerEvent('refresh', { deleted: true });
           });
         })
         .catch((error) => {

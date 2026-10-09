@@ -22,8 +22,10 @@ export function serviceStatusLabel(value, serviceType) {
   if (status === 170) return '已关闭';
   return '处理中';
 }
-export function normalizeServiceButtons(value, serviceType, buttons = [], logisticsNo = '') {
+export function normalizeServiceButtons(value, serviceType, buttons = [], logisticsNo = '', actions = null) {
   if (buttons.length) return buttons;
+  if (actions?.reapply ?? value === 'rejected') return [{ type: 6, name: '再次申请' }];
+  if (actions?.withdraw) return [{ type: 2, name: '撤销申请' }];
   const status = normalizeServiceStatus(value);
   if (status === 100) return [{ type: 2, name: '撤销申请' }];
   if (status === 110 && Number(serviceType) === 10) return [{ type: 3, name: '填写退货物流' }];

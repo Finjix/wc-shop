@@ -89,9 +89,10 @@
     <view class="service-from-group__textarea">
       <text class="textarea--label">退款原因</text>
       <t-textarea
-        style="height: 220rpx"
+        autosize
         value="{{serviceFrom.remark}}"
         t-class="textarea--content"
+        t-class-textarea="refund-reason-input"
         maxlength="200"
         indicator
         placeholder="请输入退款原因（必填）"

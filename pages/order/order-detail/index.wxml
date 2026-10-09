@@ -58,19 +58,14 @@
           data-index="{{gIndex}}"
         ></order-goods-card>
       </view>
-      <view class="pay-detail">
-        <view class="pay-item">
-          <text>实付</text>
-          <price
-            fill
-            decimalSmaller
-            wr-class="pay-item__right font-bold primary max-size"
-            price="{{order.paymentAmount || '0'}}"
-          />
-        </view>
-      </view>
     </order-card>
     <view class="pay-detail padding-inline">
+      <view class="pay-item">
+        <text>实付</text>
+        <view class="pay-item__right">
+          <price fill wr-class="order-no normal-color" price="{{order.paymentAmount || '0'}}" />
+        </view>
+      </view>
       <view class="pay-item">
         <text>订单编号</text>
         <view class="pay-item__right" bindtap="onOrderNumCopy">

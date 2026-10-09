@@ -1,6 +1,6 @@
 <t-navbar
   t-class-title="app-page-navbar-title"
-  title="退款/售后"
+  title="售后"
   leftArrow
   fixed="{{false}}"
   background="#fff"
@@ -20,34 +20,25 @@
       order="{{order}}"
       data-order="{{order}}"
       bindcardtap="onAfterServiceCardTap"
-      hide-store-name="{{true}}"
-      header-class="header-class"
+      useLogoSlot
+      useTopRightSlot
     >
-      <view class="service-summary">
-        <text>{{order.typeDesc}}</text>
-        <text>{{order.statusName}}</text>
-      </view>
-      <wr-goods-card
+      <view slot="top-left" class="service-type">订单号 {{order.orderNo}}</view>
+      <view slot="top-right" class="service-status">{{order.statusName}}</view>
+      <specs-goods-card
         wx:for="{{order.goodsList}}"
         wx:key="id"
         wx:for-item="goods"
         wx:for-index="gIndex"
         data="{{goods}}"
         no-top-line="{{gIndex === 0}}"
-      >
-        <view slot="footer" class="order-goods-card-footer">
-          <wr-price
-            price="{{goods.itemRefundAmount}}"
-            fill
-            wr-class="order-goods-card-footer-price-class"
-            symbol-class="order-goods-card-footer-price-symbol"
-            decimal-class="order-goods-card-footer-price-decimal"
-          />
-          <view class="order-goods-card-footer-num">x {{goods.rightsQuantity}}</view>
+      />
+      <view slot="more" class="service-actions">
+        <view class="service-total">
+          <text class="service-total__label">实付</text>
+          <wr-price fill decimalSmaller wr-class="service-total__price" price="{{order.amount || '0'}}" />
         </view>
-      </wr-goods-card>
-      <view slot="more">
-        <wr-after-service-button-bar service="{{order}}" bindrefresh="onRefresh" />
+        <wr-after-service-button-bar class="service-actions__buttons" service="{{order}}" bindrefresh="onRefresh" />
       </view>
     </wr-order-card>
     <!-- 列表加载中/已全部加载 -->

@@ -1603,14 +1603,15 @@ async function testMerchantRefundAmountsAndReservationRelease() {
     assert.strictEqual(runtime.records.afterSales[first._id].status, 'pending_review');
     assert.strictEqual(runtime.records.orders[order._id].pendingRefundAmount, 100);
   }
-  const refund = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: first._id, status: 'approved', type: 20, amount: 50 });
-  assert.strictEqual(refund.amount, 50);
-  assert.strictEqual(runtime.records.afterSales[first._id].amount, 50);
-  assert.strictEqual(runtime.records.orders[order._id].refundAmount, 50);
+  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'afterSales.review', { id: first._id, status: 'approved', type: 20, amount: 50 }), appError('INVALID_ARGUMENT'));
+  const refund = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: first._id, status: 'approved', type: 20, amount: 100 });
+  assert.strictEqual(refund.amount, 100);
+  assert.strictEqual(runtime.records.afterSales[first._id].amount, 100);
+  assert.strictEqual(runtime.records.orders[order._id].refundAmount, 100);
   assert.strictEqual(runtime.records.orders[order._id].pendingRefundAmount, 0);
   assert.strictEqual(runtime.records.orders[order._id].pendingRefundQuantities['sku-new'], 0);
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 9);
-  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: first._id, status: 'approved', type: 20, amount: 50 });
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: first._id, status: 'approved', type: 20, amount: 100 });
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 9);
   const shipped = await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: order._id, trackingNo: 'SF001' });
   assert.strictEqual(shipped.shippedQuantities['sku-new'], 1);
@@ -1623,7 +1624,7 @@ async function testMerchantRefundAmountsAndReservationRelease() {
   await adminEndpoint({}, admin, runtime, 'afterSales.confirmReturn', { afterSaleId: last._id });
   await adminEndpoint({}, admin, runtime, 'afterSales.confirmReturn', { afterSaleId: last._id });
   const final = runtime.records.orders[order._id];
-  assert.strictEqual(final.refundAmount, 80);
+  assert.strictEqual(final.refundAmount, 130);
   assert.strictEqual(final.paymentStatus, 'partially_refunded');
   assert.strictEqual(final.status, 'refunded', 'all goods resolved closes the order even when merchant refunds less');
   assert.strictEqual(final.pendingRefundAmount, 0);
@@ -1631,12 +1632,13 @@ async function testMerchantRefundAmountsAndReservationRelease() {
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
   await assert.rejects(() => shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: order._id, type: 20, reason: '重复申请' }), appError('ORDER_STATE_INVALID'));
 
-  // Ending a discounted pre-shipment refund must not leave an unshippable paid order.
+  // Cancellation must refund the full claim and release inventory.
   const cancelled = await shopEndpoint({}, user, runtime, 'orders.create', {
     requestKey: 'discounted-cancel', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
   });
   const cancelClaim = await shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: cancelled._id, type: 20, reason: '取消' });
-  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: cancelClaim._id, status: 'approved', type: 20, amount: 1 });
+  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'afterSales.review', { id: cancelClaim._id, status: 'approved', type: 20, amount: 1 }), appError('INVALID_ARGUMENT'));
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: cancelClaim._id, status: 'approved', type: 20, amount: 100 });
   assert.strictEqual(runtime.records.orders[cancelled._id].status, 'refunded');
   assert.strictEqual(runtime.records.orders[cancelled._id].inventoryReserved, false);
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10);
@@ -1678,12 +1680,14 @@ async function testLegacyOrdersWithoutAfterSaleIndexCanApply() {
   assert.strictEqual(runtime.records.orders[order._id].paymentAmount, 100);
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 9);
   await shopEndpoint({}, user, runtime, 'afterSales.withdraw', { afterSaleId: claim._id });
-  // Restore historical IDs rather than overwriting the index with only the new claim.
+  assert.strictEqual(runtime.records.afterSales[claim._id], undefined, 'withdrawn claims are deleted');
+  assert.deepStrictEqual(runtime.records.orders[order._id].afterSaleIds, []);
+  // A legacy index rebuild must not restore a deleted claim.
   delete runtime.records.orders[order._id].afterSaleIds;
   const second = await shopEndpoint({}, user, runtime, 'afterSales.create', {
     orderId: order._id, type: 20, receiptStatus: 2, reason: '重新申请',
   });
-  assert.deepStrictEqual(runtime.records.orders[order._id].afterSaleIds, [claim._id, second._id]);
+  assert.deepStrictEqual(runtime.records.orders[order._id].afterSaleIds, [second._id]);
   await assert.rejects(() => shopEndpoint({}, user, runtime, 'afterSales.create', {
     orderId: order._id, type: 20, receiptStatus: 2, reason: '重复申请',
   }), appError('CONFLICT'));
@@ -1714,10 +1718,10 @@ async function testReceiptStatusAndClosedAfterSales() {
   for (const fallback of [false, true]) {
     if (fallback) delete runtime.db.command.in;
     const closed = await shopEndpoint({}, user, runtime, 'afterSales.list', { status: 'closed', page: 1, pageSize: 1 });
-    assert.strictEqual(closed.total, 2);
+    assert.strictEqual(closed.total, 1);
     assert.strictEqual(closed.items.length, 1);
     const next = await shopEndpoint({}, user, runtime, 'afterSales.list', { status: 'closed', page: 2, pageSize: 1 });
-    assert.deepStrictEqual(new Set([...closed.items, ...next.items].map((item) => item.status)), new Set(['withdrawn', 'rejected']));
+    assert.deepStrictEqual(new Set([...closed.items, ...next.items].map((item) => item.status)), new Set(['rejected']));
     assert.strictEqual(closed.items[0].userId, 'user-1');
   }
 }

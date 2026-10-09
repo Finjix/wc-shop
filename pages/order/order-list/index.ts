@@ -42,7 +42,7 @@ Page({
   },
 
   onShow() {
-    if (!this.data.backRefresh) return;
+    if (!this.hasShownOnce) { this.hasShownOnce = true; return; }
     this.onRefresh();
     this.setData({ backRefresh: false });
   },
@@ -195,7 +195,7 @@ Page({
   },
 
   onRefresh() {
-    this.refreshList(this.data.curTab);
+    return this.refreshList(this.data.curTab);
   },
 
   onOrderCardTap(e) {

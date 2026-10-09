@@ -51,8 +51,7 @@ Page({
   },
 
   onShow() {
-    // 当从其他页面返回，并且 backRefresh 被置为 true 时，刷新数据
-    if (!this.data.backRefresh) return;
+    if (!this.hasShownOnce) { this.hasShownOnce = true; return; }
     this.onRefresh();
     this.setData({
       backRefresh: false,
@@ -135,9 +134,10 @@ Page({
             const logistics = _data.logisticsVO || _data.logistics || {};
             return {
               id: rights._id,
+              orderNo: rights.orderNo || rights.orderId || '',
               storeName: rights.storeName,
               type: normalizeServiceType(rights.rightsType ?? rights.type),
-              typeDesc: ServiceTypeDesc[normalizeServiceType(rights.rightsType ?? rights.type)] || rights.typeDesc || '',
+              typeDesc: _data.presentation?.typeLabel || ServiceTypeDesc[normalizeServiceType(rights.rightsType ?? rights.type)] || rights.typeDesc || '',
               typeDescIcon:
                 normalizeServiceType(rights.rightsType ?? rights.type) === ServiceType.ONLY_REFUND
                   ? 'money-circle'
@@ -153,6 +153,8 @@ Page({
                 specs: Array.isArray(item.specInfo)
                   ? item.specInfo.map((s) => s.specValues || s.specValue || '')
                   : [],
+                price: item.itemRefundAmount ?? item.refundAmount,
+                num: item.rightsQuantity ?? item.quantity,
                 itemRefundAmount: item.itemRefundAmount ?? item.refundAmount,
                 rightsQuantity: item.rightsQuantity ?? item.quantity,
               })),

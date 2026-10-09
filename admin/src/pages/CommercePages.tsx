@@ -3,6 +3,7 @@ import { Link, useBlocker, useNavigate, useOutletContext, useParams, useSearchPa
 import { Button, Dialog, Input, Tag } from 'tdesign-react';
 import { adminApi, ApiError } from '../lib/api';
 import { parseRefundAmount } from '../lib/refund-amount';
+import { afterSalePolicy, afterSaleRequestLabel, afterSaleReceiptLabel } from '../lib/after-sale-policy';
 import { useConfirm } from '../components/ConfirmProvider';
 import type { AfterSale, Comment, ListResult, Order, OrderAddressGroup } from '../types';
 import { EmptyState, EmptyTable, ErrorState, Field, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
@@ -72,19 +73,25 @@ function orderStatusKey(value: unknown) {
 }
 
 function orderStatusLabel(value: unknown) {
-  return ({ paid: '待发货', shipped: '待收货', completed: '已完成', refunded: '已退款' } as Record<string, string>)[orderStatusKey(value)] || '—';
+  return ({ paid: '待发货', shipped: '待收货', completed: '已完成', refunded: '已退款', cancelled: '已取消' } as Record<string, string>)[orderStatusKey(value)] || '—';
+}
+
+function orderDisplayStatus(order: Order) {
+  if (order.displayStatus) return String(order.displayStatus);
+  if (order.status === 'refunded' && (order.closureScenario === 'cancel_order' || order.fulfillmentStatus === 'paid')) return 'cancelled';
+  return orderStatusKey(order.status);
 }
 
 function statusTag(value: unknown) {
   const key = orderStatusKey(value);
-  return <Tag theme={key === 'refunded' ? 'default' : 'primary'} variant="light">{orderStatusLabel(key)}</Tag>;
+  return <Tag theme={['refunded', 'cancelled'].includes(key) ? 'default' : 'primary'} variant="light">{orderStatusLabel(key)}</Tag>;
 }
 
 function createdAtOf(value: Order) { return value.createdAt; }
 function amountOf(order: Order) { return order.paymentAmount; }
 function orderIdOf(order: Order) { return String(order._id); }
 const PAGE_SIZE = 20;
-const orderFilters = [['', '全部状态'], ['paid', '待发货'], ['shipped', '待收货'], ['completed', '已完成'], ['refunded', '已退款']];
+const orderFilters = [['', '全部状态'], ['paid', '待发货'], ['shipped', '待收货'], ['completed', '已完成'], ['refunded', '已退款'], ['cancelled', '已取消']];
 
 export function OrdersPage() {
   const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
@@ -100,6 +107,17 @@ export function OrdersPage() {
   const { data, loading, error } = useResource<unknown>('orders.list', { groupBy: 'address', page: search.page, pageSize: PAGE_SIZE, orderNo: search.orderNo || undefined, status: search.status || undefined }, refreshKey);
   const groups = readList<OrderAddressGroup>(data);
   const total = readTotal(data, groups.length);
+  const confirm = useConfirm();
+  const { busy, run } = useAction();
+  const deleteOrder = async (order: Order) => {
+    if (busy) return;
+    if (!await confirm(`确定永久删除订单 ${order.orderNo || orderIdOf(order)} 及其所有关联售后单？两端数据都会删除；未发货库存会释放，但删除不会自动退款。操作不可恢复。`)) return;
+    const result = await run('orders.delete', { orderId: orderIdOf(order) }, '订单已删除');
+    if (result !== undefined) {
+      if (groups.length === 1 && groups[0].orders.length === 1 && search.page > 1) setSearch((old) => ({ ...old, page: old.page - 1 }));
+      setRefreshKey((key) => key + 1);
+    }
+  };
   const submitSearch = () => {
     setSearch({ orderNo: query.trim(), status, page: 1 });
     setRefreshKey((key) => key + 1);
@@ -134,12 +152,12 @@ export function OrdersPage() {
             <thead><tr><th>订单号</th><th>商品 / 规格 / 数量</th><th>订单状态</th><th>操作</th></tr></thead>
             <tbody>{group.orders.map((order) => {
               const id = orderIdOf(order);
-              const currentStatus = orderStatusKey(order.status);
+              const currentStatus = orderDisplayStatus(order);
               return <tr key={id}>
                 <td><Link to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>{String(order.orderNo || id || '—')}</Link></td>
                 <td>{listOf<Record<string, unknown>>(order.items).map((item, index) => <div className="order-list-item" key={index}>{orderItemTitle(item)}<small>{orderItemSpecs(item)} × {itemQuantity(item)}</small></div>)}</td>
                 <td>{statusTag(currentStatus)}{Boolean(order.hasActiveAfterSale) && <small className="order-after-sale-note">售后处理中</small>}</td>
-                <td className="order-list-actions"><Link className="text-button" to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>详情</Link>{orderCanShip(order) && <button className="text-button" type="button" onClick={() => setShippingOrder(order)}>发货</button>}</td>
+                <td className="order-list-actions"><Link className="text-button" to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>详情</Link>{orderCanShip(order) && <button className="text-button" type="button" onClick={() => setShippingOrder(order)}>发货</button>}<button className="text-button" type="button" disabled={busy} onClick={() => void deleteOrder(order)}>删除</button></td>
               </tr>;
             })}</tbody>
           </Table>
@@ -281,7 +299,7 @@ export function OrderDetailPage() {
       <Panel>
         <dl className="detail-list">
           <dt>订单号</dt><dd>{String(data.orderNo || orderNo)}</dd>
-          <dt>订单状态</dt><dd>{orderStatusLabel(status)}</dd>
+          <dt>订单状态</dt><dd>{orderStatusLabel(orderDisplayStatus(data))}</dd>
           <dt>订单金额</dt><dd>{formatMoney(amountOf(data))}</dd>
           <dt>创建时间</dt><dd>{formatDate(createdAtOf(data))}</dd>
         </dl>
@@ -379,9 +397,22 @@ function afterSaleState(value: unknown) {
 function afterSaleStatusLabel(value: unknown) {
   return ({ pending_review: '待审核', approved: '审核通过 / 待寄回', refunding: '待确认退款', refunded: '退款完成', rejected: '已拒绝', withdrawn: '已撤销' } as Record<string, string>)[afterSaleState(value)] || String(value || '—');
 }
+function afterSaleItemSpecs(item: Record<string, unknown>) {
+  const snapshot = item.skuSnapshot as Record<string, unknown> | undefined;
+  const specs = item.specInfo ?? snapshot?.specInfo ?? item.specifications ?? item.specs;
+  if (typeof specs === 'string') return specs || '—';
+  if (!Array.isArray(specs)) return '—';
+  return specs.map((spec) => {
+    if (typeof spec === 'string') return spec;
+    if (!spec || typeof spec !== 'object') return '';
+    return String(spec.specValue ?? spec.specValues ?? spec.value ?? '');
+  }).filter(Boolean).join(' / ') || '—';
+}
 function afterSaleIdOf(row: AfterSale) { return String(row._id); }
 
 export function AfterSalesPage() {
+  const { afterSaleId } = useParams();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialStatus = searchParams.get('status') || '';
   const [status, setStatus] = useState(initialStatus);
@@ -394,22 +425,37 @@ export function AfterSalesPage() {
   const [approval, setApproval] = useState<AfterSale | null>(null);
   const [decisionType, setDecisionType] = useState(20);
   const [decisionAmount, setDecisionAmount] = useState('');
-  const maximumAmount = Number(approval?.reservedRefundAmount ?? approval?.refundRequestAmount ?? approval?.amount ?? 0);
-  const approvedAmount = parseRefundAmount(decisionAmount, maximumAmount);
+  const approvalPolicy = approval ? afterSalePolicy(approval) : null;
+  const maximumAmount = approvalPolicy?.maximumAmount ?? 0;
+  const isCancellation = approvalPolicy?.fullRefundOnly === true;
+  const approvedAmount = isCancellation ? maximumAmount : parseRefundAmount(decisionAmount, maximumAmount);
   const openApproval = (row: AfterSale) => {
     setApproval(row);
-    setDecisionType(Number(row.requestedType ?? row.type) === 10 ? 10 : 20);
-    setDecisionAmount((Number(row.amount || 0) / 100).toFixed(2));
+    const policy = afterSalePolicy(row);
+    setDecisionType(policy.fixedType ?? (Number(row.requestedType ?? row.type) === 10 ? 10 : 20));
+    setDecisionAmount((Number(policy.fullRefundOnly ? policy.maximumAmount : row.amount || 0) / 100).toFixed(2));
   };
   const confirm = useConfirm();
-  const { data, loading, error } = useResource<unknown>('afterSales.list', { page: search.page, pageSize: PAGE_SIZE, status: search.status || undefined, orderNo: search.orderNo || undefined }, refreshKey);
-  const rows = readList<AfterSale>(data);
+  const { data, loading, error } = useResource<unknown>(afterSaleId ? 'afterSales.get' : 'afterSales.list', afterSaleId ? { id: afterSaleId } : { page: search.page, pageSize: PAGE_SIZE, status: search.status || undefined, orderNo: search.orderNo || undefined }, refreshKey);
+  useEffect(() => {
+    if (afterSaleId && data) setSelected(data as AfterSale);
+  }, [afterSaleId, data]);
+  const rows = readList<AfterSale>(data).filter((row) => row.status !== 'withdrawn');
   const total = readTotal(data, rows.length);
   const { busy, run } = useAction();
   const review = async (row: AfterSale, next: 'approved' | 'rejected', reason = '') => {
     if (next === 'approved' && approvedAmount === null) return;
-    const result = await run('afterSales.review', { id: afterSaleIdOf(row), status: next, ...(next === 'approved' ? { type: decisionType, amount: approvedAmount } : {}), ...(reason ? { reason } : {}) }, next === 'approved' ? '已通过申请，系统已处理模拟退款或等待寄回' : '售后申请已拒绝');
+    const result = await run('afterSales.review', { id: afterSaleIdOf(row), status: next, ...(next === 'approved' ? { type: afterSalePolicy(row).fixedType ?? decisionType, amount: approvedAmount } : {}), ...(reason ? { reason } : {}) }, next === 'approved' ? '已通过申请，系统已处理模拟退款或等待寄回' : '售后申请已拒绝');
     if (result !== undefined) { setApproval(null); setRejection(null); setRejectReason(''); setSelected(null); setRefreshKey((key) => key + 1); }
+  };
+  const deleteAfterSale = async (row: AfterSale) => {
+    if (busy || !row.canDeleteAdmin) return;
+    if (!await confirm(`确定永久删除订单 ${row.orderNo || '—'} 的售后单？两端数据都会删除，操作不可恢复。`)) return;
+    const result = await run('afterSales.delete', { id: afterSaleIdOf(row) }, '售后单已删除');
+    if (result !== undefined) {
+      if (rows.length === 1 && search.page > 1) setSearch((old) => ({ ...old, page: old.page - 1 }));
+      setRefreshKey((key) => key + 1);
+    }
   };
   const confirmReturn = async (row: AfterSale) => {
     if (!await confirm('确认已收到退货并完成模拟退款？')) return;
@@ -421,9 +467,9 @@ export function AfterSalesPage() {
     setRefreshKey((key) => key + 1);
   };
   return <div className="orders-page after-sales-page">
-    <div className="toolbar commerce-toolbar orders-toolbar"><Input value={query} onChange={setQuery} placeholder="订单号" /><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="pending_review">待审核</option><option value="approved">待寄回</option><option value="refunding">待确认退款</option><option value="refunded">退款完成</option><option value="rejected">已拒绝</option></select><Button onClick={submitSearch}>查询</Button><Link className="after-sales-address-link" to="/after-sales/address"><Button variant="outline">售后地址设置</Button></Link></div>
+    {!afterSaleId && <div className="toolbar commerce-toolbar orders-toolbar"><Input value={query} onChange={setQuery} placeholder="订单号" /><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="pending_review">待审核</option><option value="approved">待寄回</option><option value="refunding">待确认退款</option><option value="refunded">退款完成</option><option value="rejected">已拒绝</option></select><Button onClick={submitSearch}>查询</Button><Link className="after-sales-address-link" to="/after-sales/address"><Button variant="outline">售后地址设置</Button></Link></div>}
     {loading && <LoadingState />}{error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
-    {!loading && !error && <Panel className={rows.length === 0 ? 'orders-empty-panel' : undefined}><Table minWidth={700}><thead><tr><th>订单号</th><th>类型</th><th>退款金额</th><th>状态</th><th>操作</th></tr></thead><tbody>
+    {!afterSaleId && !loading && !error && <Panel className={rows.length === 0 ? 'orders-empty-panel' : undefined}><Table minWidth={700}><thead><tr><th>订单号</th><th>类型</th><th>金额</th><th>状态</th><th>操作</th></tr></thead><tbody>
       {rows.length === 0 && <EmptyTable colSpan={5} />}
       {rows.map((row) => {
         const id = afterSaleIdOf(row);
@@ -431,26 +477,26 @@ export function AfterSalesPage() {
         const orderNo = String(row.orderNo || '');
         return <tr key={id}>
           <td>{orderNo ? <Link className="text-button" to={`/orders/${encodeURIComponent(orderNo)}`}>{orderNo}</Link> : '—'}</td>
-          <td>{afterSaleType(row.type)}{state === 'pending_review' ? '（用户诉求）' : ''}</td><td>{formatMoney(row.amount)}</td>
+          <td>{afterSaleRequestLabel(row)}</td><td>{formatMoney(row.amount)}</td>
           <td><Tag variant="light">{afterSaleStatusLabel(state)}</Tag></td>
           <td className="commerce-actions">
-            {state === 'pending_review' && <><Button variant="text" disabled={busy} loading={busy} onClick={() => openApproval(row)}>同意</Button><Button variant="text" disabled={busy} onClick={() => { setRejection(row); setRejectReason(''); }}>拒绝</Button></>}
-            {state === 'refunding' && <Button variant="text" disabled={busy} loading={busy} onClick={() => void confirmReturn(row)}>确认退货并退款</Button>}
-            <Button variant="text" disabled={busy} onClick={() => setSelected(row)}>详情</Button>
+            <Button variant="text" disabled={busy} onClick={() => navigate(`/after-sales/${encodeURIComponent(id)}`)}>详情</Button>
+            <Button variant="text" disabled={busy || !row.canDeleteAdmin} title={row.canDeleteAdmin ? undefined : '仅已完成、已拒绝或已撤销的售后可删除'} onClick={() => void deleteAfterSale(row)}>删除</Button>
           </td>
         </tr>;
       })}
     </tbody></Table></Panel>}
-    {!loading && !error && <Pagination page={search.page} pageSize={PAGE_SIZE} total={total} showTotal={false} onChange={(page) => setSearch((old) => ({ ...old, page }))} />}
-    {selected && <div className="home-config-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setSelected(null); }}><section className="home-config-dialog commerce-detail-dialog" role="dialog" aria-modal="true" aria-label="售后详情"><div className="panel-heading"><h3>售后详情</h3><Button variant="text" disabled={busy} onClick={() => setSelected(null)}>关闭</Button></div>
-      <dl className="detail-list"><dt>订单号</dt><dd>{String(selected.orderNo || '—')}</dd><dt>用户诉求</dt><dd>{afterSaleType(selected.requestedType ?? selected.type)}</dd><dt>最终方式</dt><dd>{selected.decidedType ? afterSaleType(selected.decidedType) : '待商家决定'}</dd><dt>退款金额</dt><dd>{formatMoney(selected.amount)}</dd><dt>状态</dt><dd>{afterSaleStatusLabel(selected.status)}</dd><dt>收货状态</dt><dd>{selected.receiptStatus === 1 ? '已收到货' : selected.receiptStatus === 2 ? '未收到货' : '未记录'}</dd><dt>申请原因</dt><dd>{String(selected.reason || '—')}</dd><dt>审核说明</dt><dd>{String(selected.reviewReason || '—')}</dd><dt>退货地址</dt><dd>{returnAddressLabel(selected.returnAddressSnapshot)}</dd><dt>退货物流</dt><dd>{[selected.logisticsCompanyName, selected.trackingNo].filter(Boolean).join(' ') || '—'}</dd></dl>
-      <h3>售后凭证</h3><div className="commerce-image-row">{imageIds(selected.images).map((src, index) => <ResolvedImage key={`${afterSaleIdOf(selected)}-${index}`} fileID={src} alt={`售后凭证 ${index + 1}`} className="commerce-proof-image" />)}{imageIds(selected.images).length === 0 && <span>未上传凭证</span>}</div>
-      <h3>申请商品</h3><Table minWidth={500}><thead><tr><th>SKU</th><th>数量</th><th>金额</th></tr></thead><tbody>{listOf<Record<string, unknown>>(selected.items).map((item, index) => <tr key={`${item.skuId || index}`}><td>{String(item.skuId || item.goodsName || '—')}</td><td>{String(item.rightsQuantity ?? item.quantity ?? 0)}</td><td>{formatMoney(item.amount ?? item.refundAmount)}</td></tr>)}</tbody></Table>
-      {afterSaleState(selected.status) === 'pending_review' && <div className="form-actions"><Button theme="primary" disabled={busy} loading={busy} onClick={() => openApproval(selected)}>同意申请</Button><Button variant="outline" disabled={busy} onClick={() => { setRejectReason(''); setRejection(selected); setSelected(null); }}>拒绝申请</Button></div>}
+    {!afterSaleId && !loading && !error && <Pagination page={search.page} pageSize={PAGE_SIZE} total={total} showTotal={false} onChange={(page) => setSearch((old) => ({ ...old, page }))} />}
+    {afterSaleId && <div className="after-sales-detail-toolbar"><Button variant="outline" disabled={busy} onClick={() => navigate('/after-sales')}>返回列表</Button></div>}
+    {afterSaleId && selected && !loading && !error && <Panel className="commerce-detail-dialog after-sales-detail-panel">
+      <dl className="detail-list"><dt>订单号</dt><dd>{String(selected.orderNo || '—')}</dd><dt>状态</dt><dd>{afterSaleStatusLabel(selected.status)}</dd><dt>用户诉求</dt><dd>{afterSaleRequestLabel(selected)}</dd><dt>处理方式</dt><dd>{selected.decidedType ? afterSaleType(selected.decidedType) : '待商家决定'}</dd><dt>实付金额</dt><dd>{formatMoney(selected.amount)}</dd><dt>收货状态</dt><dd>{afterSaleReceiptLabel(selected)}</dd><dt>申请原因</dt><dd>{String(selected.reason || '—')}</dd><dt>拒绝原因</dt><dd>{String(selected.reviewReason || '—')}</dd><dt>退货地址</dt><dd>{returnAddressLabel(selected.returnAddressSnapshot)}</dd><dt>退货物流</dt><dd>{[selected.logisticsCompanyName, selected.trackingNo].filter(Boolean).join(' ') || '—'}</dd></dl>
+      <div className="commerce-image-row">{imageIds(selected.images).map((src, index) => <ResolvedImage key={`${afterSaleIdOf(selected)}-${index}`} fileID={src} alt={`售后凭证 ${index + 1}`} className="commerce-proof-image" />)}{imageIds(selected.images).length === 0 && <span>未上传凭证</span>}</div>
+      <Table minWidth={500}><thead><tr><th>规格</th><th>数量</th><th>金额</th></tr></thead><tbody>{listOf<Record<string, unknown>>(selected.items).map((item, index) => <tr key={`${item.skuId || index}`}><td>{afterSaleItemSpecs(item)}</td><td>{String(item.rightsQuantity ?? item.quantity ?? 0)}</td><td>{formatMoney(item.amount ?? item.refundAmount)}</td></tr>)}</tbody></Table>
+      {afterSaleState(selected.status) === 'pending_review' && <div className="form-actions"><Button theme="primary" disabled={busy} loading={busy} onClick={() => openApproval(selected)}>同意申请</Button><Button variant="outline" disabled={busy} onClick={() => { setRejectReason(''); setRejection(selected); }}>拒绝申请</Button></div>}
       {afterSaleState(selected.status) === 'refunding' && <div className="form-actions"><Button theme="primary" disabled={busy} loading={busy} onClick={() => void confirmReturn(selected)}>确认收到退货并完成模拟退款</Button></div>}
-    </section></div>}
-    {approval && <div className="home-config-dialog-backdrop" role="presentation"><section className="home-config-dialog" role="dialog" aria-modal="true" aria-label="确定售后处理方式"><h3>确定售后处理方式</h3><p>用户诉求：{afterSaleType(approval.requestedType ?? approval.type)}</p><label className="field"><span>最终处理方式（将同步给用户）</span><select value={decisionType} onChange={(event) => setDecisionType(Number(event.target.value))}><option value={20}>仅退款</option><option value={10}>退货退款</option></select></label><label className="field"><span>退款金额（元）</span><input type="number" min="0.01" max={maximumAmount / 100} step="0.01" value={decisionAmount} onChange={(event) => setDecisionAmount(event.target.value)} /><small>最高 {formatMoney(maximumAmount)}，最多两位小数</small>{approvedAmount === null && <small>请输入大于 0 且不超过上限的金额</small>}</label><div className="home-config-dialog-actions"><Button variant="outline" disabled={busy} onClick={() => setApproval(null)}>取消</Button><Button theme="primary" disabled={busy || approvedAmount === null} loading={busy} onClick={() => void review(approval, 'approved')}>确认通过</Button></div></section></div>}
-    {rejection && <div className="home-config-dialog-backdrop" role="presentation"><section className="home-config-dialog" role="dialog" aria-modal="true" aria-label="拒绝售后申请"><h3>拒绝售后申请</h3><label className="field"><span>拒绝原因</span><textarea rows={4} value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} maxLength={300} /></label><div className="home-config-dialog-actions"><Button variant="outline" disabled={busy} onClick={() => setRejection(null)}>取消</Button><Button theme="primary" disabled={busy || !rejectReason.trim()} loading={busy} onClick={() => void review(rejection, 'rejected', rejectReason.trim())}>确认拒绝</Button></div></section></div>}
+    </Panel>}
+    {approval && <div className="home-config-dialog-backdrop" role="presentation"><section className="home-config-dialog approval-dialog" role="dialog" aria-modal="true" aria-label="售后处理"><h3>售后处理</h3><p>用户诉求：{afterSaleRequestLabel(approval)}</p>{isCancellation ? <div className="approval-cancellation-summary"><div><span>处理方式</span><strong>仅退款</strong></div><div><span>退款金额</span><strong>{formatMoney(maximumAmount)}</strong></div></div> : <><label className="field"><span>处理方式</span><select value={decisionType} onChange={(event) => setDecisionType(Number(event.target.value))}>{approvalPolicy?.allowedTypes.map((type) => <option key={type} value={type}>{afterSaleType(type)}</option>)}</select></label><label className="field"><span>退款金额（元）</span><input type="number" min="0.01" max={maximumAmount / 100} step="0.01" value={decisionAmount} onChange={(event) => setDecisionAmount(event.target.value)} /><small>最高 {formatMoney(maximumAmount)}，最多两位小数</small>{approvedAmount === null && <small>请输入大于 0 且不超过上限的金额</small>}</label></>}<div className="home-config-dialog-actions approval-dialog-actions"><Button theme="primary" disabled={busy || approvedAmount === null} loading={busy} onClick={() => void review(approval, 'approved')}>确认</Button><Button variant="outline" disabled={busy} onClick={() => setApproval(null)}>取消</Button></div></section></div>}
+    {rejection && <div className="home-config-dialog-backdrop" role="presentation"><section className="home-config-dialog" role="dialog" aria-modal="true" aria-label="拒绝售后申请"><label className="field"><span className="rejection-field-heading"><span>拒绝原因</span><small className="rejection-character-count">{rejectReason.length} / 200</small></span><textarea rows={4} style={{ resize: 'none' }} value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} maxLength={200} /></label><div className="home-config-dialog-actions rejection-dialog-actions"><Button theme="primary" disabled={busy || !rejectReason.trim()} loading={busy} onClick={() => void review(rejection, 'rejected', rejectReason.trim())}>确认</Button><Button variant="outline" disabled={busy} onClick={() => setRejection(null)}>取消</Button></div></section></div>}
   </div>;
 }
 
