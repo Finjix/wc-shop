@@ -15,6 +15,7 @@
     "test:admin-session": "node scripts/test-admin-session.cjs",
     "test:checkout": "node scripts/test-checkout.cjs",
     "test:order-after-sales": "node scripts/test-order-after-sales.cjs",
+    "test:order-receipt": "node scripts/test-order-receipt.cjs",
     "test:commerce-http": "npm run build:cloudfunction && node scripts/test-commerce-http.cjs",
     "dev:local-backend": "npm run build:cloudfunction && node scripts/local-backend.js",
     "build:admin": "npm --prefix admin run build",

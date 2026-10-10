@@ -18,43 +18,14 @@
       <!-- 状态及描述 -->
       <view class="service-detail__header">
         <view class="title">
-          <t-icon prefix="wr" name="{{service.statusIcon}}" size="30px" />
+          <t-icon wx:if="{{!service.isRefunded}}" prefix="wr" name="{{service.statusIcon}}" size="30px" />
           {{service.statusName}}
         </view>
-        <view class="desc" wx:if="{{service.statusDesc && service.statusDesc !== service.statusName}}"> {{service.statusDesc}} </view>
-      </view>
-      <!-- 退款金额 -->
-      <view class="service-section__pay pay-result" wx:if="{{service.isRefunded}}">
-        <t-cell
-          t-class-title="title"
-          t-class-note="right"
-          t-class="t-class-wrapper-first-child"
-          title="{{service.isRefunded ? '退款金额' : '预计退款金额'}}"
-          bordered="{{false}}"
-        >
-          <wr-price slot="note" price="{{service.refundRequestAmount}}" fill />
-        </t-cell>
-        <t-cell
-          wx:for="{{service.refundMethodList}}"
-          wx:key="name"
-          wx:for-index="index"
-          wx:for-item="item"
-          t-class-title="t-cell-title"
-          t-class-note="t-cell-title"
-          t-class="t-class-wrapper"
-          title="{{item.name}}"
-          bordered="{{service.refundMethodList.length - 1 === index ? true : false}}"
-        >
-          <wr-price slot="note" price="{{item.amount}}" fill />
-        </t-cell>
-        <block wx:if="{{service.isRefunded}}">
-          <t-cell
-            title=""
-            t-class="t-class-wrapper-first-child"
-            t-class-description="label"
-            description="说明：该订单使用模拟支付，退款已在系统中标记完成，不涉及真实资金退回。"
-          />
-        </block>
+        <view class="refund-summary" wx:if="{{service.isRefunded}}">
+          <text>退款金额</text>
+          <wr-price price="{{service.refundRequestAmount}}" fill wr-class="refund-summary__price" symbol-class="refund-summary__price-part" decimal-class="refund-summary__price-part" />
+        </view>
+        <view class="desc" wx:if="{{!service.isRefunded && service.statusDesc && service.statusDesc !== service.statusName}}"> {{service.statusDesc}} </view>
       </view>
       <!-- 物流 -->
       <view

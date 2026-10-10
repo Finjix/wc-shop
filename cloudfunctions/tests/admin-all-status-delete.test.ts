@@ -18,8 +18,32 @@ async function run() {
     if (['paid_pending', 'shipped_pending', 'refunded', 'cancelled'].includes(state)) {
       const claim = await shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: order._id, type: 20, receiptStatus: 2, reason: '退款' });
       if (['refunded', 'cancelled'].includes(state)) await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: claim._id, status: 'approved' });
+      const detail = await adminEndpoint({}, admin, runtime, 'afterSales.get', { id: claim._id });
+      assert.strictEqual(detail.createdAt, claim.createdAt, 'application time is preserved');
+      assert.deepStrictEqual(detail.order.addressSnapshot, order.addressSnapshot, 'after-sale details include the order contact and address');
+      assert.deepStrictEqual(detail.order.logistics, runtime.records.orders[order._id].logistics, 'after-sale details include current shipment logistics');
+      assert.strictEqual(detail.order._id, order._id);
+      assert.strictEqual(detail.order.paymentAmount, order.paymentAmount, 'paid amount is separate from the claim refund amount');
     }
-    assert.strictEqual((await adminEndpoint({}, admin, runtime, 'orders.get', { orderId: order._id })).canDeleteAdmin, true);
+    const active = state.endsWith('_pending');
+    const detail = await adminEndpoint({}, admin, runtime, 'orders.get', { orderId: order._id });
+    assert.strictEqual(detail.canDeleteAdmin, !active);
+    assert.strictEqual(detail.hasActiveAfterSale, active);
+    if (active) {
+      const group = (await adminEndpoint({}, admin, runtime, 'orders.list', { groupBy: 'address' })).items[0];
+      const snapshot = JSON.stringify(runtime.records);
+      await assert.rejects(() => adminEndpoint({}, admin, runtime, 'orders.delete', { orderId: order._id }), (error) => error.code === 'ORDER_STATE_INVALID');
+      const shipped = state === 'shipped_pending';
+      for (const [action, data] of [
+        [shipped ? 'orders.logistics.save' : 'orders.ship', { orderId: order._id, trackingNo: 'BLOCKED' }],
+        [shipped ? 'orders.logistics.saveBatch' : 'orders.shipBatch', { orderIds: [order._id], groupKey: group.key, trackingNo: 'BLOCKED' }],
+        ...(shipped ? [['orders.updateStatus', { orderId: order._id, status: 'received' }]] : []),
+      ]) {
+        await assert.rejects(() => adminEndpoint({}, admin, runtime, action, data), (error) => error.code === 'CONFLICT');
+      }
+      assert.strictEqual(JSON.stringify(runtime.records), snapshot, 'active after-sale orders must remain read-only');
+      continue;
+    }
     await adminEndpoint({}, admin, runtime, 'orders.delete', { orderId: order._id });
     await adminEndpoint({}, admin, runtime, 'orders.delete', { orderId: order._id });
     assert.strictEqual(runtime.records.orders[order._id], undefined, state);
@@ -39,6 +63,6 @@ async function run() {
   await adminEndpoint({}, admin, runtime, 'orders.delete', { orderId: order._id });
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10, 'already refunded quantity must not be restored again');
   assert.strictEqual(runtime.records.skus['sku-new'].soldQuantity, 0);
-  console.log('PASS permanent deletion of every order state and safe unshipped inventory release');
+  console.log('PASS active after-sale read-only guards, terminal order deletion and safe inventory release');
 }
 module.exports = { run };

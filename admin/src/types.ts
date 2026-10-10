@@ -143,6 +143,7 @@ export interface Comment {
 }
 
 export interface AfterSale {
+  order?: Order | null;
   canDeleteAdmin?: boolean;
   scenario?: 'cancel_order' | 'after_sale';
   presentation?: { typeLabel: string; receiptStatusLabel: string };

@@ -71,6 +71,23 @@
   color: #999;
 }
 
+.service-detail .service-detail__header .refund-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  font-weight: normal;
+  color: #999;
+}
+
+.refund-summary__price,
+.refund-summary__price-part {
+  font-size: 26rpx;
+  font-weight: normal;
+  color: #999;
+}
+
 .service-detail .service-detail__header .desc .count-down {
   color: #fff185;
   display: inline;

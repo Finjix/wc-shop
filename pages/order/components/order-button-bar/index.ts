@@ -117,7 +117,7 @@ Component({
     },
 
     onConfirm(order) {
-      Dialog.confirm({
+      return Dialog.confirm({
         context: this,
         title: '确认是否已经收到货？',
         content: '',
@@ -126,7 +126,9 @@ Component({
       })
         .then(() => {
           return confirmOrderReceived({ orderNo: order.orderNo })
-            .then(() => this.finishAction('已确认收货'))
+            .then((confirmedOrder) => this.finishAction('已确认收货', {
+              action: 'confirmReceived', orderNo: order.orderNo, order: confirmedOrder,
+            }))
             .catch((error) => this.showActionError(error));
         }, () => {
           // 取消弹窗会 reject 携带事件对象，不属于订单操作失败。
@@ -151,14 +153,14 @@ Component({
       }).catch((error) => this.showActionError(error));
     },
 
-    finishAction(message) {
+    finishAction(message, detail = {}) {
       Toast({
         context: this,
         selector: '#t-toast',
         message,
         icon: 'check-circle',
       });
-      this.triggerEvent('refresh');
+      this.triggerEvent('refresh', detail);
     },
 
     showActionError(error) {

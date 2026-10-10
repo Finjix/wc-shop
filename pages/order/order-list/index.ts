@@ -194,7 +194,34 @@ Page({
     return Promise.all([this.getOrderList(status, true), this.getOrdersCount()]);
   },
 
-  onRefresh() {
+  onRefresh(e) {
+    if (e?.detail?.action === 'confirmReceived') {
+      const { orderNo, order: confirmedOrder = {} } = e.detail;
+      const commentedProductIds = confirmedOrder.commentedProductIds || [];
+      const orderList = this.data.orderList.map((order) => {
+        if (order.orderNo !== orderNo) return order;
+        const eligibleGoods = (order.goodsList || []).filter((goods) => {
+          const item = confirmedOrder.items?.find((value) => value.skuId === goods.skuId);
+          const remaining = item
+            ? Number(item.quantity) - Number(confirmedOrder.refundedQuantities?.[goods.skuId] || 0)
+            : Number(goods.fulfillableQuantity ?? goods.remainingQuantity ?? goods.num ?? 0);
+          return remaining > 0 && !commentedProductIds.includes(goods.spuId);
+        });
+        const buttons = (order.buttons || []).filter((button) => ![
+          OrderButtonTypes.CONFIRM, OrderButtonTypes.COMMENT, OrderButtonTypes.VIEW_COMMENT,
+        ].includes(Number(button.type)));
+        buttons.unshift(eligibleGoods.length
+          ? { type: OrderButtonTypes.COMMENT, name: '评价', primary: true }
+          : { type: OrderButtonTypes.VIEW_COMMENT, name: '查看评价', primary: true });
+        return {
+          ...order, status: OrderStatus.COMPLETE, statusDesc: '已完成',
+          commentableProductId: eligibleGoods[0]?.spuId, buttons,
+        };
+      });
+      // 保留当前筛选下的卡片，用户切换页面/筛选或主动刷新时再同步列表。
+      this.setData({ orderList, backRefresh: true });
+      return;
+    }
     return this.refreshList(this.data.curTab);
   },
 

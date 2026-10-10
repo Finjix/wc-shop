@@ -511,7 +511,13 @@ function pendingAfterSaleAggregate(order) {
   return Number(order.pendingRefundAmount) > 0 || Object.values(order.pendingRefundQuantities).some((quantity) => Number(quantity) > 0);
 }
 
-function orderCanDelete() { return true; }
+function orderCanDelete(order) { return pendingAfterSaleAggregate(order) === false; }
+
+function assertOrderWritable(order) {
+  const active = pendingAfterSaleAggregate(order);
+  if (active === null) throw errorFrom('ORDER_STATE_INVALID');
+  if (active) throw errorFrom('CONFLICT', { field: 'afterSale', orderId: order._id });
+}
 
 async function releaseUnshippedInventory(tx, order) {
   const fulfillment = order.fulfillmentStatus || order.status;
@@ -563,6 +569,7 @@ async function deleteCommerceRecord(runtime, name, id) {
       for (const claimId of ids) {
         const claim = await getDoc(claims, claimId, false);
         if (!claim || claim.orderId !== id) continue;
+        if (!afterSaleCanDelete(claim)) throw errorFrom('ORDER_STATE_INVALID');
         linked.push(claimId);
       }
       await releaseUnshippedInventory(tx, current);
@@ -637,9 +644,7 @@ async function listAdminOrders(runtime, data) {
 
 async function orderShipmentPatch(current, trackingNo, timestamp) {
   if (current.status !== STATUS.paid) throw errorFrom('ORDER_STATE_INVALID');
-  const hasActiveAfterSale = pendingAfterSaleAggregate(current);
-  if (hasActiveAfterSale === null) throw errorFrom('ORDER_STATE_INVALID');
-  if (hasActiveAfterSale) throw errorFrom('CONFLICT', { field: 'afterSale', orderId: current._id });
+  assertOrderWritable(current);
   const shippedQuantities = {};
   for (const item of current.items || []) {
     const quantity = Number(item.quantity || 0) - Number(current.refundedQuantities?.[item.skuId] || 0);
@@ -698,6 +703,7 @@ async function adminOrderAction(runtime, data, action) {
       const current = await Promise.all(ids.map((id) => getDoc(collection, id, true)));
       if (current.some((order) => shippingGroupKey(order) !== groupKey)) throw errorFrom('CONFLICT', { field: 'address' });
       if (current.some((order) => order.status !== STATUS.shipped)) throw errorFrom('ORDER_STATE_INVALID');
+      current.forEach(assertOrderWritable);
       const timestamp = now();
       const items = [];
       for (const [index, order] of current.entries()) {
@@ -730,6 +736,7 @@ async function adminOrderAction(runtime, data, action) {
     return withTransaction(runtime.db, async (tx) => {
       const current = await getDoc(tx.collection(COLLECTIONS.orders), documentId, true);
       if (current.status !== STATUS.shipped) throw errorFrom('ORDER_STATE_INVALID');
+      assertOrderWritable(current);
       const patch = {
         tracking: { ...(current.tracking || {}), trackingNo },
         logistics: { ...(current.logistics || {}), trackingNo, logisticsNo: trackingNo },
@@ -759,6 +766,7 @@ async function adminOrderAction(runtime, data, action) {
   return withTransaction(runtime.db, async (tx) => {
     const collection = tx.collection(COLLECTIONS.orders);
     const current = await getDoc(collection, documentId, true);
+    assertOrderWritable(current);
     nextOrderStatus(current.status, next);
     const timestamp = now();
     const patch = { status: next, fulfillmentStatus: next, updatedAt: timestamp };
@@ -850,7 +858,19 @@ async function moderationAction(runtime, data, action, name) {
   }
   const id = string(data.commentId || data.afterSaleId || data.id, 'id', { max: 128 });
   const existing = await getDoc(collection, id, true);
-  if (action.endsWith('.get')) return name === COLLECTIONS.afterSales ? adminAfterSaleSummary(existing) : existing;
+  if (action.endsWith('.get')) {
+    if (name !== COLLECTIONS.afterSales) return existing;
+    const orderKey = existing.orderId || existing.orderNo;
+    const order = orderKey ? await getDoc(col(runtime, COLLECTIONS.orders), orderKey, false) : null;
+    return {
+      ...adminAfterSaleSummary(existing),
+      order: order ? {
+        _id: order._id, orderNo: order.orderNo, addressSnapshot: order.addressSnapshot,
+        logistics: order.logistics, tracking: order.tracking, shippedAt: order.shippedAt,
+        paymentAmount: order.paymentAmount ?? order.payment?.amount ?? order.totalAmount,
+      } : null,
+    };
+  }
   if (action.endsWith('.delete')) {
     await collection.doc(id).update({ status: STATUS.inactive, updatedAt: now() });
     return { ...existing, status: STATUS.inactive, _id: id };

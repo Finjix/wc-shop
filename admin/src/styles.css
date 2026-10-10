@@ -148,8 +148,7 @@ tbody tr.product-list-inactive, tbody tr.product-list-inactive:hover { backgroun
 .orders-address-text { color: #555; }
 .orders-address-heading small, .order-list-item small { color: var(--subtle); }
 .order-list-item { line-height: 1.7; }
-.order-list-item small, .order-after-sale-note { display: block; }
-.order-after-sale-note { margin-top: 5px; color: #a5813b; }
+.order-list-item small { display: block; }
 .order-list-actions .text-button { padding-left: 0; padding-right: 0; margin-right: 16px; }
 .order-list-actions button.text-button { border: 0; background: transparent; font: inherit; cursor: pointer; }
 .order-list-actions button.text-button:disabled { color: var(--subtle); cursor: not-allowed; text-decoration: none; }
@@ -449,18 +448,10 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .t-dialog__footer { display: flex; justify-content: flex-end; gap: var(--td-comp-margin-s); }
 .t-dialog__footer .t-button + .t-button { margin-left: 0; }
 .t-dialog__footer .t-dialog__confirm { order: -1; }
-.commerce-detail-dialog { width: min(760px, 100%); }
-.after-sales-detail-toolbar { display: flex; justify-content: flex-end; margin-bottom: 20px; }
-.after-sales-page .after-sales-detail-panel { width: 100%; box-sizing: border-box; flex: 1; }
-.after-sales-detail-panel .commerce-image-row {
-  margin: 24px 0;
-  gap: 12px;
-}
-.after-sales-detail-panel .commerce-proof-image { display: block; flex-shrink: 0; }
-.after-sales-detail-panel .form-actions { margin-top: 24px; }
-.commerce-detail-dialog .detail-list { margin-bottom: 20px; }
+.after-sales-detail-toolbar { flex-wrap: wrap; }
+.after-sales-proof-panel .commerce-image-row { gap: 12px; }
+.after-sales-proof-panel .commerce-proof-image { display: block; flex-shrink: 0; }
 .after-sales-page th, .after-sales-page td,
-.after-sales-page .commerce-detail-dialog,
 .after-sales-page .detail-list dt, .after-sales-page .detail-list dd { text-align: left; }
 .after-sales-page td:first-child > .text-button { padding-left: 0; }
 .after-sales-page .commerce-actions .t-button + .t-button { margin-left: 16px; }
@@ -470,7 +461,6 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
   min-width: 0;
   justify-content: flex-start;
 }
-.commerce-detail-dialog h3 { margin-top: 18px; }
 .commerce-settings-note { margin: 0 0 18px; color: var(--muted); font-size: 12px; }
 .commerce-work-queue-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .commerce-work-queue-counts a { display: flex; align-items: baseline; gap: 10px; padding: 16px; border: 1px solid var(--line); }

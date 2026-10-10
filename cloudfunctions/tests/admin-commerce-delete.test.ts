@@ -62,12 +62,12 @@ async function run() {
   assert.strictEqual((await adminEndpoint({}, admin, runtime, 'orders.list', {})).total, 1);
   await adminEndpoint({}, admin, runtime, 'orders.delete', { orderId: 'archived' });
   assert.strictEqual(runtime.records.orders.archived, undefined);
-  // Order deletion also removes linked in-progress claims, regardless of aggregate state.
+  // Linked in-progress claims prevent deletion even when a legacy aggregate is stale.
   runtime.records.orders.active = { ...orderSnapshot, _id: 'active', status: 'received', afterSaleIds: ['pending'], pendingRefundAmount: 0 };
   runtime.records.afterSales.pending = { ...claim, _id: 'pending', orderId: 'active', status: 'pending_review' };
-  await adminEndpoint({}, admin, runtime, 'orders.delete', { orderId: 'active' });
-  assert.strictEqual(runtime.records.orders.active, undefined);
-  assert.strictEqual(runtime.records.afterSales.pending, undefined);
+  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'orders.delete', { orderId: 'active' }), errorCode('ORDER_STATE_INVALID'));
+  assert(runtime.records.orders.active);
+  assert(runtime.records.afterSales.pending);
   console.log('PASS permanent commerce deletion, cascade, index cleanup, both clients and active-state guards');
 }
 module.exports = { run };
