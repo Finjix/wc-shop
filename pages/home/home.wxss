@@ -3,7 +3,7 @@ page {
   height: 100vh;
   overflow: hidden;
   padding-bottom: 0;
-  background-color: #fff;
+  background-color: #FCF8EE;
 }
 
 .home-scroll {
@@ -12,19 +12,18 @@ page {
   left: 0;
   width: 100%;
   height: calc(100vh - 100rpx - env(safe-area-inset-bottom));
-  background-color: #fff;
 }
 
 .home-scroll-content {
   position: relative;
-  background: #fff;
+  background: #FCF8EE;
   padding-bottom: calc(env(safe-area-inset-bottom) + 80rpx + 64rpx);
 }
 
 .swiper-wrap {
   width: 100%;
   margin: 0;
-  background: #fff;
+  background: #FCF8EE;
 }
 
 .swiper-wrap .home-swiper,
@@ -38,7 +37,7 @@ page {
 .swiper-wrap .t-swiper__image {
   width: 100% !important;
   height: 1333.333rpx !important;
-  background: #fff;
+  background: #FCF8EE;
   border-radius: 0 !important;
 }
 
@@ -49,7 +48,7 @@ page {
   box-sizing: border-box;
   align-items: center;
   justify-content: center;
-  background-color: #fff !important;
+  background-color: #FCF8EE !important;
   color: #695941;
   font-size: 28rpx;
   line-height: 1;
@@ -60,7 +59,7 @@ page {
   display: flex;
   gap: 4rpx;
   padding: 0;
-  background: #fff;
+  background: #FCF8EE;
 }
 
 .home-promo-card {
@@ -83,7 +82,7 @@ page {
   flex-direction: column;
   align-items: center;
   padding: 64rpx 0;
-  background: #fff;
+  background: #FCF8EE;
   color: #695941;
 }
 
@@ -99,7 +98,7 @@ page {
   flex-wrap: wrap;
   gap: 16rpx;
   padding: 0 24rpx;
-  background: #fff;
+  background: #FCF8EE;
 }
 
 .home-recommendation-card {
@@ -119,7 +118,7 @@ page {
   width: auto;
   margin: 0;
   overflow: hidden;
-  background: #fff;
+  background: #FCF8EE;
   font-family: 'Microsoft YaHei', '微软雅黑', 'MicrosoftJhengHei', '华文细黑', Helvetica, Arial, sans-serif;
 }
 
@@ -166,7 +165,7 @@ page {
   width: auto;
   margin: 0;
   overflow: hidden;
-  background: #fff;
+  background: #FCF8EE;
   font-family: 'Microsoft YaHei', '微软雅黑', 'MicrosoftJhengHei', '华文细黑', Helvetica, Arial, sans-serif;
 }
 
