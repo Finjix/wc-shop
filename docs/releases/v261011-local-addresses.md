@@ -24,4 +24,6 @@
 - 微信开发者工具上传版本号 `261011`，界面确认“代码上传成功”，覆盖原体验版；未提交微信审核或发布正式版。
 - 管理后台代码没有变化，静态包已重新构建，线上静态资源仍为 `index-DnHknGN0.js`。
 - 旧 `addresses` 集合核对为 1 条文档。私有备份及截图位于被 Git 忽略的 `dist/v261011/local-address-evidence/`；不提交私人地址数据。
-- 集合永久删除与模拟器测试地址清理待执行时确认，尚未执行；关机仅在所有清理和验证完成后执行。
+- 用户执行时确认后，已删除 `addresses` 集合及其旧文档，控制台集合列表确认不再包含 `addresses`；截图为 `addresses-collection-deleted.png`。
+- 开发者工具关闭项目并重新打开后，已清理唯一的“本地持久化验收”测试地址。通过应用页面自身的 `deleteAddressById` 执行删除，地址列表为空，控制台读取 `wx.getStorageSync('wc-shop.addresses.v1').items.length` 返回 `0`；截图为 `simulator-test-address-cleared.png`。云端集合删除后仍可读取本地地址，证明地址簿没有云端依赖。
+- 用户要求完成清理、验证和提交推送后，对当前 Windows 工作站执行 `shutdown -s -t 30`。
