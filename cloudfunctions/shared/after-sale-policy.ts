@@ -20,9 +20,19 @@ function policyForScenario(scenario) {
   return POLICIES[scenario] || POLICIES[SCENARIOS.AFTER_SALE];
 }
 
+function reviewPolicyForRecord(record) {
+  // 商家决定最终处理方式；仅取消未发货订单固定为仅退款。
+  return policyForScenario(scenarioOf(record));
+}
+
+function canWithdrawAfterSale(record) {
+  return !String(record.trackingNo || record.logisticsNo || '').trim()
+    && (record.status === 'pending_review' || (record.status === 'approved' && Number(record.type) === 10));
+}
+
 function presentAfterSale(record) {
   const scenario = scenarioOf(record);
-  const policy = policyForScenario(scenario);
+  const policy = reviewPolicyForRecord(record);
   const maximumAmount = Number(record.reservedRefundAmount ?? record.refundRequestAmount ?? record.amount ?? 0);
   return {
     ...record,
@@ -33,11 +43,11 @@ function presentAfterSale(record) {
     },
     reviewPolicy: { allowedTypes: [...policy.allowedTypes], fixedType: policy.fixedType, fullRefundOnly: policy.fullRefundOnly, maximumAmount },
     actions: {
-      withdraw: record.status === 'pending_review',
+      withdraw: canWithdrawAfterSale(record),
       reapply: record.status === 'rejected',
       countInBadge: ['pending_review', 'approved', 'refunding'].includes(record.status),
     },
   };
 }
 
-module.exports = { SCENARIOS, scenarioForOrder, scenarioOf, policyForScenario, presentAfterSale };
+module.exports = { SCENARIOS, scenarioForOrder, scenarioOf, policyForScenario, reviewPolicyForRecord, canWithdrawAfterSale, presentAfterSale };

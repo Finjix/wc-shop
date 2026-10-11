@@ -1,13 +1,12 @@
 <scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"
-  title="填写运单号"
+  title="售后详情"
   leftArrow
   fixed="{{false}}"
   background="#fff"
 />
 <view class="fill-tracking-no">
-  <view class="notice-bar">请填写正确的退货包裹运单信息，以免影响退款进度</view>
   <view class="fill-tracking-no__form">
     <t-cell-group>
       <t-cell title="运单号" t-class-title="t-cell-title-width">
@@ -23,10 +22,6 @@
           data-key="trackingNo"
         />
 
-        <t-icon slot="right-icon" name="scan" t-class="icon-scan" bindtap="onScanTap" />
-      </t-cell>
-      <t-cell title="物流公司" t-class-title="t-cell-title-width">
-        <t-input slot="note" borderless t-class="t-cell__value" value="{{logisticsCompanyName}}" maxlength="40" placeholder="请输入物流公司" bind:change="onInput" data-key="logisticsCompanyName" />
       </t-cell>
     </t-cell-group>
     <view class="textarea-wrapper">
@@ -38,7 +33,7 @@
       value="{{remark}}"
       maxlength="140"
       autosize
-      placeholder="选填项，如有多个包裹寄回，请注明其运单信息"
+      placeholder="（选填）"
       bind:change="onInput"
       data-key="remark"
     />

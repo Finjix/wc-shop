@@ -64,6 +64,22 @@
   display: flex;
 }
 
+.service-detail .service-detail__header--return-approved {
+  padding: 60rpx 32rpx 8rpx;
+  min-height: 0;
+}
+
+.service-detail .service-detail__header--return-approved .title {
+  justify-content: flex-start;
+  text-align: left;
+  font-size: 40rpx;
+  line-height: 56rpx;
+}
+
+.service-detail .service-detail__header--return-approved ~ .goods-refund-address {
+  margin-top: 0;
+}
+
 .service-detail .service-detail__header .desc {
   -webkit-line-clamp: 2;
   margin-top: 10rpx;
@@ -116,9 +132,9 @@
 }
 .service-detail .service-section__title {
   color: #333333;
-  margin-bottom: 10rpx;
-  padding-bottom: 18rpx;
-  height: 224rpx;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  height: auto;
   position: relative;
 }
 .service-detail .service-section__title .icon {
@@ -458,14 +474,46 @@
 }
 
 .service-detail .logistics {
-  padding-top: 0;
-  padding-bottom: 0;
-  padding-right: 0;
+  margin: 0;
+  padding: 0;
 }
 
-.service-detail__button-bar {
+.service-detail .order-logistics {
   box-sizing: border-box;
-  padding: 24rpx 32rpx;
+  padding: 32rpx;
+  width: 100%;
+  background-color: #fff;
+  overflow: hidden;
+  color: #333333;
+  font-size: 32rpx;
+  line-height: 48rpx;
+  display: flex;
+  position: relative;
+}
+
+.order-logistics .logistics-icon {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 16rpx;
+  margin-top: 4rpx;
+}
+
+.order-logistics .logistics-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.order-logistics .logistics-back {
+  color: #999999;
+  align-self: center;
+}
+
+.service-detail .logistics-divider {
+  margin: 0 auto;
+  width: 686rpx;
+  scale: 1 0.5;
+  height: 2rpx;
+  background-color: #e5e5e5;
 }
 
 .service-section__title__header {

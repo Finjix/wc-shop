@@ -13,24 +13,34 @@ export function serviceStatusLabel(value, serviceType) {
   if (value === 'withdrawn') return '已撤销';
   const status = normalizeServiceStatus(value);
   if (status === 100) return '等待商家审核';
-  if (status === 110) return Number(serviceType) === 10 ? '审核通过，请填写退货物流' : '退款处理中';
+  if (status === 110) return Number(serviceType) === 10 ? '请按以下地址退货并填写物流单号' : '退款处理中';
   if (status === 120) return '等待填写退货物流';
-  if (status === 130) return '退货运输中';
+  if (status === 130) return '等待商家收货并同意退款';
   if (status === 140) return '商家确认退货';
   if (status === 150) return '退货异常，请联系商家';
   if (status === 160) return '退款完成';
   if (status === 170) return '已关闭';
   return '处理中';
 }
+export function serviceStatusDescription(value, serviceType) {
+  if (Number(serviceType) === 10) {
+    const status = normalizeServiceStatus(value);
+    if (status === 100) return serviceStatusLabel(value, serviceType);
+    if (status === 110) return serviceStatusLabel(value, serviceType);
+    if (status === 130) return '退货物流已提交，待商家收到货物并同意退款后完成退款';
+  }
+  return serviceStatusLabel(value, serviceType);
+}
 export function normalizeServiceButtons(value, serviceType, buttons = [], logisticsNo = '', actions = null) {
   if (buttons.length) return buttons;
   if (actions?.reapply ?? value === 'rejected') return [{ type: 6, name: '再次申请' }];
-  if (actions?.withdraw) return [{ type: 2, name: '撤销申请' }];
   const status = normalizeServiceStatus(value);
-  if (status === 100) return [{ type: 2, name: '撤销申请' }];
-  if (status === 110 && Number(serviceType) === 10) return [{ type: 3, name: '填写退货物流' }];
-  if (status === 130 && logisticsNo) return [{ type: 5, name: '查看退货物流' }];
-  return [];
+  const pendingReturn = status === 110 && Number(serviceType) === 10 && !logisticsNo;
+  const canWithdraw = !logisticsNo && (status === 100 || pendingReturn) && (actions?.withdraw ?? true);
+  const result = canWithdraw ? [{ type: 2, name: '撤销申请' }] : [];
+  if (pendingReturn) result.push({ type: 3, name: '填写退货物流' });
+  if (status === 130 && logisticsNo) result.push({ type: 5, name: '查看退货物流' });
+  return result;
 }
 
 // 此方法也处理已转换的申请商品模型，其 goodsName/specInfo 是当前页面字段。

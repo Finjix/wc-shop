@@ -2,7 +2,7 @@
 
 import { request } from '../../../utils/api';
 import { resolveRightsImages } from '../../../utils/images';
-import { normalizeLogistics, normalizeOrderItem, normalizeServiceStatus, normalizeServiceType, normalizeServiceButtons, serviceStatusLabel } from '../after-service-detail/contract';
+import { normalizeLogistics, normalizeOrderItem, normalizeServiceStatus, normalizeServiceType, normalizeServiceButtons, serviceStatusLabel, serviceStatusDescription } from '../after-service-detail/contract';
 
 export function normalizeRecord(record) {
   const type = normalizeServiceType(record.type);
@@ -17,7 +17,7 @@ export function normalizeRecord(record) {
       userRightsStatus: status,
       userRightsStatusName: serviceStatusLabel(record.status, type),
       userRightsStatusDesc: record.status === 'rejected' && record.reviewReason
-        ? `驳回原因：${record.reviewReason}` : serviceStatusLabel(record.status, type),
+        ? `驳回原因：${record.reviewReason}` : serviceStatusDescription(record.status, type),
       rightsReasonDesc: record.reason,
       refundAmount: record.amount,
       refundRequestAmount: record.amount,

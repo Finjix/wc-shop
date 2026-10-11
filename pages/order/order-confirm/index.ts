@@ -38,7 +38,9 @@ Page({
     popupShow: false, // 不在配送范围 失效 库存不足 商品展示弹框
     storeInfoList: [],
     userAddress: null,
-    scrollEnabled: false,
+    scrollEnabled: true,
+    remark: '',
+    remarkLocked: false,
   },
 
   payLock: false,
@@ -155,7 +157,7 @@ Page({
     );
     this.setData({
       settleDetailData: data,
-      scrollEnabled: goodsCount > 1,
+      scrollEnabled: true,
       splitOrderCount: goodsCount,
     });
     this.isInvalidOrder(data);
@@ -289,6 +291,11 @@ Page({
       this.handleOptionsParams({ goodsRequestList });
     }
   },
+  onRemarkInput(e) {
+    if (this.data.remarkLocked) return;
+    this.setData({ remark: String(e.detail.value || '').slice(0, 240) });
+  },
+
   // 服务端以模拟支付完成订单，不调用微信商户支付。
   submitOrder() {
     const { settleDetailData, userAddressReq, storeInfoList } = this.data;
@@ -312,6 +319,7 @@ Page({
     if (this.payLock || !settleDetailData.settleType) return;
 
     this.payLock = true;
+    this.setData({ remarkLocked: true });
     this.createRequestId = this.createRequestId || `order-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const params = {
       userAddressReq: address,
@@ -321,12 +329,14 @@ Page({
       storeInfoList,
       useCart: this.fromCart,
       requestKey: this.createRequestId,
+      remark: this.data.remark.trim(),
     };
 
     createOrder(params)
       .then((res) => {
         this.payLock = false;
         this.createRequestId = null;
+        this.setData({ remarkLocked: false });
         clearPendingGoodsRequestList();
         const orderNo = res?.data?.orderNo;
         if (orderNo) {
@@ -347,6 +357,8 @@ Page({
           'OUT_OF_STOCK', 'SKU_UNAVAILABLE', 'FORBIDDEN', 'UNAUTHENTICATED'].includes(code)) {
           this.createRequestId = null;
         }
+        // 未确认提交结果时锁定备注，重试必须使用相同内容，避免重复下单。
+        this.setData({ remarkLocked: Boolean(this.createRequestId) });
         if (['CONTAINS_INSUFFICIENT_GOODS', 'STOCK_INSUFFICIENT', 'OUT_OF_STOCK', 'TOTAL_AMOUNT_DIFFERENT'].includes(code)) {
           Toast({
             context: this,

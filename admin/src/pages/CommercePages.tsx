@@ -141,11 +141,11 @@ export function OrdersPage() {
                 <strong>{group.address.receiver || '收货人未填写'} <span>{group.address.phone}</span></strong>
                 <span className="orders-address-text">{group.address.address || '收货地址未填写'}</span>
               </div>
-              {!group.canCombine && <small>地址信息不完整，不支持合并发货</small>}
+              {!group.canCombine && group.orders.some((order) => order.status === 'paid') && <small>地址信息不完整，不支持合并发货</small>}
             </div>
             <div className="orders-address-actions">
-              {group.orders.some((order) => orderStatusKey(order.status) === 'shipped' && !order.hasActiveAfterSale) && <Button variant="outline" onClick={() => setEditingGroup(group)}>统一修改物流单号</Button>}
-              <Button disabled={!group.canCombine || !pending.length} onClick={() => setShippingGroup(group)}>合并发货</Button>
+              {group.addressKey && group.orders.some((order) => orderStatusKey(order.status) === 'shipped' && !order.hasActiveAfterSale) && <Button variant="outline" onClick={() => setEditingGroup(group)}>修改物流单号</Button>}
+              {group.canCombine && pending.length > 1 && <Button onClick={() => setShippingGroup(group)}>合并发货</Button>}
             </div>
           </div>
           <Table minWidth={970}>
@@ -154,7 +154,7 @@ export function OrdersPage() {
               const id = orderIdOf(order);
               const currentStatus = orderDisplayStatus(order);
               return <tr key={id}>
-                <td><Link to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>{String(order.orderNo || id || '—')}</Link></td>
+                <td><Link to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>{String(order.orderNo || id || '—')}</Link>{order.remark && <div className="order-list-remark">备注：{order.remark}</div>}</td>
                 <td>{listOf<Record<string, unknown>>(order.items).map((item, index) => <div className="order-list-item" key={index}>{orderItemTitle(item)}<small>{orderItemSpecs(item)} × {itemQuantity(item)}</small></div>)}</td>
                 <td>{statusTag(currentStatus, Boolean(order.hasActiveAfterSale))}</td>
                 <td className="order-list-actions"><Link className="text-button" to={`/orders/${encodeURIComponent(String(order.orderNo || id))}`}>详情</Link>{orderCanShip(order) && <button className="text-button" type="button" onClick={() => setShippingOrder(order)}>发货</button>}<button className="text-button" type="button" disabled={busy || Boolean(order.hasActiveAfterSale) || order.canDeleteAdmin === false} onClick={() => void deleteOrder(order)}>删除</button></td>
@@ -192,10 +192,10 @@ function BatchShippingDialog({ group, editing = false, onClose, onSaved }: { gro
   };
   const save = async () => {
     if (busy || !selected.length || !trackingNo.trim()) return;
-    const result = await run(editing ? 'orders.logistics.saveBatch' : 'orders.shipBatch', { orderIds: selected, groupKey: group.key, trackingNo: trackingNo.trim() }, editing ? `${selected.length} 笔订单物流单号已修改` : `${selected.length} 笔订单已合并发货`);
+    const result = await run(editing ? 'orders.logistics.saveBatch' : 'orders.shipBatch', { orderIds: selected, groupKey: group.addressKey || group.key, trackingNo: trackingNo.trim() }, editing ? `${selected.length} 笔订单物流单号已修改` : `${selected.length} 笔订单已合并发货`);
     if (result !== undefined) onSaved();
   };
-  return <Dialog className="shipping-dialog" placement="center" width="min(1000px, 94vw)" header={editing ? '统一修改物流单号' : '合并发货'} closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: '确定', loading: busy, disabled: busy || !selected.length || !trackingNo.trim() }} cancelBtn={{ content: '取消', disabled: busy }}>
+  return <Dialog className="shipping-dialog" placement="center" width="min(1000px, 94vw)" header={editing ? '修改物流单号' : '合并发货'} closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: '确定', loading: busy, disabled: busy || !selected.length || !trackingNo.trim() }} cancelBtn={{ content: '取消', disabled: busy }}>
     <div className="shipping-dialog-info">
       <dl className="detail-list"><dt>收货人</dt><dd>{group.address.receiver}</dd><dt>联系电话</dt><dd>{group.address.phone}</dd><dt>收货地址</dt><dd>{group.address.address}</dd></dl>
       <Table minWidth={600}>
@@ -302,6 +302,7 @@ export function OrderDetailPage() {
           <dt>订单状态</dt><dd>{statusTag(orderDisplayStatus(data), Boolean(data.hasActiveAfterSale))}</dd>
           <dt>订单金额</dt><dd>{formatMoney(amountOf(data))}</dd>
           <dt>创建时间</dt><dd>{formatDate(createdAtOf(data))}</dd>
+          <dt>订单备注</dt><dd className="order-remark">{data.remark || '无'}</dd>
         </dl>
       </Panel>
       <Panel>
@@ -343,9 +344,12 @@ function ResolvedImage({ fileID, alt, className }: { fileID: string; alt: string
 }
 
 export function CommentsPage() {
-  const [status, setStatus] = useState('');
+  const [searchParams] = useSearchParams();
+  const requestedStatus = searchParams.get('status') || '';
+  const initialStatus = ['pending_review', 'active', 'rejected'].includes(requestedStatus) ? requestedStatus : '';
+  const [status, setStatus] = useState(initialStatus);
   const [query, setQuery] = useState('');
-  const [search, setSearch] = useState({ status: '', orderNo: '', page: 1 });
+  const [search, setSearch] = useState({ status: initialStatus, orderNo: '', page: 1 });
   const [refreshKey, setRefreshKey] = useState(0);
   const [replyOpen, setReplyOpen] = useState<Comment | null>(null);
   const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
@@ -421,7 +425,7 @@ function afterSaleState(value: unknown) {
   return String(value ?? '');
 }
 function afterSaleStatusLabel(value: unknown) {
-  return ({ pending_review: '待审核', approved: '审核通过 / 待寄回', refunding: '待确认退款', refunded: '退款完成', rejected: '已拒绝', withdrawn: '已撤销' } as Record<string, string>)[afterSaleState(value)] || String(value || '—');
+  return ({ pending_review: '待审核', approved: '已同意申请 / 待用户寄回', refunding: '待收货并同意退款', refunded: '退款完成', rejected: '已拒绝', withdrawn: '已撤销' } as Record<string, string>)[afterSaleState(value)] || String(value || '—');
 }
 function afterSaleItemSpecs(item: Record<string, unknown>) {
   const snapshot = item.skuSnapshot as Record<string, unknown> | undefined;
@@ -451,9 +455,14 @@ export function AfterSalesPage() {
   const [approval, setApproval] = useState<AfterSale | null>(null);
   const [decisionType, setDecisionType] = useState(20);
   const [decisionAmount, setDecisionAmount] = useState('');
+  const [returnApproval, setReturnApproval] = useState<AfterSale | null>(null);
+  const [returnAmount, setReturnAmount] = useState('');
+  const returnMaximumAmount = returnApproval ? afterSalePolicy(returnApproval).maximumAmount : 0;
+  const returnRefundAmount = parseRefundAmount(returnAmount, returnMaximumAmount);
   const approvalPolicy = approval ? afterSalePolicy(approval) : null;
   const maximumAmount = approvalPolicy?.maximumAmount ?? 0;
   const isCancellation = approvalPolicy?.fullRefundOnly === true;
+  const isReturnApproval = (approvalPolicy?.fixedType ?? decisionType) === 10;
   const approvedAmount = isCancellation ? maximumAmount : parseRefundAmount(decisionAmount, maximumAmount);
   const openApproval = (row: AfterSale) => {
     setApproval(row);
@@ -470,12 +479,15 @@ export function AfterSalesPage() {
   const orderLogistics = selected?.order?.logistics || {};
   const orderTracking = selected?.order?.tracking || {};
   const orderTrackingNo = String(orderLogistics.trackingNo || orderLogistics.logisticsNo || orderTracking.trackingNo || '').trim();
+  const returnRequired = Number(selected?.decidedType ?? selected?.requestedType ?? selected?.type) === 10;
+  const returnTrackingNo = String(selected?.trackingNo || selected?.logisticsNo || '').trim();
   const rows = readList<AfterSale>(data).filter((row) => row.status !== 'withdrawn');
   const total = readTotal(data, rows.length);
   const { busy, run } = useAction();
   const review = async (row: AfterSale, next: 'approved' | 'rejected', reason = '') => {
-    if (next === 'approved' && approvedAmount === null) return;
-    const result = await run('afterSales.review', { id: afterSaleIdOf(row), status: next, ...(next === 'approved' ? { type: afterSalePolicy(row).fixedType ?? decisionType, amount: approvedAmount } : {}), ...(reason ? { reason } : {}) }, next === 'approved' ? '已通过申请，系统已处理模拟退款或等待寄回' : '售后申请已拒绝');
+    if (next === 'approved' && !isReturnApproval && approvedAmount === null) return;
+    const type = afterSalePolicy(row).fixedType ?? decisionType;
+    const result = await run('afterSales.review', { id: afterSaleIdOf(row), status: next, ...(next === 'approved' ? { type, ...(type === 20 ? { amount: approvedAmount } : {}) } : {}), ...(reason ? { reason } : {}) }, next === 'approved' ? type === 10 ? '已同意退货申请，等待用户寄回，尚未退款' : '已同意申请并完成模拟退款' : '售后申请已拒绝');
     if (result !== undefined) { setApproval(null); setRejection(null); setRejectReason(''); setSelected(null); setRefreshKey((key) => key + 1); }
   };
   const deleteAfterSale = async (row: AfterSale) => {
@@ -487,17 +499,22 @@ export function AfterSalesPage() {
       setRefreshKey((key) => key + 1);
     }
   };
-  const confirmReturn = async (row: AfterSale) => {
-    if (!await confirm('确认已收到退货并完成模拟退款？')) return;
-    const result = await run('afterSales.confirmReturn', { afterSaleId: afterSaleIdOf(row) }, '已确认退货并完成模拟退款');
-    if (result !== undefined) { setSelected(null); setRefreshKey((key) => key + 1); }
+  const openReturnApproval = (row: AfterSale) => {
+    if (busy || Number(row.type) !== 10 || afterSaleState(row.status) !== 'refunding' || !String(row.trackingNo || row.logisticsNo || '').trim()) return;
+    setReturnApproval(row);
+    setReturnAmount((Number(row.amount ?? afterSalePolicy(row).maximumAmount) / 100).toFixed(2));
+  };
+  const confirmReturn = async () => {
+    if (busy || !returnApproval || returnRefundAmount === null) return;
+    const result = await run('afterSales.confirmReturn', { afterSaleId: afterSaleIdOf(returnApproval), amount: returnRefundAmount }, '已确认收货并同意退款，模拟退款已完成');
+    if (result !== undefined) { setReturnApproval(null); setSelected(null); setRefreshKey((key) => key + 1); }
   };
   const submitSearch = () => {
     setSearch({ status, orderNo: query.trim(), page: 1 });
     setRefreshKey((key) => key + 1);
   };
   return <div className="orders-page after-sales-page">
-    {!afterSaleId && <div className="toolbar commerce-toolbar orders-toolbar"><Input value={query} onChange={setQuery} placeholder="订单号" /><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="pending_review">待审核</option><option value="approved">待寄回</option><option value="refunding">待确认退款</option><option value="refunded">退款完成</option><option value="rejected">已拒绝</option></select><Button onClick={submitSearch}>查询</Button><Link className="after-sales-address-link" to="/after-sales/address"><Button variant="outline">售后地址设置</Button></Link></div>}
+    {!afterSaleId && <div className="toolbar commerce-toolbar orders-toolbar"><Input value={query} onChange={setQuery} placeholder="订单号" /><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="pending_review">待审核</option><option value="approved">待寄回</option><option value="refunding">待收货并同意退款</option><option value="refunded">退款完成</option><option value="rejected">已拒绝</option></select><Button onClick={submitSearch}>查询</Button><Link className="after-sales-address-link" to="/after-sales/address"><Button variant="outline">售后地址设置</Button></Link></div>}
     {loading && <LoadingState />}{error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
     {!afterSaleId && !loading && !error && <Panel className={rows.length === 0 ? 'orders-empty-panel' : undefined}><Table minWidth={700}><thead><tr><th>订单号</th><th>类型</th><th>金额</th><th>状态</th><th>操作</th></tr></thead><tbody>
       {rows.length === 0 && <EmptyTable colSpan={5} />}
@@ -522,7 +539,7 @@ export function AfterSalesPage() {
         <Button theme="primary" disabled={busy} loading={busy} onClick={() => openApproval(selected)}>同意申请</Button>
         <Button variant="outline" disabled={busy} onClick={() => { setRejectReason(''); setRejection(selected); }}>拒绝申请</Button>
       </>}
-      {selected && !loading && !error && afterSaleState(selected.status) === 'refunding' && <Button theme="primary" disabled={busy} loading={busy} onClick={() => void confirmReturn(selected)}>确认收到退货并完成模拟退款</Button>}
+      {selected && !loading && !error && Number(selected.type) === 10 && afterSaleState(selected.status) === 'refunding' && <Button theme="primary" disabled={busy || !returnTrackingNo} loading={busy} onClick={() => openReturnApproval(selected)}>确认收货并同意退款</Button>}
       <Button variant="outline" disabled={busy} onClick={() => navigate('/after-sales')}>返回列表</Button>
     </div>}
     {afterSaleId && selected && !loading && !error && <>
@@ -547,18 +564,30 @@ export function AfterSalesPage() {
             <dt>联系电话</dt><dd>{orderAddress.phone}</dd>
             <dt>收货地址</dt><dd>{orderAddress.address}</dd>
             <dt>物流单号</dt><dd>{orderTrackingNo || '无'}</dd>
+            {returnRequired && <><dt>退货物流单号</dt><dd>{returnTrackingNo || '无'}</dd></>}
           </dl>
         </Panel>
       </div>
       {imageIds(selected.images).length > 0 && <Panel className="after-sales-proof-panel">
-        <h3>售后凭证</h3>
         <div className="commerce-image-row">{imageIds(selected.images).map((src, index) => <ResolvedImage key={`${afterSaleIdOf(selected)}-${index}`} fileID={src} alt={`售后凭证 ${index + 1}`} className="commerce-proof-image" />)}</div>
       </Panel>}
       <Panel>
         <Table minWidth={500}><thead><tr><th>规格</th><th>数量</th><th>金额</th></tr></thead><tbody>{listOf<Record<string, unknown>>(selected.items).map((item, index) => <tr key={`${item.skuId || index}`}><td>{afterSaleItemSpecs(item)}</td><td>{String(item.rightsQuantity ?? item.quantity ?? 0)}</td><td>{formatMoney(item.amount ?? item.refundAmount)}</td></tr>)}</tbody></Table>
       </Panel>
     </>}
-    {approval && <div className="home-config-dialog-backdrop" role="presentation"><section className="home-config-dialog approval-dialog" role="dialog" aria-modal="true" aria-label="售后处理"><h3>售后处理</h3><p>用户诉求：{afterSaleRequestLabel(approval)}</p>{isCancellation ? <div className="approval-cancellation-summary"><div><span>处理方式</span><strong>仅退款</strong></div><div><span>退款金额</span><strong>{formatMoney(maximumAmount)}</strong></div></div> : <><label className="field"><span>处理方式</span><select value={decisionType} onChange={(event) => setDecisionType(Number(event.target.value))}>{approvalPolicy?.allowedTypes.map((type) => <option key={type} value={type}>{afterSaleType(type)}</option>)}</select></label><label className="field"><span>退款金额（元）</span><input type="number" min="0.01" max={maximumAmount / 100} step="0.01" value={decisionAmount} onChange={(event) => setDecisionAmount(event.target.value)} /><small>最高 {formatMoney(maximumAmount)}，最多两位小数</small>{approvedAmount === null && <small>请输入大于 0 且不超过上限的金额</small>}</label></>}<div className="home-config-dialog-actions approval-dialog-actions"><Button theme="primary" disabled={busy || approvedAmount === null} loading={busy} onClick={() => void review(approval, 'approved')}>确认</Button><Button variant="outline" disabled={busy} onClick={() => setApproval(null)}>取消</Button></div></section></div>}
+    {approval && <div className="home-config-dialog-backdrop" role="presentation"><section className="home-config-dialog approval-dialog" role="dialog" aria-modal="true" aria-label="售后处理">
+      <h3>售后处理</h3><p>用户诉求：{afterSaleRequestLabel(approval)}</p>
+      {isCancellation ? <div className="approval-cancellation-summary"><div><span>处理方式</span><strong>仅退款</strong></div><div><span>退款金额</span><strong>{formatMoney(maximumAmount)}</strong></div></div> : <>
+        <label className="field"><span>处理方式</span><select value={decisionType} onChange={(event) => setDecisionType(Number(event.target.value))}>{approvalPolicy?.allowedTypes.map((type) => <option key={type} value={type}>{afterSaleType(type)}</option>)}</select></label>
+        {!isReturnApproval && <label className="field"><span>退款金额（元）</span><input type="number" min="0.01" max={maximumAmount / 100} step="0.01" value={decisionAmount} onChange={(event) => setDecisionAmount(event.target.value)} />{approvedAmount === null && <small>请输入大于 0 且不超过上限的金额</small>}</label>}
+      </>}
+      <div className="home-config-dialog-actions approval-dialog-actions"><Button theme="primary" disabled={busy || (!isReturnApproval && approvedAmount === null)} loading={busy} onClick={() => void review(approval, 'approved')}>确认</Button><Button variant="outline" disabled={busy} onClick={() => setApproval(null)}>取消</Button></div>
+    </section></div>}
+    {returnApproval && <div className="home-config-dialog-backdrop" role="presentation"><section className="home-config-dialog approval-dialog" role="dialog" aria-modal="true" aria-label="确认收货并同意退款">
+      <h3>确认收货并同意退款</h3>
+      <label className="field"><span>退款金额（元）</span><input type="number" min="0.01" max={returnMaximumAmount / 100} step="0.01" value={returnAmount} onChange={(event) => setReturnAmount(event.target.value)} />{returnRefundAmount === null && <small>请输入大于 0 且不超过上限的金额</small>}</label>
+      <div className="home-config-dialog-actions approval-dialog-actions"><Button theme="primary" disabled={busy || returnRefundAmount === null} loading={busy} onClick={() => void confirmReturn()}>确认</Button><Button variant="outline" disabled={busy} onClick={() => setReturnApproval(null)}>取消</Button></div>
+    </section></div>}
     {rejection && <div className="home-config-dialog-backdrop" role="presentation"><section className="home-config-dialog" role="dialog" aria-modal="true" aria-label="拒绝售后申请"><label className="field"><span className="rejection-field-heading"><span>拒绝原因</span><small className="rejection-character-count">{rejectReason.length} / 200</small></span><textarea rows={4} style={{ resize: 'none' }} value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} maxLength={200} /></label><div className="home-config-dialog-actions rejection-dialog-actions"><Button theme="primary" disabled={busy || !rejectReason.trim()} loading={busy} onClick={() => void review(rejection, 'rejected', rejectReason.trim())}>确认</Button><Button variant="outline" disabled={busy} onClick={() => setRejection(null)}>取消</Button></div></section></div>}
   </div>;
 }

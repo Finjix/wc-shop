@@ -36,7 +36,7 @@ async function run() {
       const shipped = state === 'shipped_pending';
       for (const [action, data] of [
         [shipped ? 'orders.logistics.save' : 'orders.ship', { orderId: order._id, trackingNo: 'BLOCKED' }],
-        [shipped ? 'orders.logistics.saveBatch' : 'orders.shipBatch', { orderIds: [order._id], groupKey: group.key, trackingNo: 'BLOCKED' }],
+        [shipped ? 'orders.logistics.saveBatch' : 'orders.shipBatch', { orderIds: [order._id], groupKey: group.addressKey || group.key, trackingNo: 'BLOCKED' }],
         ...(shipped ? [['orders.updateStatus', { orderId: order._id, status: 'received' }]] : []),
       ]) {
         await assert.rejects(() => adminEndpoint({}, admin, runtime, action, data), (error) => error.code === 'CONFLICT');

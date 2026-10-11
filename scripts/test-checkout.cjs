@@ -180,9 +180,14 @@ async function run() {
   assert.equal(page.payLock, false);
   assert.equal(navigation.length, 0);
 
+  page.onRemarkInput({ detail: { value: 'a'.repeat(241) } });
+  assert.equal(page.data.remark.length, 240);
+  page.onRemarkInput({ detail: { value: ' 请周末送达\n送达前电话联系 ' } });
   page.handleOptionsParams({ userAddressReq: withAddress.data.userAddress });
   await flush();
   assert.equal(page.data.userAddress.detailAddress, '测试地址');
+  assert.equal(page.data.remark, ' 请周末送达\n送达前电话联系 ', 'changing the address preserves the remark');
+  assert.equal(page.data.scrollEnabled, true, 'single-item checkout can scroll to the bottom remark field');
   assert.equal(page.goodsRequestList[0].skuId, 'sku-1');
   assert.equal(calls.at(-1).payload.addressId, 'address-1');
   console.log('PASS checkout previews without an address, preserves goods and server pricing, and requires an address before creating an order');
@@ -206,6 +211,9 @@ async function run() {
   await flush();
   assert.equal(page.payLock, false);
   assert.ok(page.createRequestId);
+  assert.equal(page.data.remarkLocked, true);
+  page.onRemarkInput({ detail: { value: '不能改变未确认订单的备注' } });
+  assert.equal(page.data.remark, ' 请周末送达\n送达前电话联系 ');
   page.submitOrder();
   await flush();
   assert.equal(retryKeys.length, 2);
@@ -213,8 +221,11 @@ async function run() {
   assert.equal(retryPayloads.at(-1).useCart, true);
   assert.deepEqual(retryPayloads[0].items, retryPayloads[1].items);
   assert.equal(retryPayloads[0].addressId, retryPayloads[1].addressId);
+  assert.equal(retryPayloads[0].remark, '请周末送达\n送达前电话联系');
+  assert.equal(retryPayloads[0].remark, retryPayloads[1].remark);
   assert.equal(created.size, 1);
   assert.equal(page.createRequestId, null);
+  assert.equal(page.data.remarkLocked, false);
   assert.ok(navigation.at(-1).includes('orderNo=order-retry'));
   assert.ok(!navigation.at(-1).includes('totalPaid='));
   mocks[path.join(root, 'utils/api.ts')].request = originalRequest;

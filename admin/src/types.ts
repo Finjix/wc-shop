@@ -86,6 +86,7 @@ export interface Order {
   userId?: string;
   status?: OrderStatus;
   orderStatusName?: string;
+  remark?: string;
   paymentStatus?: OrderPaymentStatus;
   paymentAmount?: number | string;
   totalAmount?: number | string;
@@ -116,6 +117,7 @@ export interface ShippingAddress {
 
 export interface OrderAddressGroup {
   key: string;
+  addressKey?: string | null;
   address: ShippingAddress;
   canCombine: boolean;
   orders: Order[];

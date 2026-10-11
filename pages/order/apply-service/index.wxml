@@ -1,7 +1,7 @@
 <scroll-view class="app-page-scroll" scroll-y enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"
-  title="售后申请"
+  title="售后"
   leftArrow
   fixed="{{false}}"
   background="#fff"

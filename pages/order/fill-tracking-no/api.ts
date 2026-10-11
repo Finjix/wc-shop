@@ -6,7 +6,7 @@ function normalizeTrackingPayload(params = {}) {
   return {
     afterSaleId: params.afterSaleId,
     trackingNo: params.trackingNo,
-    logisticsCompanyName: params.logisticsCompanyName,
+    remark: params.remark,
   };
 }
 

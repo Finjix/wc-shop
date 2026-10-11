@@ -16,7 +16,7 @@
     <!-- 页面内容 -->
     <view class="service-detail safe-bottom {{service.bottomActions ? 'service-detail--with-bottom-bar' : ''}}">
       <!-- 状态及描述 -->
-      <view class="service-detail__header">
+      <view class="service-detail__header {{service.type === 10 && service.status === 110 ? 'service-detail__header--return-approved' : ''}}">
         <view class="title">
           <t-icon wx:if="{{!service.isRefunded}}" prefix="wr" name="{{service.statusIcon}}" size="30px" />
           {{service.statusName}}
@@ -28,31 +28,20 @@
         <view class="desc" wx:if="{{!service.isRefunded && service.statusDesc && service.statusDesc !== service.statusName}}"> {{service.statusDesc}} </view>
       </view>
       <!-- 物流 -->
-      <view
-        class="service-section logistics"
-        wx:if="{{service.logisticsNo || (service.buttons.length && !service.bottomActions)}}"
-      >
-        <view wx:if="{{service.logisticsNo}}" class="service-section__title">
-          <t-cell
-            align="top"
-            title="{{service.logisticsCompanyName + ' ' + service.logisticsNo}}"
-            bordered="{{false}}"
-            description="{{service.logisticsDescription}}"
-            arrow
-            bindtap="onLogisticsTap"
-          >
-            <t-icon prefix="wr" color="#333333" name="deliver" size="40rpx" slot="left-icon" />
-          </t-cell>
+      <view class="service-section logistics" wx:if="{{service.logisticsNo}}">
+        <view class="order-logistics" bindtap="onLogisticsTap">
+          <t-icon name="deliver" size="40rpx" class="logistics-icon" prefix="wr" />
+          <view class="logistics-content">
+            <view>查看物流</view>
+          </view>
+          <t-icon class="logistics-back" name="arrow_forward" size="36rpx" prefix="wr" />
         </view>
-        <view wx:if="{{service.buttons.length && !service.bottomActions}}" class="service-detail__button-bar">
-          <wr-after-service-button-bar service="{{service}}" bindrefresh="onRefresh" />
-        </view>
+        <view class="logistics-divider" />
       </view>
       <!-- 收货地址 -->
-      <view class="service-section goods-refund-address" wx:if="{{service.receiverName}}">
+      <view class="service-section goods-refund-address" wx:if="{{!service.logisticsNo && (service.receiverName || service.receiverPhone || service.receiverAddress)}}">
         <t-cell-group>
-          <t-cell align="top" title="退货地址" bordered="{{false}}">
-            <t-icon prefix="wr" color="#333333" name="location" size="40rpx" slot="left-icon" />
+          <t-cell align="top" bordered="{{false}}">
             <view
               slot="note"
               class="right text-btn goods-refund-address-copy-btn"
@@ -61,9 +50,9 @@
               >复制
             </view>
             <view slot="description">
-              <view> {{service.receiverAddress}} </view>
-              <view>收货人：{{service.receiverName}}</view>
-              <view>收货人手机：{{service.receiverPhone}}</view>
+              <view>收件人：{{service.receiverName}}</view>
+              <view>手机号：{{service.receiverPhone}}</view>
+              <view>退货地址：{{service.receiverAddress}}</view>
             </view>
           </t-cell>
         </t-cell-group>

@@ -7,7 +7,6 @@ import { getApiErrorMessage } from '../../../utils/api';
 Page({
   data: {
     trackingNo: '',
-    logisticsCompanyName: '',
     remark: '',
     submitActived: false,
     submitting: false,
@@ -23,9 +22,8 @@ Page({
     this.isChange = Boolean(query.logisticsNo);
     this.setData({
       trackingNo: query.logisticsNo || '',
-      logisticsCompanyName: query.logisticsCompanyName || '',
       remark: query.remark || '',
-      submitActived: Boolean(query.logisticsNo && query.logisticsCompanyName),
+      submitActived: Boolean((query.logisticsNo || '').trim()),
     });
   },
 
@@ -35,9 +33,7 @@ Page({
   },
 
   checkParams() {
-    const valid = Boolean(
-      (this.data.trackingNo || '').trim() && (this.data.logisticsCompanyName || '').trim(),
-    );
+    const valid = Boolean((this.data.trackingNo || '').trim());
     this.setData({ submitActived: valid });
     return valid;
   },
@@ -45,8 +41,7 @@ Page({
   onSubmit() {
     if (this.data.submitting || this.trackingSubmitPromise) return;
     if (!this.checkParams()) {
-      const message = this.data.trackingNo ? '请填写物流公司' : '请填写运单号';
-      Toast({ context: this, selector: '#t-toast', message, icon: '' });
+      Toast({ context: this, selector: '#t-toast', message: '请填写运单号', icon: '' });
       return;
     }
     const params = {
@@ -54,7 +49,6 @@ Page({
       rightsNo: this.rightsNo,
       trackingNo: String(this.data.trackingNo).trim(),
       logisticsNo: String(this.data.trackingNo).trim(),
-      logisticsCompanyName: String(this.data.logisticsCompanyName).trim(),
       remark: this.data.remark,
     };
     const submit = this.isChange ? update : create;
@@ -81,10 +75,4 @@ Page({
     return this.trackingSubmitPromise;
   },
 
-  onScanTap() {
-    wx.scanCode({
-      scanType: ['barCode'],
-      success: (result) => this.setData({ trackingNo: result.result }, () => this.checkParams()),
-    });
-  },
 });

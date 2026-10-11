@@ -48,8 +48,8 @@
 * { box-sizing: border-box; }
 /* Applies to the whole admin app, including component portals and pseudo-elements. */
 *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-/* Fade's initial opacity survives animation: none; show the confirmation mask immediately. */
-.confirm-dialog .t-dialog__mask { opacity: 1 !important; }
+/* Fade's initial opacity survives animation: none; show every dialog mask immediately, including portals. */
+.t-dialog__mask { opacity: 1 !important; }
 html { scrollbar-gutter: stable; }
 body { margin: 0; min-width: 320px; background: #f6f6f6; }
 button, input, textarea, select { font: inherit; }
@@ -153,6 +153,8 @@ tbody tr.product-list-inactive, tbody tr.product-list-inactive:hover { backgroun
 .orders-address-heading small, .order-list-item small { color: var(--subtle); }
 .order-list-item { line-height: 1.7; }
 .order-list-item small { display: block; }
+.order-list-remark { margin-top: 8px; max-width: 280px; color: var(--subtle); font-size: 12px; }
+.order-list-remark, .detail-list .order-remark { white-space: pre-wrap; overflow-wrap: anywhere; }
 .order-list-actions .text-button { padding-left: 0; padding-right: 0; margin-right: 16px; }
 .order-list-actions button.text-button { border: 0; background: transparent; font: inherit; cursor: pointer; }
 .order-list-actions button.text-button:disabled { color: var(--subtle); cursor: not-allowed; text-decoration: none; }

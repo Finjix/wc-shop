@@ -73,8 +73,8 @@ async function main() {
     const approved = await admin('afterSales.review', { id: returned._id, status: 'approved' });
     assert.equal(approved.status, 'approved'); assert.equal(approved.returnAddressSnapshot.receiver, address.receiver);
     await shop('afterSales.submitTracking', { afterSaleId: returned._id, trackingNo: 'TEST-RETURN-1', logisticsCompanyName: '手工记录' });
-    await admin('afterSales.confirmReturn', { afterSaleId: returned._id });
-    await admin('afterSales.confirmReturn', { afterSaleId: returned._id });
+    await admin('afterSales.confirmReturn', { afterSaleId: returned._id, amount: 200 });
+    await admin('afterSales.confirmReturn', { afterSaleId: returned._id, amount: 200 });
     detail = await shop('orders.detail', { orderId: order._id });
     assert.equal(detail.paymentStatus, 'refunded'); assert.equal(detail.refundAmount, 300);
     const saved = JSON.parse(fs.readFileSync(path.join(folder, '.local-backend.json'), 'utf8'));

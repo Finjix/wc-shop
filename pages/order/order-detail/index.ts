@@ -3,7 +3,7 @@
 import { formatTime } from '../utils/format';
 import { getApiErrorMessage } from '../../../utils/api';
 import { OrderButtonTypes, OrderStatus } from '../config';
-import { fetchBusinessTime, fetchOrderDetail, updateOrderAddress } from '../services/orderDetail';
+import { fetchBusinessTime, fetchOrderDetail } from '../services/orderDetail';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 import { applyCommentToOrder } from '../utils/comment-state';
 
@@ -26,7 +26,6 @@ Page({
     order: {}, // 后台返回的原始数据
     _order: {}, // 内部使用和提供给 order-card 的数据
     storeDetail: {},
-    addressEditable: false,
     backRefresh: false, // 用于接收其他页面back时的状态
     formatCreateTime: '', //格式化订单创建时间
     showLogistics: false,
@@ -176,9 +175,6 @@ Page({
         order,
         _order,
         formatCreateTime: formatTime(order.createTime, 'YYYY-MM-DD HH:mm'), // 格式化订单创建时间
-        addressEditable:
-          order.orderStatus === OrderStatus.PENDING_DELIVERY &&
-          order.orderSubStatus !== -1 && !order.hasPendingRefund,
         showLogistics: !hasReceived,
       });
     });
@@ -213,31 +209,6 @@ Page({
     const { index } = e.currentTarget.dataset;
     const goods = this.data.order.orderItemVOs[index];
     navigateToGoodsDetail(`/pages/goods/details/index?spuId=${goods.spuId}`);
-  },
-
-  onEditAddressTap() {
-    if (!this.data.addressEditable) return;
-    getApp().addressSelection.getAddressPromise()
-      .then((address) => {
-        wx.showLoading({ title: '正在保存' });
-        return updateOrderAddress({
-          orderId: this.data.order.orderId || this.data.order._id || this.orderNo,
-          addressId: address.addressId || address.id || address._id,
-        });
-      })
-      .then(() => this.onRefresh())
-      .catch((error) => {
-        if (!error || error.message === 'cancel') return;
-        wx.showToast({ title: getApiErrorMessage(error, '收货地址保存失败'), icon: 'none' });
-      })
-      .finally(() => wx.hideLoading());
-
-    const order = this.data.order;
-    const address = order.addressSnapshot || order.userAddressReq || {};
-    const addressId = address.addressId ?? address.id ?? address._id ?? order.addressId ?? '';
-    wx.navigateTo({
-      url: `/pages/user/address/list/index?selectMode=1&id=${encodeURIComponent(addressId)}`,
-    });
   },
 
   onOrderNumCopy() {

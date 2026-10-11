@@ -110,6 +110,48 @@ async function run() {
       assert.strictEqual(refunded.total, 1);
     }
   }
+  const returnOrder = await shopEndpoint({}, user, runtime, 'orders.create', {
+    requestKey: 'merchant-only-refund', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+  });
+  await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: returnOrder._id, trackingNo: 'SF002' });
+  const returnClaim = await shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: returnOrder._id, type: 10, reason: '退货退款' });
+  assert.deepStrictEqual(returnClaim.reviewPolicy.allowedTypes, [10, 20]);
+  assert.strictEqual(returnClaim.reviewPolicy.fixedType, null);
+  const stockBefore = runtime.records.skus['sku-new'].stockQuantity;
+  const onlyRefund = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: returnClaim._id, status: 'approved', type: 20 });
+  assert.strictEqual(onlyRefund.requestedType, 10);
+  assert.strictEqual(onlyRefund.decidedType, 20);
+  assert.strictEqual(onlyRefund.status, 'refunded');
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, stockBefore, 'refund without return must not restore shipped inventory');
+  const withdrawOrder = await shopEndpoint({}, user, runtime, 'orders.create', {
+    requestKey: 'withdraw-approved-return', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+  });
+  await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: withdrawOrder._id, trackingNo: 'SF003' });
+  const returnAddress = { receiver: '商家', phone: '13800000000', detail: '退货地址' };
+  await adminEndpoint({}, admin, runtime, 'settings.upsert', { key: 'global', value: { returnAddress } });
+  const applyReturn = () => shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: withdrawOrder._id, type: 10, reason: '退货退款' });
+  const approvedReturn = await applyReturn();
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: approvedReturn._id, status: 'approved', type: 10 });
+  const beforeTracking = await shopEndpoint({}, user, runtime, 'afterSales.detail', { afterSaleId: approvedReturn._id });
+  assert.strictEqual(beforeTracking.actions.withdraw, true);
+  const stockBeforeWithdrawal = runtime.records.skus['sku-new'].stockQuantity;
+  await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'foreign' } }, runtime, 'afterSales.withdraw', { afterSaleId: approvedReturn._id }), errorCode('FORBIDDEN'));
+  await shopEndpoint({}, user, runtime, 'afterSales.withdraw', { afterSaleId: approvedReturn._id });
+  assert.strictEqual(runtime.records.afterSales[approvedReturn._id], undefined);
+  assert.strictEqual(runtime.records.orders[withdrawOrder._id].pendingRefundAmount, 0);
+  assert.strictEqual(runtime.records.orders[withdrawOrder._id].pendingRefundQuantities['sku-new'], 0);
+  assert.ok(!runtime.records.orders[withdrawOrder._id].afterSaleIds.includes(approvedReturn._id));
+  assert.strictEqual(runtime.records.orders[withdrawOrder._id].refundAmount, 0);
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, stockBeforeWithdrawal);
+  const resubmittedReturn = await applyReturn();
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: resubmittedReturn._id, status: 'approved', type: 10 });
+  await shopEndpoint({}, user, runtime, 'afterSales.submitTracking', { afterSaleId: resubmittedReturn._id, trackingNo: 'RETURN001' });
+  const afterTracking = await shopEndpoint({}, user, runtime, 'afterSales.detail', { afterSaleId: resubmittedReturn._id });
+  assert.strictEqual(afterTracking.actions.withdraw, false);
+  assert.deepStrictEqual(afterTracking.returnAddressSnapshot, returnAddress);
+  assert.strictEqual(afterTracking.trackingNo, 'RETURN001');
+  await assert.rejects(() => shopEndpoint({}, user, runtime, 'afterSales.withdraw', { afterSaleId: resubmittedReturn._id }), errorCode('ORDER_STATE_INVALID'));
+  assert.strictEqual(runtime.records.orders[withdrawOrder._id].pendingRefundAmount, 100);
   await shopEndpoint({}, user, runtime, 'orders.delete', { orderId: nextOrder._id });
   console.log('PASS after-sale scenarios, policies, reapplication, badge counts and terminal order deletion');
 }

@@ -35,6 +35,19 @@
       </view>
     </view>
   </view>
+  <view class="order-remark">
+    <view class="order-remark__title">订单备注</view>
+    <textarea
+      class="order-remark__input"
+      value="{{remark}}"
+      placeholder="（选填）"
+      placeholder-class="order-remark__placeholder"
+      maxlength="240"
+      auto-height
+      disabled="{{remarkLocked}}"
+      bindinput="onRemarkInput"
+    />
+  </view>
   <view class="wx-pay-cover">
     <view class="wx-pay">
       <price decimalSmaller fill class="price" price="{{settleDetailData.totalPayAmount || '0'}}" />

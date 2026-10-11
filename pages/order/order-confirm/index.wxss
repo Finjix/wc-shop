@@ -5,6 +5,33 @@
   min-height: 100vh;
 }
 
+.order-remark {
+  margin: 24rpx 32rpx 0;
+}
+
+.order-remark__title {
+  margin-bottom: 16rpx;
+  color: #333;
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+
+.order-remark__input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 128rpx;
+  padding: 20rpx 24rpx;
+  background: #f7f7f7;
+  border-radius: 8rpx;
+  color: #333;
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+
+.order-remark__placeholder {
+  color: #bbb;
+}
+
 .split-order-hint {
   padding: 24rpx 32rpx;
   color: #695941;

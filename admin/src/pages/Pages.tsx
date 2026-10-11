@@ -194,6 +194,7 @@ export function OverviewPage() {
       <div className="metric-grid">
         <Link className="metric-link" to="/orders?status=paid"><Metric label="待发货" value={value(['pendingShipmentCount', 'pendingDeliveryCount'])} /></Link>
         <Link className="metric-link" to="/after-sales?status=pending_review"><Metric label="待售后" value={value(['pendingAfterSaleCount', 'pendingAfterSalesCount', 'pendingReviewAfterSalesCount'])} /></Link>
+        <Link className="metric-link" to="/comments?status=pending_review"><Metric label="待审核评价" value={value(['pendingReviewCommentCount'])} /></Link>
       </div>
       <Panel className="overview-inventory-warnings">
         <div className="panel-heading"><h3>库存预警</h3></div>

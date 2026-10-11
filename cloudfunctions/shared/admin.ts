@@ -626,12 +626,13 @@ async function listAdminOrders(runtime, data) {
   if (data.groupBy !== 'address') {
     return { items: await Promise.all(rows.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map((order) => adminOrderSummary(runtime, order))), ...paging, total: rows.length };
   }
-  // Group before paginating, so an address's orders cannot be split across pages.
+  // 仅待发货订单按收件地址分组；其他状态保持独立，分组后再分页。
   const groups = new Map();
   for (const order of rows) {
     const addressKey = shippingGroupKey(order);
-    const key = addressKey || `ungrouped_${order._id}`;
-    if (!groups.has(key)) groups.set(key, { key, address: shippingAddressOf(order), canCombine: Boolean(addressKey), orders: [] });
+    const canCombine = order.status === STATUS.paid && Boolean(addressKey);
+    const key = canCombine ? addressKey : `ungrouped_${order._id}`;
+    if (!groups.has(key)) groups.set(key, { key, addressKey, address: shippingAddressOf(order), canCombine, orders: [] });
     groups.get(key).orders.push(order);
   }
   const selected = [...groups.values()].slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize);
@@ -803,11 +804,12 @@ async function dashboardSummary(runtime) {
     }).filter(Boolean).join(' / ') || '默认规格';
     return [{ productId: String(product._id || product.spuId), title: product.title, skuId: String(sku._id || sku.skuId), specName, stockQuantity: stock }];
   }).sort((left, right) => left.stockQuantity - right.stockQuantity);
-  const [orderCount, commentCount, afterSaleCount, pendingAfterSaleCount, allOrders, allAfterSales] = await Promise.all([
+  const [orderCount, commentCount, afterSaleCount, pendingAfterSaleCount, pendingReviewCommentCount, allOrders, allAfterSales] = await Promise.all([
     count(col(runtime, COLLECTIONS.orders)),
     count(col(runtime, COLLECTIONS.comments)),
     count(col(runtime, COLLECTIONS.afterSales)),
     count(col(runtime, COLLECTIONS.afterSales), { status: STATUS.pendingReview }),
+    count(col(runtime, COLLECTIONS.comments), { status: STATUS.pendingReview }),
     allMatching(col(runtime, COLLECTIONS.orders), { status: STATUS.paid }),
     allMatching(col(runtime, COLLECTIONS.afterSales), { status: runtime.db.command?.in ? runtime.db.command.in([STATUS.pendingReview, STATUS.approved, STATUS.refunding]) : STATUS.pendingReview }),
   ]);
@@ -823,7 +825,7 @@ async function dashboardSummary(runtime) {
     metrics: {
       productCount: products.filter((product) => !product.deletedByAdmin).length,
       orderCount, commentCount, afterSaleCount,
-      pendingShipmentCount, pendingAfterSaleCount,
+      pendingShipmentCount, pendingAfterSaleCount, pendingReviewCommentCount,
       pendingAfterSalesCount: pendingAfterSaleCount,
     },
   };

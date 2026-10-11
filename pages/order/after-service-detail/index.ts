@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import Toast from 'tdesign-miniprogram/toast/index';
-import { ServiceType, ServiceTypeDesc, ServiceStatus, ServiceButtonTypes } from '../config';
+import { ServiceTypeDesc, ServiceStatus, ServiceButtonTypes } from '../config';
 import { formatTime, getRightsDetail } from './api';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
 import { getApiErrorMessage } from '../../../utils/api';
@@ -11,14 +11,9 @@ import {
   serviceStatusLabel,
 } from './contract';
 
-const TitleConfig = {
-  [ServiceType.ONLY_REFUND]: '退款详情',
-  [ServiceType.RETURN_GOODS]: '退货退款详情',
-};
-
 Page({
   data: {
-    pageTitle: '退款详情',
+    pageTitle: '售后详情',
     pullDownRefreshing: false,
     pageLoading: true,
     serviceRaw: {},
@@ -93,7 +88,7 @@ Page({
         });
         return;
       }
-      // 滤掉填写运单号、修改运单号按钮，这两个按钮特殊处理，不在底部按钮栏展示
+      // 根据售后状态生成操作按钮，填写物流等操作统一使用底部按钮栏。
       if (!serviceRaw.buttonVOs) serviceRaw.buttonVOs = [];
       const deliveryButton = {};
       const rights = serviceRaw.rights;
@@ -146,7 +141,7 @@ Page({
         receiverPhone: returnAddress.phone || '',
         receiverAddress: returnAddress.detail || '',
         buttons,
-        bottomActions: buttons.some((button) => [ServiceButtonTypes.REVOKE, ServiceButtonTypes.REAPPLY].includes(button.type)),
+        bottomActions: buttons.some((button) => [ServiceButtonTypes.REVOKE, ServiceButtonTypes.REAPPLY, ServiceButtonTypes.FILL_TRACKING_NO, ServiceButtonTypes.CHANGE_TRACKING_NO].includes(button.type)),
         logistics: logisticsVO,
       };
       const proofs = rights.rightsImageUrls || [];
@@ -154,7 +149,6 @@ Page({
         serviceRaw,
         service,
         deliveryButton,
-        pageTitle: TitleConfig[service.type] || '退款详情',
         'gallery.proofs': proofs,
         showProofs: proofs.length > 0,
       });

@@ -49,14 +49,6 @@
   align-self: center;
 }
 
-.order-logistics .edit-text {
-  flex-shrink: 0;
-  margin-left: 24rpx;
-  color: var(--app-theme-text-color, #695941);
-  font-size: 26rpx;
-  line-height: 36rpx;
-}
-
 .order-detail .border-bottom {
   margin: 0 auto;
   width: 686rpx;
