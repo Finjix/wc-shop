@@ -123,6 +123,8 @@ export interface OrderAddressGroup {
 }
 
 export interface Comment {
+  productTitle?: string;
+  productSpecs?: string;
   _id?: Id;
   id?: Id;
   orderNo?: string;

@@ -102,8 +102,7 @@ export function CategoriesPage() {
     setRows((old) => old.map((row) => idOf(row) === idOf(target) ? { ...row, name } : row));
   };
   const remove = async (target: Category) => {
-    const message = target.parentId ? '保存后，关联商品将变为无类别。' : '保存后，其二级类别也会删除，关联商品将变为无类别。';
-    if (busy || !await confirm(`确定删除分类“${target.name}”吗？${message}`)) return;
+    if (busy || !await confirm(`确定删除分类“${target.name}”吗？`, { closeBtn: false })) return;
     setRows((old) => old.filter((row) => idOf(row) !== idOf(target) && String(row.parentId || '') !== idOf(target)));
     if (selectedParentId === idOf(target)) setSelectedParentId('');
     setEditingId('');

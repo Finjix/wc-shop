@@ -2,6 +2,7 @@
 
 import { request, getApiErrorMessage } from '../../../../utils/api';
 import { resolveImage } from '../../../../utils/images';
+import { formatTime } from '../../utils/formatTime';
 
 export function normalizeCommentStatus(value, fallback = '') {
   return ['active', 'pending_review', 'rejected'].includes(value) ? value : fallback;
@@ -17,7 +18,8 @@ export function normalizeComment(comment) {
     commentStatus: comment.status,
     commentContent: comment.content,
     commentScore: comment.rating,
-    commentTime: comment.createdAt,
+    commentTime: formatTime(comment.createdAt, 'MM/DD'),
+    sellerReply: comment.reply || '',
     commentResources: normalizeCommentResources(comment.images),
   };
 }
@@ -30,7 +32,11 @@ export function normalizeCommentPayload(payload) {
 export { request, getApiErrorMessage };
 export async function resolveCommentImages(comment) {
   if (!comment) return null;
-  return { ...comment, userHeadUrl: '/assets/user-avatar.jpg', commentResources: await Promise.all(comment.commentResources.map(async (resource) => ({ ...resource, image: await resolveImage(resource.fileID) }))) };
+  return { ...comment, userHeadUrl: '/assets/user-avatar.jpg', commentResources: await Promise.all(comment.commentResources.map(async (resource) => {
+    // Older reviews may contain local files deleted when the create page closed.
+    const expired = /^(wxfile:|https?:\/\/(?:tmp|usr)\/)/i.test(resource.fileID);
+    return { ...resource, image: expired ? '' : await resolveImage(resource.fileID), expired };
+  })) };
 }
 export async function resolveCommentListImages(list) {
   return { ...list, pageList: await Promise.all(list.pageList.map(resolveCommentImages)) };

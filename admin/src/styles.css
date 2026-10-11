@@ -46,6 +46,8 @@
 }
 
 * { box-sizing: border-box; }
+/* Applies to the whole admin app, including component portals and pseudo-elements. */
+*, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 html { scrollbar-gutter: stable; }
 body { margin: 0; min-width: 320px; background: #f6f6f6; }
 button, input, textarea, select { font: inherit; }
@@ -389,7 +391,7 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
   .category-manager-name-input { width: 100%; }
   .home-config-link-fields, .home-config-product-grid { grid-template-columns: 1fr; }
   .home-config-entry-head { align-items: flex-start; flex-direction: column; }
-  .sidebar { position: fixed; left: -235px; top: 0; bottom: 0; transition: left .2s ease; box-shadow: 5px 0 18px rgb(0 0 0 / 12%); }
+  .sidebar { position: fixed; left: -235px; top: 0; bottom: 0; box-shadow: 5px 0 18px rgb(0 0 0 / 12%); }
   .sidebar.open { left: 0; }
   .sidebar-backdrop { display: none; position: fixed; inset: 0; z-index: 19; background: rgb(0 0 0 / 35%); }
   .sidebar-backdrop.visible { display: block; }
@@ -424,8 +426,10 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 *, *::before, *::after { border-radius: 0 !important; }
 .admin-shell img { cursor: zoom-in; }
 .image-lightbox { position: fixed; inset: 0; z-index: 10000; background: rgba(0, 0, 0, .92); color: #fff; display: flex; }
-.image-lightbox-stage { flex: 1; min-width: 0; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; user-select: none; }
-.image-lightbox-stage img { width: 100%; height: 100%; object-fit: contain; cursor: default; pointer-events: none; }
+.image-lightbox-stage { flex: 1; min-width: 0; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; user-select: none; touch-action: none; cursor: zoom-out; }
+.image-lightbox-stage.zoomed { cursor: grab; }
+.image-lightbox-stage.dragging { cursor: grabbing; }
+.image-lightbox-stage img { width: 100%; height: 100%; object-fit: contain; transform-origin: center; pointer-events: none; }
 .admin-toast { position: fixed; z-index: 10001; top: 16px; left: 50%; transform: translateX(-50%); max-width: min(640px, calc(100vw - 28px)); padding: 12px 18px; border: 1px solid var(--line-strong); background: #fff; color: var(--text); box-shadow: 0 6px 22px rgb(0 0 0 / 12%); font-size: 13px; }
 .admin-toast.error { border-color: #b94a48; color: #8b2624; }
 .admin-toast.warning { border-color: #a5813b; color: #70551c; }
@@ -453,9 +457,33 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .after-sales-proof-panel .commerce-proof-image { display: block; flex-shrink: 0; }
 .after-sales-page th, .after-sales-page td,
 .after-sales-page .detail-list dt, .after-sales-page .detail-list dd { text-align: left; }
-.after-sales-page td:first-child > .text-button { padding-left: 0; }
-.after-sales-page .commerce-actions .t-button + .t-button { margin-left: 16px; }
-.after-sales-page .commerce-actions .t-button--variant-text {
+.comments-page table { table-layout: fixed; }
+.comments-page tbody tr { height: 74px; }
+.comments-page col:nth-child(1) { width: 14%; }
+.comments-page col:nth-child(2) { width: 20%; }
+.comments-page col:nth-child(3) { width: 6%; }
+.comments-page col:nth-child(4) { width: 22%; }
+.comments-page col:nth-child(5) { width: 12%; }
+.comments-page col:nth-child(6) { width: 8%; }
+.comments-page col:nth-child(7) { width: 18%; }
+.comments-page td:nth-child(2) { overflow-wrap: anywhere; }
+.comments-page .commerce-image-row { flex-wrap: nowrap; min-width: 0; }
+.comments-page .commerce-thumb { width: calc((100% - 14px) / 3); max-width: 48px; height: auto; aspect-ratio: 1; flex-shrink: 0; }
+.comments-page .commerce-image-pending { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comments-content-preview { display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.comments-content-preview:hover { text-decoration: underline; }
+.comments-content-preview:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.comments-content-preview.is-expanded { white-space: nowrap; overflow-x: auto; overflow-y: hidden; text-overflow: clip; height: 48px; line-height: 48px; }
+.comments-reply-original { margin-bottom: 20px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); }
+.comments-reply-editor { position: relative; }
+.comments-reply-input { display: block; resize: none; padding-bottom: 28px; }
+.comments-reply-count { position: absolute; right: 10px; bottom: 8px; color: var(--muted); font-size: 12px; line-height: 16px; pointer-events: none; }
+.after-sales-page td:first-child > .text-button,
+.comments-page td:first-child > .text-button { padding-left: 0; }
+.after-sales-page .commerce-actions .t-button + .t-button,
+.comments-page .commerce-actions .t-button + .t-button { margin-left: 16px; }
+.after-sales-page .commerce-actions .t-button--variant-text,
+.comments-page .commerce-actions .t-button--variant-text {
   padding-left: 0;
   padding-right: 0;
   min-width: 0;

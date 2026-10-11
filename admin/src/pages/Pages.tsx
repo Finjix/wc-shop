@@ -594,7 +594,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const deleteProduct = async (product: Product) => {
     if (statusChangeRef.current || busy || deletingProductId) return;
     const id = String(product._id || product.spuId);
-    if (!await confirm(`确定删除商品“${product.title}”吗？删除后商品会从管理列表和小程序中移除，且无法直接恢复。`)) return;
+    if (!await confirm(`确定删除商品“${product.title}”吗？`, { closeBtn: false })) return;
     statusChangeRef.current = true;
     setDeletingProductId(id);
     try {

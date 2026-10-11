@@ -829,28 +829,106 @@ async function dashboardSummary(runtime) {
   };
 }
 
+async function deleteComment(runtime, id) {
+  const existing = await getDoc(col(runtime, COLLECTIONS.comments), id, false);
+  if (!existing) return { _id: id, deleted: true };
+  const orderKey = existing.orderId || existing.orderNo;
+  let order = orderKey ? await getDoc(col(runtime, COLLECTIONS.orders), String(orderKey), false) : null;
+  if (!order && existing.orderNo) {
+    const result = await list(col(runtime, COLLECTIONS.orders), { where: { orderNo: existing.orderNo }, limit: 1, includeTotal: false });
+    order = result.items[0] || null;
+  }
+  // CloudBase transactions support document reads, not collection queries.
+  // Discover legacy duplicates outside, then re-read them and the order inside.
+  const related = order ? await allMatching(col(runtime, COLLECTIONS.comments), {
+    productId: existing.productId,
+    ...(existing.orderId ? { orderId: existing.orderId } : { orderNo: existing.orderNo }),
+  }) : [];
+  return withTransaction(runtime.db, async (tx) => {
+    const comments = tx.collection(COLLECTIONS.comments);
+    const current = await getDoc(comments, id, false);
+    if (!current) return { _id: id, deleted: true };
+    if (current.orderId !== existing.orderId || current.orderNo !== existing.orderNo
+      || current.productId !== existing.productId || current.userId !== existing.userId) throw errorFrom('CONFLICT');
+    const orders = tx.collection(COLLECTIONS.orders);
+    const currentOrder = order ? await getDoc(orders, order._id, false) : null;
+    if (currentOrder && currentOrder.userId === current.userId) {
+      let hasAnotherComment = false;
+      for (const candidate of related) {
+        if (candidate._id === id) continue;
+        const remaining = await getDoc(comments, candidate._id, false);
+        if (remaining && remaining.userId === current.userId && remaining.productId === current.productId
+          && (remaining.orderId === currentOrder._id || (current.orderId && remaining.orderId === current.orderId)
+            || (!remaining.orderId && remaining.orderNo === currentOrder.orderNo))) hasAnotherComment = true;
+      }
+      const commentedProductIds = [...new Set((currentOrder.commentedProductIds || []).filter((productId) => hasAnotherComment || productId !== current.productId))];
+      const hasPendingComments = [STATUS.received, STATUS.completed].includes(currentOrder.status)
+        && (currentOrder.items || []).some((item) => Number(item.quantity || 0) > Number(currentOrder.refundedQuantities?.[item.skuId] || 0)
+          && !commentedProductIds.includes(item.productId));
+      if (affected(await orders.doc(currentOrder._id).update({ commentedProductIds, hasPendingComments, updatedAt: now() })) !== 1) throw errorFrom('CONFLICT');
+    }
+    if (affected(await comments.doc(id).remove()) !== 1) throw errorFrom('CONFLICT');
+    return { _id: id, deleted: true };
+  });
+}
+
+async function adminCommentSummaries(runtime, comments) {
+  // Resolve only this page, sharing lookups for reviews from the same order/product.
+  const orders = new Map();
+  const products = new Map();
+  const cached = (cache, key, load) => {
+    if (!cache.has(key)) cache.set(key, load());
+    return cache.get(key);
+  };
+  return Promise.all(comments.map(async (comment) => {
+    const orderKey = comment.orderId || comment.orderNo;
+    const order = orderKey ? await cached(orders, orderKey, async () => {
+      const found = await getDoc(col(runtime, COLLECTIONS.orders), String(orderKey), false);
+      if (found || !comment.orderNo) return found;
+      const result = await list(col(runtime, COLLECTIONS.orders), { where: { orderNo: comment.orderNo }, limit: 1, includeTotal: false });
+      return result.items[0] || null;
+    }) : null;
+    const items = (order?.items || []).filter((item) => String(item.productId) === String(comment.productId));
+    let productTitle = items.find((item) => item.productSnapshot?.title)?.productSnapshot.title || '';
+    if (!productTitle && comment.productId) {
+      const product = await cached(products, comment.productId, () => getDoc(col(runtime, COLLECTIONS.products), String(comment.productId), false));
+      productTitle = product?.title || '';
+    }
+    const specs = items.map((item) => (item.skuSnapshot?.specInfo || []).map((spec) => spec.specValue || '').filter(Boolean).join(' / ')).filter(Boolean);
+    return { ...comment, orderNo: comment.orderNo || order?.orderNo || '', productTitle, productSpecs: [...new Set(specs)].join('；') };
+  }));
+}
+
 async function moderationAction(runtime, data, action, name) {
   const collection = col(runtime, name);
   if (action.endsWith('.list')) {
     const where = {};
     if (data.status) where.status = string(data.status, 'status', { max: 40 });
     if (where.status === 'approved' && name === COLLECTIONS.comments) where.status = STATUS.active;
+    if (where.status === STATUS.rejected && name === COLLECTIONS.comments && runtime.db.command?.in) {
+      where.status = runtime.db.command.in([STATUS.rejected, STATUS.inactive]);
+    }
     if (data.productId) where.productId = string(data.productId, 'productId', { max: 128 });
     if (data.userId) where.userId = string(data.userId, 'userId', { max: 128 });
     if (data.orderNo || data.orderId) where.orderNo = string(data.orderNo || data.orderId, 'orderNo', { max: 128 });
     if (name === COLLECTIONS.afterSales && data.type !== undefined && data.type !== '') where.type = Number(data.type);
-    const result = await listCollection(runtime, name, data, where);
-    return name === COLLECTIONS.afterSales ? { ...result, items: result.items.map(adminAfterSaleSummary) } : result;
+    const result = await listCollection(runtime, name, name === COLLECTIONS.comments ? { ...data, orderBy: 'createdAt' } : data, where);
+    if (name === COLLECTIONS.comments) return { ...result, items: await adminCommentSummaries(runtime, result.items) };
+    return { ...result, items: result.items.map(adminAfterSaleSummary) };
   }
   if (name === COLLECTIONS.afterSales && action === 'afterSales.delete') {
     const id = string(data.afterSaleId || data.id, 'id', { max: 128 });
     return deleteCommerceRecord(runtime, name, id);
   }
+  if (action === 'comments.delete') {
+    const id = string(data.commentId || data.id, 'id', { max: 128 });
+    return deleteComment(runtime, id);
+  }
   if (name === COLLECTIONS.afterSales && !action.endsWith('.get')) throw errorFrom('ORDER_STATE_INVALID');
   if (action === 'comments.reply') {
     const id = string(data.commentId || data.id, 'id', { max: 128 });
     const existing = await getDoc(collection, id, true);
-    const reply = optionalString(data.reply, 'reply', { max: 2000 }) || '';
+    const reply = optionalString(data.reply, 'reply', { max: 100 }) || '';
     const patch = { reply, repliedAt: now(), updatedAt: now() };
     const result = await collection.doc(id).update(patch);
     if (affected(result) !== 1) throw errorFrom('CONFLICT');
@@ -871,16 +949,12 @@ async function moderationAction(runtime, data, action, name) {
       } : null,
     };
   }
-  if (action.endsWith('.delete')) {
-    await collection.doc(id).update({ status: STATUS.inactive, updatedAt: now() });
-    return { ...existing, status: STATUS.inactive, _id: id };
-  }
   if (!action.endsWith('.updateStatus')) throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
   if (name === COLLECTIONS.afterSales) throw errorFrom('ORDER_STATE_INVALID');
   const allowed = [STATUS.pendingReview, STATUS.active, STATUS.rejected, STATUS.inactive];
   const status = string(data.status, 'status', { max: 40 });
   if (!allowed.includes(status)) throw errorFrom('INVALID_ARGUMENT', { field: 'status' });
-  const patch = { status, ...(data.reply !== undefined ? { reply: optionalString(data.reply, 'reply', { max: 2000 }) } : {}), updatedAt: now() };
+  const patch = { status, ...(data.reply !== undefined ? { reply: optionalString(data.reply, 'reply', { max: 100 }) } : {}), updatedAt: now() };
   await collection.doc(id).update(patch);
   return { ...existing, ...patch, _id: id };
 }

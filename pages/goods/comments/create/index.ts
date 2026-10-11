@@ -103,12 +103,17 @@ Page({
       rating: this.data.rating,
       commentContent: (this.textAreaValue || '').trim(),
       commentResources: uploadFiles,
-    }).then(() => {
+    }).then((comment) => {
       this.commentSubmitSucceeded = true;
       Toast({ context: this, selector: '#t-toast', message: '评价提交成功', icon: 'check-circle' });
       const pages = getCurrentPages();
       const previousPage = pages[pages.length - 2];
-      if (previousPage) previousPage.data.backRefresh = true;
+      const detail = { orderNo: comment?.orderNo || this.orderNo, productId: comment?.productId || this.productId };
+      // Patch loaded order pages in place; returning must not reload the pending-review filter.
+      pages.slice(0, -1).forEach((page) => {
+        if (typeof page.onCommentCreated === 'function') page.onCommentCreated(detail);
+      });
+      if (previousPage && typeof previousPage.onCommentCreated !== 'function') previousPage.data.backRefresh = true;
       setTimeout(() => wx.navigateBack(), 600);
     }).catch((error) => {
       Toast({

@@ -1025,6 +1025,10 @@ async function testCommentsAreAtomicPrivateAndQueryableByOwner() {
   runtime.records.orders['order-1'] = receivedOrder();
   const context = { auth: { uid: 'user-1' } };
   const input = { orderId: 'order-1', productId: 'product-1', content: '真实评价', images: ['cloud://test/user/comments/image.webp'] };
+  for (const image of ['http://usr/prepared.webp', 'https://tmp/selected.jpg', 'wxfile://usr/native.webp', '/local/prepared.webp', 'data:image/webp;base64,test']) {
+    await assert.rejects(() => shopEndpoint({}, context, runtime, 'comments.create', { ...input, images: [image] }), appError('INVALID_ARGUMENT'));
+  }
+  assert.strictEqual(Object.keys(runtime.records.comments || {}).length, 0, 'temporary images must not be persisted');
   const results = await Promise.allSettled([
     shopEndpoint({}, context, runtime, 'comments.create', input),
     shopEndpoint({}, context, runtime, 'comments.create', input),
@@ -1042,6 +1046,50 @@ async function testCommentsAreAtomicPrivateAndQueryableByOwner() {
   await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'other-user' } }, runtime, 'comments.list', { orderId: 'order-1' }), appError('FORBIDDEN'));
   assert.strictEqual((await shopEndpoint({}, context, runtime, 'orders.detail', { orderId: 'order-1' })).hasPendingComments, false);
   assert.strictEqual((await shopEndpoint({}, context, runtime, 'orders.count', {})).items.find((item) => item.tabType === 50).orderNum, 0);
+}
+
+async function testAdminCommentPresentationAndModeration() {
+  const runtime = makeRuntime();
+  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
+  const admin = { auth: { uid: 'admin-1' } };
+  runtime.records.orders['order-1'] = receivedOrder([{
+    productId: 'product-1', skuId: 'sku-new', quantity: 1, amount: 100,
+    productSnapshot: { title: '购买时商品名称' }, skuSnapshot: { specInfo: [{ specValue: '大号' }] },
+  }]);
+  runtime.records.comments = {
+    old: { _id: 'old', orderId: 'order-1', orderNo: 'order-1', productId: 'product-1', content: '好用', rating: 5, images: [], status: 'pending_review', createdAt: '2026-01-01', updatedAt: '2026-03-01' },
+    newer: { _id: 'newer', orderNo: 'order-1', productId: 'product-1', content: '', rating: 1, images: ['cloud://test/user/comments/one.webp'], status: 'inactive', createdAt: '2026-02-01', updatedAt: '2026-02-01' },
+    orphan: { _id: 'orphan', productId: 'product-1', status: 'rejected', createdAt: '2025-01-01' },
+    missing: { _id: 'missing', orderId: 'missing-order', productId: 'missing-product', status: 'rejected', createdAt: '2024-01-01' },
+  };
+  const result = await adminEndpoint({}, admin, runtime, 'comments.list', { orderNo: 'order-1', pageSize: 1 });
+  assert.strictEqual(result.total, 2);
+  assert.strictEqual(result.items[0]._id, 'newer', 'reply/moderation updates must not reorder reviews');
+  assert.strictEqual(result.items[0].productTitle, '购买时商品名称');
+  assert.strictEqual(result.items[0].productSpecs, '大号');
+  assert.strictEqual(result.items[0].images.length, 1, 'image-only reviews are retained');
+  const next = await adminEndpoint({}, admin, runtime, 'comments.list', { orderNo: 'order-1', page: 2, pageSize: 1 });
+  assert.strictEqual(next.items[0]._id, 'old');
+  const hidden = await adminEndpoint({}, admin, runtime, 'comments.list', { status: 'rejected' });
+  assert.strictEqual(hidden.total, 3);
+  assert.strictEqual(hidden.items.find((item) => item._id === 'orphan').productTitle, '测试商品');
+  assert.strictEqual(hidden.items.find((item) => item._id === 'missing').productTitle, '');
+  await adminEndpoint({}, admin, runtime, 'comments.moderate', { id: 'old', status: 'active' });
+  await adminEndpoint({}, admin, runtime, 'comments.reply', { id: 'old', reply: '谢谢支持' });
+  const publicReviews = await shopEndpoint({}, {}, runtime, 'comments.list', { productId: 'product-1' });
+  assert.strictEqual(publicReviews.items[0].reply, '谢谢支持');
+  assert.strictEqual(publicReviews.items[0].userId, undefined);
+  assert.strictEqual(publicReviews.items[0].orderNo, undefined);
+  await adminEndpoint({}, admin, runtime, 'comments.reply', { id: 'old', reply: '回'.repeat(100) });
+  assert.strictEqual(runtime.records.comments.old.reply.length, 100);
+  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'comments.reply', { id: 'old', reply: '回'.repeat(101) }), appError('INVALID_ARGUMENT'));
+  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'comments.updateStatus', { id: 'old', status: 'active', reply: '回'.repeat(101) }), appError('INVALID_ARGUMENT'));
+  assert.strictEqual(runtime.records.comments.old.reply.length, 100);
+  await adminEndpoint({}, admin, runtime, 'comments.reply', { id: 'old', reply: '' });
+  assert.strictEqual(runtime.records.comments.old.reply, '');
+  await adminEndpoint({}, admin, runtime, 'comments.moderate', { id: 'old', status: 'rejected' });
+  assert.strictEqual((await shopEndpoint({}, {}, runtime, 'comments.list', {})).total, 0);
+  await assert.rejects(() => adminEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'comments.list', {}), appError('FORBIDDEN'));
 }
 
 async function testReceivedOrdersAndPendingCommentPagination() {
@@ -1752,6 +1800,7 @@ const cases = [
   { name: 'order prices, product snapshots and addresses are confirmed in the transaction', run: testOrderPricesAndSnapshotsAreConfirmedInTransaction },
   { name: 'historical pending-payment orders remain untouched and are not migrated on read', run: testHistoricalPendingPaymentOrdersRemainUntouched },
   { name: 'comments are atomic, public fields are restricted, and owners see pending reviews', run: testCommentsAreAtomicPrivateAndQueryableByOwner },
+  { name: 'admin comments use order snapshots, creation-time pagination, hidden statuses and public merchant replies', run: testAdminCommentPresentationAndModeration },
   { name: 'received orders and pending comments use consistent tabs and pagination', run: testReceivedOrdersAndPendingCommentPagination },
   { name: 'image filtering precedes comment pagination and total counting', run: testImageFilterPrecedesCommentPagination },
   { name: 'after-sales validate SKU, quantity, amount and serialize concurrent claims', run: testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims },

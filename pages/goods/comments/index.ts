@@ -4,13 +4,12 @@ import { fetchComments } from '../services/comments/fetchComments';
 import { fetchCommentsCount } from '../services/comments/fetchCommentsCount';
 import { fetchOrderComment } from '../services/comments/fetchOrderComment';
 import { getApiErrorMessage } from '../../../utils/api';
-import { formatTime } from '../utils/formatTime';
 import Toast from 'tdesign-miniprogram/toast/index';
 
 const layoutMap = { 0: 'vertical' };
 
 const sortCommentsByLatest = (comments = []) =>
-  [...comments].sort((a, b) => Number(b.commentTime) - Number(a.commentTime));
+  [...comments].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
 Page({
   data: {
@@ -34,6 +33,7 @@ Page({
     },
     mineOnly: false,
     ownComment: null,
+    ownLoading: false,
     loadError: '',
   },
 
@@ -65,6 +65,7 @@ Page({
   },
 
   async getOwnComment(orderNo, productId = '') {
+    this.setData({ ownLoading: true, loadError: '' });
     try {
       const ownComment = await fetchOrderComment(orderNo, productId);
       this.setData({ ownComment, loadError: '' });
@@ -72,6 +73,8 @@ Page({
       const message = getApiErrorMessage(error);
       this.setData({ ownComment: null, loadError: message });
       this.showError(message);
+    } finally {
+      this.setData({ ownLoading: false });
     }
   },
 
@@ -100,9 +103,6 @@ Page({
     const displayPageList = this.data.commentType === 'latest'
       ? sortCommentsByLatest(pageList)
       : pageList;
-    displayPageList.forEach((item) => {
-      if (item.commentTime) item.commentTime = formatTime(item.commentTime, 'YYYY/MM/DD');
-    });
     const totalCount = Number(data.totalCount || 0);
     const nextList = reset ? displayPageList : commentList.concat(displayPageList);
     this.setData({
@@ -116,22 +116,18 @@ Page({
     });
   },
 
-  async init(reset = true, mineOnly = false) {
+  async init(reset = true) {
     if (this.data.loadMoreStatus === 1) return;
     const params = this.generalQueryData(reset);
     this.setData({ loadMoreStatus: 1 });
     try {
-      const data = await fetchComments({ ...params, mineOnly });
+      const data = await fetchComments(params);
       this.setCommentResult(data, params, reset, this.data.commentList || []);
     } catch (error) {
       const message = getApiErrorMessage(error);
       this.setData({ hasLoaded: true, loadMoreStatus: 3, loadError: message });
       this.showError(message);
     }
-  },
-
-  getMyCommentsList() {
-    return this.init(true, true);
   },
 
   getScoreArray(score) {
@@ -156,7 +152,7 @@ Page({
     const { commenttype } = e.currentTarget.dataset;
     if (this.data.commentType === commenttype) return;
     this.setData({ loadMoreStatus: 0, commentList: [], total: 0, totalCount: 0, pageNum: 1 });
-    if (commenttype === '' || commenttype === '5' || commenttype === 'latest') {
+    if (commenttype === '' || commenttype === 'latest') {
       this.setData({ hasImage: '', commentLevel: '' });
     } else if (commenttype === '4') {
       this.setData({ hasImage: '1', commentLevel: '' });
@@ -164,8 +160,7 @@ Page({
       this.setData({ hasImage: '', commentLevel: commenttype });
     }
     this.setData({ myLoadStatus: 0, commentType: commenttype });
-    if (commenttype === '5') this.getMyCommentsList();
-    else this.init(true);
+    this.init(true);
   },
 
   onReachBottom() {
@@ -174,7 +169,7 @@ Page({
       this.setData({ loadMoreStatus: 2 });
       return;
     }
-    this.init(false, this.data.commentType === '5');
+    this.init(false);
   },
 });
 // @ts-nocheck

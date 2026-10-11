@@ -14,7 +14,7 @@ const navItems = [
   { to: '/categories', label: '分类' },
   { to: '/orders', label: '订单' },
   { to: '/after-sales', label: '售后' },
-  { to: '/comments', label: '评价', disabled: true },
+  { to: '/comments', label: '评价' },
 ];
 
 export function AdminLayout() {
@@ -48,9 +48,7 @@ export function AdminLayout() {
       <div className={`sidebar-backdrop ${open ? 'visible' : ''}`} onClick={() => setOpen(false)} />
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <nav className="side-nav">
-          {navItems.map((item) => item.disabled ? (
-            <span key={item.to} className="nav-link nav-link-disabled" aria-disabled="true" title="暂未开放">{item.label}</span>
-          ) : (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

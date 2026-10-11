@@ -989,6 +989,9 @@ async function commentsAction(runtime, event, context, data, action) {
   const imageList = sourceImages === undefined ? [] : array(sourceImages, 'images');
   assert(imageList.length <= 3, { field: 'images', max: 3 });
   const images = imageList.map((item) => string(typeof item === 'string' ? item : item && (item.image || item.fileID || item.fileId), 'images[]', { max: 1024 }));
+  // Local WeChat files cannot survive page teardown; require a durable upload URL/ID.
+  assert(images.every((image) => /^(?:(?:cloud|local):\/\/|https?:\/\/)/i.test(image)
+    && !/^https?:\/\/(?:tmp|usr)(?:\/|$)/i.test(image)), { field: 'images' });
   const timestamp = now();
   const rating = data.rating;
   const comment = { userId: identity.uid, orderId: order._id || orderId, orderNo: order.orderNo || orderId, productId, rating: rating === undefined ? 5 : integer(Number(rating), 'rating', { min: 1, max: 5 }), content: text, images, hasImage: images.length > 0, status: STATUS.pendingReview, createdAt: timestamp, updatedAt: timestamp };

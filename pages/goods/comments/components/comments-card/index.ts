@@ -3,6 +3,10 @@
 Component({
   externalClasses: ['wr-class'],
   properties: {
+    ownView: {
+      type: Boolean,
+      value: false,
+    },
     goodsDetailInfo: {
       type: String,
       value: '',

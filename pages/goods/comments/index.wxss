@@ -66,9 +66,44 @@ page {
   border: 1px solid #695941 !important;
 }
 
-.own-comment-list {
-  min-height: calc(100vh - 88rpx);
+.comments-page-own,
+.comments-page-own .comments-scroll,
+.comments-page-own .comments-scroll-content {
   background-color: #fff;
+}
+
+.own-comment-list {
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
+}
+
+.own-seller-reply {
+  margin: 0 32rpx 32rpx;
+  padding: 28rpx;
+  border: 1rpx solid #ece8e0;
+  border-radius: 16rpx;
+  background-color: #f7f6f3;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.own-seller-reply-title {
+  margin-bottom: 12rpx;
+  color: #695941;
+  font-size: 26rpx;
+  line-height: 36rpx;
+  font-weight: 600;
+}
+
+.own-seller-reply-content {
+  display: block;
+  width: 100%;
+  color: #555;
+  font-size: 28rpx;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .no-more {

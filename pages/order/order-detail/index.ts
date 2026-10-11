@@ -5,6 +5,7 @@ import { getApiErrorMessage } from '../../../utils/api';
 import { OrderButtonTypes, OrderStatus } from '../config';
 import { fetchBusinessTime, fetchOrderDetail, updateOrderAddress } from '../services/orderDetail';
 import { navigateToGoodsDetail } from '../../../utils/goods-detail-navigation';
+import { applyCommentToOrder } from '../utils/comment-state';
 
 function refundableQuantityOf(goods = {}) {
   return Math.max(0, Number(
@@ -44,6 +45,11 @@ Page({
       this.hasShownOnce = true;
       return;
     }
+    if (this.skipNextShowRefresh) {
+      this.skipNextShowRefresh = false;
+      this.setData({ backRefresh: false });
+      return;
+    }
     this.onRefresh();
     this.setData({ backRefresh: false });
   },
@@ -63,6 +69,16 @@ Page({
       .catch((e) => {
         this.setData({ pageLoading: false, loadError: getApiErrorMessage(e, '订单加载失败，请重试') });
       });
+  },
+
+  onCommentCreated({ orderNo, productId }) {
+    if (this.data._order.orderNo !== orderNo) return;
+    const _order = applyCommentToOrder(this.data._order, productId);
+    const order = { ...this.data.order, commentedProductIds: _order.commentedProductIds,
+      hasPendingComments: _order.hasPendingComments, commentableProductId: _order.commentableProductId,
+      buttonVOs: _order.buttons };
+    this.skipNextShowRefresh = true;
+    this.setData({ _order, order, backRefresh: true });
   },
 
   // 页面刷新，展示下拉刷新
@@ -128,6 +144,7 @@ Page({
         id: order.orderId,
         orderNo: order.orderNo,
         commentableProductId: order.commentableProductId,
+        commentedProductIds: order.commentedProductIds || [],
         parentOrderNo: order.parentOrderNo,
         storeId: order.storeId,
         storeName: order.storeName,

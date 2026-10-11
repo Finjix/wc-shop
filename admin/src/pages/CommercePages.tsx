@@ -111,7 +111,7 @@ export function OrdersPage() {
   const { busy, run } = useAction();
   const deleteOrder = async (order: Order) => {
     if (busy || order.hasActiveAfterSale || order.canDeleteAdmin === false) return;
-    if (!await confirm(`确定永久删除订单 ${order.orderNo || orderIdOf(order)} 及其所有关联售后单？两端数据都会删除；未发货库存会释放，但删除不会自动退款。操作不可恢复。`)) return;
+    if (!await confirm(`确定永久删除订单 ${order.orderNo || orderIdOf(order)} 及其所有关联售后单？`, { closeBtn: false })) return;
     const result = await run('orders.delete', { orderId: orderIdOf(order) }, '订单已删除');
     if (result !== undefined) {
       if (groups.length === 1 && groups[0].orders.length === 1 && search.page > 1) setSearch((old) => ({ ...old, page: old.page - 1 }));
@@ -334,10 +334,12 @@ function ResolvedImage({ fileID, alt, className }: { fileID: string; alt: string
   const [src, setSrc] = useState('');
   useEffect(() => {
     let active = true;
+    setSrc('');
+    if (/^(wxfile:|https?:\/\/(?:tmp|usr)\/)/i.test(fileID)) return;
     void adminApi.getTempFileUrl(fileID).then((url) => { if (active) setSrc(url); }).catch(() => { if (active) setSrc(''); });
     return () => { active = false; };
   }, [fileID]);
-  return src ? <img className={className} src={src} alt={alt} /> : <span className="commerce-image-pending">图片暂不可用</span>;
+  return src ? <img className={className} src={src} alt={alt} onError={() => setSrc('')} /> : <span className="commerce-image-pending">图片暂不可用</span>;
 }
 
 export function CommentsPage() {
@@ -345,47 +347,71 @@ export function CommentsPage() {
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState({ status: '', orderNo: '', page: 1 });
   const [refreshKey, setRefreshKey] = useState(0);
-  const [replyOpen, setReplyOpen] = useState('');
+  const [replyOpen, setReplyOpen] = useState<Comment | null>(null);
+  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
+  const contentExpanded = expandedCommentId !== null;
   const [replyText, setReplyText] = useState('');
   const { data, loading, error } = useResource<unknown>('comments.list', { page: search.page, pageSize: PAGE_SIZE, status: search.status || undefined, orderNo: search.orderNo || undefined }, refreshKey);
   const rows = readList<Comment>(data);
   const total = readTotal(data, rows.length);
+  const confirm = useConfirm();
   const { busy, run } = useAction();
+  const deleteComment = async (row: Comment) => {
+    if (busy) return;
+    if (!await confirm(`确定永久删除订单 ${row.orderNo || '—'} 的这条评价及商家回复？`, { closeBtn: false })) return;
+    const result = await run('comments.delete', { id: row._id || row.id }, '评价已删除');
+    if (result !== undefined) {
+      if (rows.length === 1 && search.page > 1) setSearch((old) => ({ ...old, page: old.page - 1 }));
+      setRefreshKey((key) => key + 1);
+    }
+  };
   const moderate = async (row: Comment, nextStatus: string) => {
     const result = await run('comments.moderate', { id: row._id || row.id, status: nextStatus }, nextStatus === 'active' ? '评论已公开' : '评论已隐藏');
     if (result !== undefined) setRefreshKey((key) => key + 1);
   };
-  const saveReply = async (row: Comment) => {
-    if (!replyText.trim()) { message('请输入商家回复', 'warning'); return; }
-    const result = await run('comments.reply', { id: row._id || row.id, reply: replyText.trim() }, '商家回复已保存');
-    if (result !== undefined) { setReplyOpen(''); setReplyText(''); setRefreshKey((key) => key + 1); }
+  const saveReply = async () => {
+    if (!replyOpen) return;
+    if (replyText.trim().length > 100) { message('回复最多 100 字', 'warning'); return; }
+    const result = await run('comments.reply', { id: replyOpen._id || replyOpen.id, reply: replyText.trim() }, '商家回复已保存');
+    if (result !== undefined) { setReplyOpen(null); setReplyText(''); setRefreshKey((key) => key + 1); }
   };
-  return <>
-    <PageTitle>评价管理</PageTitle>
-    <Panel className="toolbar commerce-toolbar"><Input value={query} onChange={setQuery} placeholder="订单号" /><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="pending_review">待审核</option><option value="active">已展示</option><option value="rejected">已隐藏</option></select><Button onClick={() => { setSearch({ orderNo: query.trim(), status, page: 1 }); setRefreshKey((key) => key + 1); }}>查询</Button></Panel>
+  const submitSearch = () => {
+    setSearch({ orderNo: query.trim(), status, page: 1 });
+    setRefreshKey((key) => key + 1);
+  };
+  return <div className="orders-page comments-page">
+    <div className="toolbar commerce-toolbar orders-toolbar"><Input value={query} onChange={setQuery} onEnter={submitSearch} placeholder="订单号" /><select value={status} aria-label="评价状态" onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="pending_review">待审核</option><option value="active">已展示</option><option value="rejected">已隐藏</option></select><Button onClick={submitSearch}>查询</Button></div>
     {loading && <LoadingState />}{error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
-    {!loading && !error && <Panel>
-      <Table minWidth={1160}><thead><tr><th>用户</th><th>评分</th><th>内容</th><th>商品</th><th>订单</th><th>图片</th><th>状态</th><th>操作</th></tr></thead><tbody>
-        {rows.length === 0 && <EmptyTable colSpan={8} />}
+    {!loading && !error && <Panel className={rows.length === 0 ? 'orders-empty-panel' : undefined}>
+      <Table minWidth={1200}>
+        <colgroup><col /><col /><col /><col /><col /><col /><col /></colgroup>
+        <thead><tr><th>订单号</th><th>商品 / 规格</th><th>评价</th><th colSpan={contentExpanded ? 4 : 1}>内容</th>{!contentExpanded && <><th>图片</th><th>状态</th><th>操作</th></>}</tr></thead><tbody>
+        {rows.length === 0 && <EmptyTable colSpan={7} />}
         {rows.map((row) => {
           const id = String(row._id || row.id || '');
           const photos = imageIds(row.images);
           const normalized = String(row.status || '').toLowerCase();
           const isActive = normalized === 'active';
           return <tr key={id}>
-            <td>{String(row.userName || row.userId || '—')}</td><td>{String(row.rating ?? '—')}</td>
-            <td className="long-text">{String(row.content || '—')}{row.reply && <div className="commerce-reply-preview">商家回复：{String(row.reply)}</div>}</td>
-            <td>{String(row.productId || '—')}</td><td>{String(row.orderNo || '—')}</td>
+            <td>{row.orderNo || '—'}</td>
+            <td><div className="order-list-item">{row.productTitle || '商品已不可用'}{row.productSpecs && <small>{row.productSpecs}</small>}</div></td>
+            <td>{row.rating == null ? '—' : row.rating >= 4 ? '好评' : row.rating <= 2 ? '差评' : '中评'}</td>
+            <td className="comments-content" colSpan={contentExpanded ? 4 : 1}><button type="button" className={`comments-content-preview${expandedCommentId === id ? ' is-expanded' : ''}`} aria-expanded={expandedCommentId === id} aria-label={expandedCommentId === id ? '收起评价内容' : '展开完整评价'} title={expandedCommentId === id ? '点击收起并恢复右侧项' : '点击展开完整评价'} onClick={() => setExpandedCommentId((old) => old === id ? null : id)}>{row.content || '（仅图片评价）'}</button></td>
+            {!contentExpanded && <>
             <td><div className="commerce-image-row">{photos.map((src, index) => <ResolvedImage key={`${id}-${index}`} fileID={src} alt={`评价图片 ${index + 1}`} className="commerce-thumb" />)}</div>{photos.length === 0 ? '—' : null}</td>
-            <td>{isActive ? '已展示' : normalized === 'rejected' ? '已隐藏' : '待审核'}</td>
-            <td className="commerce-actions">{!isActive && <Button variant="text" disabled={busy} loading={busy} onClick={() => void moderate(row, 'active')}>通过</Button>}{isActive && <Button variant="text" disabled={busy} loading={busy} onClick={() => void moderate(row, 'rejected')}>隐藏</Button>}<Button variant="text" disabled={busy} onClick={() => { setReplyOpen(id); setReplyText(String(row.reply || '')); }}>回复</Button></td>
+            <td><Tag variant="light">{isActive ? '已展示' : ['rejected', 'inactive'].includes(normalized) ? '已隐藏' : '待审核'}</Tag></td>
+            <td className="commerce-actions"><Button variant="text" disabled={busy || isActive} onClick={() => void moderate(row, 'active')}>展示</Button><Button variant="text" disabled={busy || ['rejected', 'inactive'].includes(normalized)} onClick={() => void moderate(row, 'rejected')}>隐藏</Button><Button variant="text" disabled={busy} onClick={() => { setReplyOpen(row); setReplyText(row.reply || ''); }}>回复</Button><Button variant="text" disabled={busy} onClick={() => void deleteComment(row)}>删除</Button></td>
+            </>}
           </tr>;
         })}
       </tbody></Table>
-      <Pagination page={search.page} pageSize={PAGE_SIZE} total={total} onChange={(page) => setSearch((old) => ({ ...old, page }))} />
     </Panel>}
-    {replyOpen && <div className="home-config-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setReplyOpen(''); }}><section className="home-config-dialog" role="dialog" aria-modal="true" aria-label="商家回复"><h3>回复评价</h3><label className="field"><span>回复内容</span><textarea rows={5} value={replyText} onChange={(event) => setReplyText(event.target.value)} maxLength={500} /></label><div className="home-config-dialog-actions"><Button variant="outline" disabled={busy} onClick={() => setReplyOpen('')}>取消</Button><Button theme="primary" disabled={busy} loading={busy} onClick={() => { const row = rows.find((item) => String(item._id || item.id) === replyOpen); if (row) void saveReply(row); }}>保存回复</Button></div></section></div>}
-  </>;
+    {!loading && !error && <Pagination page={search.page} pageSize={PAGE_SIZE} total={total} showTotal={false} onChange={(page) => setSearch((old) => ({ ...old, page }))} />}
+    {replyOpen && <Dialog className="shipping-dialog" placement="center" width="min(600px, 92vw)" header={false} visible closeBtn={false} closeOnOverlayClick={false} onClose={() => { if (!busy) setReplyOpen(null); }} onConfirm={() => void saveReply()} confirmBtn={{ content: '确定', loading: busy, disabled: busy || replyText.trim().length > 100 || replyText.trim() === (replyOpen.reply || '') }} cancelBtn={{ content: '取消', disabled: busy }}>
+      <div className="comments-reply-original">{replyOpen.content || '（仅图片评价）'}</div>
+      <Field label="回复"><div className="comments-reply-editor"><textarea className="comments-reply-input" rows={5} value={replyText} disabled={busy} onChange={(event) => setReplyText(event.target.value)} maxLength={100} aria-describedby="comments-reply-count" /><span id="comments-reply-count" className="comments-reply-count">{replyText.length}/100</span></div></Field>
+    </Dialog>}
+  </div>;
 }
 
 function afterSaleType(value: unknown) {
@@ -454,7 +480,7 @@ export function AfterSalesPage() {
   };
   const deleteAfterSale = async (row: AfterSale) => {
     if (busy || !row.canDeleteAdmin) return;
-    if (!await confirm(`确定永久删除订单 ${row.orderNo || '—'} 的售后单？两端数据都会删除，操作不可恢复。`)) return;
+    if (!await confirm(`确定永久删除订单 ${row.orderNo || '—'} 的售后单？`, { closeBtn: false })) return;
     const result = await run('afterSales.delete', { id: afterSaleIdOf(row) }, '售后单已删除');
     if (result !== undefined) {
       if (rows.length === 1 && search.page > 1) setSearch((old) => ({ ...old, page: old.page - 1 }));

@@ -1,10 +1,11 @@
-<view class="images-videos-container container-{{classType}}">
+<view class="images-videos-container container-{{classType}} {{compact ? 'container-compact' : ''}}">
 	<view
 	  class="resource-container resource-container-{{classType}}"
 	  wx:for="{{imageResources}}"
 	  wx:for-item="resource"
 	  wx:key="*this"
 	>
-		  <t-image t-class="resource-item-{{classType}}" src="{{resource.image}}" />
+		  <t-image wx:if="{{resource.image && !resource.failed}}" t-class="resource-item-{{classType}}" src="{{resource.image}}" data-index="{{index}}" bind:error="onImageError" bind:tap="onPreview" />
+      <view wx:else class="resource-item-{{classType}} resource-unavailable">{{resource.expired ? '图片已失效' : '图片加载失败'}}</view>
 	</view>
 </view>

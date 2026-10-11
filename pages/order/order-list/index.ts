@@ -3,6 +3,7 @@
 import { OrderButtonTypes, OrderStatus } from '../config';
 import { fetchOrders, fetchOrdersCount } from '../services/orderList';
 import { cosThumb } from '../utils/format';
+import { applyCommentToOrder } from '../utils/comment-state';
 
 Page({
   page: {
@@ -43,6 +44,11 @@ Page({
 
   onShow() {
     if (!this.hasShownOnce) { this.hasShownOnce = true; return; }
+    if (this.skipNextShowRefresh) {
+      this.skipNextShowRefresh = false;
+      this.setData({ backRefresh: false });
+      return;
+    }
     this.onRefresh();
     this.setData({ backRefresh: false });
   },
@@ -104,6 +110,7 @@ Page({
               id: order.orderId,
               orderNo: order.orderNo,
               commentableProductId: order.commentableProductId,
+              commentedProductIds: order.commentedProductIds || [],
               parentOrderNo: order.parentOrderNo,
               storeId: order.storeId,
               storeName: order.storeName,
@@ -185,6 +192,7 @@ Page({
   },
 
   refreshList(status = -1) {
+    this.skipNextShowRefresh = false;
     this.page = {
       size: this.page.size,
       num: 1,
@@ -192,6 +200,13 @@ Page({
     this.setData({ curTab: status, orderList: [] });
 
     return Promise.all([this.getOrderList(status, true), this.getOrdersCount()]);
+  },
+
+  onCommentCreated({ orderNo, productId }) {
+    const orderList = this.data.orderList.map((order) => order.orderNo === orderNo
+      ? applyCommentToOrder(order, productId) : order);
+    this.skipNextShowRefresh = true;
+    this.setData({ orderList, backRefresh: true });
   },
 
   onRefresh(e) {

@@ -1,17 +1,18 @@
-<view class="comments-card-item wr-class {{isLast ? 'comments-card-item--last' : ''}}">
+<view class="comments-card-item wr-class {{isLast ? 'comments-card-item--last' : ''}} {{ownView ? 'comments-card-own' : ''}}">
   <view class="comments-card-item-container">
-    <view class="comments-title">
+    <view wx:if="{{ownView}}" class="own-rating {{commentScore >= 4 ? 'own-rating-positive' : 'own-rating-negative'}}">{{commentScore >= 4 ? '好评' : '差评'}}</view>
+    <view wx:else class="comments-title">
       <view class="userName">微信用户</view>
       <view wx:if="{{goodsDetailInfo}}" class="goods-info-text">{{goodsDetailInfo}}</view>
       <text class="commentTime">{{commentTime}}</text>
     </view>
-    <view class="comments-card-item-container-content">
-      <view class="content-text" hidden="{{showContent}}"> {{commentContent}} </view>
+    <view class="comments-card-item-container-content" wx:if="{{commentContent}}">
+      <view class="content-text" hidden="{{showContent}}">{{commentContent}}</view>
     </view>
     <view class="comments-card-item-container-image" wx:if="{{commentResources.length > 0}}">
-      <images-videos resources="{{commentResources}}" />
+      <images-videos resources="{{commentResources}}" compact="{{ownView}}" />
     </view>
-    <view class="comments-card-reply" wx:if="{{sellerReply}}">
+    <view class="comments-card-reply" wx:if="{{sellerReply && !ownView}}">
       <text class="prefix">店家回复：</text>
       <text class="content">{{sellerReply}}</text>
     </view>

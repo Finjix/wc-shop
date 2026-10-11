@@ -10,7 +10,10 @@ function localPath(resource) {
 
 async function uploadCommentResource(resource) {
   const path = localPath(resource);
-  if (!path || /^(cloud:|local:|data:|https?:\/\/(?!tmp\/))/i.test(path)) return path;
+  const userPath = wx.env?.USER_DATA_PATH;
+  const isLocalPath = path && ((userPath && path.startsWith(`${userPath}/`))
+    || /^(wxfile:|https?:\/\/(?:tmp|usr)\/)/i.test(path));
+  if (!path || (!isLocalPath && /^(cloud:|local:|data:|https?:\/\/)/i.test(path))) return path;
   return uploadCloudFile(path, 'comments');
 }
 

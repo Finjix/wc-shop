@@ -10,7 +10,7 @@ import { ConfirmProvider } from './components/ConfirmProvider';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ConfigProvider globalConfig={{ animation: { exclude: ['ripple'] }, loading: { indicator: false } }}>
+    <ConfigProvider globalConfig={{ animation: { exclude: ['ripple', 'expand', 'fade'] }, loading: { indicator: false } }}>
       <ConfirmProvider><AuthProvider><App /></AuthProvider></ConfirmProvider>
     </ConfigProvider>
   </StrictMode>,
