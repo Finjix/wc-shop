@@ -16,11 +16,25 @@
   line-height: 40rpx;
 }
 
+.order-remark__field {
+  position: relative;
+}
+
+.order-remark__count {
+  position: absolute;
+  right: 24rpx;
+  bottom: 12rpx;
+  color: #999;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  pointer-events: none;
+}
+
 .order-remark__input {
   box-sizing: border-box;
   width: 100%;
   min-height: 128rpx;
-  padding: 20rpx 24rpx;
+  padding: 20rpx 24rpx 48rpx;
   background: #f7f7f7;
   border-radius: 8rpx;
   color: #333;

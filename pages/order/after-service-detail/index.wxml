@@ -25,7 +25,6 @@
           <text>退款金额</text>
           <wr-price price="{{service.refundRequestAmount}}" fill wr-class="refund-summary__price" symbol-class="refund-summary__price-part" decimal-class="refund-summary__price-part" />
         </view>
-        <view class="desc" wx:if="{{!service.isRefunded && service.statusDesc && service.statusDesc !== service.statusName}}"> {{service.statusDesc}} </view>
       </view>
       <!-- 物流 -->
       <view class="service-section logistics" wx:if="{{service.logisticsNo}}">

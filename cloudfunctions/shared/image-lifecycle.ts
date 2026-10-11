@@ -8,6 +8,35 @@ const CONTROL = '__image_cleanup_control';
 const IMAGE_NEUTRAL_FIELDS = new Set(['status', 'updatedAt', 'title', 'subtitle', 'name', 'sort', 'stockQuantity', 'soldQuantity', 'price', 'salePrice', 'linePrice', 'weight', 'volume', 'categoryId', 'categoryIds', 'parentId', 'level']);
 const stateId = (id) => `__image_file_${crypto.createHash('sha256').update(id).digest('hex')}`;
 const stored = (v) => typeof v === 'string' && /^(cloud|local):\/\//.test(v);
+const MANAGED_PATH = /^(?:admin\/products|admin\/categories|home|user\/comments|user\/after-sales|comments|after-sales)\/.+/;
+const pathOf = (id) => id.startsWith('local://') ? id.slice(8) : id.replace(/^cloud:\/\/[^/]+\//, '');
+const managed = (id) => stored(id) && MANAGED_PATH.test(pathOf(id));
+
+async function queueFiles(db, ids, ownerId, cleanupAfter = new Date().toISOString()) {
+  const settings = db.collection('settings');
+  for (const fileID of [...new Set(ids)].filter(managed)) {
+    const old = await getDoc(settings, stateId(fileID), false) || {};
+    if (old.status === 'deleted') continue;
+    await setDoc(settings, stateId(fileID), { ...old, fileID, imageCleanupPending: true,
+      cleanupAfter, ...(!old.cleanupOwner && ownerId ? { cleanupOwner: ownerId } : {}) });
+  }
+}
+
+// Reserve the file ID before upload so even a closed tab or lost response leaves
+// a durable lease. A full reference scan is still required before deletion.
+async function prepareUpload(runtime, folder, ownerId) {
+  if (!['admin/products', 'admin/categories', 'home', 'user/comments', 'user/after-sales'].includes(folder)) throw errorFrom('FORBIDDEN');
+  const cloudPath = `${folder}/${crypto.randomUUID()}.webp`;
+  let fileID;
+  if (runtime.localStorage) fileID = `local://${cloudPath}`;
+  else {
+    const metadata = await runtime.app.getUploadMetadata({ cloudPath });
+    fileID = metadata?.data?.fileId;
+    if (!managed(fileID) || pathOf(fileID) !== cloudPath) throw errorFrom('STORAGE_ERROR');
+  }
+  await queueFiles(runtime.db, [fileID], ownerId, new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
+  return { cloudPath, fileID };
+}
 function canonical(value) {
   if (stored(value)) return value;
   try {
@@ -85,6 +114,7 @@ function imageLifecycleRuntime(runtime) {
                 const control = await getDoc(settings, CONTROL, false) || { version: 0 };
                 await setDoc(settings, CONTROL, { version: control.version + 1 });
                 files(previous).forEach((file) => removed.add(file));
+                await queueFiles(tx, files(previous), previous?.userId);
               }
               return tx.collection(source).doc(id).remove();
             }
@@ -114,7 +144,9 @@ function imageLifecycleRuntime(runtime) {
             }));
             const normalized = walk(value, (v) => mapping.get(canonical(v)) || v);
             const after = method === 'set' ? normalized : { ...previous, ...normalized };
-            for (const file of files(previous)) if (inactive(after, source) || !uses(after, file)) removed.add(file);
+            const retired = files(previous).filter((file) => inactive(after, source) || !uses(after, file));
+            retired.forEach((file) => removed.add(file));
+            await queueFiles(tx, retired, previous?.userId);
             await setDoc(settings, CONTROL, { version: control.version + 1 });
             return tx.collection(source).doc(id)[method](normalized);
           };
@@ -149,7 +181,9 @@ async function references(runtime, ids) {
 }
 async function cleanup(runtime, data) {
   const ids = [...new Set(data.fileList || [])];
-  if (!ids.length || ids.length > 5 || ids.some((id) => !/^(?:cloud:\/\/[^/]+\/|local:\/\/)(?:admin\/products\/|admin\/categories\/|home\/|user\/comments\/|user\/after-sales\/)/.test(id))) throw errorFrom('INVALID_ARGUMENT');
+  if (!ids.length || ids.length > 5 || ids.some((id) => !managed(id))) throw errorFrom('INVALID_ARGUMENT');
+  // Persist first, including failures before or during the scan.
+  await queueFiles(runtime.db, ids, data.ownerId);
   const control = await getDoc(runtime.db.collection('settings'), CONTROL, false) || { version: 0 };
   const referenced = await references(runtime, ids);
   const candidates = ids.filter((id) => !referenced.has(id));
@@ -159,7 +193,11 @@ async function cleanup(runtime, data) {
     if (latest.version !== control.version) throw errorFrom('CONFLICT');
     for (const fileID of candidates) {
       const old = await getDoc(settings, stateId(fileID), false) || {};
-      await setDoc(settings, stateId(fileID), { ...old, fileID, status: 'deleting' });
+      await setDoc(settings, stateId(fileID), { ...old, fileID, status: 'deleting', imageCleanupPending: true });
+    }
+    for (const fileID of referenced) {
+      const old = await getDoc(settings, stateId(fileID), false) || {};
+      await setDoc(settings, stateId(fileID), { ...old, fileID, imageCleanupPending: false });
     }
     await setDoc(settings, CONTROL, { version: latest.version + 1 });
   });
@@ -170,10 +208,32 @@ async function cleanup(runtime, data) {
     const status = result.fileList?.find((v) => (v.fileID || v.fileId) === fileID);
     if (!status || !['SUCCESS', 'STORAGE_FILE_NONEXIST'].includes(status.code)) continue;
     const state = await getDoc(runtime.db.collection('settings'), stateId(fileID), false) || {};
-    await setDoc(runtime.db.collection('settings'), stateId(fileID), { ...state, status: 'deleted' });
+    await setDoc(runtime.db.collection('settings'), stateId(fileID), { ...state, status: 'deleted', imageCleanupPending: false });
     deleted.push(fileID);
   }
   return { deleted, retained: [...referenced], pending: candidates.filter((id) => !deleted.includes(id)) };
+}
+async function cleanupQueue(runtime, ownerId) {
+  const rows = await list(runtime.db.collection('settings'), { where: {
+    imageCleanupPending: true, ...(ownerId ? { cleanupOwner: ownerId } : {}),
+  }, orderBy: { field: 'cleanupAfter', direction: 'asc' }, limit: 5, includeTotal: false });
+  const ids = rows.items.filter((row) => row.cleanupAfter <= new Date().toISOString()).map((row) => row.fileID);
+  return ids.length ? cleanup(runtime, { fileList: ids, ownerId }) : { deleted: [], retained: [], pending: [] };
+}
+async function inspectFiles(runtime, data) {
+  let ids = data.fileList;
+  if (data.cloudPaths) {
+    if (!Array.isArray(data.cloudPaths) || !data.cloudPaths.length || data.cloudPaths.length > 5
+      || data.cloudPaths.some((path) => typeof path !== 'string' || !MANAGED_PATH.test(path) || path.includes('..'))) throw errorFrom('INVALID_ARGUMENT');
+    ids = await Promise.all(data.cloudPaths.map(async (cloudPath) => runtime.localStorage
+      ? `local://${cloudPath}` : (await runtime.app.getUploadMetadata({ cloudPath }))?.data?.fileId));
+  }
+  if (!Array.isArray(ids) || !ids.length || ids.length > 5 || ids.some((id) => !managed(id))) throw errorFrom('INVALID_ARGUMENT');
+  const control = await getDoc(runtime.db.collection('settings'), CONTROL, false) || { version: 0 };
+  const referenced = await references(runtime, ids);
+  const latest = await getDoc(runtime.db.collection('settings'), CONTROL, false) || { version: 0 };
+  if (latest.version !== control.version) throw errorFrom('CONFLICT');
+  return { retained: ids.filter((id) => referenced.has(id)), unreferenced: ids.filter((id) => !referenced.has(id)) };
 }
 async function replaceReference(runtime, data) {
   const { oldFileID, newFileID, source, id } = data;
@@ -193,4 +253,4 @@ async function replaceReference(runtime, data) {
     return { updated: true };
   });
 }
-module.exports = { imageLifecycleRuntime, referencePage, cleanup, replaceReference, files, matches, uses, SOURCES };
+module.exports = { imageLifecycleRuntime, referencePage, cleanup, cleanupQueue, prepareUpload, inspectFiles, queueFiles, stateId, replaceReference, files, matches, uses, SOURCES };

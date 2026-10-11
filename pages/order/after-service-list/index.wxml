@@ -12,11 +12,14 @@
     bindrefresh="onPullDownRefresh_"
     t-class-indicator="t-class-indicator"
   >
-    <wr-order-card
+    <view
       wx:for="{{dataList}}"
       wx:key="id"
       wx:for-item="order"
       wx:for-index="oIndex"
+      class="service-list-item {{oIndex < dataList.length - 1 ? 'service-list-item--divided' : ''}}"
+    >
+    <wr-order-card
       order="{{order}}"
       data-order="{{order}}"
       bindcardtap="onAfterServiceCardTap"
@@ -41,6 +44,7 @@
         <wr-after-service-button-bar class="service-actions__buttons" service="{{order}}" bindrefresh="onRefresh" />
       </view>
     </wr-order-card>
+    </view>
     <!-- 列表加载中/已全部加载 -->
     <wr-load-more
       wx:if="{{!pullDownRefreshing}}"
@@ -48,6 +52,7 @@
       status="{{listLoading}}"
       bindretry="onReTryLoad"
     >
+      <view slot="empty" class="commerce-empty">暂无售后记录</view>
     </wr-load-more>
   </t-pull-down-refresh>
 </view>

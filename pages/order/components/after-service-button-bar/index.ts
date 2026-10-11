@@ -111,7 +111,7 @@ Component({
           service.logisticsCompanyName || '',
         )}&logisticsCompanyCode=${encodeURIComponent(
           service.logisticsCompanyCode || '',
-        )}&remark=${encodeURIComponent(service.remark || '')}`,
+        )}`,
       });
     },
 

@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import { request, normalizeComment, normalizeCommentPayload } from './api';
-import { uploadCloudFile } from '../../../../utils/api';
+import { uploadCloudFile, cleanupCloudFiles } from '../../../../utils/api';
 
 function localPath(resource) {
   if (typeof resource === 'string') return resource;
@@ -19,9 +19,19 @@ async function uploadCommentResource(resource) {
 
 export async function createComment(params = {}) {
   const resources = Array.isArray(params.commentResources) ? params.commentResources : [];
-  const uploaded = await Promise.all(resources.map(uploadCommentResource));
-  return request('comments.create', normalizeCommentPayload({ ...params, commentResources: uploaded })).then((result) => {
+  const uploaded = [], temporary = [];
+  try {
+    for (const resource of resources) {
+      const fileID = await uploadCommentResource(resource);
+      uploaded.push(fileID);
+      if (fileID !== localPath(resource)) temporary.push(fileID);
+    }
+    const result = await request('comments.create', normalizeCommentPayload({ ...params, commentResources: uploaded }));
     return normalizeComment(result);
-  });
+  } finally {
+    // Also covers partial uploads and duplicate/lost-response submissions.
+    // Successfully referenced files are retained by the server.
+    await cleanupCloudFiles(temporary);
+  }
 }
 // @ts-nocheck

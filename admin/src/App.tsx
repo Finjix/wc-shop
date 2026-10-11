@@ -7,6 +7,7 @@ import { CategoriesPage } from './pages/CategoriesPage';
 import { LoginPage } from './pages/LoginPage';
 import { SkuInventoryPage } from './pages/SkuInventoryPage';
 import { LoadingState } from './components/Ui';
+import { MaintenancePage } from './pages/MaintenancePage';
 
 function ProtectedRoute() {
   const { loading, loginState, member } = useAuth();
@@ -24,6 +25,7 @@ const router = createHashRouter([
       children: [
         { index: true, element: <Navigate to="/overview" replace /> },
         { path: 'overview', element: <OverviewPage /> },
+        { path: 'maintenance', element: <MaintenancePage /> },
         { path: 'products', element: <ProductsPage /> },
         { path: 'products/new', element: <ProductsPage key="new" editorMode /> },
         { path: 'products/:productId/edit', element: <ProductsPage key="edit" editorMode /> },

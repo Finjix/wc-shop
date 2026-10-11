@@ -7,7 +7,7 @@ const { requireAdmin } = require('./auth');
 const { getDoc, setDoc, list, all, count, affected, withTransaction } = require('./db');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
-const { imageLifecycleRuntime, referencePage, cleanup, replaceReference } = require('./image-lifecycle');
+const { imageLifecycleRuntime, referencePage, cleanup, cleanupQueue, prepareUpload, inspectFiles, replaceReference } = require('./image-lifecycle');
 const { assert, string, optionalString, integer, page, clone } = require('./validation');
 const { skuPrice, skuStock, moderateAfterSale, confirmAfterSaleReturn } = require('./shop');
 const { HOME_CONFIG_SLOT, validateHomeConfig, productIds: homeProductIds } = require('./home-config');
@@ -394,11 +394,18 @@ async function catalogAction(runtime, data, action) {
   if (action.endsWith('.delete')) {
     if (entity === 'products') {
       const timestamp = now();
+      const relatedSkus = await allMatching(col(runtime, COLLECTIONS.skus), { productId: id });
       await withTransaction(runtime.db, async (tx) => {
         const products = tx.collection(COLLECTIONS.products);
         const product = await getDoc(products, id, true);
         await clearHomeProductLinks(tx, product, id, timestamp);
         await products.doc(id).update({ status: STATUS.inactive, deletedByAdmin: true, updatedAt: timestamp });
+        for (const sku of relatedSkus) {
+          const latest = await getDoc(tx.collection(COLLECTIONS.skus), sku._id, false);
+          if (latest?.productId === id && !latest.deletedByAdmin) {
+            await tx.collection(COLLECTIONS.skus).doc(sku._id).update({ deletedByAdmin: true, updatedAt: timestamp });
+          }
+        }
       });
       return { ...existing, status: STATUS.inactive, deletedByAdmin: true, _id: id };
     }
@@ -575,6 +582,15 @@ async function deleteCommerceRecord(runtime, name, id) {
       await releaseUnshippedInventory(tx, current);
       for (const claimId of linked) {
         if (affected(await claims.doc(claimId).remove()) !== 1) throw errorFrom('CONFLICT');
+      }
+      // Keep a minimal replay fence. Removing the reservation would allow an
+      // old checkout request to create and charge the same order again.
+      if (current.requestKey && current.userId) {
+        const requestId = require('crypto').createHash('sha256').update(`${current.userId}:${current.requestKey}`).digest('hex').slice(0, 32);
+        const requests = tx.collection(COLLECTIONS.orderRequests);
+        const reservation = await getDoc(requests, requestId, false);
+        if (reservation) await setDoc(requests, requestId, { ...reservation,
+          deletedOrderIds: [...new Set([...(reservation.deletedOrderIds || []), id])] });
       }
     } else {
       const orders = tx.collection(COLLECTIONS.orders);
@@ -804,7 +820,7 @@ async function dashboardSummary(runtime) {
     }).filter(Boolean).join(' / ') || '默认规格';
     return [{ productId: String(product._id || product.spuId), title: product.title, skuId: String(sku._id || sku.skuId), specName, stockQuantity: stock }];
   }).sort((left, right) => left.stockQuantity - right.stockQuantity);
-  const [orderCount, commentCount, afterSaleCount, pendingAfterSaleCount, pendingReviewCommentCount, allOrders, allAfterSales] = await Promise.all([
+  const [orderCount, commentCount, afterSaleCount, pendingReviewAfterSaleCount, pendingReviewCommentCount, allOrders, allAfterSales] = await Promise.all([
     count(col(runtime, COLLECTIONS.orders)),
     count(col(runtime, COLLECTIONS.comments)),
     count(col(runtime, COLLECTIONS.afterSales)),
@@ -813,6 +829,7 @@ async function dashboardSummary(runtime) {
     allMatching(col(runtime, COLLECTIONS.orders), { status: STATUS.paid }),
     allMatching(col(runtime, COLLECTIONS.afterSales), { status: runtime.db.command?.in ? runtime.db.command.in([STATUS.pendingReview, STATUS.approved, STATUS.refunding]) : STATUS.pendingReview }),
   ]);
+  const pendingAfterSaleCount = pendingReviewAfterSaleCount + allAfterSales.filter((item) => item.status === STATUS.refunding).length;
   const activeByOrder = new Map();
   allAfterSales.filter((item) => [STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(item.status)).forEach((item) => {
     const orderId = String(item.orderId || item.orderNo || '');
@@ -1039,12 +1056,25 @@ async function executeAdmin(event, context, runtime, action, data) {
   data = normalized.data;
   const uploadScope = action === 'storage.cleanup'
     ? (data.fileList || []).every((id) => /\/(?:admin\/products|admin\/categories)\//.test(id)) ? 'catalog' : 'content'
+    : action === 'storage.prepareUpload'
+    ? data.folder === 'home' ? 'content' : 'catalog'
     : action === 'storage.processImage'
     ? /^cloud:\/\/[^/]+\/pending\/home\//.test(String(data.fileID || '')) ? 'content' : 'catalog'
     : scopeFor(action);
   const auth = await requireAdmin(runtime.db, event, context, uploadScope, runtime);
   const raw = { ...runtime, db: runtime.rawDb || runtime.db };
   if (action === 'storage.maintenance.references') return referencePage(raw, data);
+  if (action === 'storage.maintenance.queue') {
+    const rows = await list(raw.db.collection('settings'), { where: { imageCleanupPending: true },
+      limit: 25, orderBy: { field: 'cleanupAfter', direction: 'asc' } });
+    return { items: rows.items.map(({ fileID, cleanupAfter, status }) => ({ fileID, cleanupAfter, status })), total: rows.total };
+  }
+  if (action === 'storage.maintenance.inspect') return inspectFiles(raw, data);
+  if (action === 'storage.cleanupQueue' || action === 'storage.maintenance.flush') return cleanupQueue(raw);
+  if (action === 'storage.prepareUpload') {
+    if (!['home', 'admin/products', 'admin/categories'].includes(data.folder)) throw errorFrom('FORBIDDEN');
+    return prepareUpload(raw, data.folder, auth.identity.uid);
+  }
   if (action === 'storage.maintenance.cleanup' || action === 'storage.cleanup') return cleanup(raw, data);
   if (action === 'storage.maintenance.replace') return replaceReference(raw, data);
   if (isVariantSave) return saveProductWithVariants(runtime, data);

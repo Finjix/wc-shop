@@ -32,7 +32,7 @@ export function normalizeCommentPayload(payload) {
 export { request, getApiErrorMessage };
 export async function resolveCommentImages(comment) {
   if (!comment) return null;
-  return { ...comment, userHeadUrl: '/assets/user-avatar.jpg', commentResources: await Promise.all(comment.commentResources.map(async (resource) => {
+  return { ...comment, userHeadUrl: '/assets/usercenter-avatar.jpg', commentResources: await Promise.all(comment.commentResources.map(async (resource) => {
     // Older reviews may contain local files deleted when the create page closed.
     const expired = /^(wxfile:|https?:\/\/(?:tmp|usr)\/)/i.test(resource.fileID);
     return { ...resource, image: expired ? '' : await resolveImage(resource.fileID), expired };

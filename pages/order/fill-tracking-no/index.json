@@ -6,14 +6,12 @@
     "t-navbar": "tdesign-miniprogram/navbar/navbar",
     "t-cell": "tdesign-miniprogram/cell/cell",
     "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
-    "t-textarea": "/packages/form-ui/tdesign/textarea/textarea",
     "t-input": "/packages/form-ui/tdesign/input/input",
     "t-toast": "tdesign-miniprogram/toast/toast",
     "t-dialog": "tdesign-miniprogram/dialog/dialog",
     "t-button": "tdesign-miniprogram/button/button"
   },
   "componentPlaceholder": {
-    "t-textarea": "view",
     "t-input": "view"
   }
 }

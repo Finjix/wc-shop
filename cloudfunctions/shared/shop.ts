@@ -177,8 +177,8 @@ async function readProducts(runtime, data) {
 async function readProductDetail(runtime, data) {
   const id = string(data.productId, 'productId', { max: 128 });
   const product = await getActiveProduct(runtime, id, true);
-  const result = await list(collection(runtime, COLLECTIONS.skus), { where: { productId: product._id } });
-  const skus = result.items.filter((sku) => skuBelongsToProduct(product, sku));
+  const rows = await all(collection(runtime, COLLECTIONS.skus), { productId: product._id });
+  const skus = rows.filter((sku) => skuBelongsToProduct(product, sku));
   return { product: publicProduct(product), skus: skus.map(publicSku) };
 }
 
@@ -188,8 +188,8 @@ async function readSkus(runtime, data) {
     const id = string(ref, 'productId', { max: 128 });
     const product = await getActiveProduct(runtime, id, false);
     if (!product) return { items: [], total: 0 };
-    const byProduct = await list(collection(runtime, COLLECTIONS.skus), { where: { productId: id } });
-    const items = byProduct.items.filter((sku) => skuBelongsToProduct(product, sku));
+    const byProduct = await all(collection(runtime, COLLECTIONS.skus), { productId: id });
+    const items = byProduct.filter((sku) => skuBelongsToProduct(product, sku));
     return { items: items.map(publicSku), total: items.length };
   }
   const result = await list(collection(runtime, COLLECTIONS.skus), {});
@@ -597,23 +597,14 @@ async function createdOrderResult(runtime, first) {
   };
 }
 
-async function orderIdFor(runtime, userId, requestKey) {
-  const hash = crypto.createHash('sha256').update(`${userId}:${requestKey}`).digest('hex').slice(0, 32);
-  return withTransaction(runtime.db, async (tx) => {
-    const requests = tx.collection(COLLECTIONS.orderRequests);
-    const existing = await getDoc(requests, hash, false);
-    if (existing) return existing.orderId;
-    const orderId = await reserveOrderId(tx, userId);
-    await setDoc(requests, hash, { _id: hash, userId, requestKey, orderId, createdAt: now() });
-    return orderId;
-  });
-}
-
 async function createOrder(runtime, event, context, data) {
   const identity = requireUser(event, context, runtime);
   const input = orderInput(data);
   const requestKey = string(input.requestKey, 'requestKey', { max: 128 });
-  const orderId = await orderIdFor(runtime, identity.uid, requestKey);
+  const requestId = crypto.createHash('sha256').update(`${identity.uid}:${requestKey}`).digest('hex').slice(0, 32);
+  const prior = await getDoc(collection(runtime, COLLECTIONS.orderRequests), requestId, false);
+  if (prior?.deletedOrderIds?.length) throw errorFrom('ORDER_STATE_INVALID');
+  const priorOrderId = prior?.orderId;
   const addressId = String(input.addressId || '');
   const requestMode = input.useCart ? 'cart' : 'direct';
   const remark = input.remark || '';
@@ -624,7 +615,7 @@ async function createOrder(runtime, event, context, data) {
   })).digest('hex');
   const matchesCartRetry = (existing) => input.useCart && existing.requestMode === 'cart'
     && String(existing.requestAddressId || '') === addressId && String(existing.requestRemark || '') === remark;
-  const existing = await getDoc(collection(runtime, COLLECTIONS.orders), orderId, false);
+  const existing = priorOrderId ? await getDoc(collection(runtime, COLLECTIONS.orders), priorOrderId, false) : null;
   if (existing) {
     if (explicitNormalized) {
       const requestHash = hashRequest(explicitNormalized);
@@ -635,14 +626,18 @@ async function createOrder(runtime, event, context, data) {
   const cart = input.useCart ? await getCart(runtime, identity) : null;
   const cartItems = cart?.items.filter((item) => item.isSelected).map((item) => ({ skuId: item.skuId, quantity: item.quantity })) || [];
   if (input.useCart && !explicitNormalized && !cartItems.length) {
-    const raced = await getDoc(collection(runtime, COLLECTIONS.orders), orderId, false);
+    const latest = await getDoc(collection(runtime, COLLECTIONS.orderRequests), requestId, false);
+    if (latest?.deletedOrderIds?.length) throw errorFrom('ORDER_STATE_INVALID');
+    const raced = latest?.orderId ? await getDoc(collection(runtime, COLLECTIONS.orders), latest.orderId, false) : null;
     if (raced && matchesCartRetry(raced)) return createdOrderResult(runtime, raced);
     throw errorFrom('INVALID_ARGUMENT', { field: 'items' });
   }
   const source = explicitNormalized || (input.useCart ? cartItems : input.items);
   const normalizedItems = explicitNormalized || normalizeOrderItems(source);
   const requestHash = hashRequest(normalizedItems);
-  const concurrent = await getDoc(collection(runtime, COLLECTIONS.orders), orderId, false);
+  const latest = await getDoc(collection(runtime, COLLECTIONS.orderRequests), requestId, false);
+  if (latest?.deletedOrderIds?.length) throw errorFrom('ORDER_STATE_INVALID');
+  const concurrent = latest?.orderId ? await getDoc(collection(runtime, COLLECTIONS.orders), latest.orderId, false) : null;
   if (concurrent) {
     if (concurrent.requestHash !== requestHash
       && (explicitNormalized || !matchesCartRetry(concurrent))) throw errorFrom('IDEMPOTENCY_CONFLICT');
@@ -650,6 +645,12 @@ async function createOrder(runtime, event, context, data) {
   }
   const draft = await orderDraft(runtime, identity, input, normalizedItems);
   const result = await withTransaction(runtime.db, async (tx) => {
+    const requests = tx.collection(COLLECTIONS.orderRequests);
+    const reservation = await getDoc(requests, requestId, false);
+    if (reservation?.deletedOrderIds?.length) throw errorFrom('ORDER_STATE_INVALID');
+    // Allocate only inside the order transaction: validation failures and
+    // rolled-back stock deductions leave no orphan reservation records.
+    const orderId = reservation?.orderId || await reserveOrderId(tx, identity.uid);
     const orders = tx.collection(COLLECTIONS.orders);
     const race = await getDoc(orders, orderId, false);
     if (race) {
@@ -727,10 +728,8 @@ async function createOrder(runtime, event, context, data) {
       await setDoc(orders, id, order);
       created.push(order);
     }
-    const requestId = crypto.createHash('sha256').update(`${identity.uid}:${requestKey}`).digest('hex').slice(0, 32);
-    const requests = tx.collection(COLLECTIONS.orderRequests);
-    const reservation = await getDoc(requests, requestId, true);
-    await setDoc(requests, requestId, { ...reservation, orderIds: checkoutOrderIds, requestHash, totalAmount: subtotal + draft.shippingFee });
+    await setDoc(requests, requestId, { ...reservation, userId: identity.uid, requestKey, orderId,
+      createdAt: reservation?.createdAt || timestamp, orderIds: checkoutOrderIds, requestHash, totalAmount: subtotal + draft.shippingFee });
     if (cart) {
       const storedCart = await getDoc(tx.collection(COLLECTIONS.carts), identity.uid, false);
       const orderedSkuIds = new Set(draft.items.map((item) => String(item.skuId)));
@@ -1152,6 +1151,13 @@ async function finishSimulatedRefund(tx, afterSale, order, timestamp) {
 async function afterSalesAction(runtime, event, context, data, action) {
   const identity = requireUser(event, context, runtime);
   const afterSales = collection(runtime, COLLECTIONS.afterSales);
+  const presentWithPayment = async (item) => {
+    const response = presentAfterSale(item);
+    const order = item.orderId ? await getDoc(collection(runtime, COLLECTIONS.orders), item.orderId, false) : null;
+    response.paymentAmount = order && order.userId === identity.uid
+      ? Number(order.paymentAmount ?? order.payment?.amount ?? order.totalAmount ?? 0) : 0;
+    return response;
+  };
   if (action === 'afterSales.list') {
     const paging = page(data);
     const where = { userId: identity.uid };
@@ -1163,10 +1169,10 @@ async function afterSalesAction(runtime, event, context, data, action) {
     if (statuses && !runtime.db.command?.in) {
       const rows = (await all(afterSales, where)).filter((item) => statuses.includes(item.status))
         .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')) || String(b._id).localeCompare(String(a._id)));
-      return { items: rows.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map(presentAfterSale), ...paging, total: rows.length };
+      return { items: await Promise.all(rows.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map(presentWithPayment)), ...paging, total: rows.length };
     }
     const result = await list(afterSales, { where, orderBy: { field: 'createdAt', direction: 'desc' }, skip: (paging.page - 1) * paging.pageSize, limit: paging.pageSize });
-    return { items: result.items.map(presentAfterSale), page: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? result.items.length : result.total };
+    return { items: await Promise.all(result.items.map(presentWithPayment)), page: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? result.items.length : result.total };
   }
   if (action === 'afterSales.reasons') return { items: ['质量问题', '商品错发', '商品少发', '不想要了', '其他'] };
   if (action === 'afterSales.detail') {
@@ -1207,12 +1213,12 @@ async function afterSalesAction(runtime, event, context, data, action) {
     const item = await findDoc(runtime, COLLECTIONS.afterSales, ref, 'rightsNo');
     if (!item) throw errorFrom('NOT_FOUND');
     if (item.userId !== identity.uid) throw errorFrom('FORBIDDEN');
-    if (item.status !== STATUS.approved || Number(item.type) !== 10) throw errorFrom('ORDER_STATE_INVALID');
+    if (![STATUS.approved, STATUS.refunding].includes(item.status) || Number(item.type) !== 10) throw errorFrom('ORDER_STATE_INVALID');
     const trackingNo = string(data.trackingNo, 'trackingNo', { max: 128 });
     return withTransaction(runtime.db, async (tx) => {
       const current = await getDoc(tx.collection(COLLECTIONS.afterSales), item._id, true);
       if (current.userId !== identity.uid) throw errorFrom('FORBIDDEN');
-      if (current.status !== STATUS.approved || Number(current.type) !== 10) throw errorFrom('ORDER_STATE_INVALID');
+      if (![STATUS.approved, STATUS.refunding].includes(current.status) || Number(current.type) !== 10) throw errorFrom('ORDER_STATE_INVALID');
       const patch = {
         trackingNo,
         logisticsNo: trackingNo,
@@ -1220,7 +1226,7 @@ async function afterSalesAction(runtime, event, context, data, action) {
         logisticsCompanyCode: optionalString(data.logisticsCompanyCode, 'logisticsCompanyCode', { max: 80 }) || '',
         remark: optionalString(data.remark, 'remark', { max: 140 }) || '',
         status: STATUS.refunding,
-        submittedTrackingAt: now(),
+        submittedTrackingAt: current.submittedTrackingAt || now(),
         updatedAt: now(),
       };
       const result = await tx.collection(COLLECTIONS.afterSales).doc(item._id).update(patch);
@@ -1411,11 +1417,37 @@ async function confirmAfterSaleReturn(runtime, data) {
 
 async function shopEndpoint(event, context, runtime, action, data) {
   runtime = require('./image-lifecycle').imageLifecycleRuntime(runtime);
+  const result = await executeShop(event, context, runtime, action, data);
+  return result && typeof result === 'object' && !Array.isArray(result) && runtime.removedImages.size
+    ? { ...result, imageCleanup: [...runtime.removedImages] } : result;
+}
+
+async function executeShop(event, context, runtime, action, data) {
   if (action === 'categories.list') return readCategories(runtime, data);
   if (action === 'products.list') return readProducts(runtime, data);
   if (action === 'products.detail') return readProductDetail(runtime, data);
   if (action === 'skus.list') return readSkus(runtime, data);
   if (action === 'home.get') return readHome(runtime, data);
+  if (action === 'storage.prepareUpload') {
+    const identity = requireUser(event, context, runtime);
+    if (!['comments', 'after-sales'].includes(data.folder)) throw errorFrom('FORBIDDEN');
+    return require('./image-lifecycle').prepareUpload(runtime, `user/${data.folder}`, identity.uid);
+  }
+  if (action === 'storage.cleanupQueue') {
+    const identity = requireUser(event, context, runtime);
+    return require('./image-lifecycle').cleanupQueue(runtime, identity.uid);
+  }
+  if (action === 'storage.cleanup') {
+    const identity = requireUser(event, context, runtime);
+    const { stateId, cleanup } = require('./image-lifecycle');
+    const ids = array(data.fileList, 'fileList');
+    if (!ids.length || ids.length > 5) throw errorFrom('INVALID_ARGUMENT');
+    for (const file of ids) {
+      const state = await getDoc(runtime.db.collection('settings'), stateId(string(file, 'fileID', { max: 1024 })), false);
+      if (state?.cleanupOwner !== identity.uid) throw errorFrom('FORBIDDEN');
+    }
+    return cleanup(runtime, { fileList: ids, ownerId: identity.uid });
+  }
   if (action === 'storage.tempUrls') {
     requireUser(event, context, runtime);
     return getTempFileURLs(runtime, data.fileList, { allowedPrefixes: ['admin/products/', 'products/', 'admin/categories/', 'categories/', 'comments/', 'after-sales/', 'user/comments/', 'user/after-sales/', 'home/', 'public/'] });

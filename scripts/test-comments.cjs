@@ -8,6 +8,7 @@ const cache = new Map();
 const requests = [];
 const uploads = [];
 const previews = [];
+const cleanups = [];
 const wx = { env: { USER_DATA_PATH: 'http://usr' }, previewImage: (options) => previews.push(options) };
 let uploadError;
 let page;
@@ -29,6 +30,7 @@ function load(file) {
       return `cloud://test/user/comments/${uploads.length}.webp`;
     },
     getApiErrorMessage: (error) => error.message,
+    cleanupCloudFiles: async (ids) => { cleanups.push(...ids); },
   };
   if (filename === path.join(root, 'utils/images.ts')) return { resolveImage: async (id) => `https://example.test/${id.split('://')[1]}` };
   if (cache.has(filename)) return cache.get(filename);
@@ -79,6 +81,7 @@ async function run() {
     { tempFilePath: 'http://usr/prepared.webp' }, { url: 'http://tmp/selected.jpg' }, 'wxfile://usr/native.webp',
   ] });
   assert.equal(uploads.length, 3);
+  assert.equal(cleanups.length, 3, 'uploaded images are checked after save, including idempotent retries');
   assert.ok(uploads.every((upload) => upload.folder === 'comments'));
   assert.ok(requests.at(-1).payload.images.every((image) => image.startsWith('cloud://')));
   wx.env.USER_DATA_PATH = '/native/user';

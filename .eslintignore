@@ -1,3 +1,5 @@
 node_modules/
 miniprogram_npm/
+packages/*/tdesign/
+packages/form-ui/image-processor/codec/
 .eslintcache

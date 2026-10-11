@@ -238,6 +238,7 @@ function tempFileUrl(fileID) {
 
 const runtime = {
   db: database,
+  localStorage: true,
   app: {
     async getTempFileURL({ fileList }) {
       return { fileList: fileList.map((fileID) => ({ fileID, tempFileURL: tempFileUrl(fileID) })) };
@@ -366,9 +367,13 @@ async function saveUpload(request) {
   const image = await processImageBuffer(file, fileName, folder);
   const safeName = String(fileName || 'image').replace(/[^a-zA-Z0-9._-]/g, '_');
   const name = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeName}`;
-  const relative = `${folder}/${name}`;
+  const relative = fields.cloudPath || `${folder}/${name}`;
+  const prefix = ['comments', 'after-sales'].includes(folder) ? `user/${folder}/` : `${folder}/`;
+  if (fields.cloudPath && (!relative.startsWith(prefix) || relative.slice(prefix.length).includes('/') || !/\.webp$/.test(relative))) throw errorFrom('FORBIDDEN');
   const destination = path.resolve(filesRoot, relative);
   if (!destination.startsWith(`${path.resolve(filesRoot)}${path.sep}`)) throw errorFrom('FORBIDDEN');
+  await require('../cloudfunctions/.build/shared/image-lifecycle').queueFiles(database, [`local://${relative}`],
+    headerValue(request, 'x-local-uid') || 'local-user', new Date(Date.now() + 86400000).toISOString());
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.writeFileSync(destination, image);
   return { fileID: `local://${relative}` };

@@ -11,10 +11,10 @@
 
 ## 控制台 ZIP 部署
 
-控制台上传 ZIP 时，平台要求压缩包根目录直接存在 `index.js`。运行仓库根目录的 `npm run package:deploy`，两个包会重新构建到 `dist/0830a/`：
+控制台上传 ZIP 时，平台要求压缩包根目录直接存在 `index.js`。运行仓库根目录的 `npm run package:deploy`，两个包会重新构建到 `dist/v261011/`：
 
-- `dist/0830a/wc-shop-function.zip`：函数 Handler 填 `index.main`
-- `dist/0830a/wc-shop-admin-static.zip`：静态托管包，根目录直接包含 `index.html`
+- `dist/v261011/wc-shop-function.zip`：函数 Handler 填 `index.main`
+- `dist/v261011/wc-shop-admin-static.zip`：静态托管包，根目录直接包含 `index.html`
 
 不要把 `cloudfunctions/wc-shop-function` 文件夹直接压成 ZIP 后上传；控制台包必须使用脚本生成的 ZIP，使根目录直接包含 `index.js`。包中还包含 `vendor/` 依赖适配器和 `config.json`。订单不依赖定时触发器，`config.json` 中的空 `triggers` 配置用于移除历史函数触发器；CLI 配置位于 `cloudbaserc.json`。
 
@@ -61,7 +61,7 @@ wx.cloud.callFunction({
 - `settings.list/get/upsert`
 - `storage.tempUrls`、`storage.processImage`
 
-商品图片、SKU 图片、首页轮播图和评论图片字段保存 CloudBase `fileId`。后台仅接受静态 PNG、JPG/JPEG、WebP（扩展名不区分大小写），校验真实格式并拒绝动态 PNG/WebP；原文件不超过 10MB（10,485,760 字节）。浏览器 Worker 使用本地 WASM 将 PNG/JPEG 有损编码为 WebP，质量设为 100，透明通道质量设为 100；所有静态图片短边超过 1080px 时等比例缩小后使用相同参数编码；短边不超过 1080px 的 WebP 原样上传。质量 100 仍为有损编码，不保证保留原文件像素、元数据或输出更小；处理结果不设业务大小限制。处理完成后直接上传正式目录，不调用图片转换云函数。用户评价和售后仍原样上传，不超过 3MB（3,145,728 字节）；所有用户统一使用 `/assets/user-avatar.jpg` 固定头像，不能更改；头像上传和头像临时链接解析入口已关闭。本地 `/upload` 按目录使用相同规则并原样保存，后台通过 `x-upload-folder` 指明目录以接收可能超过 14MB 的处理结果。`storage.processImage` 为旧客户端保留原样转存行为，服务端不压缩、缩放、旋转或转换格式。已有图片保持不变。
+图片字段保存 CloudBase `fileId`。后台与小程序只接受静态 JPG/JPEG、PNG 原图，单张原图最多 10MB。前端将短边超过 1080px 的图片等比缩小，再编码成 WebP；后台和售后质量为 100，评价为 50，输出不设业务大小限制。质量 100 仍是有损编码。上传前调用 `storage.prepareUpload` 登记 24 小时租约，未保存的上传可在后续访问时回收；删除业务记录会在同一事务中登记旧图清理。清理始终核对全部业务引用，历史订单和共享图片保留。详见 [图片上传](../docs/image-uploads.md) 和 [图片清理](../docs/image-cleanup.md)。固定头像为 `/assets/usercenter-avatar.jpg`。`storage.processImage` 为旧客户端保留原样转存行为。
 
 ## 订单和库存边界
 

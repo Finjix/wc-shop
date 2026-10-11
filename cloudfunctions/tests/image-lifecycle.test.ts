@@ -1,7 +1,8 @@
 // @ts-nocheck
 const assert = require('assert');
 const { makeRuntime } = require('./regressions.test');
-const { imageLifecycleRuntime, cleanup, replaceReference, matches } = require('../shared/image-lifecycle');
+const { imageLifecycleRuntime, cleanup, cleanupQueue, prepareUpload, replaceReference, matches, stateId } = require('../shared/image-lifecycle');
+const { shopEndpoint } = require('../shared/shop');
 const { adminEndpoint } = require('../shared/admin');
 const { toPublicError } = require('../shared/errors');
 const old = 'cloud://test.bucket/admin/products/old.jpg';
@@ -54,6 +55,44 @@ async function run() {
   await assert.rejects(()=>cleanup(race,{fileList:[old]}),e=>e.code==='CONFLICT');
   assert(matches('https://bucket.tcb.qcloud.la/admin/products/old.jpg?sign=a',old));
   assert(!matches('https://bucket.evil.com/admin/products/old.jpg',old));
+  const leased = makeRuntime();
+  const removedFiles = [];
+  leased.app = {
+    getUploadMetadata: async ({ cloudPath }) => ({ data: { fileId: `cloud://test.bucket/${cloudPath}` } }),
+    deleteFile: async ({ fileList }) => { removedFiles.push(...fileList); return { fileList: fileList.map(fileID => ({ fileID, code: 'SUCCESS' })) }; },
+  };
+  const lease = await prepareUpload(leased, 'user/comments', 'user-1');
+  assert(leased.records.settings[stateId(lease.fileID)].imageCleanupPending, 'reserve before bytes are uploaded');
+  assert.deepStrictEqual((await cleanupQueue(leased, 'user-1')).deleted, [], 'active upload lease is protected');
+  await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'other-user' } }, leased, 'storage.cleanup', { fileList: [lease.fileID] }), error => error.code === 'FORBIDDEN');
+  leased.records.settings[stateId(lease.fileID)].cleanupAfter = '2000-01-01T00:00:00.000Z';
+  leased.app.deleteFile = async () => { throw new Error('storage unavailable'); };
+  await assert.rejects(() => cleanupQueue(leased, 'user-1'), /storage unavailable/);
+  assert(leased.records.settings[stateId(lease.fileID)].imageCleanupPending, 'failure persists without a browser response');
+  leased.app.deleteFile = async ({ fileList }) => ({ fileList: fileList.map(fileID => ({ fileID, code: 'SUCCESS' })) });
+  assert.deepStrictEqual((await cleanupQueue(leased, 'user-1')).deleted, [lease.fileID]);
+  const kept = await prepareUpload(leased, 'user/comments', 'user-1');
+  leased.records.comments.keep = { _id: 'keep', userId: 'user-1', images: [kept.fileID] };
+  assert.deepStrictEqual((await cleanup(leased, { fileList: [kept.fileID] })).retained, [kept.fileID]);
+  assert.strictEqual(leased.records.settings[stateId(kept.fileID)].imageCleanupPending, false);
+  await imageLifecycleRuntime(leased).db.collection('comments').doc('keep').remove();
+  assert(leased.records.settings[stateId(kept.fileID)].imageCleanupPending, 'business deletion queues files in the same transaction');
+  assert.deepStrictEqual((await cleanupQueue(leased, 'user-1')).deleted, [kept.fileID]);
+  const withdrawn = makeRuntime();
+  const user = { auth: { uid: 'user-1' } };
+  const order = await shopEndpoint({}, user, withdrawn, 'orders.create', { requestKey: 'withdraw-image', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }] });
+  const claim = await shopEndpoint({}, user, withdrawn, 'afterSales.create', { orderId: order._id, type: 20, reason: '取消', images: [old] });
+  await shopEndpoint({}, user, withdrawn, 'afterSales.withdraw', { afterSaleId: claim._id });
+  assert.strictEqual(withdrawn.records.afterSales[claim._id], undefined);
+  assert.deepStrictEqual(withdrawn.records.orders[order._id].afterSaleIds, []);
+  assert(withdrawn.records.settings[stateId(old)].imageCleanupPending, 'withdrawal persists image cleanup even if response is lost');
+  const catalog = makeRuntime();
+  catalog.records.adminMembers = { admin: { _id: 'admin', roles: ['admin'], status: 'active' } };
+  catalog.records.skus['sku-new'].skuImage = next;
+  await adminEndpoint({}, { auth: { uid: 'admin' } }, catalog, 'products.delete', { id: 'product-1' });
+  assert.strictEqual(catalog.records.skus['sku-new'].deletedByAdmin, true);
+  assert(catalog.records.settings[stateId(next)].imageCleanupPending, 'deleted product retires its SKU images too');
   console.log('PASS image cleanup preserves history, fails closed, fences writes and migrates stale references');
+  console.log('PASS upload leases, durable cleanup retry, owner guards, withdrawal and deleted-product SKU cleanup');
 }
 module.exports = {run};

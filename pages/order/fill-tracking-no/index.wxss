@@ -27,23 +27,13 @@
   border: none !important;
 }
 
-.fill-tracking-no__form .t-cell__value .t-textarea__wrapper {
-  padding: 0;
-}
-
 .fill-tracking-no__form .t-input__control,
-.fill-tracking-no__form .t-textarea__placeholder,
 .fill-tracking-no__form .t-cell__placeholder {
   font-size: 30rpx !important;
 }
 
-.fill-tracking-no__form .t-textarea__placeholder,
 .fill-tracking-no__form .t-cell__placeholder {
   color: #bbbbbb !important;
-}
-
-.t-textarea__note {
-  width: 100%;
 }
 
 .fill-tracking-no__button-bar {
@@ -75,16 +65,6 @@
   width: 160rpx;
   flex: none !important;
 }
-.textarea-wrapper {
-  background: #fff;
-  display: flex;
-  align-items: flex-start;
-  padding: 24rpx 32rpx 0 32rpx;
-}
-.t-textarea-wrapper {
-  box-sizing: border-box;
-}
-
 .fill-tracking-no__form .t-input__wrapper {
   margin: 0 !important;
 }

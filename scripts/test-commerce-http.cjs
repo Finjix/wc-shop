@@ -54,7 +54,8 @@ async function main() {
     assert.equal(order.status, 'paid'); assert.equal(order.payment.mode, 'simulated'); assert.equal(order.totalAmount, 300);
     assert.equal((await shop('orders.create', input))._id, order._id);
     await shop('orders.detail', { orderId: order._id }, 'FORBIDDEN', 'another-user');
-    await shop('orders.updateAddress', { orderId: order._id, addressId: 'a2' });
+    await shop('orders.updateAddress', { orderId: order._id, addressId: 'a2' }, 'ORDER_STATE_INVALID');
+    assert.equal((await shop('orders.detail', { orderId: order._id })).addressSnapshot.detail, address.detail, 'paid orders retain their checkout address snapshot');
     const claim = await shop('afterSales.create', { orderId: order._id, type: 20, reason: '测试退款', rightsItem: [{ skuId: 's1', rightsQuantity: 1 }] });
     await admin('orders.ship', { orderId: order._id, company: '手工记录', trackingNo: 'TEST-SHIP-1' }, 'CONFLICT');
     await admin('afterSales.review', { id: claim._id, status: 'approved' });
@@ -67,9 +68,10 @@ async function main() {
     await shop('orders.confirmReceived', { orderId: order._id });
     await shop('comments.create', { orderId: order._id, productId: 'p1', rating: 5, content: '隔离验收评价' });
     await shop('comments.create', { orderId: order._id, productId: 'p1', rating: 5 }, 'CONFLICT');
-    await shop('afterSales.create', { orderId: order._id, type: 10, reason: '测试退货', rightsItem: [{ skuId: 's1', rightsQuantity: 2 }] }, 'RETURN_ADDRESS_REQUIRED');
-    await admin('settings.upsert', { key: 'global', value: { returnAddress: address } });
     const returned = await shop('afterSales.create', { orderId: order._id, type: 10, reason: '测试退货', rightsItem: [{ skuId: 's1', rightsQuantity: 2 }] });
+    await admin('afterSales.review', { id: returned._id, status: 'approved' }, 'RETURN_ADDRESS_REQUIRED');
+    assert.equal((await shop('afterSales.detail', { afterSaleId: returned._id })).status, 'pending_review', 'missing return address leaves the application pending without refunding');
+    await admin('settings.upsert', { key: 'global', value: { returnAddress: address } });
     const approved = await admin('afterSales.review', { id: returned._id, status: 'approved' });
     assert.equal(approved.status, 'approved'); assert.equal(approved.returnAddressSnapshot.receiver, address.receiver);
     await shop('afterSales.submitTracking', { afterSaleId: returned._id, trackingNo: 'TEST-RETURN-1', logisticsCompanyName: '手工记录' });
@@ -104,7 +106,7 @@ async function main() {
     assert.equal((await admin('orders.shipBatch', shipmentInput)).shipmentBatchId, shipment.shipmentBatchId);
     await shop('orders.confirmReceived', { orderId: batch.orderIds[0] });
     assert.equal((await shop('orders.detail', { orderId: batch.orderIds[1] })).status, 'shipped');
-    console.log('HTTP commerce acceptance passed: simulated payment, idempotency, owner checks, address change, partial refund, shipment, receipt, comment, return, repeat-safe stock restoration, per-SKU checkout and grouped batch shipping.');
+  console.log('HTTP commerce acceptance passed: simulated payment, idempotency, owner checks, locked checkout address, partial refund, shipment, receipt, comment, return, repeat-safe stock restoration, per-SKU checkout and grouped batch shipping.');
   } finally {
     server.kill();
     await new Promise(resolve => server.exitCode !== null ? resolve() : server.once('exit', resolve));

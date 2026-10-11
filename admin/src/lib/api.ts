@@ -1,6 +1,8 @@
 import { cloudbaseApp, requireCloudBase } from './cloudbase';
 import type { ApiEnvelope } from '../types';
 import { prepareImageUpload, type UploadPhase } from './image-upload';
+import { TempFileUrls } from '../../../utils/temp-file-urls';
+import { cloudReadRetry } from '../../../utils/cloud-read-retry';
 
 const localApiUrl = import.meta.env.VITE_LOCAL_API_URL?.trim() ?? '';
 const localSessionKey = 'wc-shop.local-admin-session';
@@ -106,10 +108,10 @@ async function callAdminRaw<T>(action: string, payload: Record<string, unknown> 
   if (localApiUrl) return callLocal<T>(action, payload);
   const { app } = requireCloudBase();
   try {
-    const response = await app.callFunction({
+    const response = await cloudReadRetry(action, () => app.callFunction({
       name: 'wc-shop-function',
       data: { scope: 'admin', action, data: payload },
-    }) as { result: ApiEnvelope<T>; requestId?: string };
+    })) as { result: ApiEnvelope<T>; requestId?: string };
     return unwrap(response.result, response.requestId);
   } catch (error) {
     if (error instanceof ApiError) throw error;
@@ -121,7 +123,7 @@ async function callAdminRaw<T>(action: string, payload: Record<string, unknown> 
 export async function callAdmin<T>(action: string, payload: Record<string, unknown> = {}) {
   const result = await callAdminRaw<T>(action, payload);
   const candidates = (result as { imageCleanup?: string[] } | null)?.imageCleanup;
-  if (candidates?.length || /^(products|categories|skus|homeContent)\.(save|remove|delete)$/.test(action)) {
+  if (candidates?.length || /^(products|categories|skus|homeContent|comments|orders|afterSales)\.(save|remove|delete)$/.test(action) || /^(auth|admin)\.me$/.test(action)) {
     try {
       const key = 'wc-shop.image-cleanup';
       let pending: string[] = [];
@@ -137,7 +139,8 @@ export async function callAdmin<T>(action: string, payload: Record<string, unkno
           localStorage.setItem(key, JSON.stringify(queue.filter((id) => !finished.has(id))));
         }
       }
-    } catch (error) { console.warn('图片已保存，未完成的旧图清理将在下次保存时重试。', error); }
+      await callAdminRaw('storage.cleanupQueue');
+    } catch (error) { console.warn('未完成的图片清理将在下次访问时重试。', error); }
   }
   return result;
 }
@@ -150,10 +153,13 @@ export async function uploadCloudFile(file: File, folder = 'admin/products', onP
 }
 
 export async function uploadPreparedCloudFile(file: File, folder = 'admin/products') {
+  const lease = await callAdminRaw<{ cloudPath: string; fileID: string }>('storage.prepareUpload', { folder });
+  try {
   if (localApiUrl) {
     const body = new FormData();
     body.append('folder', folder);
     body.append('file', file);
+    body.append('cloudPath', lease.cloudPath);
     const response = await fetch(`${localApiUrl.replace(/\/$/, '')}/upload`, {
       method: 'POST',
       headers: { 'x-local-uid': localHeaders()['x-local-uid'], 'x-upload-folder': folder },
@@ -163,16 +169,20 @@ export async function uploadPreparedCloudFile(file: File, folder = 'admin/produc
     return unwrap(result, String(response.status)).fileID;
   }
   if (!cloudbaseApp) throw new ApiError('未配置 CloudBase 环境 ID，无法上传图片。');
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const cloudPath = `${folder}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
   const result = await cloudbaseApp.uploadFile({
-    cloudPath,
+    cloudPath: lease.cloudPath,
     // The Web adapter sends filePath as the request body. SDK typings still
     // declare a string here for native runtimes, but browsers require the File.
     filePath: file as unknown as string,
   });
   return result.fileID;
+  } catch (error) {
+    await callAdminRaw('storage.cleanup', { fileList: [lease.fileID] }).catch(() => undefined);
+    throw error;
+  }
 }
+
+const tempFileUrls = new TempFileUrls((fileList) => callAdmin('storage.tempUrls', { fileList }));
 
 export async function getTempFileUrl(fileID: string) {
   if (!/^(cloud|local):\/\//i.test(fileID)) return fileID;
@@ -181,8 +191,7 @@ export async function getTempFileUrl(fileID: string) {
     return result?.[0]?.tempFileURL || fileID;
   }
   if (!cloudbaseApp) throw new ApiError('未配置 CloudBase 环境 ID，无法读取图片。');
-  const files = await callAdmin<Array<{ fileID: string; tempFileURL?: string }>>('storage.tempUrls', { fileList: [fileID] });
-  return files?.[0]?.tempFileURL || fileID;
+  return tempFileUrls.get(fileID);
 }
 
 export const adminApi = {

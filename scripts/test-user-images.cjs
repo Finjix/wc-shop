@@ -135,8 +135,17 @@ async function testPageAndUpload() {
   const source = ts.transpileModule(fs.readFileSync(path.join(root, 'utils/cloud.ts'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
-  vm.runInNewContext(source, { exports, require() { return { useLocalBackend: true, localBackendUrl: 'http://localhost' }; },
+  const urlExports = {};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, 'utils/temp-file-urls.ts'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports: urlExports });
+  const readRetry = {};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, 'utils/cloud-read-retry.ts'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports: readRetry });
+  vm.runInNewContext(source, { exports, require(ref) { return ref === './temp-file-urls' ? urlExports : ref === './cloud-read-retry' ? readRetry : { useLocalBackend: true, localBackendUrl: 'http://localhost' }; },
     wx: {
+      request({ data, success }) { assert.equal(data.action, 'storage.prepareUpload'); success({ data: { ok: true, data: { cloudPath: 'user/comments/out.webp', fileID: 'local://user/comments/out.webp' } } }); },
       getFileInfo({ success }) { success({ size: 15 * 1024 * 1024 }); },
       uploadFile(options) { uploadOptions = options; options.success({ data: JSON.stringify({ ok: true, data: { fileID: 'local://comments/out.webp' } }) }); },
     }, console });

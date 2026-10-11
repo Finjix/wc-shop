@@ -1,5 +1,5 @@
 param(
-  [string]$Version = 'v261005'
+  [string]$Version = 'v261011'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -32,6 +32,12 @@ if ([string]::IsNullOrWhiteSpace($cloudEnvId) -and (Test-Path -LiteralPath $envF
 }
 if ([string]::IsNullOrWhiteSpace($cloudEnvId)) {
   throw 'CLOUDBASE_ENV_ID or admin/.env.local VITE_CLOUDBASE_ENV_ID is required for a real admin static build.'
+}
+if ($runtimeConfig -notmatch 'export\s+const\s+cloudEnvId\s*=\s*[''"]([^''"]+)[''"]\s*;') {
+  throw 'Cannot determine the mini-program CloudBase environment.'
+}
+if ($cloudEnvId -ne $Matches[1]) {
+  throw "Admin deployment environment $cloudEnvId does not match the mini-program environment $($Matches[1])."
 }
 $compiledRoot = Join-Path $cloudRoot '.build'
 $compiledEntry = Join-Path $compiledRoot 'wc-shop-function\index.js'
@@ -105,6 +111,18 @@ function Compress-ZipTree {
     }
   } finally {
     $archive.Dispose()
+  }
+}
+
+function Get-Sha256File {
+  param([Parameter(Mandatory = $true)][string]$Path)
+  $algorithm = [Security.Cryptography.SHA256]::Create()
+  $stream = [IO.File]::OpenRead($Path)
+  try {
+    return [BitConverter]::ToString($algorithm.ComputeHash($stream)).Replace('-', '')
+  } finally {
+    $stream.Dispose()
+    $algorithm.Dispose()
   }
 }
 
@@ -195,7 +213,7 @@ finally {
 $finalReleaseRoot = Join-Path $distRoot $Version
 $releaseFiles = @('wc-shop-function.zip', 'wc-shop-admin-static.zip') | ForEach-Object {
   $releaseFile = Join-Path $finalReleaseRoot $_
-  [ordered]@{ name = $_; sha256 = (Get-FileHash -LiteralPath $releaseFile -Algorithm SHA256).Hash; bytes = (Get-Item -LiteralPath $releaseFile).Length }
+  [ordered]@{ name = $_; sha256 = Get-Sha256File -Path $releaseFile; bytes = (Get-Item -LiteralPath $releaseFile).Length }
 }
 [ordered]@{ version = $Version; environment = $cloudEnvId; builtAt = [DateTime]::UtcNow.ToString('o'); files = @($releaseFiles) } |
   ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $finalReleaseRoot 'release-manifest.json') -Encoding utf8

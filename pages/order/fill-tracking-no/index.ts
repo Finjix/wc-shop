@@ -7,7 +7,6 @@ import { getApiErrorMessage } from '../../../utils/api';
 Page({
   data: {
     trackingNo: '',
-    remark: '',
     submitActived: false,
     submitting: false,
   },
@@ -22,14 +21,14 @@ Page({
     this.isChange = Boolean(query.logisticsNo);
     this.setData({
       trackingNo: query.logisticsNo || '',
-      remark: query.remark || '',
       submitActived: Boolean((query.logisticsNo || '').trim()),
     });
   },
 
   onInput(e) {
     const key = e.currentTarget.dataset.key;
-    this.setData({ [key]: e.detail.value }, () => this.checkParams());
+    const value = String(e.detail.value || '');
+    this.setData({ [key]: value }, () => this.checkParams());
   },
 
   checkParams() {
@@ -49,7 +48,6 @@ Page({
       rightsNo: this.rightsNo,
       trackingNo: String(this.data.trackingNo).trim(),
       logisticsNo: String(this.data.trackingNo).trim(),
-      remark: this.data.remark,
     };
     const submit = this.isChange ? update : create;
     this.setData({ submitting: true });

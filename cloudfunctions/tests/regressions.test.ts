@@ -163,7 +163,7 @@ function makeRuntime() {
           return Array.isArray(actual) ? actual.includes(expected) : actual === expected;
         }));
         let offset = 0;
-        let max = Infinity;
+        let max = 20;
         let sorting;
         const builder = {
           limit(value) { max = value; return builder; },
@@ -614,6 +614,11 @@ async function testProductSkuListAndSaveReadEveryVariant() {
   });
   assert.strictEqual(runtime.records.skus['sku-99'].stockQuantity, 99);
   assert.strictEqual(runtime.records.skus['sku-99'].deletedByAdmin, false);
+  const detail = await shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'products.detail', { productId: 'product-1' });
+  assert.strictEqual(detail.skus.length, 100, 'shop detail reads every configured variant beyond the SDK default limit');
+  const shopSkus = await shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'skus.list', { productId: 'product-1' });
+  assert.strictEqual(shopSkus.items.length, 100);
+  assert.strictEqual(shopSkus.total, 100);
 }
 
 async function testMergedSkuQuantityIsCapped() {
@@ -785,8 +790,8 @@ async function testOrderCreationRechecksProductStatus() {
   let transactionCount = 0;
   runtime.db.runTransaction = (worker) => {
     transactionCount += 1;
-    // 首次事务预留幂等订单 ID；第二次事务才确认商品并创建订单。
-    if (transactionCount === 2) runtime.records.products['product-1'].status = 'inactive';
+    // 订单 ID 预留与创建已合并；在事务开始时模拟并发下架。
+    if (transactionCount === 1) runtime.records.products['product-1'].status = 'inactive';
     return originalTransaction(worker);
   };
   await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'orders.create', {
@@ -1320,18 +1325,18 @@ async function testSplitCheckoutRollbackAndLegacyCompatibility() {
   const transaction = runtime.db.runTransaction;
   let calls = 0;
   runtime.db.runTransaction = (worker) => {
-    if (++calls === 2) runtime.records.skus['sku-second'].stockQuantity = 0;
+    if (++calls === 1) runtime.records.skus['sku-second'].stockQuantity = 0;
     return transaction(worker);
   };
   await assert.rejects(() => shopEndpoint({}, context, runtime, 'orders.create', input), appError('OUT_OF_STOCK'));
   assert.deepStrictEqual(runtime.records.orders, {});
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 10, 'first SKU deduction rolls back if a later SKU fails');
   assert.strictEqual(runtime.records.carts['user-1'].items.length, 2);
-  const reservedId = Object.values(runtime.records.orderRequests).find((request) => request.requestKey === input.requestKey).orderId;
+  assert.deepStrictEqual(runtime.records.orderRequests, {}, 'failed checkout leaves no request or order ID reservations');
   runtime.records.skus['sku-second'].stockQuantity = 6;
   runtime.db.runTransaction = transaction;
   const created = await shopEndpoint({}, context, runtime, 'orders.create', input);
-  assert.strictEqual(created.checkoutId, reservedId);
+  const reservedId = created.checkoutId;
   const claim = await shopEndpoint({}, context, runtime, 'afterSales.create', {
     orderId: created.orderIds[1], type: 20, reason: '申请退款', rightsItem: [{ skuId: runtime.records.orders[created.orderIds[1]].items[0].skuId, rightsQuantity: 1 }],
   });
@@ -1599,8 +1604,25 @@ async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
     afterSaleId: returned._id, logisticsCompanyName: '中通', trackingNo: 'ZT003',
   });
   assert.strictEqual(tracking.status, 'refunding');
+  await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'another-user' } }, runtime, 'afterSales.submitTracking', {
+    afterSaleId: returned._id, trackingNo: 'FORBIDDEN-TRACKING',
+  }), appError('FORBIDDEN'));
+  const changedTracking = await shopEndpoint({}, user, runtime, 'afterSales.submitTracking', {
+    afterSaleId: returned._id, trackingNo: 'ZT004', remark: '更正单号',
+  });
+  assert.strictEqual(changedTracking.trackingNo, 'ZT004');
+  assert.strictEqual(changedTracking.logisticsNo, 'ZT004');
+  assert.strictEqual(changedTracking.status, 'refunding');
+  assert.strictEqual(changedTracking.submittedTrackingAt, tracking.submittedTrackingAt);
   const refund = await adminEndpoint({}, admin, runtime, 'afterSales.confirmReturn', { afterSaleId: returned._id, amount: 100 });
   assert.strictEqual(refund.status, 'refunded');
+  const refundedList = await shopEndpoint({}, user, runtime, 'afterSales.list', { status: 'refunded' });
+  const refundedRecord = refundedList.items.find((item) => item._id === returned._id);
+  assert.strictEqual(refundedRecord.paymentAmount, created.paymentAmount);
+  assert.strictEqual(refundedRecord.amount, 100);
+  await assert.rejects(() => shopEndpoint({}, user, runtime, 'afterSales.submitTracking', {
+    afterSaleId: returned._id, trackingNo: 'TOO-LATE',
+  }), appError('ORDER_STATE_INVALID'));
   assert.strictEqual(runtime.records.orders[created._id].paymentStatus, 'partially_refunded');
   assert.strictEqual(runtime.records.orders[created._id].refundAmount, 100);
   assert.strictEqual(runtime.records.orders[created._id].refundedQuantities['sku-new'], 1);

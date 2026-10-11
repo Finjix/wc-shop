@@ -41,6 +41,10 @@ async function run() {
   assert.strictEqual(runtime.records.afterSales[next._id], undefined);
   assert.strictEqual(runtime.records.afterSales.history, undefined);
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, stockBefore, 'deletion must not execute a refund or restock again');
+  await assert.rejects(() => shopEndpoint({}, user, runtime, 'orders.create', {
+    requestKey: 'admin-delete', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+  }), errorCode('ORDER_STATE_INVALID'));
+  assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, stockBefore, 'deleted checkout replay must not create another order');
   assert.strictEqual((await shopEndpoint({}, user, runtime, 'orders.list', {})).total, 0);
   await assert.rejects(() => shopEndpoint({}, user, runtime, 'orders.detail', { orderId: order._id }), errorCode('NOT_FOUND'));
   for (const fallback of [false, true]) {

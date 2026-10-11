@@ -10,7 +10,7 @@ let response = {};
 let pageDefinition;
 const mocks = new Map();
 const mock = (file, value) => mocks.set(path.resolve(root, file), value);
-mock('utils/api.ts', { request: async (action, payload) => { calls.push({ action, payload }); return response; }, getApiErrorMessage: (error) => error.message });
+mock('utils/api.ts', { request: async (action, payload) => { calls.push({ action, payload }); return response; }, cleanupCloudFiles: async () => {}, getApiErrorMessage: (error) => error.message });
 mock('utils/images.ts', { resolveImage: async (url) => url, resolveRightsImages: async (record) => record });
 mock('pages/order/utils/dialog.ts', {});
 mock('utils/goods-detail-navigation.ts', { navigateToGoodsDetail: () => {} });
@@ -91,7 +91,7 @@ async function run() {
     response = { _id: 'return-detail', status, type: 10, items: [], amount: 100, trackingNo: ['refunding', 'refunded'].includes(status) ? 'SF001' : '', returnAddressSnapshot: { receiver: '商家', phone: '13800000000', detail: '退货地址' } };
     const detailPage = { ...detailDefinition, rightsNo: 'return-detail', data: { ...detailDefinition.data }, setData(patch) { Object.assign(this.data, patch); } };
     await detailPage.getService();
-    assert.equal(detailPage.data.service.bottomActions, ['approved', 'pending_review', 'rejected'].includes(status), 'return tracking, withdrawal and reapplication share the bottom action bar');
+    assert.equal(detailPage.data.service.bottomActions, ['approved', 'pending_review', 'rejected', 'refunding'].includes(status), 'return tracking edits, withdrawal and reapplication share the bottom action bar');
     assert.equal(detailPage.data.service.receiverName, '商家');
     assert.equal(detailPage.data.service.receiverPhone, '13800000000');
     assert.equal(detailPage.data.service.receiverAddress, '退货地址', 'return address data is retained for the pre-tracking display');
@@ -113,7 +113,7 @@ async function run() {
   await trackingApi.create({ afterSaleId: 'return-detail', trackingNo: 'SF001', remark: '易碎物品' });
   assert.equal(calls.at(-1).action, 'afterSales.submitTracking');
   assert.equal(calls.at(-1).payload.trackingNo, 'SF001');
-  assert.equal(calls.at(-1).payload.remark, '易碎物品');
+  assert.equal(Object.hasOwn(calls.at(-1).payload, 'remark'), false, 'tracking form no longer submits a remark');
   assert.equal(Object.hasOwn(calls.at(-1).payload, 'logisticsCompanyName'), false);
   load('pages/order/fill-tracking-no/index.ts');
   const trackingPage = { ...pageDefinition, data: { ...pageDefinition.data }, setData(patch) { Object.assign(this.data, patch); } };
@@ -125,7 +125,7 @@ async function run() {
   assert.equal(trackingPage.checkParams(), true, 'tracking number alone enables saving');
   const trackingTemplate = fs.readFileSync(path.join(root, 'pages/order/fill-tracking-no/index.wxml'), 'utf8');
   assert.doesNotMatch(trackingTemplate, /notice-bar|物流公司/);
-  assert.match(trackingTemplate, /placeholder="（选填）"/);
+  assert.doesNotMatch(trackingTemplate, /备注|t-textarea/);
 
   load('pages/order/apply-service/index.ts');
   const definition = pageDefinition;

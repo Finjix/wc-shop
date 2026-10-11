@@ -8,7 +8,7 @@ export const cloudFunctionName = 'wc-shop-function';
  * 微信开发者工具运行小程序时，请先启动 `npm run dev:local-backend`。
  * 发布或接入线上 CloudBase 前将它改为 false，线上配置仍保留在下方。
  */
-export const useLocalBackend = true;
+export const useLocalBackend = false;
 export const localBackendUrl = 'http://127.0.0.1:8787';
 export const localUserId = 'local-user';
 

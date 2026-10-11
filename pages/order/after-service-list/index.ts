@@ -145,7 +145,7 @@ Page({
               status: normalizeServiceStatus(rights.userRightsStatus ?? rights.rightsStatus ?? rights.status),
               statusName: rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rights.status ?? rights.rightsStatus, rights.rightsType ?? rights.type),
               statusDesc: rights.userRightsStatusDesc || rights.statusDesc || serviceStatusLabel(rights.status ?? rights.rightsStatus, rights.rightsType ?? rights.type),
-              amount: rights.refundAmount ?? rights.refundRequestAmount,
+              amount: _data.paymentAmount ?? rights.paymentAmount ?? 0,
               goodsList: rightsItem.map((item, i) => ({
                 id: i,
                 thumb: item.goodsPictureUrl || item.thumb,

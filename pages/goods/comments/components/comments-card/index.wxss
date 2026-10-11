@@ -130,9 +130,8 @@
 
 .comments-card-item-container-image {
   margin-top: 24rpx;
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  display: block;
+  width: 100%;
 }
 
 .comments-card-item-container-image .commentImg {

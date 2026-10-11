@@ -181,7 +181,7 @@ async function run() {
   assert.equal(navigation.length, 0);
 
   page.onRemarkInput({ detail: { value: 'a'.repeat(241) } });
-  assert.equal(page.data.remark.length, 240);
+  assert.equal(page.data.remark.length, 50);
   page.onRemarkInput({ detail: { value: ' 请周末送达\n送达前电话联系 ' } });
   page.handleOptionsParams({ userAddressReq: withAddress.data.userAddress });
   await flush();

@@ -36,10 +36,15 @@ async function main() {
       calls.push({ params, bytes: Buffer.from(await params.filePath.arrayBuffer()) });
       return { fileID: `cloud://test/${params.cloudPath}` };
     },
-    async callFunction() { assert.fail('Uploads must not invoke a conversion function'); },
+    async callFunction({ data }) {
+      assert.equal(data.action, 'storage.prepareUpload', 'reserve upload without invoking pixel conversion');
+      return { result: { ok: true, data: { cloudPath: `${data.data.folder}/leased.webp`, fileID: `cloud://test/${data.data.folder}/leased.webp` } } };
+    },
   };
   const api = load('../admin/src/lib/api.ts', { require(name) {
     if (name === './image-upload') return images;
+    if (name === '../../../utils/temp-file-urls') return load('../utils/temp-file-urls.ts', {});
+    if (name === '../../../utils/cloud-read-retry') return load('../utils/cloud-read-retry.ts', {});
     assert.equal(name, './cloudbase');
     return { cloudbaseApp: app, requireCloudBase: () => ({ app }) };
   } });

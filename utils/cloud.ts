@@ -1,4 +1,6 @@
 import { cloudEnvId, cloudFunctionName, localBackendUrl, localUserId, useLocalBackend } from '../config/runtime';
+import { TempFileUrls } from './temp-file-urls';
+import { cloudReadRetry } from './cloud-read-retry';
 
 export interface ApiErrorShape {
   code?: string;
@@ -96,22 +98,37 @@ function unwrap<T>(result: unknown, requestId?: string): T {
   return envelope.data as T;
 }
 
-export async function request<T = unknown>(action: string, data: Record<string, unknown> = {}): Promise<T> {
+async function requestRaw<T = unknown>(action: string, data: Record<string, unknown> = {}): Promise<T> {
   if (useLocalBackend) return requestLocal<T>(action, data);
   const cloud = getCloud();
   if (!cloudEnvId || !cloud?.callFunction) {
     throw new ApiError('CloudBase 环境未初始化，请检查 cloudEnvId 配置。', undefined, 'CLOUD_NOT_INITIALIZED');
   }
   try {
-    const response = await cloud.callFunction({
+    const response = await cloudReadRetry(action, () => cloud.callFunction({
       name: cloudFunctionName,
       data: { scope: 'shop', action, data },
-    }) as unknown as { result?: ApiEnvelope<T> };
+    })) as unknown as { result?: ApiEnvelope<T> };
     return unwrap<T>(response?.result);
   } catch (error) {
     if (error instanceof ApiError) throw error;
     console.error('CloudBase function call failed:', action, error);
     throw new ApiError(getErrorMessage(error));
+  }
+}
+
+export async function request<T = unknown>(action: string, data: Record<string, unknown> = {}): Promise<T> {
+  const result = await requestRaw<T>(action, data);
+  if ((result as { imageCleanup?: string[] } | null)?.imageCleanup?.length || action === 'user.me') {
+    await requestRaw('storage.cleanupQueue').catch((error) => console.warn('图片清理稍后重试', error));
+  }
+  return result;
+}
+
+export async function cleanupCloudFiles(ids: string[]) {
+  for (let offset = 0; offset < ids.length; offset += 5) {
+    await requestRaw('storage.cleanup', { fileList: ids.slice(offset, offset + 5) })
+      .catch((error) => console.warn('图片清理已保留在服务端队列', error));
   }
 }
 
@@ -122,13 +139,15 @@ export async function uploadCloudFile(localPath: string, folder: 'comments' | 'a
     (wx as any).getFileInfo({ filePath: localPath, success: resolve, fail: reject });
   });
   if (!fileInfo.size) throw new ApiError('图片文件为空', undefined, 'IMAGE_FORMAT');
+  const lease = await requestRaw<{ cloudPath: string; fileID: string }>('storage.prepareUpload', { folder });
+  try {
   if (useLocalBackend) {
-    return new Promise<string>((resolve, reject) => {
+    return await new Promise<string>((resolve, reject) => {
       wx.uploadFile({
         url: localApiUrl('/upload'),
         filePath: localPath,
         name: 'file',
-        formData: { folder },
+        formData: { folder, cloudPath: lease.cloudPath },
         header: { 'x-upload-folder': folder },
         success: (response) => {
           try {
@@ -147,11 +166,15 @@ export async function uploadCloudFile(localPath: string, folder: 'comments' | 'a
   if (!cloudEnvId || !cloud?.uploadFile) {
     throw new ApiError('CloudBase 环境未初始化，无法上传文件。', undefined, 'CLOUD_NOT_INITIALIZED');
   }
-  const safeName = localPath.split('?')[0].split('/').pop()?.replace(/[^a-zA-Z0-9._-]/g, '_') || 'image';
-  const cloudPath = `user/${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${safeName}`;
-  const result = await cloud.uploadFile({ cloudPath, filePath: localPath });
+  const result = await cloud.uploadFile({ cloudPath: lease.cloudPath, filePath: localPath });
   return result.fileID;
+  } catch (error) {
+    await cleanupCloudFiles([lease.fileID]);
+    throw error;
+  }
 }
+
+const tempFileUrls = new TempFileUrls((fileList) => request('storage.tempUrls', { fileList }));
 
 export async function getTempFileUrl(fileID: string) {
   if (!fileID || /^(https?:|data:|wxfile:)/i.test(fileID)) return fileID;
@@ -160,8 +183,7 @@ export async function getTempFileUrl(fileID: string) {
   }
   const cloud = getCloud();
   if (!cloud?.getTempFileURL) return fileID;
-  const files = await request<Array<{ fileID: string; tempFileURL?: string }>>('storage.tempUrls', { fileList: [fileID] });
-  return files?.[0]?.tempFileURL || fileID;
+  return tempFileUrls.get(fileID);
 }
 
 export function getApiErrorMessage(error: unknown, fallback = '请求失败，请稍后重试。') {

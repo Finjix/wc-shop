@@ -77,7 +77,7 @@
   id="goodsSpecsPopup"
   show="{{isSpuSelectPopupShow}}"
   src="{{specImg ? specImg : primaryImage}}"
-  title="{{details.title}}"
+  title="{{details.title || ''}}"
   price="{{isAllSelectedSku ? selectSkuSellsPrice : minSalePrice}}"
   specList="{{details.specList || []}}"
   skuList="{{skuArray}}"

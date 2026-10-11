@@ -293,7 +293,7 @@ Page({
   },
   onRemarkInput(e) {
     if (this.data.remarkLocked) return;
-    this.setData({ remark: String(e.detail.value || '').slice(0, 240) });
+    this.setData({ remark: String(e.detail.value || '').slice(0, 50) });
   },
 
   // 服务端以模拟支付完成订单，不调用微信商户支付。

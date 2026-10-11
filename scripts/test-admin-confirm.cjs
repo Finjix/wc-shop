@@ -44,7 +44,7 @@ async function run() {
   assert.equal(dialog().placement, undefined, 'use the original dialog placement');
   assert.equal(dialog().width, undefined, 'use the original rectangular dialog width');
   const styles = fs.readFileSync(path.join(root, 'admin/src/styles.css'), 'utf8');
-  assert.match(styles, /\.confirm-dialog \.t-dialog__mask\s*\{\s*opacity:\s*1\s*!important;/, 'mask is visible even during the initial fade class');
+  assert.match(styles, /(?:\.confirm-dialog )?\.t-dialog__mask\s*\{\s*opacity:\s*1\s*!important;/, 'mask is visible even during the initial fade class, including portaled dialogs');
   assert.equal(dialog().closeBtn, false);
   assert.equal(dialog().children, '确定删除评价？', 'restore deletion explanatory text');
   assert.doesNotMatch(styles, /confirm-dialog--compact/, 'remove square and centered layout overrides');

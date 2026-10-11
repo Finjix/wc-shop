@@ -117,6 +117,14 @@
   justify-content: flex-end;
   max-width: 400rpx;
 }
+.order-detail .pay-detail .pay-item--remark {
+  align-items: flex-start;
+}
+.order-remark-content {
+  white-space: pre-wrap;
+  word-break: break-all;
+  text-align: right;
+}
 .order-detail .pay-detail .pay-item .pay-item__right .pay-remark {
   display: -webkit-box;
   -webkit-box-orient: vertical;

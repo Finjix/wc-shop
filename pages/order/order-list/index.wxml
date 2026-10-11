@@ -71,11 +71,12 @@
     </block>
     <!-- 列表加载中/已全部加载 -->
     <load-more
-      wx:if="{{!pullDownRefreshing && listLoading !== 3}}"
+      wx:if="{{!pullDownRefreshing}}"
       list-is-empty="{{!orderList.length}}"
       status="{{listLoading}}"
       bindretry="onReTryLoad"
     >
+      <view slot="empty" class="commerce-empty">暂无订单</view>
     </load-more>
   </t-pull-down-refresh>
 </view>

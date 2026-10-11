@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { request, uploadCloudFile } from '../../../utils/api';
+import { request, uploadCloudFile, cleanupCloudFiles } from '../../../utils/api';
 import { resolveImage } from '../../../utils/images';
 import { normalizeOrderItem } from '../after-service-detail/contract';
 
@@ -46,10 +46,17 @@ async function uploadAfterSaleImage(image) {
 }
 export async function dispatchApplyService(params = {}) {
   const rights = params.rights;
-  const images = (await Promise.all(rights.rightsImageUrls.map(uploadAfterSaleImage))).filter(Boolean);
+  const images = [], temporary = [];
+  try {
+  for (const image of rights.rightsImageUrls) {
+    const fileID = await uploadAfterSaleImage(image);
+    if (fileID) images.push(fileID);
+    const original = typeof image === 'string' ? image : image.url || image.tempFilePath || image.path;
+    if (fileID && fileID !== original) temporary.push(fileID);
+  }
   const action = rights.reapplyId ? 'afterSales.reapply' : 'afterSales.create';
   const target = rights.reapplyId ? { afterSaleId: rights.reapplyId } : { orderId: rights.orderNo };
-  return request(action, {
+  return await request(action, {
     ...target,
     type: rights.rightsType,
     receiptStatus: rights.receiptStatus,
@@ -58,4 +65,7 @@ export async function dispatchApplyService(params = {}) {
     images,
     rightsItem: params.rightsItem.map((item) => ({ skuId: item.skuId, rightsQuantity: item.rightsQuantity })),
   }).then((data) => ({ data }));
+  } finally {
+    await cleanupCloudFiles(temporary);
+  }
 }

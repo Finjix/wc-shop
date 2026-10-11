@@ -71,15 +71,6 @@
   margin: 0;
 }
 
-.container-compact.container-single {
-  grid-template-columns: minmax(0, 1fr);
-  max-width: 400rpx;
-}
-
-.container-compact.container-double {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 .container-compact .resource-container {
   display: block;
   position: relative;

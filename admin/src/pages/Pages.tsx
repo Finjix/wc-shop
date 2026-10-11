@@ -187,13 +187,13 @@ export function OverviewPage() {
   };
   return <>
     <div className="overview-page">
-    <h1 className="overview-title">盛途优品后台管理系统 v261005</h1>
+    <h1 className="overview-title">盛途优品后台管理系统 v261011</h1>
     {loading && <LoadingState />}
     {error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
     {!loading && !error && <>
       <div className="metric-grid">
         <Link className="metric-link" to="/orders?status=paid"><Metric label="待发货" value={value(['pendingShipmentCount', 'pendingDeliveryCount'])} /></Link>
-        <Link className="metric-link" to="/after-sales?status=pending_review"><Metric label="待售后" value={value(['pendingAfterSaleCount', 'pendingAfterSalesCount', 'pendingReviewAfterSalesCount'])} /></Link>
+        <Link className="metric-link" to="/after-sales"><Metric label="待处理售后" value={value(['pendingAfterSaleCount', 'pendingAfterSalesCount', 'pendingReviewAfterSalesCount'])} /></Link>
         <Link className="metric-link" to="/comments?status=pending_review"><Metric label="待审核评价" value={value(['pendingReviewCommentCount'])} /></Link>
       </div>
       <Panel className="overview-inventory-warnings">
@@ -616,7 +616,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
       </div>
       <Button theme="primary" onClick={() => navigate('/products/new')}>新建商品</Button>
     </div>
-    {(loading || routeEditLoading) && <LoadingState />}{!routeEditLoading && error && <ErrorState message={error} />}
+    {(loading || routeEditLoading) && <LoadingState />}{!routeEditLoading && error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
     {!loading && !routeEditLoading && !error && <Panel className="product-list-panel"><Table><thead><tr><th>商品</th><th>操作</th><th aria-label="商品状态" /></tr></thead><tbody>
       {rows.length === 0 && <tr><td colSpan={3}><EmptyState title={productQuery ? '没有找到相关商品' : '暂无商品'} /></td></tr>}
       {rows.map((product) => {

@@ -43,7 +43,8 @@
     "process": "readonly",
     "require": "readonly",
     "setTimeout": "readonly",
-    "wx": "readonly"
+    "wx": "readonly",
+    "WXWebAssembly": "readonly"
   },
   "rules": {
     "no-undef": "error",

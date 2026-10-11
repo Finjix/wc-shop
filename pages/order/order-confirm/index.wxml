@@ -36,17 +36,20 @@
     </view>
   </view>
   <view class="order-remark">
-    <view class="order-remark__title">订单备注</view>
+    <view class="order-remark__title">备注</view>
+    <view class="order-remark__field">
     <textarea
       class="order-remark__input"
       value="{{remark}}"
       placeholder="（选填）"
       placeholder-class="order-remark__placeholder"
-      maxlength="240"
+      maxlength="50"
       auto-height
       disabled="{{remarkLocked}}"
       bindinput="onRemarkInput"
     />
+    <view class="order-remark__count">{{remark.length}}/50</view>
+    </view>
   </view>
   <view class="wx-pay-cover">
     <view class="wx-pay">

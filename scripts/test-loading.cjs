@@ -20,6 +20,7 @@ const api = {
     return `https://example.test/${id.split('://')[1]}`;
   },
   request: (action, payload) => respond(action, payload),
+  cleanupCloudFiles: async () => {},
 };
 function load(file) {
   const filename = path.resolve(root, file);
@@ -36,7 +37,7 @@ function load(file) {
       if (name.startsWith('.')) return load(`${path.resolve(path.dirname(filename), name)}.ts`);
       throw new Error(`Unexpected dependency ${name}`);
     },
-    Page: (value) => { page = value; }, Component: (value) => { component = value; },
+    Page: (value) => { page = value; }, Component: (value) => { component = value; }, getCurrentPages: () => [],
     wx: { getWindowInfo: () => ({ screenWidth: 375, pixelRatio: 2 }), stopPullDownRefresh() {}, showToast() {}, navigateTo(options) { pageNavigations.push(options.url); }, switchTab(options) { tabNavigations.push(options.url); }, previewImage(options) { imagePreviews.push(options); } },
   }, { filename });
   return exports;
@@ -109,7 +110,8 @@ async function run() {
   assert.equal(await images.resolveImage('/assets/user-avatar.jpg'), '/assets/user-avatar.jpg');
   respond = async () => ({ items: [{ images: ['cloud://comment.webp'], avatarUrl: 'local://avatar.webp' }] });
   const comments = await load('pages/goods/services/comments/fetchComments.ts').fetchComments();
-  assert.equal(comments.pageList[0].userHeadUrl, '/assets/user-avatar.jpg');
+  assert.equal(comments.pageList[0].userHeadUrl, '/assets/usercenter-avatar.jpg');
+  assert(fs.existsSync(path.join(root, comments.pageList[0].userHeadUrl.slice(1))), 'avatar references a shipped asset');
   const resource = comments.pageList[0].commentResources[0];
   assert.equal(resource.image, 'https://example.test/comment.webp');
   assert.equal(resource.fileID, 'cloud://comment.webp');
@@ -124,11 +126,11 @@ async function run() {
     items: [{ ...currentOrder, status: 'paid', pendingRefundAmount: 100, activeAfterSaleStatus: 'pending_review', items: [{
       ...snapshot, quantity: 3, refundedQuantity: 1, remainingQuantity: 2, fulfillableQuantity: 2,
     }] }],
-  } : {};
+  } : { items: [], total: 0 };
   const activeRefundOrder = await load('pages/order/services/orderList.ts').fetchOrders({ parameter: { page: 1 } });
   const activeRefund = activeRefundOrder.data.orders[0];
   assert.equal(activeRefund.orderStatus, 10);
-  assert.equal(activeRefund.orderStatusName, '退款审核中');
+  assert.equal(activeRefund.orderStatusName, '售后审核中');
   assert.equal(activeRefund.orderItemVOs[0].fulfillableQuantity, 2);
   assert.ok(!activeRefund.buttonVOs.some((button) => Number(button.type) === 4));
   console.log('PASS simulated-paid order and pending refund normalize with remaining quantity');
@@ -158,7 +160,7 @@ async function run() {
   const noRemainingOrder = orderListApi.normalizeOrder({ ...currentOrder, status: 'paid', items: [{ ...snapshot, fulfillableQuantity: 0 }], buttonVOs: [{ type: 4, name: '申请售后' }] });
   assert.ok(!noRemainingOrder.buttonVOs.some((button) => Number(button.type) === 4));
   const pendingReviewDetail = orderListApi.normalizeOrder({ ...currentOrder, status: 'paid', afterSalesList: [{ status: 'pending_review' }], items: [snapshot] });
-  assert.equal(pendingReviewDetail.orderStatusName, '退款审核中');
+  assert.equal(pendingReviewDetail.orderStatusName, '售后审核中');
   console.log('PASS active after-sales list label and action filtering; detailed pending-review label preserved');
   respond = async () => ({ ...currentOrder, status: 'received', hasPendingComments: false, items: [snapshot],
     addressSnapshot: { receiver: '收货人', phone: '13800000000', province: '广东省', city: '深圳市', district: '南山区', detail: '测试街道' } });
@@ -245,7 +247,7 @@ async function run() {
     rights: { orderNo: 'o1', rightsType: 20, refundRequestAmount: 100, rightsReasonDesc: '质量问题', rightsImageUrls: [] },
     rightsItem: [{ skuId: 's1', productId: 'p1', rightsQuantity: 1 }],
   });
-  assert.equal(submittedClaim.refundRequestAmount, 100);
+  assert.equal(Object.hasOwn(submittedClaim, 'refundRequestAmount'), false, 'the server decides the requested amount from SKU quantities');
   assert.equal(submittedClaim.rightsItem[0].rightsQuantity, 1);
   respond = async (action, payload) => {
     assert.equal(action, 'afterSales.withdraw');

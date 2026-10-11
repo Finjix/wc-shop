@@ -140,6 +140,11 @@ tbody tr.product-list-inactive, tbody tr.product-list-inactive:hover { backgroun
 .text-button:hover { color: #000; text-decoration: underline; }
 .orders-page { display: flex; flex-direction: column; min-height: calc(100dvh - var(--page-padding-top) - var(--page-padding-bottom)); }
 .orders-address-groups { display: grid; gap: 16px; }
+.orders-address-group table { table-layout: fixed; }
+.orders-address-group th:nth-child(1) { width: 28%; }
+.orders-address-group th:nth-child(2) { width: 28%; }
+.orders-address-group th:nth-child(3) { width: 18%; }
+.orders-address-group th:nth-child(4) { width: 26%; }
 .orders-address-groups-empty { display: flex; flex-direction: column; flex: 1; }
 .orders-empty-panel { flex: 1; margin-bottom: 0; }
 .orders-address-heading { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }

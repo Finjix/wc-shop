@@ -39,7 +39,10 @@ export function normalizeServiceButtons(value, serviceType, buttons = [], logist
   const canWithdraw = !logisticsNo && (status === 100 || pendingReturn) && (actions?.withdraw ?? true);
   const result = canWithdraw ? [{ type: 2, name: '撤销申请' }] : [];
   if (pendingReturn) result.push({ type: 3, name: '填写退货物流' });
-  if (status === 130 && logisticsNo) result.push({ type: 5, name: '查看退货物流' });
+  if (status === 130 && logisticsNo) {
+    result.push({ type: 5, name: '查看退货物流' });
+    if (Number(serviceType) === 10) result.push({ type: 4, name: '修改退货物流' });
+  }
   return result;
 }
 

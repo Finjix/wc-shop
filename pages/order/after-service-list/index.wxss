@@ -2,6 +2,20 @@
   background-color: #fff;
 }
 
+.service-list-item--divided {
+  position: relative;
+}
+
+.service-list-item--divided::after {
+  content: '';
+  position: absolute;
+  left: 32rpx;
+  right: 32rpx;
+  bottom: 0;
+  height: 1rpx;
+  background-color: #e5e5e5;
+}
+
 .service-type {
   color: #666666;
   font-size: 28rpx;
@@ -94,3 +108,5 @@
   --td-button-default-color: #000;
   --td-button-primary-text-color: #695941;
 }
+
+.commerce-empty { padding: 160rpx 32rpx; text-align: center; color: #999; font-size: 28rpx; }
