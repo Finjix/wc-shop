@@ -19,7 +19,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     setRequest(null);
   };
   useEffect(() => () => { pending.current?.resolve(false); }, []);
-  return <Context.Provider value={confirm}>{children}<Dialog visible={Boolean(request)} header="确认操作" closeBtn={request?.closeBtn ?? true} confirmBtn="确定" cancelBtn="取消" onConfirm={() => finish(true)} onClose={() => finish(false)}>{request?.message}</Dialog></Context.Provider>;
+  // Unmount the whole dialog on close instead of clearing its text during the library's exit delay.
+  return <Context.Provider value={confirm}>{children}{request && <Dialog className="confirm-dialog" visible header="确认操作" closeBtn={request.closeBtn} confirmBtn="确定" cancelBtn="取消" onConfirm={() => finish(true)} onClose={() => finish(false)}>{request.message}</Dialog>}</Context.Provider>;
 }
 
 export const useConfirm = () => useContext(Context);

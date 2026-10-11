@@ -32,19 +32,31 @@ vm.runInNewContext(compiled, {
   },
 });
 function render() { cursor = 0; return exportsObject.ConfirmProvider({ children: null }); }
-const dialog = () => render().props.children[1].props;
+const dialogNode = () => render().props.children[1];
+const dialog = () => dialogNode().props;
 async function run() {
   const confirm = render().props.value;
+  assert.equal(dialogNode(), null, 'closed confirmation is not mounted');
   const deletion = confirm('确定删除评价？', { closeBtn: false });
+  assert.equal(dialog().visible, true);
+  assert.equal(dialog().className, 'confirm-dialog');
+  assert.equal(dialog().header, '确认操作');
+  assert.equal(dialog().placement, undefined, 'use the original dialog placement');
+  assert.equal(dialog().width, undefined, 'use the original rectangular dialog width');
+  const styles = fs.readFileSync(path.join(root, 'admin/src/styles.css'), 'utf8');
+  assert.match(styles, /\.confirm-dialog \.t-dialog__mask\s*\{\s*opacity:\s*1\s*!important;/, 'mask is visible even during the initial fade class');
   assert.equal(dialog().closeBtn, false);
-  assert.equal(dialog().children, '确定删除评价？');
+  assert.equal(dialog().children, '确定删除评价？', 'restore deletion explanatory text');
+  assert.doesNotMatch(styles, /confirm-dialog--compact/, 'remove square and centered layout overrides');
   dialog().onConfirm();
   assert.equal(await deletion, true);
-  assert.equal(dialog().visible, false);
+  assert.equal(dialogNode(), null, 'dialog, message and overlay are removed together without an exit delay');
   const generic = confirm('确定离开吗？');
   assert.equal(dialog().closeBtn, true, 'non-deletion dialogs keep existing behavior');
+  assert.equal(dialog().children, '确定离开吗？', 'non-deletion prompts retain their context');
   dialog().onClose();
   assert.equal(await generic, false);
+  assert.equal(dialogNode(), null, 'cancel unmounts the entire dialog rather than blanking its message');
   const replaced = confirm('确定删除商品？', { closeBtn: false });
   const next = confirm('确定删除分类？', { closeBtn: false });
   assert.equal(await replaced, false);

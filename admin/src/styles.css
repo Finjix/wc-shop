@@ -48,6 +48,8 @@
 * { box-sizing: border-box; }
 /* Applies to the whole admin app, including component portals and pseudo-elements. */
 *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+/* Fade's initial opacity survives animation: none; show the confirmation mask immediately. */
+.confirm-dialog .t-dialog__mask { opacity: 1 !important; }
 html { scrollbar-gutter: stable; }
 body { margin: 0; min-width: 320px; background: #f6f6f6; }
 button, input, textarea, select { font: inherit; }
