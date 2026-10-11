@@ -20,6 +20,7 @@
 - 环境：`cloud1-d9geoogopf6e487d7`。
 - Edge 扩展上传 `dist/v261011/wc-shop-function.zip`；生产函数 `wc-shop-function` 正常，更新时间 `2026-10-12 00:13:24`。
 - 云函数包 SHA256：`5A3F9B5DBC301DA19EB9932CFF5ACAC88ABEDC36B3C4A7AC4C6967484867094D`。
+- 生产控制台运行只读测试 `{scope:"shop",action:"addresses.list",data:{}}`，返回 `INVALID_ARGUMENT` 且 `details.field=action`，验证旧地址接口已移除；函数请求 ID `b5a64e88-c590-11f1-9cbc-525400694506`。
 - 微信开发者工具上传版本号 `261011`，界面确认“代码上传成功”，覆盖原体验版；未提交微信审核或发布正式版。
 - 管理后台代码没有变化，静态包已重新构建，线上静态资源仍为 `index-DnHknGN0.js`。
 - 旧 `addresses` 集合核对为 1 条文档。私有备份及截图位于被 Git 忽略的 `dist/v261011/local-address-evidence/`；不提交私人地址数据。
