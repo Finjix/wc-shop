@@ -13,7 +13,6 @@ const COLLECTIONS = Object.freeze({
   homeContents: 'homeContents',
   settings: 'settings',
   searchHistories: 'searchHistories',
-  adminMembers: 'adminMembers',
 });
 
 const STATUS = Object.freeze({
@@ -49,28 +48,9 @@ const AFTER_SALE_STATUS = Object.freeze([
   STATUS.withdrawn,
 ]);
 
-const ADMIN_ROLES = Object.freeze([
-  'superadmin',
-  'admin',
-  'operations',
-  'inventory',
-  'customer_service',
-  'content',
-]);
-
-const ADMIN_SCOPES = Object.freeze({
-  read: ADMIN_ROLES,
-  catalog: ['superadmin', 'admin', 'operations', 'inventory', 'content'],
-  orders: ['superadmin', 'admin', 'operations', 'customer_service'],
-  content: ['superadmin', 'admin', 'operations', 'content'],
-  settings: ['superadmin', 'admin'],
-});
-
 module.exports = {
   COLLECTIONS,
   STATUS,
   ORDER_STATUS,
   AFTER_SALE_STATUS,
-  ADMIN_ROLES,
-  ADMIN_SCOPES,
 };

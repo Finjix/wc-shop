@@ -5,6 +5,7 @@ const { run: runRegressions } = require('./regressions.test');
 
 Promise.resolve()
   .then(() => run())
+  .then(() => require('./admin-http.test').run())
   .then(() => require('./after-sale-policy.test').run())
   .then(() => require('./admin-commerce-delete.test').run())
   .then(() => require('./admin-comment-delete.test').run())

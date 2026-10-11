@@ -13,9 +13,9 @@
 
 完成 CloudBase 环境和云函数部署后，重新编译小程序即可使用云端数据。
 
-3. 创建集合：`categories`、`products`、`skus`、`addresses`、`carts`、`orders`、`orderRequests`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`、`adminMembers`，并按 `cloudfunctions/README.md` 创建索引；不创建用户档案集合。
-4. 数据库客户端规则默认设为“仅管理员/云函数可读写”，用户数据也通过 `wc-shop-function` 以服务端 UID 隔离；不要把管理员角色或订单状态写权限暴露给小程序客户端。
-5. 在 `adminMembers` 中写入首个管理员文档，`_id` 或 `uid` 使用 CloudBase 登录用户 UID，设置 `roles: ["superadmin"]`、`status: "active"`、`enabled: true`。账号创建和密码输入由管理员本人在控制台完成。
+3. 创建集合：`categories`、`products`、`skus`、`addresses`、`carts`、`orders`、`orderRequests`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`，并按 `cloudfunctions/README.md` 创建索引；不创建用户档案集合。
+4. 数据库客户端规则默认设为“仅管理员/云函数可读写”，用户数据也通过 `wc-shop-function` 以服务端 UID 隔离；不要把订单状态写权限暴露给小程序客户端。
+5. 配置公开 `/admin-api` HTTP 网关路由，关联 `wc-shop-function`，关闭路由身份认证。设置后台 `VITE_ADMIN_API_URL`，无需创建后台账号或成员集合。
 
 ## 部署
 

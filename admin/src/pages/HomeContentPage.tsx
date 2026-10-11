@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useBlocker, useOutletContext } from 'react-router-dom';
+import { useBlocker } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { adminApi } from '../lib/api';
 import { useDraftImages } from '../lib/useDraftImages';
-import type { AdminOutletContext } from '../components/Layout';
 import type { ListResult, Product } from '../types';
 import { ErrorState, Field, ImageFilePicker, LoadingState, Panel } from '../components/Ui';
 
@@ -153,14 +152,9 @@ export function HomeContentPage() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [known, setKnown] = useState<Record<string, Product | null>>({});
-  const { setUnsavedChanges } = useOutletContext<AdminOutletContext>();
   const dirty = !loading && JSON.stringify(config) !== savedConfig;
   const blocker = useBlocker(dirty);
 
-  useEffect(() => {
-    setUnsavedChanges(dirty);
-    return () => setUnsavedChanges(false);
-  }, [dirty, setUnsavedChanges]);
 
   useEffect(() => {
     let active = true;

@@ -1,26 +1,13 @@
-import { createHashRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom';
-import { useAuth } from './auth/AuthProvider';
+import { createHashRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { AdminLayout } from './components/Layout';
 import { HomeContentPage, OverviewPage, ProductsPage } from './pages/Pages';
 import { AfterSalesPage, CommentsPage, OrderDetailPage, OrdersPage, SettingsPage } from './pages/CommercePages';
 import { CategoriesPage } from './pages/CategoriesPage';
-import { LoginPage } from './pages/LoginPage';
 import { SkuInventoryPage } from './pages/SkuInventoryPage';
-import { LoadingState } from './components/Ui';
 import { MaintenancePage } from './pages/MaintenancePage';
 
-function ProtectedRoute() {
-  const { loading, loginState, member } = useAuth();
-  if (loading) return <LoadingState />;
-  if (!loginState || !member) return <Navigate to="/login" replace />;
-  return <Outlet />;
-}
-
 const router = createHashRouter([
-  { path: '/login', element: <LoginPage /> },
   {
-    element: <ProtectedRoute />,
-    children: [{
       element: <AdminLayout />,
       children: [
         { index: true, element: <Navigate to="/overview" replace /> },
@@ -41,7 +28,6 @@ const router = createHashRouter([
         { path: 'after-sales/address', element: <SettingsPage /> },
         { path: 'settings', element: <Navigate to="/after-sales/address" replace /> },
       ],
-    }],
   },
   { path: '*', element: <Navigate to="/overview" replace /> },
 ]);

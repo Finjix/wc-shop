@@ -11,7 +11,6 @@ async function run() {
   const metadata = makeRuntime();
   metadata.records.products['product-1'].images = [next];
   metadata.records.homeContents = { 'home.page-config': { _id: 'home.page-config', payload: { banners: [{ productId: 'product-1', image: next }], sections: [{ productIds: ['product-1'] }] } } };
-  metadata.records.adminMembers = { admin: { _id: 'admin', uid: 'admin', status: 'active', roles: ['superadmin'] } };
   const transaction = metadata.db.runTransaction;
   let transactions = 0;
   metadata.db.runTransaction = (fn) => { transactions++; return transaction(fn); };
@@ -87,7 +86,6 @@ async function run() {
   assert.deepStrictEqual(withdrawn.records.orders[order._id].afterSaleIds, []);
   assert(withdrawn.records.settings[stateId(old)].imageCleanupPending, 'withdrawal persists image cleanup even if response is lost');
   const catalog = makeRuntime();
-  catalog.records.adminMembers = { admin: { _id: 'admin', roles: ['admin'], status: 'active' } };
   catalog.records.skus['sku-new'].skuImage = next;
   await adminEndpoint({}, { auth: { uid: 'admin' } }, catalog, 'products.delete', { id: 'product-1' });
   assert.strictEqual(catalog.records.skus['sku-new'].deletedByAdmin, true);

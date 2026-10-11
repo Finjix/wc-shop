@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { useAuth } from '../auth/AuthProvider';
 import { ImageLightbox } from './ImageLightbox';
-import { useConfirm } from './ConfirmProvider';
-
-export type AdminOutletContext = { setUnsavedChanges: (value: boolean) => void };
 
 const navItems = [
   { to: '/overview', label: '概览' },
@@ -18,15 +14,8 @@ const navItems = [
 ];
 
 export function AdminLayout() {
-  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
-  const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [notice, setNotice] = useState<{ text: string; kind: string; id: number } | null>(null);
-  const { logout } = useAuth();
-  const handleLogout = async () => {
-    if (unsavedChanges && !await confirm('设置尚未保存。确定放弃修改并退出吗？')) return;
-    await logout();
-  };
   useEffect(() => {
     const receive = (event: Event) => {
       const detail = (event as CustomEvent<{ text?: string; kind?: string }>).detail;
@@ -59,16 +48,13 @@ export function AdminLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-actions">
-          <button className="logout-button" onClick={() => void handleLogout()}>退出</button>
-        </div>
       </aside>
 
       <main className="main-area">
         {notice && <div key={notice.id} className={`admin-toast ${notice.kind}`} role="status" aria-live="polite">{notice.text}</div>}
         <div className="page-content">
           <button className="menu-button" onClick={() => setOpen(true)} aria-label="打开导航">☰</button>
-          <Outlet context={{ setUnsavedChanges } satisfies AdminOutletContext} />
+          <Outlet />
         </div>
       </main>
     </div>

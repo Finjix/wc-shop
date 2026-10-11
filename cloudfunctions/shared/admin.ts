@@ -3,7 +3,6 @@
 const crypto = require('crypto');
 const { COLLECTIONS, STATUS, ORDER_STATUS, AFTER_SALE_STATUS } = require('./constants');
 const { errorFrom } = require('./errors');
-const { requireAdmin } = require('./auth');
 const { getDoc, setDoc, list, all, count, affected, withTransaction } = require('./db');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
@@ -1010,21 +1009,9 @@ async function settingsAction(runtime, data, action) {
   return item;
 }
 
-function scopeFor(action) {
-  if (action.startsWith('storage.maintenance.')) return 'settings';
-  if (action === 'storage.cleanup') return 'content';
-  if (action.startsWith('products.') || action.startsWith('categories.') || action.startsWith('skus.') || action === 'inventory.adjust') return 'catalog';
-  if (action.startsWith('orders.')) return 'orders';
-  if (action.startsWith('home.')) return 'content';
-  if (action.startsWith('settings.')) return 'settings';
-  if (action.startsWith('comments.') || action.startsWith('afterSales.')) return 'orders';
-  return 'read';
-}
-
 function normalizeAdminAction(action, data) {
   let nextAction = action;
   let nextData = { ...(data || {}) };
-  if (action === 'admin.me') nextAction = 'auth.me';
   if (action === 'dashboard.summary') return { action: 'dashboard.summary', data: nextData };
   if (action === 'products.save') {
     const isUpdate = Boolean(nextData.id);
@@ -1054,14 +1041,6 @@ async function executeAdmin(event, context, runtime, action, data) {
   const normalized = normalizeAdminAction(action, data);
   action = normalized.action;
   data = normalized.data;
-  const uploadScope = action === 'storage.cleanup'
-    ? (data.fileList || []).every((id) => /\/(?:admin\/products|admin\/categories)\//.test(id)) ? 'catalog' : 'content'
-    : action === 'storage.prepareUpload'
-    ? data.folder === 'home' ? 'content' : 'catalog'
-    : action === 'storage.processImage'
-    ? /^cloud:\/\/[^/]+\/pending\/home\//.test(String(data.fileID || '')) ? 'content' : 'catalog'
-    : scopeFor(action);
-  const auth = await requireAdmin(runtime.db, event, context, uploadScope, runtime);
   const raw = { ...runtime, db: runtime.rawDb || runtime.db };
   if (action === 'storage.maintenance.references') return referencePage(raw, data);
   if (action === 'storage.maintenance.queue') {
@@ -1073,13 +1052,12 @@ async function executeAdmin(event, context, runtime, action, data) {
   if (action === 'storage.cleanupQueue' || action === 'storage.maintenance.flush') return cleanupQueue(raw);
   if (action === 'storage.prepareUpload') {
     if (!['home', 'admin/products', 'admin/categories'].includes(data.folder)) throw errorFrom('FORBIDDEN');
-    return prepareUpload(raw, data.folder, auth.identity.uid);
+    return prepareUpload(raw, data.folder, undefined, true);
   }
   if (action === 'storage.maintenance.cleanup' || action === 'storage.cleanup') return cleanup(raw, data);
   if (action === 'storage.maintenance.replace') return replaceReference(raw, data);
   if (isVariantSave) return saveProductWithVariants(runtime, data);
   if (action === 'dashboard.summary') return dashboardSummary(runtime);
-  if (action === 'auth.me') return { uid: auth.identity.uid, roles: auth.roles, member: auth.member };
   if (action === 'storage.tempUrls') return getTempFileURLs(runtime, data.fileList);
   if (action === 'storage.processImage') return processStagedImage(runtime, data.fileID, ['admin/products', 'admin/categories', 'home']);
   if (action.startsWith('categories.') || action.startsWith('products.') || action.startsWith('skus.')) return catalogAction(runtime, data, action);
@@ -1094,4 +1072,4 @@ async function executeAdmin(event, context, runtime, action, data) {
   throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
 }
 
-module.exports = { adminEndpoint, scopeFor };
+module.exports = { adminEndpoint };

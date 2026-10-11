@@ -8,18 +8,6 @@ export interface ApiEnvelope<T> {
   error?: { code?: string; message?: string; details?: Record<string, unknown> } | string;
 }
 
-export interface AdminMember {
-  _id?: Id;
-  uid?: string;
-  username?: string;
-  displayName?: string;
-  role?: string | string[];
-  roles?: string | string[];
-  enabled?: boolean;
-  status?: string;
-  [key: string]: unknown;
-}
-
 export interface ListResult<T> {
   items: T[];
   total?: number;
@@ -172,11 +160,6 @@ export interface AfterSale {
   items?: unknown[];
   returnAddressSnapshot?: Record<string, unknown>;
   createdAt?: string | number;
-  [key: string]: unknown;
-}
-
-export interface LoginState {
-  user?: { uid?: string; username?: string; [key: string]: unknown };
   [key: string]: unknown;
 }
 

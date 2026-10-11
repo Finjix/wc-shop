@@ -7,7 +7,7 @@ const sharp = require('../cloudfunctions/node_modules/sharp');
 
 function load(file, globals) {
   const source = fs.readFileSync(path.join(__dirname, file), 'utf8')
-    .replaceAll('import.meta.env', '({})').replaceAll('import.meta.url', "'https://test/image-upload.ts'");
+    .replaceAll('import.meta.env', "({VITE_ADMIN_API_URL:'https://api.test/admin'})").replaceAll('import.meta.url', "'https://test/image-upload.ts'");
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
@@ -30,23 +30,29 @@ async function main() {
     terminate() {}
   }
   const images = load('../admin/src/lib/image-upload.ts', { Worker });
-  const app = {
-    async uploadFile(params) {
-      assert.ok(params.filePath instanceof File);
-      calls.push({ params, bytes: Buffer.from(await params.filePath.arrayBuffer()) });
-      return { fileID: `cloud://test/${params.cloudPath}` };
-    },
-    async callFunction({ data }) {
-      assert.equal(data.action, 'storage.prepareUpload', 'reserve upload without invoking pixel conversion');
-      return { result: { ok: true, data: { cloudPath: `${data.data.folder}/leased.webp`, fileID: `cloud://test/${data.data.folder}/leased.webp` } } };
-    },
+  const fetch = async (url, options) => {
+    assert.equal(options.credentials, 'omit');
+    if (url === 'https://api.test/admin') {
+      const request = JSON.parse(options.body);
+      assert.equal(request.action, 'storage.prepareUpload', 'reserve upload without invoking pixel conversion');
+      assert.deepEqual(Object.keys(options.headers), ['content-type']);
+      return { status: 200, json: async () => ({ ok: true, data: {
+        cloudPath: `${request.data.folder}/leased.webp`, fileID: `cloud://test/${request.data.folder}/leased.webp`,
+        upload: { url: 'https://upload.test', fields: { key: `${request.data.folder}/leased.webp`, Signature: 'scoped-signature' } },
+      } }) };
+    }
+    assert.equal(url, 'https://upload.test');
+    const file = options.body.get('file');
+    assert.ok(file instanceof File);
+    assert.equal(options.body.get('Signature'), 'scoped-signature');
+    calls.push({ params: { filePath: file }, bytes: Buffer.from(await file.arrayBuffer()) });
+    return { ok: true, status: 204 };
   };
-  const api = load('../admin/src/lib/api.ts', { require(name) {
+  const api = load('../admin/src/lib/api.ts', { fetch, FormData, require(name) {
     if (name === './image-upload') return images;
     if (name === '../../../utils/temp-file-urls') return load('../utils/temp-file-urls.ts', {});
     if (name === '../../../utils/cloud-read-retry') return load('../utils/cloud-read-retry.ts', {});
-    assert.equal(name, './cloudbase');
-    return { cloudbaseApp: app, requireCloudBase: () => ({ app }) };
+    throw new Error(`Unexpected dependency: ${name}`);
   } });
   const png = await sharp({ create: { width: 2, height: 3, channels: 4, background: '#12345680' } }).png().toBuffer();
   const jpeg = await sharp(png).jpeg().toBuffer();

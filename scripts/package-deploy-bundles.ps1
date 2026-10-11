@@ -25,6 +25,14 @@ foreach ($targetPath in @($releaseRoot, $stageRoot)) {
   }
 }
 $envFile = Join-Path $adminRoot '.env.local'
+$adminApiUrl = $env:VITE_ADMIN_API_URL
+if ([string]::IsNullOrWhiteSpace($adminApiUrl) -and (Test-Path -LiteralPath $envFile)) {
+  $apiLine = Get-Content -LiteralPath $envFile | Where-Object { $_ -match '^\s*VITE_ADMIN_API_URL\s*=' } | Select-Object -First 1
+  if ($apiLine -match '=\s*(.+?)\s*$') { $adminApiUrl = $Matches[1].Trim() }
+}
+if ($adminApiUrl -notmatch '^https://[^/]+/.+') {
+  throw 'VITE_ADMIN_API_URL must name the deployed public HTTPS admin gateway route.'
+}
 $cloudEnvId = $env:CLOUDBASE_ENV_ID
 if ([string]::IsNullOrWhiteSpace($cloudEnvId) -and (Test-Path -LiteralPath $envFile)) {
   $envLine = Get-Content -LiteralPath $envFile | Where-Object { $_ -match '^\s*VITE_CLOUDBASE_ENV_ID\s*=' } | Select-Object -First 1
@@ -46,10 +54,12 @@ $runtimeEntry = Join-Path $cloudRoot 'wc-shop-function\index.js'
 $npmCommand = (Get-Command npm -ErrorAction Stop).Source
 $tscCommand = Join-Path $adminRoot 'node_modules\.bin\tsc.cmd'
 $previousViteEnv = $env:VITE_CLOUDBASE_ENV_ID
+$previousAdminApiEnv = $env:VITE_ADMIN_API_URL
 $previousLocalApiEnv = $env:VITE_LOCAL_API_URL
 $localEnvBackup = Join-Path $adminRoot '.env.local.deploy-backup'
 $localEnvMoved = $false
 $env:VITE_CLOUDBASE_ENV_ID = $cloudEnvId
+$env:VITE_ADMIN_API_URL = $adminApiUrl
 # A deployment build must never inherit the local backend endpoint from
 # admin/.env.local. Vite gives process environment variables precedence over
 # env files, so an empty value disables the local API branch for this build.
@@ -192,6 +202,8 @@ try {
   Compress-ZipTree -SourceRoot $staticStage -DestinationPath $staticZip
 }
 finally {
+  if ($null -eq $previousAdminApiEnv) { Remove-Item Env:VITE_ADMIN_API_URL -ErrorAction SilentlyContinue }
+  else { $env:VITE_ADMIN_API_URL = $previousAdminApiEnv }
   if ($localEnvMoved -and (Test-Path -LiteralPath $localEnvBackup)) {
     Move-Item -LiteralPath $localEnvBackup -Destination $envFile -Force
   }
@@ -215,7 +227,7 @@ $releaseFiles = @('wc-shop-function.zip', 'wc-shop-admin-static.zip') | ForEach-
   $releaseFile = Join-Path $finalReleaseRoot $_
   [ordered]@{ name = $_; sha256 = Get-Sha256File -Path $releaseFile; bytes = (Get-Item -LiteralPath $releaseFile).Length }
 }
-[ordered]@{ version = $Version; environment = $cloudEnvId; builtAt = [DateTime]::UtcNow.ToString('o'); files = @($releaseFiles) } |
+[ordered]@{ version = $Version; environment = $cloudEnvId; adminApiUrl = $adminApiUrl; builtAt = [DateTime]::UtcNow.ToString('o'); files = @($releaseFiles) } |
   ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $finalReleaseRoot 'release-manifest.json') -Encoding utf8
 Write-Output "function: $(Join-Path $finalReleaseRoot 'wc-shop-function.zip')  (Handler: index.main)"
 Write-Output "web:      $(Join-Path $finalReleaseRoot 'wc-shop-admin-static.zip')"

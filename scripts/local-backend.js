@@ -19,18 +19,13 @@ const publicHost = host === '0.0.0.0' ? '127.0.0.1' : host;
 const baseUrl = `http://${publicHost}:${port}`;
 // Keep runtime writes outside the project to avoid triggering DevTools hot reload.
 const { dataFile, filesRoot } = prepareLocalStorage(root, process.env.LOCAL_BACKEND_DATA_DIR);
-const collectionNames = ['categories', 'products', 'skus', 'addresses', 'carts', 'orders', 'orderRequests', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings', 'adminMembers'];
+const collectionNames = ['categories', 'products', 'skus', 'addresses', 'carts', 'orders', 'orderRequests', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings'];
 
 function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
 
-function now() {
-  return new Date().toISOString();
-}
-
 function seedState() {
-  const timestamp = now();
   return {
     version: 1,
     collections: {
@@ -39,9 +34,6 @@ function seedState() {
       skus: {},
       addresses: {}, carts: {}, orders: {}, comments: {}, afterSales: {}, searchHistories: {}, settings: {},
       homeContents: {},
-      adminMembers: {
-        'local-admin': { _id: 'local-admin', uid: 'local-admin', username: 'admin', displayName: '本地管理员', roles: ['superadmin'], status: 'active', enabled: true, createdAt: timestamp, updatedAt: timestamp },
-      },
     },
   };
 }
@@ -51,6 +43,7 @@ function loadState() {
     const saved = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
     const state = saved && typeof saved === 'object' ? saved : seedState();
     state.collections = state.collections && typeof state.collections === 'object' ? state.collections : {};
+    delete state.collections.adminMembers; // Migrate legacy local admin accounts away.
     collectionNames.forEach((name) => {
       if (!state.collections[name] || typeof state.collections[name] !== 'object') state.collections[name] = {};
     });
@@ -392,8 +385,8 @@ async function handleApi(request, response, body) {
   const action = typeof body.action === 'string' ? body.action : '';
   if (!scope || !action) return sendJson(response, fail(errorFrom('INVALID_ARGUMENT')));
   const data = body.data && typeof body.data === 'object' && !Array.isArray(body.data) ? body.data : {};
-  const uid = headerValue(request, 'x-local-uid') || (scope === 'admin' ? 'local-admin' : 'local-user');
-  const context = { auth: { uid: String(uid) } };
+  const uid = headerValue(request, 'x-local-uid') || 'local-user';
+  const context = scope === 'admin' ? {} : { auth: { uid: String(uid) } };
   const endpoint = scope === 'admin' ? adminEndpoint : shopEndpoint;
   const result = await runEndpoint(
     (event, endpointContext) => endpoint(event, endpointContext, runtime, action, data),
@@ -418,15 +411,6 @@ async function handle(request, response) {
     return response.end(fs.readFileSync(filePath));
   }
   if (request.method !== 'POST') return sendJson(response, fail(errorFrom('INVALID_ARGUMENT')), 405);
-  if (requestUrl.pathname === '/auth/login') {
-    try {
-      const body = parseJson(await readBody(request, 1024 * 1024));
-      if (!['admin', 'local-admin'].includes(String(body.username || '')) || String(body.password || '') !== 'admin') throw errorFrom('UNAUTHENTICATED');
-      return sendJson(response, ok({ uid: 'local-admin', username: 'admin' }));
-    } catch (error) {
-      return sendJson(response, fail(error), 401);
-    }
-  }
   if (requestUrl.pathname === '/upload') {
     try { return sendJson(response, ok(await saveUpload(request))); } catch (error) { return sendJson(response, fail(error), 400); }
   }
@@ -443,7 +427,7 @@ const server = http.createServer((request, response) => {
 server.listen(port, host, () => {
   database.changed();
   console.log(`wc-shop 本地后台已启动：${baseUrl}`);
-  console.log('小程序请求身份：local-user（仅用于鉴权，不写入用户档案）；后台账号：admin / admin');
+  console.log('小程序请求身份：local-user（仅用于鉴权，不写入用户档案）；后台免登录');
 });
 
 function shutdown() {

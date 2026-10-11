@@ -2,6 +2,9 @@ type FunctionScope = 'shop' | 'admin';
 
 type FunctionEvent = {
   scope?: unknown;
+  httpMethod?: unknown;
+  body?: unknown;
+  isBase64Encoded?: boolean;
 };
 
 type Runtime = Record<string, unknown>;
@@ -44,7 +47,7 @@ const { adminEndpoint } = require('../shared/admin') as { adminEndpoint: Endpoin
 
 /**
  * Resolve the logical API scope without using it as an authorization decision.
- * The endpoint implementations still perform their own user/admin checks.
+ * Shop endpoints enforce user ownership; admin endpoints are public.
  */
 export function resolveScope(event: unknown): FunctionScope {
   const source = event && typeof event === 'object' ? event as FunctionEvent : {};
@@ -53,7 +56,7 @@ export function resolveScope(event: unknown): FunctionScope {
   throw errorFrom('INVALID_ARGUMENT', { field: 'scope' });
 }
 
-export async function main(event: unknown, context: unknown): Promise<unknown> {
+async function invoke(event: unknown, context: unknown): Promise<unknown> {
   return runEndpoint(async (input, ctx) => {
     const runtime = createRuntime();
     const { action, data } = getPayload(input);
@@ -64,4 +67,36 @@ export async function main(event: unknown, context: unknown): Promise<unknown> {
     const endpoint = resolveScope(input) === 'admin' ? adminEndpoint : shopEndpoint;
     return endpoint(input, ctx, runtime, action, data || {});
   }, event, context);
+}
+
+/** Public HTTP gateway for the admin. Shop identity only comes from SDK calls. */
+export async function handleAdminHttp(event: FunctionEvent, invokeAdmin: (input: unknown) => Promise<unknown>): Promise<unknown> {
+  const headers = { 'content-type': 'application/json; charset=utf-8',
+    'access-control-allow-origin': '*', 'access-control-allow-methods': 'POST, OPTIONS',
+    'access-control-allow-headers': 'content-type', 'cache-control': 'no-store' };
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  const result = await runEndpoint(async () => {
+    if (event.httpMethod !== 'POST') throw errorFrom('INVALID_ARGUMENT', { field: 'httpMethod' });
+    let input: unknown;
+    try {
+      const body = event.isBase64Encoded && typeof event.body === 'string'
+        ? Buffer.from(event.body, 'base64').toString('utf8') : event.body;
+      input = typeof body === 'string' ? JSON.parse(body) : body;
+    } catch { throw errorFrom('INVALID_ARGUMENT', { field: 'body' }); }
+    if (!input || typeof input !== 'object' || Array.isArray(input) || (input as FunctionEvent).scope !== 'admin') {
+      throw errorFrom('INVALID_ARGUMENT', { field: 'scope' });
+    }
+    return invokeAdmin(input);
+  }, event, {});
+  // invoke already returns an envelope; parse failures use this outer envelope.
+  const envelope = result as { ok: boolean; data?: unknown };
+  return { statusCode: event.httpMethod === 'POST' ? 200 : 405, headers,
+    body: JSON.stringify(envelope.ok ? envelope.data : envelope) };
+}
+
+export async function main(event: unknown, context: unknown): Promise<unknown> {
+  if (event && typeof event === 'object' && typeof (event as FunctionEvent).httpMethod === 'string') {
+    return handleAdminHttp(event as FunctionEvent, (input) => invoke(input, {}));
+  }
+  return invoke(event, context);
 }

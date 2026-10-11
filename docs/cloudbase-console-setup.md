@@ -9,10 +9,11 @@
 
    ```text
    VITE_CLOUDBASE_ENV_ID=完整环境ID
+   VITE_ADMIN_API_URL=https://cloud1-d9geoogopf6e487d7-1483934229.ap-shanghai.app.tcloudbase.com/admin-api
    ```
 
-3. 在身份认证中启用小程序身份认证，后台另启用“用户名密码”认证。
-4. 创建后台管理员账号。密码、验证码和安全确认由账号持有人在控制台手动完成。
+3. 保留小程序身份认证。后台不使用身份认证，无需启用用户名密码认证或创建后台账号。
+4. 将 HTTP 网关 `/admin-api` 路由关联到 `wc-shop-function`，关闭路由身份认证，允许后台站点跨域访问。
 
 ## 2. 文档数据库
 
@@ -30,7 +31,6 @@ afterSales
 homeContents
 searchHistories
 settings
-adminMembers
 ```
 
 按下面的字段组合创建非唯一索引；空库阶段可以先创建集合，再在有数据后核对索引命中情况：
@@ -45,24 +45,7 @@ comments: productId + status + createdAt, orderId + userId
 afterSales: userId + createdAt, orderId + createdAt, status + updatedAt
 homeContents: status + slot + sort
 searchHistories: userId + updatedAt, userId + keyword
-adminMembers: uid, status
 ```
-
-### 首个管理员文档
-
-登录后台管理员账号后，从认证信息读取 UID，在 `adminMembers` 建立一条文档：
-
-```json
-{
-  "_id": "管理员 UID",
-  "uid": "管理员 UID",
-  "roles": ["superadmin"],
-  "status": "active",
-  "enabled": true
-}
-```
-
-不要把密码写入数据库或仓库。云函数只接受当前 CloudBase 身份上下文，并再次校验该白名单文档。
 
 ## 3. 数据库权限
 
@@ -70,7 +53,7 @@ adminMembers: uid, status
 
 - `products`、`categories`、`skus`、`homeContents`：读写由云函数完成。
 - `addresses`、`carts`、`orders`、`comments`、`afterSales`、`searchHistories`：读写由云函数完成，并由云函数使用当前 UID 隔离；用户基础资料不单独落库。
-- `settings`、`adminMembers`：只允许云函数/管理员服务端访问。
+- `settings`：只允许云函数/管理员服务端访问。
 
 在控制台中选择“仅管理员可读写”或等价的拒绝客户端读写规则；不要用“所有用户可读写”。保存后用小程序和后台分别做一次真实读取验证。
 
@@ -78,7 +61,7 @@ adminMembers: uid, status
 
 1. 启用云存储。
 2. 小程序评论图片写入 `user/comments/`，售后凭证写入 `user/after-sales/`；后台商品和 SKU 图片写入 `admin/products/`，首页轮播图片写入 `home/`。
-3. 存储规则只允许已认证用户上传约定前缀，并限制图片类型和大小；读取使用临时 URL，不把 Secret 放到前端。
+3. 存储规则只允许已认证用户上传约定前缀，并限制图片类型和大小；后台使用云函数发放的单文件上传元数据直传，读取使用临时 URL，不把长期 Secret 放到前端。
 4. 上传后确认文档中保存的是 `cloud://` fileID，而不是只保存本机临时路径。
 
 ## 5. 云函数与静态托管
@@ -96,7 +79,7 @@ npm run package:deploy
 - 上传 `dist/<version>/wc-shop-function.zip`；压缩包根目录必须直接有 `index.js`。
 - 启用静态网站托管，上传 `dist/<version>/wc-shop-admin-static.zip`；压缩包根目录必须直接有 `index.html`。
 
-部署完成后，先打开后台验证登录和 `admin.me`，再核对现有分类、商品和规格。库存以后台实际值为准，不重置商品数据。最后用小程序验证商品列表、购物车、模拟支付、待发货、手动发货、收货、评价与售后。首次使用退货退款前，在后台设置商家退货地址。
+部署完成后，先在新浏览器页面打开后台验证免登录访问、读取和保存，再核对现有分类、商品和规格。库存以后台实际值为准，不重置商品数据。最后用小程序验证商品列表、购物车、模拟支付、待发货、手动发货、收货、评价与售后。首次使用退货退款前，在后台设置商家退货地址。
 
 ## 6. v261005 体验版验收边界
 

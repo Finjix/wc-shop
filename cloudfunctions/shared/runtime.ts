@@ -9,7 +9,6 @@ function createRuntime(options) {
   return {
     cloudbase,
     app,
-    auth: app.auth(),
     db: app.database(),
   };
 }

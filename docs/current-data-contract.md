@@ -21,7 +21,6 @@
 
 ## 明确保留（不是旧业务兼容）
 
-- 当前后台实际使用的 `admin.me`、`products.save`、`categories.save`、`homeContent.list/save`、`comments.moderate`、`afterSales.review`。
 - 当前页面和组件模型的数字状态、`spuId`、`goodsList`、`rightsItem` 等展示字段；它们由明确的适配器生成，不参与旧文档别名查找。
 - 当前支持的订单状态及退款状态机，不将展示层“已完成”误认为独立数据迁移。
 - 权限、所有权、参数、金额、库存、并发、事务、幂等及重复退款/重复恢复库存保护。

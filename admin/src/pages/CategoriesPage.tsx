@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useBlocker, useOutletContext } from 'react-router-dom';
+import { useBlocker } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { ChevronDownIcon, ChevronUpIcon, DeleteIcon, EditIcon, ImageIcon } from 'tdesign-icons-react';
 import { adminApi } from '../lib/api';
@@ -8,7 +8,6 @@ import { useDraftImages } from '../lib/useDraftImages';
 import { useConfirm } from '../components/ConfirmProvider';
 import type { Category, ListResult } from '../types';
 import { ErrorState, LoadingState, Panel, Table } from '../components/Ui';
-import type { AdminOutletContext } from '../components/Layout';
 
 const idOf = (row: Category) => String(row._id || row.id || '');
 const sortCategories = (a: Category, b: Category) => Number(a.sort || 0) - Number(b.sort || 0)
@@ -58,7 +57,6 @@ export function CategoriesPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const imageTargetRef = useRef<Category | null>(null);
   const draftIdRef = useRef(0);
-  const { setUnsavedChanges } = useOutletContext<AdminOutletContext>();
   const dirty = !loading && (Boolean(uploadingId) || categorySnapshot(rows) !== categorySnapshot(savedRows)
     || Boolean(editingId && editingName.trim() !== rows.find((item) => idOf(item) === editingId)?.name));
   const blocker = useBlocker(dirty);
@@ -68,10 +66,6 @@ export function CategoriesPage() {
   const children = rows.filter((row) => parent && String(row.parentId || '') === idOf(parent));
   const orphans = rows.filter((row) => row.parentId && !parents.some((item) => idOf(item) === String(row.parentId)));
 
-  useEffect(() => {
-    setUnsavedChanges(dirty);
-    return () => setUnsavedChanges(false);
-  }, [dirty, setUnsavedChanges]);
   useEffect(() => {
     let active = true;
     void readCategories().then((items) => { if (active) { setRows(items); setSavedRows(items); } })

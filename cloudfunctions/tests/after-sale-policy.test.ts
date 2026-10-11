@@ -6,7 +6,7 @@ const { adminEndpoint } = require('../shared/admin');
 const { SCENARIOS, scenarioOf, presentAfterSale } = require('../shared/after-sale-policy');
 
 const user = { auth: { uid: 'user-1' } };
-const admin = { auth: { uid: 'admin-1' } };
+const admin = {};
 const errorCode = (code) => (error) => error?.code === code;
 
 async function run() {
@@ -26,7 +26,6 @@ async function run() {
   }
 
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
   const order = await shopEndpoint({}, user, runtime, 'orders.create', {
     requestKey: 'scenario-cancel', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
   });

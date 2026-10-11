@@ -10,8 +10,7 @@ const net = require('node:net');
 
 async function main() {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'wc-shop-commerce-'));
-  const collections = Object.fromEntries(['categories', 'products', 'skus', 'addresses', 'carts', 'orders', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings', 'adminMembers'].map(name => [name, {}]));
-  collections.adminMembers['local-admin'] = { _id: 'local-admin', uid: 'local-admin', roles: ['superadmin'], status: 'active', enabled: true };
+  const collections = Object.fromEntries(['categories', 'products', 'skus', 'addresses', 'carts', 'orders', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings'].map(name => [name, {}]));
   collections.products.p1 = { _id: 'p1', spuId: 'p1', status: 'active', title: '隔离验收商品' };
   collections.skus.s1 = { _id: 's1', skuId: 's1', productId: 'p1', stockQuantity: 10, soldQuantity: 0, salePrice: 100 };
   collections.products.p2 = { _id: 'p2', spuId: 'p2', status: 'active', title: '隔离验收第二个商品' };
@@ -32,7 +31,7 @@ async function main() {
   server.stderr.on('data', data => { logs += data; });
   const url = `http://127.0.0.1:${port}`;
   async function api(scope, action, data = {}, expectedCode, uid) {
-    const response = await fetch(`${url}/api`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-local-uid': uid || (scope === 'admin' ? 'local-admin' : 'commerce-test') }, body: JSON.stringify({ scope, action, data }) });
+    const response = await fetch(`${url}/api`, { method: 'POST', headers: { 'content-type': 'application/json', ...(scope === 'shop' ? { 'x-local-uid': uid || 'commerce-test' } : {}) }, body: JSON.stringify({ scope, action, data }) });
     const result = await response.json();
     if (expectedCode) { assert.equal(result.ok, false, action); assert.equal(result.error.code, expectedCode, action); return result; }
     assert.equal(result.ok, true, `${action}: ${JSON.stringify(result.error)}`);
@@ -49,6 +48,9 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     assert(ready, logs);
+    assert.equal((await fetch(`${url}/auth/login`, { method: 'POST', body: '{}' })).status, 404);
+    await admin('admin.me', {}, 'INVALID_ARGUMENT');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(folder, '.local-backend.json'), 'utf8')).collections.adminMembers, undefined);
     const input = { requestKey: 'http-partial', addressId: 'a1', items: [{ skuId: 's1', quantity: 3 }], useCart: false };
     const order = await shop('orders.create', input);
     assert.equal(order.status, 'paid'); assert.equal(order.payment.mode, 'simulated'); assert.equal(order.totalAmount, 300);

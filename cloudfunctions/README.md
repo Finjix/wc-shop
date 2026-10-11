@@ -1,12 +1,12 @@
 # wc-shop CloudBase functions
 
-这是小程序商城的真实后端契约。现在由一个 TypeScript 云函数 `wc-shop-function` 承载两类接口：`shop` 面向已登录用户，`admin` 面向 `adminMembers` 白名单中的运营人员。请求通过顶层 `scope` 字段分流，入口源码为 `cloudfunctions/wc-shop-function/index.ts`，部署时使用编译后的 `index.js`。
+这是小程序商城的真实后端契约。现在由一个 TypeScript 云函数 `wc-shop-function` 承载两类接口：`shop` 面向已登录用户，`admin` 免登录提供后台管理功能。请求通过顶层 `scope` 字段分流，入口源码为 `cloudfunctions/wc-shop-function/index.ts`，部署时使用编译后的 `index.js`。
 
 ## 部署前置条件
 
 1. 在 CloudBase 环境中启用微信/小程序身份认证、文档数据库和云存储。
 2. 在仓库外设置当前环境变量 `CLOUDBASE_ENV_ID`，它只用于解析 `cloudbaserc.json`；小程序运行时环境 ID 维护在 `config/runtime.ts`，部署前需与控制台 `cloud1` 环境核对。
-3. 在数据库中创建首个 `adminMembers` 文档，推荐把文档 `_id` 设为 CloudBase 用户 UID，并设置 `status: "active"`、`roles: ["superadmin"]`。函数不会创建或绕过管理员。
+3. 为函数配置 `/admin-api` HTTP 网关路由，关闭该路由身份认证。后台设置 `VITE_ADMIN_API_URL` 为此路由的完整 HTTPS 地址；HTTP 入口只接受 `scope: "admin"` 的 POST 请求，小程序仍通过 SDK 调用并校验用户身份。
 4. 使用 CloudBase CLI 在仓库根目录部署；配置已打开云端安装依赖，运行环境为 Node.js 20.19。先运行 `npm run package:deploy` 完成编译，再使用 `tcb fn deploy wc-shop-function`，实际环境 ID 由 CLI/环境变量提供。
 
 ## 控制台 ZIP 部署
@@ -51,7 +51,6 @@ wx.cloud.callFunction({
 
 `scope: 'admin'`：
 
-- `auth.me`
 - `categories.*`、`products.*`、`skus.*`（list/get/create/update/delete；delete 为下架）
 - `inventory.adjust`
 - `home.list/get/upsert`
@@ -84,7 +83,7 @@ wx.cloud.callFunction({
 
 ## 集合结构与建议索引
 
-核心集合：`categories`、`products`、`skus`、`addresses`、`carts`、`orders`、`orderRequests`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`、`adminMembers`；不建立用户档案集合。
+核心集合：`categories`、`products`、`skus`、`addresses`、`carts`、`orders`、`orderRequests`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`；不建立用户档案集合。
 
 建议在 CloudBase 数据库中建立以下索引（均为非唯一，除非控制台明确支持并确认现有数据无重复）：
 
@@ -97,7 +96,6 @@ wx.cloud.callFunction({
 - `afterSales`: `userId + createdAt`、`orderId + createdAt`、`status + updatedAt`
 - `homeContents`: `status + slot + sort`
 - `searchHistories`: `userId + updatedAt`、`userId + keyword`
-- `adminMembers`: `uid`、`status`
 
 主要字段：
 
@@ -106,7 +104,6 @@ wx.cloud.callFunction({
 - `addresses/carts`: 均带 `userId`；购物车文档 `_id` 推荐直接使用 UID
 - `orders`: `userId`, `status`, `paymentStatus`, `items`, `addressSnapshot`, `subtotal`, `shippingFee`, `totalAmount`, `requestHash`, `checkoutId`, `checkoutOrderIds`, `shipmentBatchId`, `shipmentOrderIds`, `commentedProductIds`, `hasPendingComments`, `afterSaleIds`
 - `orderRequests`: 用户与请求 key 的确定性映射，保存首单 `orderId`、全部 `orderIds` 和请求哈希；另有订单 ID 预留记录
-- `adminMembers`: `_id`/`uid`, `roles`, `status`, `enabled`
 
 ## 状态枚举
 
@@ -117,9 +114,9 @@ wx.cloud.callFunction({
 
 ## 安全边界
 
-- 所有用户写操作只使用服务端从 CloudBase 请求上下文解析的 UID；`userId`、金额、库存、订单状态和管理员角色不信任客户端。
-- `scope: 'admin'` 的请求必须同时通过 CloudBase UID 身份校验、`adminMembers` 存在性、启用状态和角色 scope 校验；`scope` 只负责路由，不能替代权限校验。
-- 服务端 SDK 具备管理员数据库权限，因此数据库客户端规则仍应配置为最小权限：客户端不直接写商品、库存、订单状态、管理员、设置或评论审核字段。
+- 所有用户写操作只使用服务端从 CloudBase 请求上下文解析的 UID；`userId`、金额、库存和订单状态不信任客户端。
+- `scope: 'admin'` 的请求必须同时通过 CloudBase UID 身份校验 存在性、启用状态和角色 scope 校验；`scope` 只负责路由，不能替代权限校验。
+- 服务端 SDK 具备管理员数据库权限，因此数据库客户端规则仍应配置为最小权限：客户端不直接写商品、库存、订单状态、设置或评论审核字段。
 - `user.me` / `user.update` 只返回当前请求身份所需的临时资料，头像固定为 `/assets/user-avatar.jpg`，忽略客户端传入的头像；不建立或更新用户档案；订单仍保留履约所需的 `userId` 和收货地址快照。
 - `fileId` 必须是应用约定的 CloudBase 存储路径；生产环境应在云存储规则或后台函数中继续限制前缀、文件类型和大小。
 - 函数没有硬编码环境 ID、账号、SecretId、SecretKey、密码或支付密钥。

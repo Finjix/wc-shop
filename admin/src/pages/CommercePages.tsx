@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useBlocker, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Dialog, Input, Tag } from 'tdesign-react';
 import { adminApi, ApiError } from '../lib/api';
 import { parseRefundAmount } from '../lib/refund-amount';
@@ -7,7 +7,6 @@ import { afterSalePolicy, afterSaleRequestLabel, afterSaleReceiptLabel } from '.
 import { useConfirm } from '../components/ConfirmProvider';
 import type { AfterSale, Comment, ListResult, Order, OrderAddressGroup } from '../types';
 import { EmptyState, EmptyTable, ErrorState, Field, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
-import type { AdminOutletContext } from '../components/Layout';
 
 function useResource<T>(action: string, payload: Record<string, unknown>, refreshKey = 0) {
   const [data, setData] = useState<T | null>(null);
@@ -635,21 +634,19 @@ export function SettingsPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
-  const { setUnsavedChanges } = useOutletContext<AdminOutletContext>();
   const confirm = useConfirm();
   const dirty = !loading && JSON.stringify(value) !== JSON.stringify(saved);
   const blocker = useBlocker(dirty);
-  useEffect(() => { setUnsavedChanges(dirty); return () => setUnsavedChanges(false); }, [dirty, setUnsavedChanges]);
   useEffect(() => {
     if (blocker.state !== 'blocked') return;
     let active = true;
     void confirm('退货地址尚未保存，确定离开吗？').then((confirmed) => {
       if (!active) return;
-      if (confirmed) { setValue(saved); setUnsavedChanges(false); blocker.proceed(); }
+      if (confirmed) { setValue(saved); blocker.proceed(); }
       else blocker.reset();
     });
     return () => { active = false; };
-  }, [blocker.state, blocker.proceed, blocker.reset, confirm, saved, setUnsavedChanges]);
+  }, [blocker.state, blocker.proceed, blocker.reset, confirm, saved]);
   useEffect(() => {
     let active = true;
     void adminApi.call<Record<string, unknown>>('settings.get', { key: 'global' }).then((result) => {
@@ -685,7 +682,7 @@ export function SettingsPage() {
           && !(err instanceof Error && /请求的数据不存在/.test(err.message))) throw err;
       }
       await adminApi.call('settings.upsert', { key: 'global', value: { ...existing, returnAddress: value } });
-      setSaved(value); setUnsavedChanges(false); message('退货地址已保存');
+      setSaved(value); message('退货地址已保存');
     } catch (err) { message(err instanceof Error ? err.message : '退货地址保存失败', 'error'); }
     finally { busyRef.current = false; setBusy(false); }
   };

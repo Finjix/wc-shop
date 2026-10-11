@@ -8,7 +8,6 @@ const user = { auth: { uid: 'user-1' } }, admin = { auth: { uid: 'admin-1' } };
 async function run() {
   for (const state of ['paid', 'paid_pending', 'shipped', 'shipped_pending', 'received', 'completed', 'refunded', 'cancelled']) {
     const runtime = makeRuntime();
-    runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
     const order = await shopEndpoint({}, user, runtime, 'orders.create', { requestKey: `delete-${state}`, addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }] });
     if (['shipped', 'shipped_pending', 'received', 'completed', 'refunded'].includes(state)) {
       await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: order._id, trackingNo: 'SF001' });
@@ -55,7 +54,6 @@ async function run() {
     assert.strictEqual((await shopEndpoint({}, user, runtime, 'afterSales.list', {})).total, 0);
   }
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
   const order = await shopEndpoint({}, user, runtime, 'orders.create', { requestKey: 'delete-partial-refund', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 2 }] });
   const claim = await shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: order._id, type: 20, reason: '取消一件', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }] });
   await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: claim._id, status: 'approved' });

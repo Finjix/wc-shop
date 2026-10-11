@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useBlocker, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
+import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { EmptyState, ErrorState, LoadingState, Panel, Table } from '../components/Ui';
-import type { AdminOutletContext } from '../components/Layout';
 import { adminApi, ApiError } from '../lib/api';
 import { variantName, variantStock } from '../lib/sku';
 import type { ListResult, Product, Sku } from '../types';
@@ -57,7 +56,6 @@ export function SkuInventoryPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { setUnsavedChanges } = useOutletContext<AdminOutletContext>();
   const stockChanges = Object.entries(stockDrafts).filter(([skuId, draft]) => {
     const currentStock = skuCache[skuId] ? variantStock(skuCache[skuId]) : -1;
     return !/^\d+$/.test(draft.value.trim()) || Number(draft.value) !== currentStock;
@@ -65,7 +63,6 @@ export function SkuInventoryPage() {
   const dirty = stockChanges.length > 0;
   const blocker = useBlocker(dirty);
 
-  useEffect(() => { setUnsavedChanges(dirty); return () => setUnsavedChanges(false); }, [dirty, setUnsavedChanges]);
   useEffect(() => { setQueryInput(routeQuery); setQuery(routeQuery); setPage(1); }, [routeQuery]);
 
   useEffect(() => {

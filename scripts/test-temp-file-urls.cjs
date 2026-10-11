@@ -6,7 +6,7 @@ const ts = require('typescript');
 const root = path.resolve(__dirname, '..');
 function load(file, globals = {}) {
   const exports = {};
-  const source = fs.readFileSync(path.join(root, file), 'utf8').replaceAll('import.meta.env', '({})');
+  const source = fs.readFileSync(path.join(root, file), 'utf8').replaceAll('import.meta.env', "({VITE_ADMIN_API_URL:'https://api.test/admin'})");
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports, console, ...globals });
@@ -26,10 +26,13 @@ async function run() {
     const api = client === 'shop' ? load('utils/cloud.ts', {
       require: (ref) => ref === './temp-file-urls' ? urls : ref === './cloud-read-retry' ? readRetry : { cloudEnvId: 'test', cloudFunctionName: 'wc-shop-function' },
       wx: { cloud: app }, console: { ...console, error() {} },
-    }) : load('admin/src/lib/api.ts', { console: { ...console, error() {} }, require(ref) {
+    }) : load('admin/src/lib/api.ts', { fetch: async (_url, options) => {
+      assert.equal(options.credentials, 'omit');
+      const response = await app.callFunction({ data: JSON.parse(options.body) });
+      return { status: 200, json: async () => response.result };
+    }, console: { ...console, error() {} }, require(ref) {
       if (ref.includes('temp-file-urls')) return urls;
       if (ref.includes('cloud-read-retry')) return readRetry;
-      if (ref === './cloudbase') return { cloudbaseApp: app, requireCloudBase: () => ({ app }) };
       return {};
     } });
     const ids = Array.from({ length: 54 }, (_, i) => `cloud://test/home/${i}.webp`);

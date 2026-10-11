@@ -3,7 +3,7 @@
 const assert = require('assert');
 const sharp = require('sharp');
 
-const { getIdentity, requireUser, requireAdmin } = require('../shared/auth');
+const { getIdentity, requireUser } = require('../shared/auth');
 const { resultData, listData, getDoc, withTransaction } = require('../shared/db');
 const { normalizeOrderItems, shopEndpoint } = require('../shared/shop');
 const { STATUS, ORDER_STATUS } = require('../shared/constants');
@@ -348,7 +348,6 @@ async function testSkuTimestampIdsAvoidCollisions() {
 
 async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   const context = { auth: { uid: 'admin-1' } };
   const created = await adminEndpoint({}, context, runtime, 'products.save', {
     title: '规格商品', primaryImage: 'cover.jpg', detailImages: ['detail-1.jpg', 'detail-2.jpg'],
@@ -417,7 +416,6 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
 
 async function testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   const context = { auth: { uid: 'admin-1' } };
   const base = { title: '统一管理商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
   const created = await adminEndpoint({}, context, runtime, 'products.save', {
@@ -485,7 +483,6 @@ async function testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus() {
 
 async function testDeletingProductClearsHomeLinksWithoutRemovingSlots() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   runtime.records.products['product-1'].spuId = 'legacy-product-1';
   const payload = {
     searchText: '欢迎', bannerText: '公告',
@@ -523,7 +520,6 @@ async function testDeletingProductClearsHomeLinksWithoutRemovingSlots() {
 
 async function testHomeCleanupPreservesActiveLegacyProductLinks() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   runtime.records.products['product-1'].spuId = 'legacy-product-1';
   const payload = {
     searchText: '欢迎', bannerText: '公告',
@@ -555,7 +551,6 @@ async function testHomeCleanupPreservesActiveLegacyProductLinks() {
 
 async function testInactiveProductsArePinnedBeforePagination() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   runtime.records.products['product-1'].status = 'active';
   runtime.records.products['product-1'].updatedAt = '2026-01-01';
   runtime.records.products['inactive-product'] = { _id: 'inactive-product', title: '已下架商品', status: 'inactive', updatedAt: '2020-01-01' };
@@ -567,7 +562,6 @@ async function testInactiveProductsArePinnedBeforePagination() {
 
 async function testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   const context = { auth: { uid: 'admin-1' } };
   const base = { title: '分开管理库存', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
   const created = await adminEndpoint({}, context, runtime, 'products.save', {
@@ -600,7 +594,6 @@ async function testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt()
 
 async function testProductSkuListAndSaveReadEveryVariant() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   const context = { auth: { uid: 'admin-1' } };
   const variants = Array.from({ length: 100 }, (_, index) => {
     const skuId = `sku-${index}`;
@@ -700,7 +693,6 @@ async function testTransactionWrapperIsNormalized() {
 
 async function testPaidOrdersCannotBeCancelled() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
   const input = { requestKey: 'refund-only-test', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 2 }] };
   const call = (action, data) => shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, action, data);
   const order = await call('orders.create', input);
@@ -803,7 +795,6 @@ async function testOrderCreationRechecksProductStatus() {
 
 async function testDashboardProductCountUsesCountQuery() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   for (let index = 0; index < 25; index += 1) runtime.records.products[`extra-${index}`] = { _id: `extra-${index}` };
   runtime.records.skus['sku-new'].stockQuantity = 3;
   runtime.records.skus['sku-zero'] = { ...runtime.records.skus['sku-new'], _id: 'sku-zero', skuId: 'sku-zero', stockQuantity: 0 };
@@ -859,8 +850,6 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   assert.strictEqual(result.productsById['product-1'].title, '测试商品');
 
   const writable = makeRuntime();
-  writable.records.adminMembers = {};
-  writable.records.adminMembers['admin-1'] = { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' };
   const saved = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
     id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: config,
   });
@@ -905,7 +894,6 @@ async function testHomeConfigLimitsAndLegacyResponse() {
 
 async function testTwoLevelCategoriesAndCascadeDeletion() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', role: 'admin', status: 'active' } };
   const context = { auth: { uid: 'admin-1' } };
   const parent = await adminEndpoint({}, context, runtime, 'categories.save', { name: '鞋靴', parentId: null });
   await adminEndpoint({}, context, runtime, 'products.update', { id: 'product-1', categoryIds: [parent._id] });
@@ -977,18 +965,22 @@ function receivedOrder(items = [{ productId: 'product-1', skuId: 'sku-new', quan
   return { _id: 'order-1', orderNo: 'order-1', userId: 'user-1', status: 'received', fulfillmentStatus: 'received', items, totalAmount: amount, paymentAmount: amount, paymentStatus: 'paid', payment: { mode: 'simulated', amount, status: 'paid' }, refundAmount: 0, refundedQuantities: {}, pendingRefundAmount: 0, pendingRefundQuantities: {}, afterSaleIds: [] };
 }
 
-async function testOnlyActiveAdminsAreAllowed() {
+async function testAnonymousAdminReadAndWrite() {
   const runtime = makeRuntime();
-  const member = { _id: 'admin-1', roles: ['admin'], status: 'active' };
-  runtime.records.adminMembers = { 'admin-1': member };
-  const context = { auth: { uid: 'admin-1' } };
-  await requireAdmin(runtime.db, {}, context, 'catalog');
-  for (const status of ['inactive', 'disabled', '', undefined]) {
-    member.status = status;
-    await assert.rejects(() => requireAdmin(runtime.db, {}, context, 'catalog'), appError('FORBIDDEN'));
+  runtime.auth = { getUserInfo() { throw new Error('admin must not resolve identity'); } };
+  const originalCollection = runtime.db.collection;
+  runtime.db.collection = (name) => {
+    assert.notStrictEqual(name, 'adminMembers', 'legacy member collection is never read');
+    return originalCollection(name);
+  };
+  const result = await adminEndpoint({}, {}, runtime, 'products.list', {});
+  assert(result.items.length > 0);
+  const saved = await adminEndpoint({}, {}, runtime, 'settings.upsert', { key: 'public-admin-test', value: 'saved' });
+  assert.strictEqual(saved.value, 'saved');
+  for (const action of ['admin.me', 'auth.me']) {
+    await assert.rejects(() => adminEndpoint({}, {}, runtime, action, {}), appError('INVALID_ARGUMENT'));
   }
-  member.status = 'active'; member.enabled = false;
-  await assert.rejects(() => requireAdmin(runtime.db, {}, context, 'catalog'), appError('FORBIDDEN'));
+  assert.throws(() => requireUser({}, {}, {}), appError('UNAUTHENTICATED'));
 }
 
 async function testOrderPricesAndSnapshotsAreConfirmedInTransaction() {
@@ -1055,8 +1047,7 @@ async function testCommentsAreAtomicPrivateAndQueryableByOwner() {
 
 async function testAdminCommentPresentationAndModeration() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
-  const admin = { auth: { uid: 'admin-1' } };
+  const admin = {};
   runtime.records.orders['order-1'] = receivedOrder([{
     productId: 'product-1', skuId: 'sku-new', quantity: 1, amount: 100,
     productSnapshot: { title: '购买时商品名称' }, skuSnapshot: { specInfo: [{ specValue: '大号' }] },
@@ -1094,7 +1085,7 @@ async function testAdminCommentPresentationAndModeration() {
   assert.strictEqual(runtime.records.comments.old.reply, '');
   await adminEndpoint({}, admin, runtime, 'comments.moderate', { id: 'old', status: 'rejected' });
   assert.strictEqual((await shopEndpoint({}, {}, runtime, 'comments.list', {})).total, 0);
-  await assert.rejects(() => adminEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'comments.list', {}), appError('FORBIDDEN'));
+  assert((await adminEndpoint({}, {}, runtime, 'comments.list', {})).total > 0);
 }
 
 async function testReceivedOrdersAndPendingCommentPagination() {
@@ -1173,9 +1164,8 @@ async function testAfterSalesValidateSkuQuantityAmountAndConcurrentClaims() {
 
 async function testSimulatedPaymentAddressLockedAndFullRefundRestoreInventory() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', roles: ['admin'], status: 'active' } };
   const user = { auth: { uid: 'user-1' } };
-  const admin = { auth: { uid: 'admin-1' } };
+  const admin = {};
   const created = await shopEndpoint({}, user, runtime, 'orders.create', {
     requestKey: 'sim-refund', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
   });
@@ -1242,7 +1232,6 @@ async function testCartCheckoutRetryAfterAtomicRemovalIsIdempotent() {
 
 function makeBatchRuntime() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
   runtime.records.products['product-2'] = { _id: 'product-2', spuId: 'product-2', title: '第二个商品', status: 'active' };
   runtime.records.skus['sku-second'] = { _id: 'sku-second', skuId: 'sku-second', productId: 'product-2', stockQuantity: 6, salePrice: 250 };
   runtime.records.skus['sku-variant'] = { _id: 'sku-variant', skuId: 'sku-variant', productId: 'product-1', stockQuantity: 5, salePrice: 150 };
@@ -1433,7 +1422,7 @@ async function testAddressGroupingPrecedesPaginationAndSeparatesRecipients() {
 
 async function testBatchShippingHasNoBusinessCountLimit() {
   const runtime = makeBatchRuntime();
-  const admin = { auth: { uid: 'admin-1' } };
+  const admin = {};
   const original = await shopEndpoint({}, { auth: { uid: 'user-1' } }, runtime, 'orders.create', {
     requestKey: 'large-batch-ship', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
   });
@@ -1460,7 +1449,7 @@ async function testBatchShippingHasNoBusinessCountLimit() {
 async function testBatchShippingRechecksAddressStateAndRefundsAtomically() {
   const runtime = makeBatchRuntime();
   const user = { auth: { uid: 'user-1' } };
-  const admin = { auth: { uid: 'admin-1' } };
+  const admin = {};
   const created = await shopEndpoint({}, user, runtime, 'orders.create', {
     requestKey: 'batch-ship', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 3 }, { skuId: 'sku-second', quantity: 2 }],
   });
@@ -1471,8 +1460,6 @@ async function testBatchShippingRechecksAddressStateAndRefundsAtomically() {
   await assert.rejects(() => ship({ ...input, trackingNo: ' ' }), appError('INVALID_ARGUMENT'));
   await assert.rejects(() => ship({ ...input, orderIds: [] }), appError('INVALID_ARGUMENT'));
   await assert.rejects(() => ship({ ...input, orderIds: Array(51).fill(input.orderIds[0]) }), appError('INVALID_ARGUMENT'));
-  runtime.records.adminMembers['inventory-1'] = { _id: 'inventory-1', status: 'active', roles: ['inventory'] };
-  await assert.rejects(() => adminEndpoint({}, { auth: { uid: 'inventory-1' } }, runtime, 'orders.shipBatch', input), appError('FORBIDDEN'));
 
   const transaction = runtime.db.runTransaction;
   runtime.db.runTransaction = (worker) => {
@@ -1529,9 +1516,8 @@ async function testBatchShippingRechecksAddressStateAndRefundsAtomically() {
 
 async function testPreShipmentPartialRefundLeavesAccurateShippedQuantity() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', roles: ['admin'], status: 'active' } };
   const user = { auth: { uid: 'user-1' } };
-  const admin = { auth: { uid: 'admin-1' } };
+  const admin = {};
   const created = await shopEndpoint({}, user, runtime, 'orders.create', {
     requestKey: 'refund-before-ship', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 3 }],
   });
@@ -1555,9 +1541,8 @@ async function testPreShipmentPartialRefundLeavesAccurateShippedQuantity() {
 
 async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', uid: 'admin-1', roles: ['admin'], status: 'active' } };
   const user = { auth: { uid: 'user-1' } };
-  const admin = { auth: { uid: 'admin-1' } };
+  const admin = {};
   const created = await shopEndpoint({}, user, runtime, 'orders.create', {
     requestKey: 'partial-return', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 2 }],
   });
@@ -1685,7 +1670,6 @@ async function testAdminStatusRechecksAfterConcurrentRefund() {
   for (const next of ['received', 'completed']) {
     const runtime = makeRuntime();
     const user = { auth: { uid: 'user-1' } }, admin = { auth: { uid: 'admin-1' } };
-    runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
     const order = await shopEndpoint({}, user, runtime, 'orders.create', {
       requestKey: `race-${next}`, addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
     });
@@ -1723,7 +1707,6 @@ async function testAdminStatusRechecksAfterConcurrentRefund() {
 async function testMerchantRefundAmountsAndReservationRelease() {
   const runtime = makeRuntime();
   const user = { auth: { uid: 'user-1' } }, admin = { auth: { uid: 'admin-1' } };
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
   const order = await shopEndpoint({}, user, runtime, 'orders.create', {
     requestKey: 'merchant-amount', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 2 }],
   });
@@ -1843,7 +1826,6 @@ async function testLegacyOrdersWithoutAfterSaleIndexCanApply() {
 async function testReceiptStatusAndClosedAfterSales() {
   const runtime = makeRuntime();
   const user = { auth: { uid: 'user-1' } }, admin = { auth: { uid: 'admin-1' } };
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
   const order = await shopEndpoint({}, user, runtime, 'orders.create', {
     requestKey: 'receipt', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
   });
@@ -1884,7 +1866,6 @@ async function testLegacyPaidOrdersDoNotGainSyntheticPaymentRecords() {
 
 async function testDashboardCountsBeyondSdkQueryLimit() {
   const runtime = makeRuntime();
-  runtime.records.adminMembers = { 'admin-1': { _id: 'admin-1', roles: ['admin'], status: 'active' } };
   for (const name of ['orders', 'comments', 'afterSales']) runtime.records[name] = Object.fromEntries(Array.from({ length: 120 }, (_, i) => [`item-${i}`, {
     _id: `item-${i}`, status: name === 'orders' ? 'paid' : 'pending_review',
   }]));
@@ -1900,7 +1881,7 @@ async function testDashboardCountsBeyondSdkQueryLimit() {
 
 const cases = [
   { name: 'missing runtime dependencies are not reported as missing business data', run: testMissingDependenciesAreNotMissingData },
-  { name: 'only explicitly active administrators can access the backend', run: testOnlyActiveAdminsAreAllowed },
+  { name: 'anonymous admin reads and writes without a member collection', run: testAnonymousAdminReadAndWrite },
   { name: 'order prices, product snapshots and addresses are confirmed in the transaction', run: testOrderPricesAndSnapshotsAreConfirmedInTransaction },
   { name: 'historical pending-payment orders remain untouched and are not migrated on read', run: testHistoricalPendingPaymentOrdersRemainUntouched },
   { name: 'comments are atomic, public fields are restricted, and owners see pending reviews', run: testCommentsAreAtomicPrivateAndQueryableByOwner },

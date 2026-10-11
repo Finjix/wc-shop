@@ -24,18 +24,25 @@ async function queueFiles(db, ids, ownerId, cleanupAfter = new Date().toISOStrin
 
 // Reserve the file ID before upload so even a closed tab or lost response leaves
 // a durable lease. A full reference scan is still required before deletion.
-async function prepareUpload(runtime, folder, ownerId) {
+async function prepareUpload(runtime, folder, ownerId, directUpload = false) {
   if (!['admin/products', 'admin/categories', 'home', 'user/comments', 'user/after-sales'].includes(folder)) throw errorFrom('FORBIDDEN');
   const cloudPath = `${folder}/${crypto.randomUUID()}.webp`;
   let fileID;
+  let upload;
   if (runtime.localStorage) fileID = `local://${cloudPath}`;
   else {
     const metadata = await runtime.app.getUploadMetadata({ cloudPath });
     fileID = metadata?.data?.fileId;
     if (!managed(fileID) || pathOf(fileID) !== cloudPath) throw errorFrom('STORAGE_ERROR');
+    if (directUpload) {
+      const { url, token, authorization, cosFileId } = metadata.data;
+      if (!url || !token || !authorization || !cosFileId || !/^https:\/\//.test(url)) throw errorFrom('STORAGE_ERROR');
+      upload = { url, fields: { Signature: authorization, 'x-cos-security-token': token,
+        'x-cos-meta-fileid': cosFileId, key: cloudPath } };
+    }
   }
   await queueFiles(runtime.db, [fileID], ownerId, new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
-  return { cloudPath, fileID };
+  return { cloudPath, fileID, ...(upload ? { upload } : {}) };
 }
 function canonical(value) {
   if (stored(value)) return value;

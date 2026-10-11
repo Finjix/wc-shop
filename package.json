@@ -12,7 +12,6 @@
     "test:cloud": "tsc -p cloudfunctions/tsconfig.json && node cloudfunctions/.build/tests/run.js",
     "test:admin-upload": "node scripts/test-admin-upload.cjs",
     "test:admin-draft-images": "node scripts/test-admin-draft-images.cjs",
-    "test:admin-session": "node scripts/test-admin-session.cjs",
     "test:admin-lightbox": "node scripts/test-admin-lightbox.cjs",
     "test:admin-confirm": "node scripts/test-admin-confirm.cjs",
     "test:checkout": "node scripts/test-checkout.cjs",
@@ -32,7 +31,8 @@
     "build:image-codec": "node scripts/build-image-codec.cjs",
     "test:user-images": "node scripts/test-user-images.cjs",
     "test:cloud-dependencies": "tsc -p cloudfunctions/tsconfig.json && node scripts/test-cloud-dependencies.cjs",
-    "test:temp-file-urls": "node scripts/test-temp-file-urls.cjs"
+    "test:temp-file-urls": "node scripts/test-temp-file-urls.cjs",
+    "test:admin-public": "node scripts/test-admin-public.cjs"
   },
   "author": "",
   "license": "ISC",
