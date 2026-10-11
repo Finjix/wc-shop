@@ -9,7 +9,7 @@
 - 分页请求/响应使用 `page`、`pageSize`、`items`、`total`。小程序页面内部的 `pageNum`、`pageList` 等由展示适配器转换，不作为云端兼容接口。
 - 首页只读取 `home.page-config` 的 `config` 及 `productsById`；不读取旧独立轮播、旧首页图片列表，也不改写历史默认文案。
 - 新订单创建时初始化 `refundAmount`、`refundedQuantities`、`pendingRefundAmount`、`pendingRefundQuantities`、`afterSaleIds`。售后和发货直接使用这些字段，不再查询旧售后记录重建统计。
-- 订单地址使用 `addressSnapshot`；小程序编辑器字段与云端地址字段之间仅保留当前单向转换。
+- 地址簿持久化到小程序本地 `wc-shop.addresses.v1`，不调用云端地址接口。下单时将编辑器字段转换成订单 `addressSnapshot`，仅订单收货快照保存在云端。
 - 退货地址只使用 `receiver`、`phone`、`detail`；不合并旧省市区，不读取旧字段名。
 - 售后业务展示使用订单号；内部 `_id` 用于区分同一订单的多次申请。物流提交使用 `afterSaleId`、`trackingNo`、`logisticsCompanyName`，审核使用 `id`、`status`，确认退货使用 `afterSaleId`。
 - 评价使用 `productId`、`content`、`rating`、`images` 及当前状态值，展示字段由小程序适配器生成。

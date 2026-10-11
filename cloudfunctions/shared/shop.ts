@@ -275,80 +275,6 @@ function addressInput(data) {
   return result;
 }
 
-async function listAddresses(runtime, identity) {
-  const result = await list(collection(runtime, COLLECTIONS.addresses), { where: { userId: identity.uid }, orderBy: { field: 'isDefault', direction: 'desc' } });
-  return { items: result.items, total: result.items.length };
-}
-
-async function addressAction(runtime, event, context, data, action) {
-  const identity = requireUser(event, context, runtime);
-  const addresses = collection(runtime, COLLECTIONS.addresses);
-  if (action === 'addresses.list') return listAddresses(runtime, identity);
-  if (action === 'addresses.get') {
-    const item = await getDoc(addresses, string(data.addressId, 'addressId'), true);
-    if (item.userId !== identity.uid) throw errorFrom('FORBIDDEN');
-    return item;
-  }
-  if (action === 'addresses.create') {
-    const timestamp = now();
-    const id = `addr_${crypto.randomUUID()}`;
-    const existingAddresses = await list(addresses, { where: { userId: identity.uid }, limit: 100, includeTotal: false });
-    const item = { _id: id, ...addressInput(data), userId: identity.uid, isDefault: Boolean(data.isDefault) || existingAddresses.items.length === 0, createdAt: timestamp, updatedAt: timestamp };
-    if (!item.isDefault) {
-      await setDoc(addresses, id, item);
-      return item;
-    }
-    return withTransaction(runtime.db, async (tx) => {
-      for (const address of existingAddresses.items) {
-        await tx.collection(COLLECTIONS.addresses).doc(address._id).update({ isDefault: false, updatedAt: timestamp });
-      }
-      await setDoc(tx.collection(COLLECTIONS.addresses), id, item);
-      return item;
-    });
-  }
-  const id = string(data.addressId, 'addressId');
-  const existing = await getDoc(addresses, id, true);
-  if (existing.userId !== identity.uid) throw errorFrom('FORBIDDEN');
-  if (action === 'addresses.update') {
-    const patch = { ...addressInput(data), updatedAt: now() };
-    if (data.isDefault !== undefined) patch.isDefault = Boolean(data.isDefault);
-    if (patch.isDefault) {
-      const existingAddresses = await list(addresses, { where: { userId: identity.uid }, limit: 100, includeTotal: false });
-      await withTransaction(runtime.db, async (tx) => {
-        for (const address of existingAddresses.items) {
-          await tx.collection(COLLECTIONS.addresses).doc(address._id).update({ isDefault: address._id === id, updatedAt: patch.updatedAt });
-        }
-        await tx.collection(COLLECTIONS.addresses).doc(id).update({ ...patch, isDefault: true });
-      });
-    } else {
-      const result = await addresses.doc(id).update(patch);
-      if (affected(result) !== 1) throw errorFrom('CONFLICT');
-    }
-    return { ...existing, ...patch, _id: id };
-  }
-  if (action === 'addresses.setDefault') {
-    const timestamp = now();
-    const existingAddresses = await list(addresses, { where: { userId: identity.uid }, limit: 100, includeTotal: false });
-    await withTransaction(runtime.db, async (tx) => {
-      for (const address of existingAddresses.items) {
-        await tx.collection(COLLECTIONS.addresses).doc(address._id).update({ isDefault: address._id === id, updatedAt: timestamp });
-      }
-    });
-    return { ...existing, isDefault: true, _id: id };
-  }
-  if (action === 'addresses.remove') {
-    const existingAddresses = await list(addresses, { where: { userId: identity.uid }, limit: 100, includeTotal: false });
-    const replacement = existing.isDefault ? existingAddresses.items.find((item) => item._id !== id) : null;
-    await withTransaction(runtime.db, async (tx) => {
-      const result = await tx.collection(COLLECTIONS.addresses).doc(id).remove();
-      if (affected(result) !== 1) throw errorFrom('CONFLICT');
-      if (replacement) await tx.collection(COLLECTIONS.addresses).doc(replacement._id).update({ isDefault: true, updatedAt: now() });
-    });
-    return { addressId: id };
-  }
-  throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
-}
-
 async function getCart(runtime, identity) {
   const cart = await getDoc(collection(runtime, COLLECTIONS.carts), identity.uid, false);
   const sourceItems = cart && Array.isArray(cart.items) ? cart.items : [];
@@ -540,15 +466,11 @@ function pricedOrderItem(product, sku, skuId, quantity) {
 async function orderDraft(runtime, identity, data, source, requireAddress = true) {
   const input = orderInput(data);
   const items = normalizeOrderItems(source || input.items);
-  const addressRef = input.addressId;
   let address = null;
-  if (addressRef !== undefined && addressRef !== null && addressRef !== '') {
-    const addressId = string(addressRef, 'addressId', { max: 128 });
-    address = await getDoc(collection(runtime, COLLECTIONS.addresses), addressId, true);
-    if (address.userId !== identity.uid) throw errorFrom('FORBIDDEN');
-  } else if (requireAddress) {
-    throw errorFrom('ADDRESS_REQUIRED');
-  }
+  if (input.address !== undefined && input.address !== null) {
+    address = addressInput(input.address);
+    if (input.addressId) address._id = string(input.addressId, 'addressId', { max: 128 });
+  } else if (requireAddress) throw errorFrom('ADDRESS_REQUIRED');
   const resolved = [];
   for (const input of items) {
     const sku = await getSku(runtime, input.skuId, true);
@@ -569,7 +491,7 @@ async function previewOrder(runtime, event, context, data) {
   const cart = input.useCart ? await getCart(runtime, identity) : null;
   const items = cart ? cart.items : input.items;
   const source = cart ? cart.items.filter((item) => item.isSelected).map((item) => ({ skuId: item.skuId, quantity: item.quantity })) : items;
-  // Only preview may omit an address; order creation always requires an owned address.
+  // Only preview may omit an address; order creation always requires a validated shipping snapshot.
   return orderDraft(runtime, identity, input, source, false);
 }
 
@@ -605,16 +527,19 @@ async function createOrder(runtime, event, context, data) {
   const prior = await getDoc(collection(runtime, COLLECTIONS.orderRequests), requestId, false);
   if (prior?.deletedOrderIds?.length) throw errorFrom('ORDER_STATE_INVALID');
   const priorOrderId = prior?.orderId;
-  const addressId = String(input.addressId || '');
+  const addressId = input.addressId ? string(input.addressId, 'addressId', { max: 128 }) : '';
+  if (!input.address) throw errorFrom('ADDRESS_REQUIRED');
+  const requestAddress = addressInput(input.address);
+  const requestAddressHash = crypto.createHash('sha256').update(JSON.stringify({ addressId, ...requestAddress })).digest('hex');
   const requestMode = input.useCart ? 'cart' : 'direct';
   const remark = input.remark || '';
   const explicitItems = Array.isArray(input.items) && input.items.length ? input.items : null;
   const explicitNormalized = explicitItems ? normalizeOrderItems(explicitItems) : null;
   const hashRequest = (items) => crypto.createHash('sha256').update(JSON.stringify({
-    items: [...items].sort((a, b) => a.skuId.localeCompare(b.skuId)), addressId, remark,
+    items: [...items].sort((a, b) => a.skuId.localeCompare(b.skuId)), address: requestAddressHash, remark,
   })).digest('hex');
   const matchesCartRetry = (existing) => input.useCart && existing.requestMode === 'cart'
-    && String(existing.requestAddressId || '') === addressId && String(existing.requestRemark || '') === remark;
+    && existing.requestAddressHash === requestAddressHash && String(existing.requestRemark || '') === remark;
   const existing = priorOrderId ? await getDoc(collection(runtime, COLLECTIONS.orders), priorOrderId, false) : null;
   if (existing) {
     if (explicitNormalized) {
@@ -659,8 +584,7 @@ async function createOrder(runtime, event, context, data) {
       return race;
     }
     const confirmedItems = [];
-    const confirmedAddress = await getDoc(tx.collection(COLLECTIONS.addresses), addressId, true);
-    if (confirmedAddress.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+    const confirmedAddress = draft.addressSnapshot;
     for (const item of draft.items) {
       const product = await getDoc(tx.collection(COLLECTIONS.products), item.productId, true);
       if (product.status !== STATUS.active) throw errorFrom('SKU_UNAVAILABLE');
@@ -702,6 +626,7 @@ async function createOrder(runtime, event, context, data) {
         requestHash,
         requestMode,
         requestAddressId: addressId,
+        requestAddressHash,
         requestRemark: remark,
         status: STATUS.paid,
         paymentStatus: 'paid',
@@ -1458,7 +1383,6 @@ async function executeShop(event, context, runtime, action, data) {
   }
   if (action === 'user.me' || action === 'user.update') return getOrCreateUser(runtime, requireUser(event, context, runtime), data);
   if (action.startsWith('searchHistory.')) return searchHistoryAction(runtime, event, context, data, action);
-  if (action.startsWith('addresses.')) return addressAction(runtime, event, context, data, action);
   if (action.startsWith('cart.')) return cartAction(runtime, event, context, data, action);
   if (action === 'orders.preview') return previewOrder(runtime, event, context, data);
   if (action === 'orders.create') return createOrder(runtime, event, context, data);

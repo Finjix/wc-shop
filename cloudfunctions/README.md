@@ -42,7 +42,7 @@ wx.cloud.callFunction({
 - `categories.list`、`products.list`、`products.detail`、`skus.list`、`home.get`
 - `user.me`、`user.update`
 - `searchHistory.list/add/remove/clear`
-- `addresses.list/get/create/update/remove/setDefault`
+- 地址簿在小程序 `wx` 本地存储，不提供云端地址 CRUD 接口。
 - `cart.get/add/update/remove/clear`
 - `orders.preview/create/checkout/list/count/businessTime/detail/confirmReceived/updateAddress/delete`
 - `comments.list/count/create`
@@ -83,14 +83,13 @@ wx.cloud.callFunction({
 
 ## 集合结构与建议索引
 
-核心集合：`categories`、`products`、`skus`、`addresses`、`carts`、`orders`、`orderRequests`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`；不建立用户档案集合。
+核心集合：`categories`、`products`、`skus`、`carts`、`orders`、`orderRequests`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`；不建立用户档案集合。
 
 建议在 CloudBase 数据库中建立以下索引（均为非唯一，除非控制台明确支持并确认现有数据无重复）：
 
 - `products`: `status + sort`、`status + updatedAt`、`categoryIds`
 - `skus`: `productId`、`skuId`
 - `categories`: `status + sort`
-- `addresses`: `userId + isDefault`、`userId + updatedAt`
 - `orders`: `userId + createdAt`、`userId + status + createdAt`、`orderNo`、`requestKey + userId`
 - `comments`: `productId + status + createdAt`、`productId + status + hasImage + createdAt`、`orderId + userId`
 - `afterSales`: `userId + createdAt`、`orderId + createdAt`、`status + updatedAt`
@@ -101,7 +100,7 @@ wx.cloud.callFunction({
 
 - `products`: `title`, `primaryImage`, `images`, `categoryIds`, `status`, `sort`, `minSalePrice`, `maxSalePrice`
 - `skus`: `productId`, `skuId`, `specInfo`, `salePrice`, `stockQuantity`, `soldQuantity`
-- `addresses/carts`: 均带 `userId`；购物车文档 `_id` 推荐直接使用 UID
+- `carts`: 带 `userId`；购物车文档 `_id` 推荐直接使用 UID
 - `orders`: `userId`, `status`, `paymentStatus`, `items`, `addressSnapshot`, `subtotal`, `shippingFee`, `totalAmount`, `requestHash`, `checkoutId`, `checkoutOrderIds`, `shipmentBatchId`, `shipmentOrderIds`, `commentedProductIds`, `hasPendingComments`, `afterSaleIds`
 - `orderRequests`: 用户与请求 key 的确定性映射，保存首单 `orderId`、全部 `orderIds` 和请求哈希；另有订单 ID 预留记录
 
@@ -124,3 +123,5 @@ wx.cloud.callFunction({
 ## 本地检查
 
 本地可以运行 `npm run test:cloud`，它测试编译后的云函数契约、校验和入口静态约定。真实数据库事务、身份上下文、索引、云存储临时 URL 和 CloudBase CLI 部署必须在目标环境中验证。
+
+地址簿仅持久化到小程序本地 `wc-shop.addresses.v1`，不创建 `addresses` 集合。清除本地存储会清空地址簿，换设备需重新添加；下单时仅提交所选地址的订单收货快照，既有订单快照保留供发货。

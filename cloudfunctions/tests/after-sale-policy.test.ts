@@ -1,6 +1,6 @@
 // @ts-nocheck
 const assert = require('assert');
-const { makeRuntime } = require('./regressions.test');
+const { makeRuntime, localAddress } = require('./regressions.test');
 const { shopEndpoint } = require('../shared/shop');
 const { adminEndpoint } = require('../shared/admin');
 const { SCENARIOS, scenarioOf, presentAfterSale } = require('../shared/after-sale-policy');
@@ -27,7 +27,7 @@ async function run() {
 
   const runtime = makeRuntime();
   const order = await shopEndpoint({}, user, runtime, 'orders.create', {
-    requestKey: 'scenario-cancel', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+    requestKey: 'scenario-cancel', addressId: 'address-1', address: localAddress, items: [{ skuId: 'sku-new', quantity: 1 }],
   });
   const preview = await shopEndpoint({}, user, runtime, 'afterSales.preview', { orderId: order._id });
   assert.strictEqual(preview.scenario, SCENARIOS.CANCEL_ORDER);
@@ -79,7 +79,7 @@ async function run() {
   assert.ok(!visible.items.some((item) => item._id === order._id));
 
   const nextOrder = await shopEndpoint({}, user, runtime, 'orders.create', {
-    requestKey: 'scenario-normal', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+    requestKey: 'scenario-normal', addressId: 'address-1', address: localAddress, items: [{ skuId: 'sku-new', quantity: 1 }],
   });
   const second = await shopEndpoint({}, user, runtime, 'afterSales.create', { ...payload, orderId: nextOrder._id });
   await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: second._id, status: 'rejected', reason: '驳回' });
@@ -110,7 +110,7 @@ async function run() {
     }
   }
   const returnOrder = await shopEndpoint({}, user, runtime, 'orders.create', {
-    requestKey: 'merchant-only-refund', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+    requestKey: 'merchant-only-refund', addressId: 'address-1', address: localAddress, items: [{ skuId: 'sku-new', quantity: 1 }],
   });
   await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: returnOrder._id, trackingNo: 'SF002' });
   const returnClaim = await shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: returnOrder._id, type: 10, reason: '退货退款' });
@@ -123,7 +123,7 @@ async function run() {
   assert.strictEqual(onlyRefund.status, 'refunded');
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, stockBefore, 'refund without return must not restore shipped inventory');
   const withdrawOrder = await shopEndpoint({}, user, runtime, 'orders.create', {
-    requestKey: 'withdraw-approved-return', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+    requestKey: 'withdraw-approved-return', addressId: 'address-1', address: localAddress, items: [{ skuId: 'sku-new', quantity: 1 }],
   });
   await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: withdrawOrder._id, trackingNo: 'SF003' });
   const returnAddress = { receiver: '商家', phone: '13800000000', detail: '退货地址' };

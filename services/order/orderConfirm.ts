@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import { getTempFileUrl, request } from '../../utils/api';
-import { normalizeAddress } from '../address/fetchAddress';
+import { normalizeAddress, toOrderAddress } from '../address/fetchAddress';
 
 let pendingGoodsRequestList = null;
 
@@ -38,6 +38,7 @@ function buildOrderPayload(params, goodsRequestList) {
   const payload = {
     items: goodsRequestList.map((goods) => ({ skuId: String(goods.skuId), quantity: goods.quantity })),
     addressId: addressIdOf(params),
+    address: params.userAddressReq || params.address ? toOrderAddress(params.userAddressReq || params.address) : undefined,
     // The selected cart items are sent explicitly; the backend must not use the whole cart.
     useCart: params.useCart === true,
   };
@@ -182,7 +183,7 @@ function validateOrderRequest(params = {}) {
   const goodsRequestList = normalizeGoodsRequestList(params.goodsRequestList);
   if (!goodsRequestList.length) return { error: domainError('EMPTY_CART', '购物车为空，请先添加商品') };
   const payload = buildOrderPayload(params, goodsRequestList);
-  if (!payload.addressId) return { error: domainError('ADDRESS_REQUIRED', '请先添加收货地址') };
+  if (!payload.address) return { error: domainError('ADDRESS_REQUIRED', '请先添加收货地址') };
   if (!payload.requestKey) return { error: domainError('IDEMPOTENCY_KEY_REQUIRED', '订单请求缺少幂等键，请重试') };
   return { goodsRequestList, payload };
 }

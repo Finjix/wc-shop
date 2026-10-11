@@ -13,7 +13,7 @@
 
 完成 CloudBase 环境和云函数部署后，重新编译小程序即可使用云端数据。
 
-3. 创建集合：`categories`、`products`、`skus`、`addresses`、`carts`、`orders`、`orderRequests`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`，并按 `cloudfunctions/README.md` 创建索引；不创建用户档案集合。
+3. 创建集合：`categories`、`products`、`skus`、`carts`、`orders`、`orderRequests`、`comments`、`afterSales`、`homeContents`、`searchHistories`、`settings`，并按 `cloudfunctions/README.md` 创建索引；不创建用户档案集合。
 4. 数据库客户端规则默认设为“仅管理员/云函数可读写”，用户数据也通过 `wc-shop-function` 以服务端 UID 隔离；不要把订单状态写权限暴露给小程序客户端。
 5. 配置公开 `/admin-api` HTTP 网关路由，关联 `wc-shop-function`，关闭路由身份认证。设置后台 `VITE_ADMIN_API_URL`，无需创建后台账号或成员集合。
 
@@ -24,8 +24,10 @@
 ## 已接入的真实 action
 
 - 商品、分类、SKU、首页内容：`products.*`、`categories.*`、`skus.*`、`home.*`
-- 当前会话、地址、购物车：`user.*`、`addresses.*`、`cart.*`；`user.me/update` 不落库
+- 当前会话、购物车：`user.*`、`cart.*`；地址簿使用小程序本地持久存储；`user.me/update` 不落库
 - 订单、评论、售后：`orders.*`、`comments.*`、`afterSales.*`
 - 管理后台：商品（含规格和价格）、SKU 库存、分类、首页内容、订单、评论、售后、设置和存储临时 URL
 
 微信支付、资金退款渠道回调和第三方物流回调仍需在腾讯云控制台完成资质与密钥配置后再接入；当前新订单明确标记为模拟支付成功，不生成待付款订单。
+
+地址簿仅持久化到小程序本地 `wc-shop.addresses.v1`，不创建 `addresses` 集合。清除本地存储会清空地址簿，换设备需重新添加；下单时仅提交所选地址的订单收货快照，既有订单快照保留供发货。

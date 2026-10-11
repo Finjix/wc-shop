@@ -23,7 +23,6 @@
 categories
 products
 skus
-addresses
 carts
 orders
 comments
@@ -39,7 +38,6 @@ settings
 products: status + sort, status + updatedAt, categoryIds
 skus: productId, skuId
 categories: status + sort
-addresses: userId + isDefault, userId + updatedAt
 orders: userId + createdAt, userId + status + createdAt, orderNo, requestKey + userId
 comments: productId + status + createdAt, orderId + userId
 afterSales: userId + createdAt, orderId + createdAt, status + updatedAt
@@ -52,7 +50,7 @@ searchHistories: userId + updatedAt, userId + keyword
 本项目不从小程序直接读写业务集合，所有业务请求均经过 `wc-shop-function`。因此数据库客户端规则采用最小权限：
 
 - `products`、`categories`、`skus`、`homeContents`：读写由云函数完成。
-- `addresses`、`carts`、`orders`、`comments`、`afterSales`、`searchHistories`：读写由云函数完成，并由云函数使用当前 UID 隔离；用户基础资料不单独落库。
+- `carts`、`orders`、`comments`、`afterSales`、`searchHistories`：读写由云函数完成，并由云函数使用当前 UID 隔离；用户基础资料不单独落库。
 - `settings`：只允许云函数/管理员服务端访问。
 
 在控制台中选择“仅管理员可读写”或等价的拒绝客户端读写规则；不要用“所有用户可读写”。保存后用小程序和后台分别做一次真实读取验证。
@@ -93,3 +91,5 @@ npm run package:deploy
 - 评论/售后图片先上传云存储，再把 fileID 写入文档。
 
 商户支付、真实资金退款、第三方物流与客服 API 未接入。本次只提供小程序体验版，不提交正式版审核。
+
+地址簿仅持久化到小程序本地 `wc-shop.addresses.v1`，不创建 `addresses` 集合。清除本地存储会清空地址簿，换设备需重新添加；下单时仅提交所选地址的订单收货快照，既有订单快照保留供发货。

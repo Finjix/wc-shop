@@ -1,6 +1,6 @@
 // @ts-nocheck
 const assert = require('assert');
-const { makeRuntime } = require('./regressions.test');
+const { makeRuntime, localAddress } = require('./regressions.test');
 const { shopEndpoint } = require('../shared/shop');
 const { adminEndpoint } = require('../shared/admin');
 const user = { auth: { uid: 'user-1' } };
@@ -10,7 +10,7 @@ const errorCode = (code) => (error) => error?.code === code;
 async function fixture(status = 'pending_review') {
   const runtime = makeRuntime();
   const order = await shopEndpoint({}, user, runtime, 'orders.create', {
-    requestKey: 'comment-delete', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+    requestKey: 'comment-delete', addressId: 'address-1', address: localAddress, items: [{ skuId: 'sku-new', quantity: 1 }],
   });
   await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: order._id, trackingNo: 'tracking' });
   await shopEndpoint({}, user, runtime, 'orders.confirmReceived', { orderId: order._id });

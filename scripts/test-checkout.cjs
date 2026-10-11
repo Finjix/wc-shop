@@ -130,7 +130,7 @@ async function run() {
   assert.equal(preview.data.userAddress, null);
   assert.equal(preview.data.totalPayAmount, 200);
   assert.equal(preview.data.storeGoodsList[0].skuDetailVos[0].image, 'https://images.example/products/cover.webp');
-  const withAddress = await service.fetchSettleDetail({ goodsRequestList: [goods], addressId: 'address-1' });
+  const withAddress = await service.fetchSettleDetail({ goodsRequestList: [goods], addressId: 'address-1', address });
   assert.equal(withAddress.data.userAddress.addressId, 'address-1');
   assert.equal(withAddress.data.userAddress.name, '测试收货人');
   assert.equal(withAddress.data.userAddress.detailAddress, '测试地址');
@@ -147,6 +147,8 @@ async function run() {
   assert.equal(simulatedOrder.data.payment.mode, 'simulated');
   assert.equal(simulatedOrder.data.paymentAmount, 300);
   assert.equal(calls.at(-1).payload.useCart, false);
+  assert.equal(calls.at(-1).payload.address.receiver, '测试收货人');
+  assert.equal(calls.at(-1).payload.address.userId, undefined);
 
   const originalOrderCreateRequest = mocks[path.join(root, 'utils/api.ts')].request;
   mocks[path.join(root, 'utils/api.ts')].request = async (action, payload) => {
@@ -261,15 +263,15 @@ async function run() {
     };
     return response;
   };
-  const batch = await service.createOrder({ goodsRequestList: batchGoods, addressId: 'address-1', requestKey: 'batch-test', useCart: true });
+  const batch = await service.createOrder({ goodsRequestList: batchGoods, addressId: 'address-1', address, requestKey: 'batch-test', useCart: true });
   assert.equal(batch.data.orderCount, 2);
   assert.equal(batch.data.checkoutTotalAmount, 700);
   assert.equal(batch.data.orderNos.join(','), 'batch-order-1,batch-order-2');
   unconfirmedBatch = true;
-  await assert.rejects(service.createOrder({ goodsRequestList: batchGoods, addressId: 'address-1', requestKey: 'batch-unconfirmed' }), (error) => error.code === 'ORDER_NOT_PAID');
+  await assert.rejects(service.createOrder({ goodsRequestList: batchGoods, addressId: 'address-1', address, requestKey: 'batch-unconfirmed' }), (error) => error.code === 'ORDER_NOT_PAID');
   unconfirmedBatch = false;
   batchResponse.orders[1].status = 'shipped';
-  const progressed = await service.createOrder({ goodsRequestList: batchGoods, addressId: 'address-1', requestKey: 'batch-progressed-retry' });
+  const progressed = await service.createOrder({ goodsRequestList: batchGoods, addressId: 'address-1', address, requestKey: 'batch-progressed-retry' });
   assert.equal(progressed.data.orders[1].orderStatus, 40, 'late checkout retries retain an already-shipped order status');
   batchResponse.orders[1].status = 'paid';
   service.setPendingGoodsRequestList(batchGoods);

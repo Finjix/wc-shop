@@ -10,14 +10,12 @@ const net = require('node:net');
 
 async function main() {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'wc-shop-commerce-'));
-  const collections = Object.fromEntries(['categories', 'products', 'skus', 'addresses', 'carts', 'orders', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings'].map(name => [name, {}]));
+  const collections = Object.fromEntries(['categories', 'products', 'skus', 'carts', 'orders', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings'].map(name => [name, {}]));
   collections.products.p1 = { _id: 'p1', spuId: 'p1', status: 'active', title: '隔离验收商品' };
   collections.skus.s1 = { _id: 's1', skuId: 's1', productId: 'p1', stockQuantity: 10, soldQuantity: 0, salePrice: 100 };
   collections.products.p2 = { _id: 'p2', spuId: 'p2', status: 'active', title: '隔离验收第二个商品' };
   collections.skus.s2 = { _id: 's2', skuId: 's2', productId: 'p2', stockQuantity: 10, soldQuantity: 0, salePrice: 250 };
   const address = { receiver: '测试用户', phone: '13800000000', province: '广东省', city: '深圳市', district: '南山区', detail: '隔离测试地址' };
-  collections.addresses.a1 = { ...address, _id: 'a1', userId: 'commerce-test' };
-  collections.addresses.a2 = { ...address, _id: 'a2', userId: 'commerce-test', detail: '隔离测试地址二' };
   fs.writeFileSync(path.join(folder, '.local-backend.json'), JSON.stringify({ version: 1, collections }));
   const socket = net.createServer();
   await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve));
@@ -51,7 +49,7 @@ async function main() {
     assert.equal((await fetch(`${url}/auth/login`, { method: 'POST', body: '{}' })).status, 404);
     await admin('admin.me', {}, 'INVALID_ARGUMENT');
     assert.equal(JSON.parse(fs.readFileSync(path.join(folder, '.local-backend.json'), 'utf8')).collections.adminMembers, undefined);
-    const input = { requestKey: 'http-partial', addressId: 'a1', items: [{ skuId: 's1', quantity: 3 }], useCart: false };
+    const input = { requestKey: 'http-partial', addressId: 'a1', address, items: [{ skuId: 's1', quantity: 3 }], useCart: false };
     const order = await shop('orders.create', input);
     assert.equal(order.status, 'paid'); assert.equal(order.payment.mode, 'simulated'); assert.equal(order.totalAmount, 300);
     assert.equal((await shop('orders.create', input))._id, order._id);
@@ -85,12 +83,12 @@ async function main() {
     assert.equal(saved.collections.skus.s1.stockQuantity, 10, 'refund stock restored exactly once');
     assert.equal(saved.collections.skus.s1.soldQuantity, 0);
     await shop('cart.add', { skuId: 's1', quantity: 1 });
-    const cartInput = { requestKey: 'http-cart-repeat', addressId: 'a1', items: [{ skuId: 's1', quantity: 1 }], useCart: true };
+    const cartInput = { requestKey: 'http-cart-repeat', addressId: 'a1', address, items: [{ skuId: 's1', quantity: 1 }], useCart: true };
     const cartOrder = await shop('orders.create', cartInput);
     assert.equal((await shop('orders.create', cartInput))._id, cartOrder._id, 'retry after cart cleanup returns the original order');
     await shop('cart.add', { skuId: 's1', quantity: 2 });
     await shop('cart.add', { skuId: 's2', quantity: 2 });
-    const batchInput = { requestKey: 'http-cart-split', addressId: 'a1', useCart: true };
+    const batchInput = { requestKey: 'http-cart-split', addressId: 'a1', address, useCart: true };
     const batch = await shop('orders.create', batchInput);
     assert.equal(batch.orderCount, 2);
     assert.equal(batch.checkoutTotalAmount, 700);

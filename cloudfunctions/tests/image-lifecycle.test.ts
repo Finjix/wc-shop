@@ -1,6 +1,6 @@
 // @ts-nocheck
 const assert = require('assert');
-const { makeRuntime } = require('./regressions.test');
+const { makeRuntime, localAddress } = require('./regressions.test');
 const { imageLifecycleRuntime, cleanup, cleanupQueue, prepareUpload, replaceReference, matches, stateId } = require('../shared/image-lifecycle');
 const { shopEndpoint } = require('../shared/shop');
 const { adminEndpoint } = require('../shared/admin');
@@ -79,7 +79,7 @@ async function run() {
   assert.deepStrictEqual((await cleanupQueue(leased, 'user-1')).deleted, [kept.fileID]);
   const withdrawn = makeRuntime();
   const user = { auth: { uid: 'user-1' } };
-  const order = await shopEndpoint({}, user, withdrawn, 'orders.create', { requestKey: 'withdraw-image', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }] });
+  const order = await shopEndpoint({}, user, withdrawn, 'orders.create', { requestKey: 'withdraw-image', addressId: 'address-1', address: localAddress, items: [{ skuId: 'sku-new', quantity: 1 }] });
   const claim = await shopEndpoint({}, user, withdrawn, 'afterSales.create', { orderId: order._id, type: 20, reason: '取消', images: [old] });
   await shopEndpoint({}, user, withdrawn, 'afterSales.withdraw', { afterSaleId: claim._id });
   assert.strictEqual(withdrawn.records.afterSales[claim._id], undefined);

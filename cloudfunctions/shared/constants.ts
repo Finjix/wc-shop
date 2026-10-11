@@ -4,7 +4,6 @@ const COLLECTIONS = Object.freeze({
   categories: 'categories',
   products: 'products',
   skus: 'skus',
-  addresses: 'addresses',
   carts: 'carts',
   orders: 'orders',
   orderRequests: 'orderRequests',

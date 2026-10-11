@@ -19,7 +19,7 @@ const publicHost = host === '0.0.0.0' ? '127.0.0.1' : host;
 const baseUrl = `http://${publicHost}:${port}`;
 // Keep runtime writes outside the project to avoid triggering DevTools hot reload.
 const { dataFile, filesRoot } = prepareLocalStorage(root, process.env.LOCAL_BACKEND_DATA_DIR);
-const collectionNames = ['categories', 'products', 'skus', 'addresses', 'carts', 'orders', 'orderRequests', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings'];
+const collectionNames = ['categories', 'products', 'skus', 'carts', 'orders', 'orderRequests', 'comments', 'afterSales', 'homeContents', 'searchHistories', 'settings'];
 
 function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -32,7 +32,7 @@ function seedState() {
       categories: {},
       products: {},
       skus: {},
-      addresses: {}, carts: {}, orders: {}, comments: {}, afterSales: {}, searchHistories: {}, settings: {},
+      carts: {}, orders: {}, comments: {}, afterSales: {}, searchHistories: {}, settings: {},
       homeContents: {},
     },
   };
@@ -43,6 +43,7 @@ function loadState() {
     const saved = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
     const state = saved && typeof saved === 'object' ? saved : seedState();
     state.collections = state.collections && typeof state.collections === 'object' ? state.collections : {};
+    delete state.collections.addresses;
     delete state.collections.adminMembers; // Migrate legacy local admin accounts away.
     collectionNames.forEach((name) => {
       if (!state.collections[name] || typeof state.collections[name] !== 'object') state.collections[name] = {};

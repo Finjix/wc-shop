@@ -1,6 +1,6 @@
 // @ts-nocheck
 const assert = require('assert');
-const { makeRuntime } = require('./regressions.test');
+const { makeRuntime, localAddress } = require('./regressions.test');
 const { shopEndpoint } = require('../shared/shop');
 const { adminEndpoint } = require('../shared/admin');
 
@@ -11,7 +11,7 @@ const errorCode = (code) => (error) => error?.code === code;
 async function run() {
   const runtime = makeRuntime();
   const order = await shopEndpoint({}, user, runtime, 'orders.create', {
-    requestKey: 'admin-delete', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+    requestKey: 'admin-delete', addressId: 'address-1', address: localAddress, items: [{ skuId: 'sku-new', quantity: 1 }],
   });
   const payload = { type: 20, receiptStatus: 2, reason: '取消订单' };
   const claim = await shopEndpoint({}, user, runtime, 'afterSales.create', { ...payload, orderId: order._id });
@@ -41,7 +41,7 @@ async function run() {
   assert.strictEqual(runtime.records.afterSales.history, undefined);
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, stockBefore, 'deletion must not execute a refund or restock again');
   await assert.rejects(() => shopEndpoint({}, user, runtime, 'orders.create', {
-    requestKey: 'admin-delete', addressId: 'address-1', items: [{ skuId: 'sku-new', quantity: 1 }],
+    requestKey: 'admin-delete', addressId: 'address-1', address: localAddress, items: [{ skuId: 'sku-new', quantity: 1 }],
   }), errorCode('ORDER_STATE_INVALID'));
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, stockBefore, 'deleted checkout replay must not create another order');
   assert.strictEqual((await shopEndpoint({}, user, runtime, 'orders.list', {})).total, 0);

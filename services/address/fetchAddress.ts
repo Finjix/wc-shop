@@ -1,18 +1,13 @@
 // @ts-nocheck
-
-import { request } from '../../utils/api';
-
-let cachedAddressList = null;
+// Address books are device-local. No address operation imports the cloud API.
+const STORAGE_KEY = 'wc-shop.addresses.v1';
 let addressMutationQueue = Promise.resolve();
 
 function addressIdOf(address = {}) {
-  const value = address.addressId ?? address._id;
+  const value = address.addressId ?? address.id ?? address._id;
   return value === undefined || value === null || value === '' ? '' : String(value);
 }
-
-function isDefaultAddress(address = {}) {
-  return address.isDefault === true || address.isDefault === 1;
-}
+function isDefaultAddress(address = {}) { return address.isDefault === true || address.isDefault === 1; }
 
 export function normalizeAddress(address = {}) {
   const addressId = addressIdOf(address);
@@ -42,147 +37,89 @@ export function normalizeAddress(address = {}) {
   };
 }
 
-function toCloudAddress(address = {}) {
-  const payload = {
-    receiver: address.name,
-    phone: address.phone,
-    province: address.provinceName,
-    city: address.cityName,
-    district: address.districtName,
-    detail: address.detailAddress,
-    postalCode: address.postalCode,
-    tag: address.addressTag,
-    provinceCode: address.provinceCode,
-    cityCode: address.cityCode,
-    districtCode: address.districtCode,
-    isDefault: isDefaultAddress(address),
+export function toOrderAddress(address = {}) {
+  return {
+    receiver: address.name ?? address.receiver ?? '',
+    phone: address.phone ?? address.phoneNumber ?? '',
+    province: address.provinceName ?? address.province ?? '',
+    city: address.cityName ?? address.city ?? '',
+    district: address.districtName ?? address.district ?? '',
+    detail: address.detailAddress ?? address.detail ?? '',
+    postalCode: address.postalCode ?? '',
+    tag: address.addressTag ?? address.tag ?? '',
+    provinceCode: address.provinceCode ?? '',
+    cityCode: address.cityCode ?? '',
+    districtCode: address.districtCode ?? '',
   };
-  const addressId = addressIdOf(address);
-  if (addressId) payload.addressId = addressId;
-  return payload;
 }
-
-function getAddressList(result) {
-  return result.items;
+function readAddresses() {
+  const value = wx.getStorageSync(STORAGE_KEY);
+  if (value === '' || value === undefined || value === null) return [];
+  if (value.version !== 1 || !Array.isArray(value.items)) throw new Error('本地地址数据异常，请检查小程序存储');
+  return value.items.map((item) => normalizeAddress(item));
 }
-
-function cacheAddressList(addressList) {
-  cachedAddressList = addressList.map(normalizeAddress);
-  return cachedAddressList.map((address) => ({ ...address }));
+function writeAddresses(items) {
+  wx.setStorageSync(STORAGE_KEY, { version: 1, items });
+  return items.map((item) => normalizeAddress(item));
 }
-
-function enqueueAddressMutation(operation) {
-  const nextOperation = addressMutationQueue.then(operation);
-  addressMutationQueue = nextOperation.catch(() => undefined);
-  return nextOperation;
+function enqueue(operation) {
+  const next = addressMutationQueue.then(operation);
+  addressMutationQueue = next.catch(() => undefined);
+  return next;
 }
-
-function mergeSavedAddress(originalAddress, result) {
-  return normalizeAddress(result);
+function newId() { return `local_addr_${Date.now()}_${Math.random().toString(36).slice(2)}`; }
+function storedAddress(address, previous) {
+  const fields = toOrderAddress(address);
+  if (!fields.receiver.trim() || !fields.phone.trim() || !fields.detail.trim()) throw new Error('请填写完整收货地址');
+  return { ...fields, _id: previous?._id || newId(), isDefault: isDefaultAddress(address),
+    createdAt: previous?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
 }
-
-function updateCachedAddress(savedAddress) {
-  if (!Array.isArray(cachedAddressList)) return savedAddress;
-
-  let nextAddressList = cachedAddressList.map((address) => ({ ...address }));
-  if (savedAddress.isDefault) {
-    nextAddressList = nextAddressList.map((address) => ({ ...address, isDefault: 0 }));
-  }
-  const index = nextAddressList.findIndex(
-    (address) => String(address.addressId) === String(savedAddress.addressId),
-  );
-  if (index > -1) nextAddressList[index] = savedAddress;
-  else nextAddressList.push(savedAddress);
-  cachedAddressList = nextAddressList.map(normalizeAddress);
-  return savedAddress;
+function normalizeDefault(items, preferred = '') {
+  const id = preferred || items.find((item) => item.isDefault)?._id || items[0]?._id;
+  return items.map((item) => ({ ...item, isDefault: item._id === id }));
 }
-
-function persistAddressNow(address) {
-  const payload = toCloudAddress(address);
-  const action = payload.addressId ? 'addresses.update' : 'addresses.create';
-  return request(action, payload)
-    .then((result) => mergeSavedAddress(address, result))
-    .then((savedAddress) => updateCachedAddress(savedAddress));
+export function fetchDeliveryAddressList(len = 50) {
+  return Promise.resolve().then(() => readAddresses().sort((a, b) => b.isDefault - a.isDefault).slice(0, Math.max(1, Number(len) || 50)));
 }
-
-function setDefaultAddressNow(id) {
-  return request('addresses.setDefault', { addressId: id }).then((result) => {
-    const savedAddress = normalizeAddress({
-      ...(result && typeof result === 'object' ? result : {}),
-      addressId: id,
-      isDefault: true,
-    });
-    if (Array.isArray(cachedAddressList)) {
-      cachedAddressList = cachedAddressList.map((address) => ({
-        ...address,
-        isDefault: String(address.addressId) === String(id) ? 1 : 0,
-      }));
-    }
-    return savedAddress;
+export function fetchDeliveryAddress(id = '') {
+  return Promise.resolve().then(() => {
+    const items = readAddresses();
+    if (id === '' || id === null || id === undefined || String(id) === '0') return items.find((item) => item.isDefault) || items[0] || null;
+    return items.find((item) => item.addressId === String(id)) || null;
   });
 }
-
-function deleteAddressNow(id, nextDefaultId = '') {
-  return request('addresses.remove', { addressId: id })
-    .then(() => {
-      if (nextDefaultId) return setDefaultAddressNow(nextDefaultId);
-      return null;
-    })
-    .then((defaultAddress) => {
-      if (Array.isArray(cachedAddressList)) {
-        cachedAddressList = cachedAddressList.filter(
-          (address) => String(address.addressId) !== String(id),
-        );
-      }
-      return defaultAddress;
-    });
-}
-
-/** 获取收货地址详情；id 为空或 0 时由云端列表解析默认地址。 */
-export function fetchDeliveryAddress(id = '') {
-  if (id === '' || id === null || id === undefined || String(id) === '0') {
-    return fetchDeliveryAddressList().then((addressList) => addressList.find((item) => item.isDefault) || addressList[0] || null);
-  }
-  return request('addresses.get', { addressId: id })
-    .then((result) => (result ? normalizeAddress(result) : null));
-}
-
-/** 获取收货地址列表，不读取本地存储。 */
-export function fetchDeliveryAddressList(len = 50) {
-  return request('addresses.list', { page: 1, pageSize: Math.max(1, Number(len) || 50) })
-    .then((result) => cacheAddressList(getAddressList(result)));
-}
-
-/** 新增或编辑真实地址。 */
 export function persistAddress(address) {
-  return enqueueAddressMutation(() => persistAddressNow(address));
+  return enqueue(() => {
+    const items = readAddresses();
+    const id = addressIdOf(address);
+    const previous = id ? items.find((item) => item.addressId === id) : undefined;
+    if (id && !previous) throw new Error('该本地地址已删除，请重新添加');
+    const saved = storedAddress(address, previous);
+    const next = previous ? items.map((item) => item.addressId === id ? saved : item) : [...items, saved];
+    const written = writeAddresses(normalizeDefault(next, saved.isDefault ? saved._id : ''));
+    return written.find((item) => item.addressId === saved._id);
+  });
 }
-
-/** 删除单个真实地址。 */
-export function deleteDeliveryAddress(id, nextDefaultId = '') {
-  return enqueueAddressMutation(() => deleteAddressNow(id, nextDefaultId));
-}
-
-/** 设置默认真实地址。 */
 export function setDefaultDeliveryAddress(id) {
-  return enqueueAddressMutation(() => setDefaultAddressNow(id));
+  return enqueue(() => {
+    const items = readAddresses();
+    if (!items.some((item) => item.addressId === String(id))) throw new Error('该本地地址已删除');
+    return writeAddresses(normalizeDefault(items, String(id))).find((item) => item.addressId === String(id));
+  });
 }
-
-/** 地址列表批量保存入口，全部通过云函数持久化。 */
+export function deleteDeliveryAddress(id, nextDefaultId = '') {
+  return enqueue(() => {
+    const items = readAddresses().filter((item) => item.addressId !== String(id));
+    const preferred = items.some((item) => item.addressId === String(nextDefaultId)) ? String(nextDefaultId) : '';
+    return writeAddresses(normalizeDefault(items, preferred)).find((item) => item.isDefault) || null;
+  });
+}
 export function persistAddressList(addressList) {
-  if (!Array.isArray(addressList)) return Promise.resolve([]);
-  const nextAddressList = addressList.map(normalizeAddress);
-  const previousAddressList = Array.isArray(cachedAddressList) ? cachedAddressList : [];
-  const nextIds = new Set(nextAddressList.filter((address) => address.addressId).map((address) => String(address.addressId)));
-  const removedIds = previousAddressList
-    .filter((address) => address.addressId && !nextIds.has(String(address.addressId)))
-    .map((address) => address.addressId);
-  return enqueueAddressMutation(() => removedIds
-    .reduce((promise, id) => promise.then(() => deleteAddressNow(id)), Promise.resolve())
-    .then(() => nextAddressList.reduce(
-      (promise, address) => promise.then(() => persistAddressNow(address)),
-      Promise.resolve(),
-    )))
-    .then(() => cacheAddressList(nextAddressList));
+  return enqueue(() => {
+    if (!Array.isArray(addressList)) throw new Error('地址列表无效');
+    const previous = readAddresses();
+    const items = addressList.map((address) => storedAddress(address, previous.find((item) => item.addressId === addressIdOf(address))));
+    if (new Set(items.map((item) => item._id)).size !== items.length) throw new Error('地址列表包含重复地址');
+    return writeAddresses(normalizeDefault(items));
+  });
 }
-// @ts-nocheck
