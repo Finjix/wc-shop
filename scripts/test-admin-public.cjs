@@ -22,7 +22,12 @@ async function run() {
     localStorage: { getItem: (key) => queue.get(key), setItem: (key, value) => queue.set(key, value) },
     fetch: async (url, options) => {
       assert.equal(options.credentials, 'omit', 'no browser cookies or identity are transmitted');
-      if (url === 'https://upload.test') return { ok: !uploadFails, status: uploadFails ? 500 : 204 };
+      if (url === 'https://upload.test') {
+        assert.equal(options.method, 'PUT');
+        assert.ok(options.body instanceof File, 'send raw image bytes rather than a multipart body');
+        assert.equal(options.headers.authorization, 'scoped-signature');
+        return { ok: !uploadFails, status: uploadFails ? 500 : 204 };
+      }
       assert.equal(url, 'https://api.test/admin');
       assert.deepEqual(Object.keys(options.headers), ['content-type']);
       const input = JSON.parse(options.body);
@@ -30,7 +35,7 @@ async function run() {
       calls.push(input);
       const data = input.action === 'storage.prepareUpload' ? {
         cloudPath: 'admin/products/leased.webp', fileID: 'cloud://test/admin/products/leased.webp',
-        upload: { url: 'https://upload.test', fields: { key: 'admin/products/leased.webp' } },
+        upload: { url: 'https://upload.test', method: 'PUT', headers: { authorization: 'scoped-signature' } },
       } : input.action === 'storage.cleanup' ? { deleted: input.data.fileList, retained: [] } : { done: true };
       return { status: 200, json: async () => ({ ok: true, data }) };
     },

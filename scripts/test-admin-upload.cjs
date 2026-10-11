@@ -38,13 +38,15 @@ async function main() {
       assert.deepEqual(Object.keys(options.headers), ['content-type']);
       return { status: 200, json: async () => ({ ok: true, data: {
         cloudPath: `${request.data.folder}/leased.webp`, fileID: `cloud://test/${request.data.folder}/leased.webp`,
-        upload: { url: 'https://upload.test', fields: { key: `${request.data.folder}/leased.webp`, Signature: 'scoped-signature' } },
+        upload: { url: 'https://upload.test', method: 'PUT', headers: { authorization: 'scoped-signature', 'x-cos-security-token': 'scoped-token', 'x-cos-meta-fileid': 'scoped-file' } },
       } }) };
     }
     assert.equal(url, 'https://upload.test');
-    const file = options.body.get('file');
+    assert.equal(options.method, 'PUT', 'current Node SDK metadata signs raw PUT');
+    const file = options.body;
     assert.ok(file instanceof File);
-    assert.equal(options.body.get('Signature'), 'scoped-signature');
+    assert.equal(options.headers.authorization, 'scoped-signature');
+    assert.equal(options.headers['x-cos-meta-fileid'], 'scoped-file');
     calls.push({ params: { filePath: file }, bytes: Buffer.from(await file.arrayBuffer()) });
     return { ok: true, status: 204 };
   };

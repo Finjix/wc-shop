@@ -23,8 +23,10 @@ async function run() {
   } }) };
   const upload = JSON.parse((await post({ scope: 'admin', action: 'storage.prepareUpload', data: { folder: 'admin/products' } })).body).data;
   assert.match(upload.cloudPath, /^admin\/products\/.+\.webp$/);
-  assert.strictEqual(upload.upload.fields.key, upload.cloudPath);
-  assert.strictEqual(upload.upload.fields.Signature, 'scoped-signature');
+  assert.strictEqual(upload.upload.method, 'PUT');
+  assert.strictEqual(upload.upload.headers.authorization, 'scoped-signature');
+  assert.strictEqual(upload.upload.headers['x-cos-security-token'], 'scoped-token');
+  assert.strictEqual(upload.upload.headers['x-cos-meta-fileid'], 'scoped-file');
   const lease = Object.values(runtime.records.settings).find((row) => row.fileID === upload.fileID);
   assert.strictEqual(lease.imageCleanupPending, true);
   assert.strictEqual(lease.cleanupOwner, undefined, 'public admin uploads have no synthetic user identity');

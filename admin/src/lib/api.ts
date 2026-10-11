@@ -105,7 +105,7 @@ export async function uploadCloudFile(file: File, folder = 'admin/products', onP
 }
 
 export async function uploadPreparedCloudFile(file: File, folder = 'admin/products') {
-  const lease = await callAdminRaw<{ cloudPath: string; fileID: string; upload?: { url: string; fields: Record<string, string> } }>('storage.prepareUpload', { folder });
+  const lease = await callAdminRaw<{ cloudPath: string; fileID: string; upload?: { url: string; method: 'PUT'; headers: Record<string, string> } }>('storage.prepareUpload', { folder });
   try {
     const body = new FormData();
     if (localApiUrl) {
@@ -118,9 +118,7 @@ export async function uploadPreparedCloudFile(file: File, folder = 'admin/produc
       return unwrap(await response.json() as ApiEnvelope<{ fileID: string }>, String(response.status)).fileID;
     }
     if (!lease.upload) throw new ApiError('服务器未返回图片上传地址。');
-    Object.entries(lease.upload.fields).forEach(([key, value]) => body.append(key, value));
-    body.append('file', file);
-    const response = await fetch(lease.upload.url, { method: 'POST', credentials: 'omit', body });
+    const response = await fetch(lease.upload.url, { method: lease.upload.method, credentials: 'omit', headers: lease.upload.headers, body: file });
     if (!response.ok) throw new ApiError(`图片上传失败（HTTP ${response.status}）`);
     return lease.fileID;
   } catch (error) {

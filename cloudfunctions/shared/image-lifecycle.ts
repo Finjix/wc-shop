@@ -37,8 +37,9 @@ async function prepareUpload(runtime, folder, ownerId, directUpload = false) {
     if (directUpload) {
       const { url, token, authorization, cosFileId } = metadata.data;
       if (!url || !token || !authorization || !cosFileId || !/^https:\/\//.test(url)) throw errorFrom('STORAGE_ERROR');
-      upload = { url, fields: { Signature: authorization, 'x-cos-security-token': token,
-        'x-cos-meta-fileid': cosFileId, key: cloudPath } };
+      // Node SDK upload metadata is signed for raw PUT, not multipart POST.
+      upload = { url, method: 'PUT', headers: { authorization, 'x-cos-security-token': token,
+        'x-cos-meta-fileid': cosFileId } };
     }
   }
   await queueFiles(runtime.db, [fileID], ownerId, new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
