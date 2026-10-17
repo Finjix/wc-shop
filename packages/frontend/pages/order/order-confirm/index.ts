@@ -301,7 +301,7 @@ Page({
     this.setData({ remark: String(e.detail.value || '').slice(0, 50) });
   },
 
-  // 服务端以模拟支付完成订单，不调用微信商户支付。
+  // 创建订单后按服务端配置调起支付，并等待服务端确认结果。
   submitOrder() {
     const { settleDetailData, userAddressReq, storeInfoList } = this.data;
     const { goodsRequestList } = this;

@@ -8,6 +8,28 @@ const { toPublicError } = require('../shared/errors');
 const old = 'cloud://test.bucket/admin/products/old.jpg';
 const next = 'cloud://test.bucket/admin/products/new.webp';
 async function run() {
+  const serial = makeRuntime();
+  const runSerialTransaction = serial.db.runTransaction.bind(serial.db);
+  serial.db.runTransaction = worker => runSerialTransaction(tx => {
+    let inFlight = false;
+    return worker({ ...tx, collection(name) {
+      const ref = tx.collection(name);
+      return { ...ref, doc(id) {
+        const doc = ref.doc(id);
+        return { ...doc, async get() {
+          assert.strictEqual(inFlight, false, 'CloudBase transactions reject overlapping document requests');
+          inFlight = true;
+          try { await new Promise(resolve => setImmediate(resolve)); return await doc.get(); }
+          finally { inFlight = false; }
+        } };
+      } };
+    } });
+  });
+  const imageIds = [next, 'cloud://test.bucket/home/banner-2.webp', 'cloud://test.bucket/home/banner-3.webp'];
+  await imageLifecycleRuntime(serial).db.collection('homeContents').doc('home.page-config').set({
+    slot: 'home.page-config', type: 'pageConfig', payload: { banners: imageIds.map(image => ({ image, productId: '' })) },
+  });
+  assert.deepStrictEqual(serial.records.homeContents['home.page-config'].payload.banners.map(item => item.image), imageIds);
   const metadata = makeRuntime();
   metadata.records.products['product-1'].images = [next];
   metadata.records.homeContents = { 'home.page-config': { _id: 'home.page-config', payload: { banners: [{ productId: 'product-1', image: next }], sections: [{ productIds: ['product-1'] }] } } };

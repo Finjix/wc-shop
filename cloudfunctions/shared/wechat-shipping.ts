@@ -92,6 +92,10 @@ async function sync(runtime, intent) {
     if (!tracking || !company) throw errorFrom('SHIPPING_SYNC_FAILED');
     const key = `${company}:${tracking}`;
     const item = packages.get(key) || { tracking_no: tracking, express_company: company, item_desc: '' };
+    const phone = require('./order-shipping').shippingAddressOf(order).phone.replace(/\D/g, '');
+    if (phone.length >= 7) {
+      item.contact = { receiver_contact: `${'*'.repeat(phone.length - 4)}${phone.slice(-4)}` };
+    }
     item.item_desc = [item.item_desc, ...(order.items || []).map((i) => i.productSnapshot?.title || i.goodsName || '商品')].filter(Boolean).join('、').slice(0, 120);
     packages.set(key, item);
   }

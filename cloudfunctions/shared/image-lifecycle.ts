@@ -137,7 +137,8 @@ function imageLifecycleRuntime(runtime) {
             const settings = tx.collection('settings');
             const control = await getDoc(settings, CONTROL, false) || { version: 0 };
             const mapping = new Map();
-            await Promise.all(ids.map(async (file) => {
+            // CloudBase rejects overlapping requests within the same transaction.
+            for (const file of ids) {
               let current = file;
               const seen = new Set();
               while (true) {
@@ -149,7 +150,7 @@ function imageLifecycleRuntime(runtime) {
                 break;
               }
               mapping.set(file, current);
-            }));
+            }
             const normalized = walk(value, (v) => mapping.get(canonical(v)) || v);
             const after = method === 'set' ? normalized : { ...previous, ...normalized };
             const retired = files(previous).filter((file) => inactive(after, source) || !uses(after, file));

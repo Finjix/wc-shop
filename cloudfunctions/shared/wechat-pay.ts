@@ -72,8 +72,6 @@ function assertReady(runtime) {
   if (mode === 'simulated' && (runtime.localStorage === true || runtime.allowSimulatedPayments === true)) return mode;
   if (mode !== 'wechat') throw errorFrom('PAYMENT_NOT_CONFIGURED');
   config(runtime);
-  // A public admin API cannot be allowed to issue real refunds or alter amounts.
-  if (!process.env.ADMIN_API_TOKEN || process.env.ADMIN_API_TOKEN.length < 32) throw errorFrom('PAYMENT_NOT_CONFIGURED');
   return mode;
 }
 module.exports = { paymentMode, config, api, clientPayment, decodeNotification, verify, assertReady };

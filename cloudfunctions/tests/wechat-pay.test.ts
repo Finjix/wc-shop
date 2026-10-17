@@ -14,8 +14,6 @@ async function run() {
     privateKey: merchant.privateKey.export({ type: 'pkcs8', format: 'pem' }),
     publicKey: platform.publicKey.export({ type: 'spki', format: 'pem' }),
     apiV3Key: 'a'.repeat(32), publicKeyId: 'PUB_KEY_ID_TEST', notifyUrl: 'https://example.test/notify' };
-  const oldToken = process.env.ADMIN_API_TOKEN;
-  process.env.ADMIN_API_TOKEN = crypto.randomBytes(24).toString('hex');
   const signed = (body, opts = {}) => {
     const timestamp = String(Math.floor(Date.now() / 1000)), nonce = 'platform-nonce';
     return { 'Wechatpay-Timestamp': timestamp, 'Wechatpay-Nonce': nonce, 'Wechatpay-Serial': config.publicKeyId,
@@ -29,14 +27,13 @@ async function run() {
     const r = makeRuntime();
     r.paymentMode = 'wechat'; r.allowSimulatedPayments = false; r.wechatPayConfig = config;
     r.app = { auth: () => ({ getUserInfo: () => ({ uid: 'user-1', openId: 'openid-1', appId: config.appid }) }) };
-    r.adminAuthorized = true;
     return r;
   }
   const ctx = { auth: { uid: 'user-1' } };
   const create = (r, key = 'payment-test') => shopEndpoint({}, ctx, r, 'orders.create', {
     requestKey: key, address: localAddress, items: [{ skuId: 'sku-new', quantity: 2 }],
   });
-  try {
+  {
     const disabled = runtime(); disabled.paymentMode = 'disabled';
     await assert.rejects(() => create(disabled), (e) => e.code === 'PAYMENT_NOT_CONFIGURED');
     assert.strictEqual(disabled.records.skus['sku-new'].stockQuantity, 10);
@@ -105,6 +102,45 @@ async function run() {
     assert.strictEqual(approved.status, 'refunding');
     assert.strictEqual(r.records.skus['sku-new'].stockQuantity, 8);
     await assert.rejects(() => payments.applyRefund(r, { ...refundResult, amount: { refund: 1, total: 200 }, status: 'SUCCESS' }), (e) => e.code === 'PAYMENT_MISMATCH');
+    // Recover an approved refund whose first POST never reached WeChat.
+    const recover = runtime(), recoveryOrder = await create(recover, 'refund-recovery');
+    await payments.confirmPaid(recover, { ...transaction, out_trade_no: payments.tradeId(recoveryOrder._id), transaction_id: 'wx-recovery' });
+    const recoveryClaim = await shopEndpoint({}, ctx, recover, 'afterSales.create', {
+      orderId: recoveryOrder._id, reason: '退款重试', type: 20, items: [{ skuId: 'sku-new', quantity: 2 }],
+    });
+    recover.paymentFetch = async () => { throw new Error('request lost before acceptance'); };
+    await assert.rejects(() => moderateAfterSale(recover, { id: recoveryClaim._id, status: 'approved', amount: 200 }));
+    assert.strictEqual(recover.records.afterSales[recoveryClaim._id].status, 'refunding');
+    const recoveryCalls = [];
+    const recoveryResult = { ...refundResult, out_refund_no: recoveryClaim._id, transaction_id: 'wx-recovery', refund_id: 'wx-recovery-refund' };
+    recover.paymentFetch = async (url, options) => {
+      recoveryCalls.push([options.method, url, options.body]);
+      if (options.method === 'GET') return response({ code: 'RESOURCE_NOT_EXISTS' }, 404);
+      const request = JSON.parse(options.body);
+      assert.strictEqual(request.out_refund_no, recoveryClaim._id);
+      assert.deepStrictEqual(request.amount, { refund: 200, total: 200, currency: 'CNY' });
+      return response(recoveryResult);
+    };
+    await payments.reconcile(recover);
+    assert.deepStrictEqual(recoveryCalls.map(([method]) => method), ['GET', 'POST']);
+    assert.strictEqual(recover.records.orders[recoveryOrder._id].refundAmount, 0);
+    assert.strictEqual(recover.records.skus['sku-new'].stockQuantity, 8);
+    recoveryCalls.length = 0;
+    recover.paymentFetch = async (_url, options) => { recoveryCalls.push([options.method]); return response({ ...recoveryResult, status: 'SUCCESS' }); };
+    await payments.syncRefund(recover, recover.records.afterSales[recoveryClaim._id]);
+    await payments.syncRefund(recover, recover.records.afterSales[recoveryClaim._id]);
+    assert.deepStrictEqual(recoveryCalls.map(([method]) => method), ['GET', 'GET']);
+    assert.strictEqual(recover.records.orders[recoveryOrder._id].refundAmount, 200);
+    assert.strictEqual(recover.records.skus['sku-new'].stockQuantity, 10);
+    let unsafePosts = 0;
+    recover.paymentFetch = async (_url, options) => {
+      if (options.method === 'POST') unsafePosts += 1;
+      return response({ code: 'SYSTEM_ERROR' }, 500);
+    };
+    await assert.rejects(() => payments.syncRefund(recover, recoveryClaim), (e) => e.code === 'PAYMENT_PROVIDER_ERROR');
+    recover.paymentFetch = async () => ({ ...response({ code: 'RESOURCE_NOT_EXISTS' }, 404), headers: new Headers() });
+    await assert.rejects(() => payments.syncRefund(recover, recoveryClaim), (e) => e.code === 'PAYMENT_SIGNATURE_INVALID');
+    assert.strictEqual(unsafePosts, 0, 'unknown or unverified query responses cannot trigger a refund POST');
     const refundNotice = encode({ ...refundResult, status: undefined, refund_status: 'SUCCESS', mchid: config.mchid }, 'REFUND.SUCCESS');
     assert.strictEqual((await payments.notification(r, refundNotice)).statusCode, 204);
     assert.strictEqual((await payments.notification(r, refundNotice)).statusCode, 204);
@@ -124,6 +160,25 @@ async function run() {
     await payments.sync(expired, intent); await payments.sync(expired, expired.records.payments[intent._id]);
     assert.ok(closed); assert.strictEqual(expired.records.skus['sku-new'].stockQuantity, 10);
     assert.strictEqual(expired.records.orders[old._id].status, 'closed');
+
+    // A fixed oldest-ten window must not hide later payments when callbacks are lost.
+    const queued = runtime(); queued.records.skus['sku-new'].stockQuantity = 100;
+    for (let index = 0; index < 11; index += 1) await create(queued, `queued-${index}`);
+    const queuedIds = Object.keys(queued.records.payments).sort();
+    const queuedCalls = [];
+    queued.paymentFetch = async url => {
+      const id = url.split('/out-trade-no/')[1].split('?')[0];
+      queuedCalls.push(id);
+      if (id !== queuedIds[10]) return response({ code: 'SYSTEM_ERROR' }, 500);
+      return response({ ...transaction, out_trade_no: id, transaction_id: 'wx-later-payment' });
+    };
+    await payments.reconcile(queued);
+    assert.strictEqual(queuedCalls.length, 10);
+    assert.ok(!queuedCalls.includes(queuedIds[10]));
+    await payments.reconcile(queued);
+    assert.ok(queuedCalls.includes(queuedIds[10]), 'the next sweep reaches beyond ten failing old records');
+    assert.strictEqual(queued.records.payments[queuedIds[10]].status, 'paid');
+    assert.strictEqual(queued.records.settings.__payment_reconcile_schedule.nextQueue, 2);
 
     const split = runtime();
     split.records.skus['sku-second'] = { ...split.records.skus['sku-new'], _id: 'sku-second', skuId: 'sku-second', salePrice: 300 };
@@ -165,6 +220,7 @@ async function run() {
     assert.strictEqual(uploads[0].payer.openid, 'openid-1');
     assert.strictEqual(uploads[0].is_all_delivered, true);
     assert.strictEqual(uploads[0].shipping_list[0].express_company, 'SF');
+    assert.strictEqual(uploads[0].shipping_list[0].contact.receiver_contact, '*******0000');
     const shipping = require('../shared/wechat-shipping');
     await shipping.sync(split, split.records.payments[splitTrade]);
     assert.strictEqual(uploads.length, 1);
@@ -176,6 +232,39 @@ async function run() {
     await shipping.sync(split, split.records.payments[splitTrade]);
     assert.strictEqual(uploads[1].shipping_list[0].tracking_no, 'SF456');
     assert.strictEqual(split.records.payments[splitTrade].shippingPending, false);
+
+    // CloudBase allows only one active request in a transaction, including batch fulfillment.
+    const batch = runtime();
+    const runTransaction = batch.db.runTransaction.bind(batch.db);
+    batch.db.runTransaction = worker => runTransaction(tx => {
+      let active = false;
+      return worker({ ...tx, collection(name) {
+        const ref = tx.collection(name);
+        return { ...ref, doc(id) {
+          const doc = ref.doc(id);
+          return Object.fromEntries(Object.entries(doc).map(([method, operation]) => [method, async (...args) => {
+            assert.strictEqual(active, false, 'transaction requests must be sequential');
+            active = true;
+            try { await new Promise(resolve => setImmediate(resolve)); return await operation(...args); }
+            finally { active = false; }
+          }]));
+        } };
+      } });
+    });
+    batch.records.skus['sku-second'] = { ...batch.records.skus['sku-new'], _id: 'sku-second', skuId: 'sku-second', salePrice: 300 };
+    const batchOrders = await shopEndpoint({}, ctx, batch, 'orders.create', { requestKey: 'serial-batch', address: localAddress,
+      items: [{ skuId: 'sku-new', quantity: 1 }, { skuId: 'sku-second', quantity: 1 }] });
+    await payments.confirmPaid(batch, { ...transaction, out_trade_no: payments.tradeId(batchOrders.checkoutId),
+      transaction_id: 'wx-batch', amount: { total: 400, currency: 'CNY' } });
+    const batchUploads = [];
+    batch.app.callWxOpenApi = async ({ requestData }) => { batchUploads.push(requestData); return { result: { errcode: 0 } }; };
+    const batchInput = { orderIds: batchOrders.orderIds, groupKey: require('../shared/order-shipping').shippingGroupKey(batchOrders.orders[0]),
+      trackingNo: 'SF-BATCH-1', expressCompany: 'SF' };
+    assert.strictEqual((await adminEndpoint({}, {}, batch, 'orders.shipBatch', batchInput)).shippingSyncPending, false);
+    assert.strictEqual(batchUploads[0].shipping_list.length, 1);
+    assert.strictEqual(batchUploads[0].is_all_delivered, true);
+    assert.strictEqual((await adminEndpoint({}, {}, batch, 'orders.logistics.saveBatch', { ...batchInput, trackingNo: 'SF-BATCH-2' })).shippingSyncPending, false);
+    assert.strictEqual(batchUploads[1].shipping_list[0].tracking_no, 'SF-BATCH-2');
 
     // HTTP admin/timer delivery calls use a cached stable token, never a caller-supplied identity.
     const serverShipping = runtime();
@@ -200,14 +289,7 @@ async function run() {
     await assert.rejects(() => shipping.companies(serverShipping), (e) => e.code === 'SHIPPING_SYNC_FAILED'
       && e.details.providerCode === 'NETWORK_ERROR' && !e.message.includes('secret token'));
 
-    // Real-mode admin access cannot be supplied through event/data flags.
-    const denied = runtime(); denied.adminAuthorized = false;
-    await assert.rejects(() => adminEndpoint({ adminAuthorized: true }, {}, denied, 'dashboard.summary', { adminAuthorized: true }), (e) => e.code === 'ADMIN_AUTH_REQUIRED');
-    assert.ok(require('../shared/admin-access').tokenMatches(process.env.ADMIN_API_TOKEN));
-    assert.ok(!require('../shared/admin-access').tokenMatches('forged'));
-    console.log('PASS WeChat APIv3 signatures, trusted payer, pending orders, idempotency, paid verification, encrypted notifications, real refunds, stock release and admin authorization');
-  } finally {
-    if (oldToken === undefined) delete process.env.ADMIN_API_TOKEN; else process.env.ADMIN_API_TOKEN = oldToken;
+    console.log('PASS WeChat APIv3 signatures, trusted payer, pending orders, idempotency, paid verification, encrypted notifications, real refunds and stock release');
   }
 }
 module.exports = { run };

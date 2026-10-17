@@ -144,6 +144,18 @@ async function refund(runtime, claim) {
   });
   return applyRefund(runtime, result);
 }
+async function syncRefund(runtime, claim) {
+  let result;
+  try {
+    result = await pay.api(runtime, 'GET', `/v3/refund/domestic/refunds/${encodeURIComponent(claim._id)}`);
+  } catch (error) {
+    // Only a verified not-found response proves the first request was not accepted.
+    // Reuse the reserved claim ID and amount; never create a second refund number.
+    if (error.code !== 'PAYMENT_PROVIDER_ERROR' || error.details?.providerCode !== 'RESOURCE_NOT_EXISTS') throw error;
+    return refund(runtime, claim);
+  }
+  return applyRefund(runtime, result);
+}
 async function applyRefund(runtime, result) {
   const claim = await getDoc(runtime.db.collection('afterSales'), result.out_refund_no, true);
   const order = await getDoc(runtime.db.collection('orders'), claim.orderId, true);
@@ -190,27 +202,40 @@ async function checkConfiguration(runtime) {
   return { mode: pay.paymentMode(runtime), appid: c.appid, mchid: c.mchid, providerVerified, shippingReady,
     apiV3KeyLengthValid: Buffer.byteLength(c.apiV3Key) === 32 };
 }
+async function sweep(runtime, queue, deadline) {
+  const settings = runtime.db.collection('settings'), id = `__payment_reconcile_${queue.name}`;
+  const state = await getDoc(settings, id, false);
+  const read = (cursor) => runtime.db.collection(queue.collection).where({ ...queue.where,
+    ...(cursor ? { _id: runtime.db.command.gt(cursor) } : {}),
+  }).orderBy('_id', 'asc').limit(10).get();
+  let items = require('./db').listData(await read(state?.cursor));
+  if (!items.length && state?.cursor) items = require('./db').listData(await read());
+  let cursor;
+  for (const item of items) {
+    if (Date.now() >= deadline) break;
+    try { await queue.worker(item); } catch { /* Preserve the financial reservation and retry on the next lap. */ }
+    cursor = item._id;
+  }
+  // Advance even on provider failures so ten old records cannot starve later orders.
+  if (cursor) await setDoc(settings, id, { cursor });
+}
 async function reconcile(runtime) {
   const deadline = Date.now() + 35000;
-  // Only call from a configured timer, never by accepting event.action from an SDK caller.
-  const pending = await runtime.db.collection('payments').where({ status: 'pending' }).orderBy('expiresAt', 'asc').limit(10).get();
-  for (const item of require('./db').listData(pending)) {
-    if (Date.now() >= deadline) break;
-    try { await sync(runtime, item); } catch { /* Provider retries / next sweep. */ }
-  }
-  const refunds = await runtime.db.collection('afterSales').where({ refundMode: 'wechat', status: 'refunding' }).orderBy('updatedAt', 'asc').limit(10).get();
-  for (const claim of require('./db').listData(refunds)) {
-    if (Date.now() >= deadline) break;
-    try { await applyRefund(runtime, await pay.api(runtime, 'GET', `/v3/refund/domestic/refunds/${encodeURIComponent(claim._id)}`)); }
-    catch { /* Keep reservation and retry. */ }
-  }
-  const shipments = await runtime.db.collection('payments').where({ status: 'paid', shippingPending: true })
-    .orderBy('shippingUpdatedAt', 'asc').limit(10).get();
-  for (const intent of require('./db').listData(shipments)) {
-    if (Date.now() >= deadline) break;
-    try { await require('./wechat-shipping').sync(runtime, intent); }
-    catch { /* Retain the queue until WeChat confirms the upload. */ }
-    await runtime.db.collection('payments').doc(intent._id).update({ shippingUpdatedAt: now() });
+  const settings = runtime.db.collection('settings'), key = '__payment_reconcile_schedule';
+  const state = await getDoc(settings, key, false);
+  const first = Number(state?.nextQueue || 0) % 3;
+  // Rotate priority too: a provider outage in one queue must not starve the others.
+  await setDoc(settings, key, { nextQueue: (first + 1) % 3 });
+  const queues = [
+    { name: 'pending', collection: 'payments', where: { status: 'pending' }, worker: item => sync(runtime, item) },
+    { name: 'refunds', collection: 'afterSales', where: { refundMode: 'wechat', status: 'refunding' }, worker: item => syncRefund(runtime, item) },
+    { name: 'shipping', collection: 'payments', where: { status: 'paid', shippingPending: true }, worker: async intent => {
+      try { await require('./wechat-shipping').sync(runtime, intent); }
+      finally { await runtime.db.collection('payments').doc(intent._id).update({ shippingUpdatedAt: now() }); }
+    } },
+  ];
+  for (let offset = 0; offset < queues.length && Date.now() < deadline; offset += 1) {
+    await sweep(runtime, queues[(first + offset) % queues.length], deadline);
   }
 }
-module.exports = { prepare, queryCheckout, confirmPaid, notification, refund, applyRefund, reconcile, checkConfiguration, load, tradeId, ensureIntent, sync };
+module.exports = { prepare, queryCheckout, confirmPaid, notification, refund, applyRefund, syncRefund, reconcile, checkConfiguration, load, tradeId, ensureIntent, sync };

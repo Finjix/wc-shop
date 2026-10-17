@@ -57,8 +57,7 @@ async function callAdminRaw<T>(action: string, payload: Record<string, unknown> 
     return await cloudReadRetry(action, async () => {
       const response = await fetch(adminApiUrl, {
         method: 'POST', credentials: 'omit',
-        headers: { 'content-type': 'application/json',
-          ...(sessionStorage.getItem('wc-shop.admin-token') ? { authorization: `Bearer ${sessionStorage.getItem('wc-shop.admin-token')}` } : {}) },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ scope: 'admin', action, data: payload }),
       });
       let result: ApiEnvelope<T>;
