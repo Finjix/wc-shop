@@ -1,3 +1,6 @@
 {
-  "triggers": []
+  "permissions": { "openapi": ["order.uploadShippingInfo", "express.delivery.openMsg.getDeliveryList"] },
+  "triggers": [
+    { "name": "payment-reconcile", "type": "timer", "config": "0 */1 * * * * *" }
+  ]
 }

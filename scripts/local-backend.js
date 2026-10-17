@@ -231,6 +231,7 @@ function tempFileUrl(fileID) {
 }
 
 const runtime = {
+  paymentMode: 'simulated',
   db: database,
   localStorage: true,
   app: {

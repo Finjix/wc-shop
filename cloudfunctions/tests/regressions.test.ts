@@ -181,6 +181,8 @@ function makeRuntime() {
 
   return {
     records,
+    allowSimulatedPayments: true,
+    paymentMode: 'simulated',
     db: {
       collection,
       command: Object.fromEntries(['in', 'neq', 'gte', 'gt', 'lte'].map((op) => [op, (value) => ({ __op: op, value })])),

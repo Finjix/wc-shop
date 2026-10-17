@@ -7,3 +7,4 @@ export const clearPendingGoodsRequestList = (...args) => loadApi().then(api => a
 export const fetchSettleDetail = (...args) => loadApi().then(api => api.checkout.fetchSettleDetail(...args));
 export const fetchCheckoutResult = (...args) => loadApi().then(api => api.checkout.fetchCheckoutResult(...args));
 export const createOrder = (...args) => loadApi().then(api => api.checkout.createOrder(...args));
+export const payCheckout = (...args) => loadApi().then(api => api.checkout.payCheckout(...args));

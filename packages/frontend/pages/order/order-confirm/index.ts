@@ -359,7 +359,7 @@ Page({
         // A lost response may follow a committed transaction. Retry the same key
         // until success or a definitive validation rejection confirms no order exists.
         if (['INVALID_ARGUMENT', 'ADDRESS_REQUIRED', 'ADDRESS_MISSING', 'EMPTY_CART', 'CART_EMPTY',
-          'OUT_OF_STOCK', 'SKU_UNAVAILABLE', 'FORBIDDEN', 'UNAUTHENTICATED'].includes(code)) {
+          'OUT_OF_STOCK', 'SKU_UNAVAILABLE', 'FORBIDDEN', 'UNAUTHENTICATED', 'PAYMENT_EXPIRED'].includes(code)) {
           this.createRequestId = null;
         }
         // 未确认提交结果时锁定备注，重试必须使用相同内容，避免重复下单。

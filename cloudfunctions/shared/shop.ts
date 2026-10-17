@@ -509,18 +509,28 @@ async function reserveOrderId(tx, userId) {
 async function createdOrderResult(runtime, first) {
   const ids = first.checkoutOrderIds;
   if (!Array.isArray(ids) || !ids.length) throw errorFrom('ORDER_STATE_INVALID');
-  if (ids.length === 1) return { ...first, paymentRequired: false };
+  const paymentRequired = first.payment?.mode === 'wechat' && first.paymentStatus === 'unpaid';
+  if (ids.length === 1) return { ...first, paymentRequired };
   const orders = await Promise.all(ids.map((id) => getDoc(collection(runtime, COLLECTIONS.orders), id, true)));
   return {
     ...first, orders, orderIds: ids, orderNos: orders.map((order) => order.orderNo),
     orderCount: orders.length,
     checkoutTotalAmount: orders.reduce((sum, order) => sum + order.totalAmount, 0),
-    paymentRequired: false,
+    paymentRequired,
   };
 }
 
 async function createOrder(runtime, event, context, data) {
   const identity = requireUser(event, context, runtime);
+  const paymentMode = require('./wechat-pay').assertReady(runtime);
+  let openid = '';
+  if (paymentMode === 'wechat') {
+    const raw = runtime.app?.auth?.().getUserInfo?.() || {};
+    const trusted = identity.raw || {};
+    openid = raw.openId || raw.openid || trusted.openId || trusted.openid || '';
+    const appid = raw.appId || raw.appid || trusted.appId || trusted.appid;
+    if (!openid || appid !== require('./wechat-pay').config(runtime).appid) throw errorFrom('UNAUTHENTICATED');
+  }
   const input = orderInput(data);
   const requestKey = string(input.requestKey, 'requestKey', { max: 128 });
   const requestId = crypto.createHash('sha256').update(`${identity.uid}:${requestKey}`).digest('hex').slice(0, 32);
@@ -628,11 +638,13 @@ async function createOrder(runtime, event, context, data) {
         requestAddressId: addressId,
         requestAddressHash,
         requestRemark: remark,
-        status: STATUS.paid,
-        paymentStatus: 'paid',
-        payment: { mode: 'simulated', status: 'paid', amount: totalAmount, transactionId: `sim_${id}`, paidAt: timestamp },
-        paymentAmount: totalAmount,
-        paidAt: timestamp,
+        status: paymentMode === 'wechat' ? 'pending_payment' : STATUS.paid,
+        paymentStatus: paymentMode === 'wechat' ? 'unpaid' : 'paid',
+        payment: paymentMode === 'wechat'
+          ? { mode: 'wechat', status: 'pending', openid, amount: totalAmount,
+            expiresAt: new Date(Date.parse(timestamp) + 30 * 60 * 1000).toISOString() }
+          : { mode: 'simulated', status: 'paid', amount: totalAmount, transactionId: `sim_${id}`, paidAt: timestamp },
+        ...(paymentMode === 'simulated' ? { paymentAmount: totalAmount, paidAt: timestamp } : {}),
         inventoryReserved: true,
         refundAmount: 0,
         refundedQuantities: {},
@@ -655,6 +667,12 @@ async function createOrder(runtime, event, context, data) {
     }
     await setDoc(requests, requestId, { ...reservation, userId: identity.uid, requestKey, orderId,
       createdAt: reservation?.createdAt || timestamp, orderIds: checkoutOrderIds, requestHash, totalAmount: subtotal + draft.shippingFee });
+    if (paymentMode === 'wechat') {
+      const c = require('./wechat-pay').config(runtime), id = require('./payments').tradeId(orderId);
+      await setDoc(tx.collection('payments'), id, { _id: id, checkoutId: orderId, orderIds: checkoutOrderIds,
+        userId: identity.uid, openid, appid: c.appid, mchid: c.mchid, total: subtotal + draft.shippingFee,
+        status: 'pending', createdAt: timestamp, expiresAt: created[0].payment.expiresAt });
+    }
     if (cart) {
       const storedCart = await getDoc(tx.collection(COLLECTIONS.carts), identity.uid, false);
       const orderedSkuIds = new Set(draft.items.map((item) => String(item.skuId)));
@@ -663,6 +681,10 @@ async function createOrder(runtime, event, context, data) {
     }
     return created[0];
   });
+  if (paymentMode === 'wechat') {
+    const payments = require('./payments');
+    await payments.ensureIntent(runtime, identity, await payments.load(runtime, result.checkoutId, identity.uid));
+  }
   return createdOrderResult(runtime, result);
 }
 
@@ -730,7 +752,13 @@ async function orderDetail(runtime, event, context, data) {
   const identity = requireUser(event, context, runtime);
   const input = orderInput(data);
   const ref = string(input.orderId || input.orderNo, 'orderId', { max: 128 });
-  const order = await findDoc(runtime, COLLECTIONS.orders, ref, 'orderNo');
+  let order;
+  if (/^wc[0-9a-f]{30}$/.test(ref)) {
+    // WeChat's configured detail path receives out_trade_no, not our business order ID.
+    const intent = await getDoc(runtime.db.collection('payments'), ref, true);
+    if (intent.userId !== identity.uid) throw errorFrom('FORBIDDEN');
+    order = await getDoc(collection(runtime, COLLECTIONS.orders), intent.checkoutId, true);
+  } else order = await findDoc(runtime, COLLECTIONS.orders, ref, 'orderNo');
   if (!order) throw errorFrom('NOT_FOUND');
   if (order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
   return orderWithComments(runtime, order, true);
@@ -739,6 +767,7 @@ async function orderDetail(runtime, event, context, data) {
 async function checkoutDetail(runtime, event, context, data) {
   const identity = requireUser(event, context, runtime);
   const id = string(data.checkoutId, 'checkoutId', { max: 128 });
+  await require('./payments').queryCheckout(runtime, event, context, { checkoutId: id });
   const first = await getDoc(collection(runtime, COLLECTIONS.orders), id, true);
   if (first.userId !== identity.uid) throw errorFrom('FORBIDDEN');
   return createdOrderResult(runtime, first);
@@ -999,13 +1028,14 @@ async function pendingAggregate(tx, order, claim, timestamp, persist = true) {
   return patch;
 }
 
-async function finishSimulatedRefund(tx, afterSale, order, timestamp) {
+async function finishRefund(tx, afterSale, order, timestamp, verified) {
   if (afterSale.status === STATUS.refunded) return { ...afterSale, _id: afterSale._id };
   const isReturn = Number(afterSale.type) === 10;
-  if ((isReturn && afterSale.status !== STATUS.refunding) || (!isReturn && afterSale.status !== STATUS.pendingReview && afterSale.status !== STATUS.approved)) {
+  if ((isReturn && afterSale.status !== STATUS.refunding) || (!isReturn && ![STATUS.pendingReview, STATUS.approved, STATUS.refunding].includes(afterSale.status))) {
     throw errorFrom('ORDER_STATE_INVALID');
   }
-  if (order.payment?.mode !== 'simulated' || order.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
+  if ((order.payment?.mode !== 'simulated' && !(order.payment?.mode === 'wechat' && verified?.mode === 'wechat' && verified.transactionId))
+    || order.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
   const paidAmount = Number(order.paymentAmount ?? order.payment?.amount ?? order.totalAmount);
   const amount = Number(afterSale.amount ?? afterSale.refundRequestAmount);
   if (!Number.isSafeInteger(paidAmount) || !Number.isSafeInteger(amount) || amount <= 0) throw errorFrom('INVALID_ARGUMENT', { field: 'refundAmount' });
@@ -1063,9 +1093,9 @@ async function finishSimulatedRefund(tx, afterSale, order, timestamp) {
     reviewedAt: afterSale.reviewedAt ?? timestamp,
     status: STATUS.refunded,
     ...(isReturn ? { returnReceivedAt: timestamp, refundApprovedAt: timestamp } : {}),
-    refundMode: 'simulated',
+    refundMode: verified?.mode || 'simulated',
     refundedAt: timestamp,
-    refundTransactionId: `sim_refund_${afterSale._id}`,
+    refundTransactionId: verified?.transactionId || `sim_refund_${afterSale._id}`,
     updatedAt: timestamp,
   };
   const afterSaleResult = await tx.collection(COLLECTIONS.afterSales).doc(afterSale._id).update(refundPatch);
@@ -1198,7 +1228,7 @@ async function submitAfterSale(runtime, identity, order, data, reapplyId = '') {
   const type = afterSaleType(data.type);
   if (![STATUS.paid, STATUS.shipped, STATUS.received, STATUS.completed].includes(order.status)) throw errorFrom('ORDER_STATE_INVALID');
   if (!policyForScenario(scenarioForOrder(order)).allowedTypes.includes(type)) throw errorFrom('ORDER_STATE_INVALID');
-  if (order.payment?.mode !== 'simulated' || order.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
+  if (!['simulated', 'wechat'].includes(order.payment?.mode) || order.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
   const id = reapplyId || `as_${crypto.randomUUID()}`;
   // 旧订单可能未保存售后索引；索引不参与金额/数量校验，只在本次写入时补齐。
   // 查询放在事务外；事务内优先使用最新索引，保留并发申请已写入的记录。
@@ -1213,7 +1243,7 @@ async function submitAfterSale(runtime, identity, order, data, reapplyId = '') {
     const scenario = scenarioForOrder(current);
     const policy = policyForScenario(scenario);
     if (!policy.allowedTypes.includes(type)) throw errorFrom('ORDER_STATE_INVALID');
-    if (current.payment?.mode !== 'simulated' || current.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
+    if (!['simulated', 'wechat'].includes(current.payment?.mode) || current.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
     const receiptStatus = data.receiptStatus === undefined
       ? (policy.receiptStatus ?? 1)
       : integer(data.receiptStatus, 'receiptStatus', { min: 1, max: 2 });
@@ -1284,6 +1314,9 @@ async function moderateAfterSale(runtime, data) {
   if (![STATUS.approved, STATUS.rejected].includes(decision)) throw errorFrom('INVALID_ARGUMENT', { field: 'status' });
   const existing = await findDoc(runtime, COLLECTIONS.afterSales, id, 'rightsNo');
   if (!existing) throw errorFrom('NOT_FOUND');
+  if (existing.refundMode === 'wechat' && existing.status === STATUS.refunding && decision === STATUS.approved) {
+    return require('./payments').refund(runtime, existing);
+  }
   if (existing.status === STATUS.refunded && decision === STATUS.approved) return existing;
   return withTransaction(runtime.db, async (tx) => {
     const current = await getDoc(tx.collection(COLLECTIONS.afterSales), existing._id, true);
@@ -1312,8 +1345,13 @@ async function moderateAfterSale(runtime, data) {
     if (policy.fullRefundOnly) assert(amount === reservedAmount, { field: 'amount', expected: reservedAmount });
     const decisionPatch = { scenario, amount, type, requestedType: current.requestedType ?? current.type, decidedType: type, reviewedAt: timestamp };
     if (type === 20) {
-      if (order.payment?.mode !== 'simulated' || order.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
-      return finishSimulatedRefund(tx, { ...current, ...decisionPatch, status: STATUS.approved }, order, timestamp);
+      if (order.paymentStatus === 'unpaid') throw errorFrom('PAYMENT_NOT_CONFIGURED');
+      if (order.payment?.mode === 'wechat') {
+        const patch = { ...decisionPatch, status: STATUS.refunding, refundMode: 'wechat', updatedAt: timestamp };
+        await tx.collection(COLLECTIONS.afterSales).doc(current._id).update(patch);
+        return { ...current, ...patch };
+      }
+      return finishRefund(tx, { ...current, ...decisionPatch, status: STATUS.approved }, order, timestamp);
     }
     const address = await returnAddressFrom(tx.collection(COLLECTIONS.settings));
     if (!address) throw errorFrom('RETURN_ADDRESS_REQUIRED');
@@ -1321,7 +1359,8 @@ async function moderateAfterSale(runtime, data) {
     const result = await tx.collection(COLLECTIONS.afterSales).doc(existing._id).update(patch);
     if (affected(result) !== 1) throw errorFrom('CONFLICT');
     return { ...current, ...patch, _id: existing._id };
-  });
+  }).then((result) => result.refundMode === 'wechat' && result.status === STATUS.refunding
+    ? require('./payments').refund(runtime, result) : result);
 }
 
 async function confirmAfterSaleReturn(runtime, data) {
@@ -1336,8 +1375,15 @@ async function confirmAfterSaleReturn(runtime, data) {
       || !String(current.trackingNo || current.logisticsNo || '').trim()) throw errorFrom('ORDER_STATE_INVALID');
     const order = await getDoc(tx.collection(COLLECTIONS.orders), current.orderId, true);
     const amount = integer(data.amount, 'amount', { min: 1, max: refundAmountLimit(order, current) });
-    return finishSimulatedRefund(tx, { ...current, amount }, order, now());
-  });
+    if (order.payment?.mode === 'wechat') {
+      if (current.refundMode === 'wechat' && amount !== current.amount) throw errorFrom('CONFLICT');
+      const patch = { amount, refundMode: 'wechat', returnReceivedAt: current.returnReceivedAt || now(), updatedAt: now() };
+      await tx.collection(COLLECTIONS.afterSales).doc(current._id).update(patch);
+      return { ...current, ...patch };
+    }
+    return finishRefund(tx, { ...current, amount }, order, now());
+  }).then((result) => result.refundMode === 'wechat' && result.status === STATUS.refunding
+    ? require('./payments').refund(runtime, result) : result);
 }
 
 async function shopEndpoint(event, context, runtime, action, data) {
@@ -1386,6 +1432,7 @@ async function executeShop(event, context, runtime, action, data) {
   if (action.startsWith('cart.')) return cartAction(runtime, event, context, data, action);
   if (action === 'orders.preview') return previewOrder(runtime, event, context, data);
   if (action === 'orders.create') return createOrder(runtime, event, context, data);
+  if (action === 'orders.pay') return require('./payments').prepare(runtime, event, context, data);
   if (action === 'orders.checkout') return checkoutDetail(runtime, event, context, data);
   if (action === 'orders.list') return listOrders(runtime, event, context, data);
   if (action === 'orders.count') return orderCount(runtime, event, context);
@@ -1397,4 +1444,4 @@ async function executeShop(event, context, runtime, action, data) {
   throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
 }
 
-module.exports = { shopEndpoint, normalizeOrderItems, skuPrice, skuStock, moderateAfterSale, confirmAfterSaleReturn };
+module.exports = { shopEndpoint, normalizeOrderItems, skuPrice, skuStock, moderateAfterSale, confirmAfterSaleReturn, finishRefund };

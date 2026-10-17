@@ -5,6 +5,7 @@ type FunctionEvent = {
   httpMethod?: unknown;
   body?: unknown;
   isBase64Encoded?: boolean;
+  headers?: Record<string, string>;
 };
 
 type Runtime = Record<string, unknown>;
@@ -47,7 +48,7 @@ const { adminEndpoint } = require('../shared/admin') as { adminEndpoint: Endpoin
 
 /**
  * Resolve the logical API scope without using it as an authorization decision.
- * Shop endpoints enforce user ownership; admin endpoints are public.
+ * Shop endpoints enforce user ownership; admin endpoints require a bearer token.
  */
 export function resolveScope(event: unknown): FunctionScope {
   const source = event && typeof event === 'object' ? event as FunctionEvent : {};
@@ -59,6 +60,8 @@ export function resolveScope(event: unknown): FunctionScope {
 async function invoke(event: unknown, context: unknown): Promise<unknown> {
   return runEndpoint(async (input, ctx) => {
     const runtime = createRuntime();
+    const token = (ctx as { adminToken?: string } | null)?.adminToken;
+    runtime.adminAuthorized = (require('../shared/admin-access') as { tokenMatches: (token: unknown) => boolean }).tokenMatches(token);
     const { action, data } = getPayload(input);
     if (!action || typeof action !== 'string') {
       throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
@@ -73,7 +76,7 @@ async function invoke(event: unknown, context: unknown): Promise<unknown> {
 export async function handleAdminHttp(event: FunctionEvent, invokeAdmin: (input: unknown) => Promise<unknown>): Promise<unknown> {
   const headers = { 'content-type': 'application/json; charset=utf-8',
     'access-control-allow-origin': '*', 'access-control-allow-methods': 'POST, OPTIONS',
-    'access-control-allow-headers': 'content-type', 'cache-control': 'no-store' };
+    'access-control-allow-headers': 'content-type, authorization', 'cache-control': 'no-store' };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   const result = await runEndpoint(async () => {
     if (event.httpMethod !== 'POST') throw errorFrom('INVALID_ARGUMENT', { field: 'httpMethod' });
@@ -95,8 +98,23 @@ export async function handleAdminHttp(event: FunctionEvent, invokeAdmin: (input:
 }
 
 export async function main(event: unknown, context: unknown): Promise<unknown> {
+  const timer = event as { Type?: string; TriggerName?: string } | null;
+  if (timer?.Type === 'Timer' && timer.TriggerName === 'payment-reconcile') {
+    // This branch only queries signed provider state. It never accepts amounts, IDs or a refund command.
+    await (require('../shared/payments') as { reconcile: (runtime: Runtime) => Promise<void> }).reconcile(createRuntime());
+    return { reconciled: true };
+  }
   if (event && typeof event === 'object' && typeof (event as FunctionEvent).httpMethod === 'string') {
-    return handleAdminHttp(event as FunctionEvent, (input) => invoke(input, {}));
+    const http = event as FunctionEvent;
+    const headers = http.headers || {};
+    const header = (key: string) => Object.entries(headers).find(([name]) => name.toLowerCase() === key)?.[1];
+    // Notifications are accepted only as raw HTTP and always verified cryptographically.
+    if (header('wechatpay-signature')) {
+      return (require('../shared/payments') as { notification: (runtime: Runtime, event: unknown) => Promise<unknown> })
+        .notification(createRuntime(), http);
+    }
+    const token = header('authorization')?.replace(/^Bearer /, '');
+    return handleAdminHttp(http, (input) => invoke(input, { adminToken: token }));
   }
   return invoke(event, context);
 }

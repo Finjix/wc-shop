@@ -62,8 +62,8 @@ export interface Sku {
   [key: string]: unknown;
 }
 
-export type OrderStatus = 'paid' | 'shipped' | 'received' | 'completed' | 'refunded';
-export type OrderPaymentStatus = 'paid' | 'partially_refunded' | 'refunded';
+export type OrderStatus = 'pending_payment' | 'closed' | 'paid' | 'shipped' | 'received' | 'completed' | 'refunded';
+export type OrderPaymentStatus = 'unpaid' | 'paid' | 'partially_refunded' | 'refunded';
 
 export interface Order {
   canDeleteAdmin?: boolean;

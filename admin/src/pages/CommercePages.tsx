@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Button, Dialog, Input, Tag } from 'tdesign-react';
+import { Button, Dialog, Input, Select, Tag } from 'tdesign-react';
 import { adminApi, ApiError } from '../lib/api';
 import { parseRefundAmount } from '../lib/refund-amount';
 import { afterSalePolicy, afterSaleRequestLabel, afterSaleReceiptLabel } from '../lib/after-sale-policy';
@@ -52,7 +52,8 @@ function useAction() {
     setBusy(true);
     try {
       const result = await adminApi.call<T>(action, payload);
-      message(success);
+      message((result as { shippingSyncPending?: boolean })?.shippingSyncPending
+        ? `${success}，微信发货信息待同步，将自动重试` : success);
       return result === undefined ? true as T : result;
     } catch (error) {
       message(error instanceof Error ? error.message : '操作失败', 'error');
@@ -83,7 +84,7 @@ function orderStatusKey(value: unknown) {
 }
 
 function orderStatusLabel(value: unknown) {
-  return ({ paid: '待发货', shipped: '待收货', completed: '已完成', refunded: '已退款', cancelled: '已取消' } as Record<string, string>)[orderStatusKey(value)] || '—';
+  return ({ pending_payment: '待付款', closed: '已关闭', paid: '待发货', shipped: '待收货', completed: '已完成', refunded: '已退款', cancelled: '已取消' } as Record<string, string>)[orderStatusKey(value)] || '—';
 }
 
 function orderDisplayStatus(order: Order) {
@@ -199,21 +200,38 @@ function orderCanShip(order: Order) {
     && listOf<Record<string, unknown>>(order.items).some((item) => shippingQuantityOf(order, item) > 0);
 }
 
+function CarrierPicker({ required, value, onChange }: { required: boolean; value: string; onChange: (value: string) => void }) {
+  const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
+  const [error, setError] = useState('');
+  const load = () => {
+    setError('');
+    void adminApi.call<{ items: { value: string; label: string }[] }>('shipping.companies')
+      .then((result) => setOptions(result.items)).catch(() => setError('快递公司加载失败，请重试'));
+  };
+  useEffect(() => { if (required) load(); }, [required]);
+  if (!required) return null;
+  return <Field label="快递公司"><Select value={value} options={options} filterable placeholder="请选择快递公司"
+    onChange={(next) => onChange(String(next || ''))} />
+    {error && <span>{error} <Button variant="text" onClick={load}>重新加载</Button></span>}</Field>;
+}
+
 function BatchShippingDialog({ group, editing = false, onClose, onSaved }: { group: OrderAddressGroup; editing?: boolean; onClose: () => void; onSaved: () => void }) {
   const candidates = group.orders.filter((order) => orderStatusKey(order.status) === (editing ? 'shipped' : 'paid'));
   const eligible = candidates.filter((order) => editing ? !order.hasActiveAfterSale : orderCanShip(order));
   const [selected, setSelected] = useState(() => eligible.map((order) => orderIdOf(order)));
   const [trackingNo, setTrackingNo] = useState('');
+  const [expressCompany, setExpressCompany] = useState('');
+  const needsCarrier = candidates.some((order) => selected.includes(orderIdOf(order)) && order.payment?.mode === 'wechat');
   const { busy, run } = useAction();
   const toggle = (id: string, checked: boolean) => {
     setSelected((old) => checked ? [...old, id] : old.filter((value) => value !== id));
   };
   const save = async () => {
-    if (busy || !selected.length || !trackingNo.trim()) return;
-    const result = await run(editing ? 'orders.logistics.saveBatch' : 'orders.shipBatch', { orderIds: selected, groupKey: group.addressKey || group.key, trackingNo: trackingNo.trim() }, editing ? `${selected.length} 笔订单物流单号已修改` : `${selected.length} 笔订单已合并发货`);
+    if (busy || !selected.length || !trackingNo.trim() || (needsCarrier && !expressCompany)) return;
+    const result = await run(editing ? 'orders.logistics.saveBatch' : 'orders.shipBatch', { orderIds: selected, groupKey: group.addressKey || group.key, trackingNo: trackingNo.trim(), expressCompany }, editing ? `${selected.length} 笔订单物流单号已修改` : `${selected.length} 笔订单已合并发货`);
     if (result !== undefined) onSaved();
   };
-  return <Dialog className="shipping-dialog" placement="center" width="min(1000px, 94vw)" header={editing ? '修改物流单号' : '合并发货'} closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: '确定', loading: busy, disabled: busy || !selected.length || !trackingNo.trim() }} cancelBtn={{ content: '取消', disabled: busy }}>
+  return <Dialog className="shipping-dialog" placement="center" width="min(1000px, 94vw)" header={editing ? '修改物流单号' : '合并发货'} closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: '确定', loading: busy, disabled: busy || !selected.length || !trackingNo.trim() || (needsCarrier && !expressCompany) }} cancelBtn={{ content: '取消', disabled: busy }}>
     <div className="shipping-dialog-info">
       <dl className="detail-list"><dt>收货人</dt><dd>{group.address.receiver}</dd><dt>联系电话</dt><dd>{group.address.phone}</dd><dt>收货地址</dt><dd>{group.address.address}</dd></dl>
       <Table minWidth={600}>
@@ -230,22 +248,24 @@ function BatchShippingDialog({ group, editing = false, onClose, onSaved }: { gro
         })}</tbody>
       </Table>
     </div>
-    <div className="shipping-dialog-tracking"><Field label="物流单号"><Input value={trackingNo} onChange={setTrackingNo} disabled={busy} placeholder={editing ? '请输入新的物流单号' : '请输入本次合并发货的物流单号'} /></Field></div>
+    <div className="shipping-dialog-tracking"><CarrierPicker required={needsCarrier} value={expressCompany} onChange={setExpressCompany} /><Field label="物流单号"><Input value={trackingNo} onChange={setTrackingNo} disabled={busy} placeholder={editing ? '请输入新的物流单号' : '请输入本次合并发货的物流单号'} /></Field></div>
   </Dialog>;
 }
 
 function OrderShippingDialog({ order, editing = false, onClose, onSaved }: { order: Order; editing?: boolean; onClose: () => void; onSaved: () => void }) {
   const logistics = order.logistics || {};
   const [trackingNo, setTrackingNo] = useState(editing ? String(logistics.trackingNo || '') : '');
+  const [expressCompany, setExpressCompany] = useState(String(logistics.expressCompany || ''));
+  const needsCarrier = order.payment?.mode === 'wechat';
   const { busy, run } = useAction();
   const save = async () => {
-    if (busy || order.hasActiveAfterSale || !trackingNo.trim()) return;
-    const result = await run(editing ? 'orders.logistics.save' : 'orders.ship', { orderId: orderIdOf(order), trackingNo: trackingNo.trim() }, editing ? '物流单号已修改' : '订单已发货');
+    if (busy || order.hasActiveAfterSale || !trackingNo.trim() || (needsCarrier && !expressCompany)) return;
+    const result = await run(editing ? 'orders.logistics.save' : 'orders.ship', { orderId: orderIdOf(order), trackingNo: trackingNo.trim(), expressCompany }, editing ? '物流单号已修改' : '订单已发货');
     if (result !== undefined) onSaved();
   };
-  return <Dialog className="shipping-dialog" placement="center" width="min(900px, 92vw)" header={false} closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: '确定', loading: busy, disabled: busy || Boolean(order.hasActiveAfterSale) || !trackingNo.trim() }} cancelBtn={{ content: '取消', disabled: busy }}>
+  return <Dialog className="shipping-dialog" placement="center" width="min(900px, 92vw)" header={false} closeBtn={false} closeOnOverlayClick={false} visible onClose={() => { if (!busy) onClose(); }} onConfirm={() => void save()} confirmBtn={{ content: '确定', loading: busy, disabled: busy || Boolean(order.hasActiveAfterSale) || !trackingNo.trim() || (needsCarrier && !expressCompany) }} cancelBtn={{ content: '取消', disabled: busy }}>
     <ShippingOrderInfo order={order} />
-    <div className="shipping-dialog-tracking"><Field label="物流单号"><Input value={trackingNo} onChange={setTrackingNo} placeholder="请输入物流单号" /></Field></div>
+    <div className="shipping-dialog-tracking"><CarrierPicker required={needsCarrier} value={expressCompany} onChange={setExpressCompany} /><Field label="物流单号"><Input value={trackingNo} onChange={setTrackingNo} placeholder="请输入物流单号" /></Field></div>
   </Dialog>;
 }
 

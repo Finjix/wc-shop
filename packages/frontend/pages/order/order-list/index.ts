@@ -109,6 +109,7 @@ Page({
             return {
               id: order.orderId,
               orderNo: order.orderNo,
+                checkoutId: order.checkoutId,
               commentableProductId: order.commentableProductId,
               commentedProductIds: order.commentedProductIds || [],
               parentOrderNo: order.parentOrderNo,

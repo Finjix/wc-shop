@@ -7,7 +7,7 @@
       "dir": "./cloudfunctions",
       "handler": "wc-shop-function/index.main",
       "runtime": "Nodejs20.19",
-      "timeout": 3,
+      "timeout": 60,
       "memorySize": 256,
       "installDependency": true
     }

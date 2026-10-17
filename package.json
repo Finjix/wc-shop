@@ -15,6 +15,7 @@
     "test:admin-lightbox": "node scripts/test-admin-lightbox.cjs",
     "test:admin-confirm": "node scripts/test-admin-confirm.cjs",
     "test:checkout": "node scripts/test-checkout.cjs",
+    "test:wechat-checkout": "node scripts/test-wechat-checkout.cjs",
     "test:local-addresses": "node scripts/test-local-addresses.cjs",
     "test:order-after-sales": "node scripts/test-order-after-sales.cjs",
     "test:order-receipt": "node scripts/test-order-receipt.cjs",

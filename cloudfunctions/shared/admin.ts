@@ -658,7 +658,7 @@ async function listAdminOrders(runtime, data) {
   return { items, ...paging, total: groups.size, totalOrders: rows.length };
 }
 
-async function orderShipmentPatch(current, trackingNo, timestamp) {
+async function orderShipmentPatch(current, trackingNo, timestamp, tx, expressCompany) {
   if (current.status !== STATUS.paid) throw errorFrom('ORDER_STATE_INVALID');
   assertOrderWritable(current);
   const shippedQuantities = {};
@@ -667,9 +667,11 @@ async function orderShipmentPatch(current, trackingNo, timestamp) {
     if (quantity > 0) shippedQuantities[item.skuId] = quantity;
   }
   if (!Object.keys(shippedQuantities).length) throw errorFrom('ORDER_STATE_INVALID');
+  const carrier = require('./wechat-shipping').carrier(current, expressCompany);
+  await require('./wechat-shipping').dirty(tx, current);
   return {
     status: STATUS.shipped, fulfillmentStatus: STATUS.shipped, shippedAt: timestamp,
-    tracking: { trackingNo, shippedAt: timestamp }, logistics: { trackingNo, logisticsNo: trackingNo },
+    tracking: { trackingNo, shippedAt: timestamp }, logistics: { trackingNo, logisticsNo: trackingNo, ...carrier },
     shippedQuantities, updatedAt: timestamp,
   };
 }
@@ -693,7 +695,7 @@ async function shipOrderBatch(runtime, data) {
     const patches = [];
     for (const [index, order] of current.entries()) {
       patches.push({
-        ...await orderShipmentPatch(order, trackingNo, timestamp),
+        ...await orderShipmentPatch(order, trackingNo, timestamp, tx, data.expressCompany),
         shipmentBatchId: batchId, shipmentOrderIds: ids,
       });
     }
@@ -723,9 +725,11 @@ async function adminOrderAction(runtime, data, action) {
       const timestamp = now();
       const items = [];
       for (const [index, order] of current.entries()) {
+        const carrier = require('./wechat-shipping').carrier(order, data.expressCompany);
+        await require('./wechat-shipping').dirty(tx, order);
         const patch = {
           tracking: { ...(order.tracking || {}), trackingNo },
-          logistics: { ...(order.logistics || {}), trackingNo, logisticsNo: trackingNo },
+          logistics: { ...(order.logistics || {}), trackingNo, logisticsNo: trackingNo, ...carrier },
           updatedAt: timestamp,
         };
         if (affected(await collection.doc(ids[index]).update(patch)) !== 1) throw errorFrom('CONFLICT');
@@ -753,9 +757,11 @@ async function adminOrderAction(runtime, data, action) {
       const current = await getDoc(tx.collection(COLLECTIONS.orders), documentId, true);
       if (current.status !== STATUS.shipped) throw errorFrom('ORDER_STATE_INVALID');
       assertOrderWritable(current);
+      const carrier = require('./wechat-shipping').carrier(current, data.expressCompany);
+      await require('./wechat-shipping').dirty(tx, current);
       const patch = {
         tracking: { ...(current.tracking || {}), trackingNo },
-        logistics: { ...(current.logistics || {}), trackingNo, logisticsNo: trackingNo },
+        logistics: { ...(current.logistics || {}), trackingNo, logisticsNo: trackingNo, ...carrier },
         updatedAt: now(),
       };
       const result = await tx.collection(COLLECTIONS.orders).doc(documentId).update(patch);
@@ -772,7 +778,7 @@ async function adminOrderAction(runtime, data, action) {
     const timestamp = now();
     return withTransaction(runtime.db, async (tx) => {
       const current = await getDoc(tx.collection(COLLECTIONS.orders), documentId, true);
-      const patch = await orderShipmentPatch(current, trackingNo, timestamp);
+      const patch = await orderShipmentPatch(current, trackingNo, timestamp, tx, data.expressCompany);
       const result = await tx.collection(COLLECTIONS.orders).doc(documentId).update(patch);
       if (affected(result) !== 1) throw errorFrom('CONFLICT');
       return { ...current, ...patch, _id: documentId };
@@ -1031,12 +1037,20 @@ function normalizeAdminAction(action, data) {
 
 async function adminEndpoint(event, context, runtime, action, data) {
   runtime = imageLifecycleRuntime(runtime);
-  const result = await executeAdmin(event, context, runtime, action, data);
+  let result = await executeAdmin(event, context, runtime, action, data);
+  if (['orders.ship', 'orders.shipBatch', 'orders.logistics.save', 'orders.logistics.saveBatch'].includes(action)) {
+    result = await require('./wechat-shipping').syncResult(runtime, result);
+  }
   return result && typeof result === 'object' && !Array.isArray(result) && runtime.removedImages.size
     ? { ...result, imageCleanup: [...runtime.removedImages] } : result;
 }
 
 async function executeAdmin(event, context, runtime, action, data) {
+  require('./admin-access').requireAdmin(runtime);
+  if (action === 'auth.check') return { authorized: true };
+  if (action === 'payments.checkConfiguration') return require('./payments').checkConfiguration(runtime);
+  if (action === 'shipping.companies') return require('./wechat-shipping').companies(runtime);
+  if (action === 'payments.reconcile') { await require('./payments').reconcile(runtime); return { reconciled: true }; }
   const isVariantSave = action === 'products.save';
   const normalized = normalizeAdminAction(action, data);
   action = normalized.action;

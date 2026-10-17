@@ -12,6 +12,7 @@ Promise.resolve()
   .then(() => require('./admin-all-status-delete.test').run())
   .then(() => runRegressions())
   .then(() => require('./image-lifecycle.test').run())
+  .then(() => require('./wechat-pay.test').run())
   .then(() => {
     console.log('cloudfunctions contract and regression tests passed');
 }).catch((error) => {

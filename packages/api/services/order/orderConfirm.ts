@@ -188,12 +188,30 @@ function validateOrderRequest(params = {}) {
   return { goodsRequestList, payload };
 }
 
-/**
- * 创建订单并由服务端完成模拟支付；库存和订单幂等由云函数负责。
- */
-export function createOrder(params = {}) {
+export async function payCheckout(checkoutId) {
+  const prepared = await action('orders.pay', { checkoutId });
+  if (!prepared.data.paid) {
+    await new Promise((resolve, reject) => wx.requestPayment({ ...prepared.data.payment,
+      success: resolve,
+      fail: (failure) => reject(domainError(/cancel/i.test(failure.errMsg || '') ? 'PAYMENT_CANCELLED' : 'PAYMENT_FAILED',
+        /cancel/i.test(failure.errMsg || '') ? '已取消支付，可重试继续付款' : '未完成支付，请重试')),
+    }));
+  }
+  // Client success is only a hint; trust the server's signed query / callback.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const result = await action('orders.checkout', { checkoutId });
+    if (result.data.paymentStatus === 'paid') return normalizeCreatedOrder(result);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  throw domainError('PAYMENT_CONFIRMING', '支付结果确认中，请稍后重试查询，请勿重新下单');
+}
+
+/** 创建业务订单，再由服务端提供支付参数。 */
+export async function createOrder(params = {}) {
   const { payload, error } = validateOrderRequest(params);
-  if (error) return Promise.reject(error);
-  return action('orders.create', payload).then(normalizeCreatedOrder);
+  if (error) throw error;
+  const created = await action('orders.create', payload);
+  if (created.data.paymentRequired) return payCheckout(created.data.checkoutId || created.data._id);
+  return normalizeCreatedOrder(created);
 }
 // @ts-nocheck

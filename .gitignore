@@ -39,3 +39,10 @@ cloudfunctions/wc-shop-function/index.js
 .local-backend.json
 data/.local-backend.json
 data/.local-files/
+
+# Merchant credentials must never be committed or placed in deployment archives.
+cloudfunctions/.env
+cloudfunctions/.env.local
+**/apiclient_*.pem
+**/wechatpay*.pem
+**/*.p12

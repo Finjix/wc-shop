@@ -1,5 +1,6 @@
 import { createHashRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { AdminLayout } from './components/Layout';
+import { AdminAccess } from './components/AdminAccess';
 import { HomeContentPage, OverviewPage, ProductsPage } from './pages/Pages';
 import { AfterSalesPage, CommentsPage, OrderDetailPage, OrdersPage, SettingsPage } from './pages/CommercePages';
 import { CategoriesPage } from './pages/CategoriesPage';
@@ -32,4 +33,4 @@ const router = createHashRouter([
   { path: '*', element: <Navigate to="/overview" replace /> },
 ]);
 
-export function App() { return <RouterProvider router={router} />; }
+export function App() { return <AdminAccess><RouterProvider router={router} /></AdminAccess>; }

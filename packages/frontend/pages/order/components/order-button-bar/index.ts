@@ -4,6 +4,7 @@ import { isPageNavigationEnabled } from '../../../../../../config/navigation';
 import Toast from '../../../../tdesign/toast/index';
 import Dialog from '../../utils/dialog';
 import { OrderButtonTypes } from '../../config';
+import { payCheckout } from '../../../../services/order/orderConfirm';
 import { confirmOrderReceived } from '../../services/orderDetail';
 import { cancelRights } from '../../after-service-detail/api';
 import { addGoodsToCart } from '../../../../services/cart/cart';
@@ -77,6 +78,9 @@ Component({
     onOrderBtnTap(e) {
       const type = Number(e.currentTarget.dataset.type);
       switch (type) {
+        case OrderButtonTypes.PAY:
+          this.onPay(this.data.currentOrder);
+          break;
         case OrderButtonTypes.CANCEL_AFTER_SALE:
           this.onCancelAfterSale(e.currentTarget.dataset.rightsNo);
           break;
@@ -101,6 +105,17 @@ Component({
         case OrderButtonTypes.REBUY:
           this.onBuyAgain(this.data.currentOrder);
       }
+    },
+
+    async onPay(order) {
+      if (this.paymentBusy) return;
+      this.paymentBusy = true;
+      try {
+        await payCheckout(order.checkoutId || order.orderNo || order.id);
+        this.finishAction('支付成功');
+      } catch (error) {
+        Toast({ context: this, selector: '#t-toast', message: getApiErrorMessage(error, '未完成支付，请重试') });
+      } finally { this.paymentBusy = false; }
     },
 
     onCancelAfterSale(rightsNo) {

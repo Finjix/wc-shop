@@ -38,7 +38,7 @@ async function run() {
   assert.strictEqual(JSON.parse(broken.body).error.code, 'INVALID_ARGUMENT');
   const options = await handleAdminHttp({ httpMethod: 'OPTIONS' }, () => { throw new Error('preflight must not invoke business API'); });
   assert.strictEqual(options.statusCode, 204);
-  assert.strictEqual(options.headers['access-control-allow-headers'], 'content-type');
+  assert.strictEqual(options.headers['access-control-allow-headers'], 'content-type, authorization');
   assert.strictEqual((await handleAdminHttp({ httpMethod: 'GET' }, invoke)).statusCode, 405);
   console.log('PASS public HTTP admin read/write, base64, preflight, malformed requests and shop-scope isolation');
 }
