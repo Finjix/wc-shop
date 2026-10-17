@@ -17,7 +17,7 @@ const context = vm.createContext({
 });
 
 function load(file) {
-  const absolute = path.resolve(root, file);
+  const absolute = require("./miniprogram-test-source.cjs").resolveSource(path.resolve(root, file));
   if (cache.has(absolute)) return cache.get(absolute);
   const exports = {};
   cache.set(absolute, exports);
@@ -26,11 +26,12 @@ function load(file) {
   }).outputText;
   const wrapper = vm.runInContext(`(function(exports, require) { ${source}\n})`, context);
   wrapper(exports, (name) => {
+    name = name.replace(/^.*\/tdesign\//, 'tdesign-miniprogram/');
     if (name === 'tdesign-miniprogram/toast/index') return { default() {} };
     if (!name.startsWith('.')) throw new Error(`Unexpected import: ${name}`);
     const dependency = path.resolve(path.dirname(absolute), `${name}.ts`);
     if (dependency === path.join(root, 'common/updateManager.ts')) return { default() {} };
-    if (dependency === path.join(root, 'utils/api.ts')) return { getApiErrorMessage: (error) => error.message };
+    if (dependency === path.join(root, 'packages/api/utils/api.ts')) return { getApiErrorMessage: (error) => error.message };
     return load(dependency);
   });
   return exports;
@@ -38,9 +39,9 @@ function load(file) {
 
 async function testAddressSelection() {
   load('app.ts');
-  load('pages/order/order-confirm/index.ts');
+  load('packages/frontend/pages/order/order-confirm/index.ts');
   const order = { ...page, handleOptionsParams(value) { this.selected = value.userAddressReq; } };
-  load('pages/user/address/list/index.ts');
+  load('packages/frontend/pages/user/address/list/index.ts');
   const addresses = { ...page, selectMode: true };
   order.onGotoAddress();
   assert.match(navigation.at(-1).url, /selectMode=1/);
@@ -73,7 +74,7 @@ async function testAddressSelection() {
 }
 
 async function testAddressEditDefaultSwitch() {
-  load('pages/user/address/edit/index.ts');
+  load('packages/frontend/pages/user/address/edit/index.ts');
   const edit = {
     ...page,
     data: JSON.parse(JSON.stringify(page.data)),
@@ -81,7 +82,7 @@ async function testAddressEditDefaultSwitch() {
     setData(values, done) { Object.assign(this.data, values); done?.(); },
     onVerifyInputLegal() { return { isLegal: true, tips: '' }; },
   };
-  const service = load('services/address/fetchAddress.ts');
+  const service = load('packages/api/services/address/fetchAddress.ts');
   const originalFetch = service.fetchDeliveryAddress;
   try {
     for (const value of [true, 1, '1', 'true', false, 0, '0', 'false']) {
@@ -129,7 +130,7 @@ async function dialogScenario(file) {
   assert.equal(component.data.confirmBtn.content, options.confirmBtn.content);
   assert.equal(component.data.confirmBtn.rootClass, options.confirmBtn.rootClass);
   const data = JSON.parse(JSON.stringify(component.data));
-  if (file === 'pages/order/utils/dialog.ts') {
+  if (file === 'packages/frontend/pages/order/utils/dialog.ts') {
     assert.match(component.data.confirmBtn.style, /order: -1/);
     delete data.confirmBtn.style;
   }
@@ -140,7 +141,7 @@ async function dialogScenario(file) {
   component._onCancel('cancel');
   assert.equal(await caught, 'cancel');
   assert.equal(state.selector, '#custom-dialog');
-  if (file === 'pages/order/utils/dialog.ts') {
+  if (file === 'packages/frontend/pages/order/utils/dialog.ts') {
     const custom = dialog.confirm({ confirmBtn: { content: '删除', disabled: true }, cancelBtn: '暂不删除' });
     assert.equal(component.data.confirmBtn.content, '确定');
     assert.equal(component.data.confirmBtn.disabled, true);
@@ -149,7 +150,7 @@ async function dialogScenario(file) {
     await custom;
   }
   const alert = dialog.alert({ content: '请选择订单' });
-  if (file === 'pages/order/utils/dialog.ts') {
+  if (file === 'packages/frontend/pages/order/utils/dialog.ts') {
     assert.equal(component.data.confirmBtn.content, '确定');
     assert.equal(component.data.cancelBtn, '');
   }
@@ -163,73 +164,17 @@ async function run() {
   testAsyncComponents();
   await testAddressSelection();
   await testAddressEditDefaultSwitch();
-  assert.deepEqual(await dialogScenario('pages/order/utils/dialog.ts'), await dialogScenario('node_modules/tdesign-miniprogram/miniprogram_dist/dialog/index.js'));
+  assert.deepEqual(await dialogScenario('packages/frontend/pages/order/utils/dialog.ts'), await dialogScenario('node_modules/tdesign-miniprogram/miniprogram_dist/dialog/index.js'));
   console.log('PASS subpackage Dialog matches TDesign confirm/cancel/alert and preserves button styling');
-  const order = load('pages/order/utils/format.ts');
-  const goods = load('pages/goods/utils/formatTime.ts');
+  const order = load('packages/frontend/pages/order/utils/format.ts');
+  const goods = load('packages/frontend/pages/goods/utils/formatTime.ts');
   for (const value of ['2026-10-05T04:00:00Z', 'invalid', '', null, 1791172800000, '1791172800000']) {
     assert.equal(order.formatTime(value, 'YYYY/MM/DD HH:mm:ss'), goods.formatTime(value, 'YYYY/MM/DD HH:mm:ss'));
   }
   assert.equal(order.priceFormat(12345, 2), '123.45');
-  assert.equal(load('pages/user/utils/phone.ts').phoneRegCheck('13800000000'), true);
+  assert.equal(load('packages/frontend/pages/user/utils/phone.ts').phoneRegCheck('13800000000'), true);
   console.log('PASS split time, price and phone utilities');
 }
 
-function testAsyncComponents() {
-  const { groups } = require('./build-subpackage-ui.cjs');
-  const config = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
-  const subpackageRoots = (config.subpackages || []).map((pack) => path.resolve(root, pack.root));
-  const subpackageOf = (file) => subpackageRoots
-    .filter((subpackageRoot) => file === subpackageRoot || file.startsWith(subpackageRoot + path.sep))
-    .sort((left, right) => right.length - left.length)[0] || null;
-  for (const name of Object.keys(groups)) {
-    assert.ok(config.subpackages.some((pack) => pack.root === `packages/${name}`));
-  }
-  let asyncReferences = 0;
-  const loadMoreJson = JSON.parse(fs.readFileSync(path.join(root, 'components/load-more/index.json'), 'utf8'));
-  assert.ok(!Object.values(loadMoreJson.usingComponents || {}).some((reference) => reference.startsWith('/packages/order-ui/')),
-    'main-package load-more must not synchronously depend on a component in the order-ui subpackage');
-  function exists(reference) {
-    return ['', '.json', '.js', '.ts', '.wxml', '.wxss', '.wxs'].some((ext) => fs.existsSync(reference + ext));
-  }
-  function inspect(directory) {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const file = path.join(directory, entry.name);
-      if (entry.isDirectory()) { inspect(file); continue; }
-      if (/\.(js|ts)$/.test(file)) {
-        const sourceSubpackage = subpackageOf(file);
-        const content = fs.readFileSync(file, 'utf8');
-        for (const match of content.matchAll(/(['"])(\.{1,2}\/[^'"\s]+)\1/g)) {
-          const dependency = path.resolve(path.dirname(file), match[2]);
-          const targetSubpackage = subpackageOf(dependency);
-          assert.ok(
-            !targetSubpackage || targetSubpackage === sourceSubpackage,
-            `${file}: synchronous JavaScript import crosses into subpackage ${path.relative(root, targetSubpackage || '')}`,
-          );
-        }
-      }
-      if (file.endsWith('.json')) {
-        const json = JSON.parse(fs.readFileSync(file, 'utf8'));
-        for (const [alias, reference] of Object.entries(json.usingComponents || {})) {
-          if (!reference.startsWith('/packages/')) continue;
-          assert.ok(json.componentPlaceholder?.[alias], `${file}: missing placeholder for ${alias}`);
-          assert.ok(exists(path.join(root, reference.slice(1))), `${file}: missing ${reference}`);
-          asyncReferences++;
-        }
-      }
-      if (!file.includes(`${path.sep}packages${path.sep}`) || !/\.(js|json|wxss|wxml|wxs)$/.test(file)) continue;
-      const content = fs.readFileSync(file, 'utf8');
-      for (const match of content.matchAll(/(['"])(\.{1,2}\/[^'"\s]+)\1/g)) {
-        const dependency = path.resolve(path.dirname(file), match[2]);
-        assert.ok(dependency.startsWith(root + path.sep), `${file}: dependency outside workspace`);
-        assert.ok(exists(dependency), `${file}: unresolved dependency ${match[2]}`);
-        const sibling = Object.keys(groups).find((name) => dependency.startsWith(path.join(root, 'packages', name) + path.sep));
-        if (sibling) assert.ok(file.startsWith(path.join(root, 'packages', sibling) + path.sep), `${file}: synchronous import from another subpackage`);
-      }
-    }
-  }
-  ['pages', 'components', 'packages'].forEach((dir) => inspect(path.join(root, dir)));
-  assert.ok(asyncReferences > 0);
-  console.log(`PASS ${asyncReferences} async component references, placeholders and generated dependency paths`);
-}
-run().catch((error) => { console.error(error); process.exitCode = 1; });
+function testAsyncComponents() { require('./check-package-boundaries.cjs').check(); }
+run().catch(error => { console.error(error); process.exitCode = 1; });

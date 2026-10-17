@@ -1,3 +1,4 @@
+const { readSource: readMiniProgramSource } = require('./miniprogram-test-source.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -10,25 +11,26 @@ let response = {};
 let pageDefinition;
 const mocks = new Map();
 const mock = (file, value) => mocks.set(path.resolve(root, file), value);
-mock('utils/api.ts', { request: async (action, payload) => { calls.push({ action, payload }); return response; }, cleanupCloudFiles: async () => {}, getApiErrorMessage: (error) => error.message });
-mock('utils/images.ts', { resolveImage: async (url) => url, resolveRightsImages: async (record) => record });
-mock('pages/order/utils/dialog.ts', {});
-mock('utils/goods-detail-navigation.ts', { navigateToGoodsDetail: () => {} });
-mock('pages/order/components/reason-sheet/reasonSheet.ts', () => Promise.resolve([0]));
-mock('pages/order/utils/format.ts', { formatTime: (time) => time, priceFormat: (amount) => (amount / 100).toFixed(2) });
+mock('packages/api/utils/api.ts', { request: async (action, payload) => { calls.push({ action, payload }); return response; }, cleanupCloudFiles: async () => {}, getApiErrorMessage: (error) => error.message });
+mock('packages/api/utils/images.ts', { resolveImage: async (url) => url, resolveRightsImages: async (record) => record });
+mock('packages/frontend/pages/order/utils/dialog.ts', {});
+mock('packages/frontend/utils/goods-detail-navigation.ts', { navigateToGoodsDetail: () => {} });
+mock('packages/frontend/pages/order/components/reason-sheet/reasonSheet.ts', () => Promise.resolve([0]));
+mock('packages/frontend/pages/order/utils/format.ts', { formatTime: (time) => time, priceFormat: (amount) => (amount / 100).toFixed(2) });
 const cache = new Map();
 function load(file) {
-  const filename = path.resolve(root, file);
+  const filename = require("./miniprogram-test-source.cjs").resolveSource(path.resolve(root, file));
   if (mocks.has(filename)) return mocks.get(filename);
   if (cache.has(filename)) return cache.get(filename);
   const exports = {};
   cache.set(filename, exports);
-  const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+  const source = ts.transpileModule(readMiniProgramSource(filename, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText;
   vm.runInNewContext(source, {
     exports,
     require(name) {
+      name = name.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
       if (name === 'tdesign-miniprogram/toast/index') return () => {};
       if (name.startsWith('.')) return load(`${path.resolve(path.dirname(filename), name)}.ts`);
       throw new Error(`Unexpected dependency: ${name}`);
@@ -39,7 +41,7 @@ function load(file) {
 }
 
 async function run() {
-  const api = load('pages/order/apply-service/api.ts');
+  const api = load('packages/api/pages/order/apply-service/api.ts');
   await api.dispatchApplyService({
     rights: { orderNo: 'order-1', rightsType: 10, receiptStatus: 1, refundRequestAmount: 999, rightsReasonDesc: '质量问题', rightsImageUrls: [] },
     rightsItem: [{ skuId: 'sku-1', rightsQuantity: 1 }],
@@ -48,14 +50,14 @@ async function run() {
   assert.equal(calls[0].payload.type, 10);
   assert.equal(Object.hasOwn(calls[0].payload, 'refundRequestAmount'), false, 'user does not decide refund amount');
 
-  const { normalizeOrder } = load('pages/order/services/orderList.ts');
+  const { normalizeOrder } = load('packages/api/pages/order/services/orderList.ts');
   const order = normalizeOrder({
     _id: 'order-1', status: 'refunded', items: [], addressSnapshot: {}, commentedProductIds: [], pendingRefundAmount: 0,
   });
   assert.equal(order.orderStatus, 60);
   assert.equal(order.orderStatusName, '已退款');
 
-  const { normalizeRecord, getRightsList } = load('pages/order/after-service-list/api.ts');
+  const { normalizeRecord, getRightsList } = load('packages/api/pages/order/after-service-list/api.ts');
   const rejected = normalizeRecord({
     _id: 'as-1', status: 'rejected', type: 20, description: '质量问题', reviewReason: '超过售后期', items: [], amount: 50,
   });
@@ -77,7 +79,7 @@ async function run() {
   assert.equal(cancellationPolicy.fixedType, 20);
   assert.equal(JSON.stringify(cancellationPolicy.allowedTypes), '[20]');
   assert.equal(cancellationPolicy.fullRefundOnly, true);
-  const commerceSource = fs.readFileSync(path.join(root, 'admin/src/pages/CommercePages.tsx'), 'utf8');
+  const commerceSource = readMiniProgramSource(path.join(root, 'admin/src/pages/CommercePages.tsx'), 'utf8');
   assert.doesNotMatch(commerceSource, /本次仅同意退货申请/);
   assert.match(commerceSource, /!isReturnApproval && <label className="field"><span>退款金额（元）/);
   assert.match(commerceSource, /afterSaleId: afterSaleIdOf\(returnApproval\), amount: returnRefundAmount/);
@@ -85,7 +87,7 @@ async function run() {
   await getRightsList({ parameter: { afterServiceStatus: 60, pageNum: 1, pageSize: 10 } });
   assert.equal(calls.at(-1).payload.status, 'closed');
 
-  load('pages/order/after-service-detail/index.ts');
+  load('packages/frontend/pages/order/after-service-detail/index.ts');
   const detailDefinition = pageDefinition;
   for (const status of ['approved', 'pending_review', 'rejected', 'refunding', 'refunded']) {
     response = { _id: 'return-detail', status, type: 10, items: [], amount: 100, trackingNo: ['refunding', 'refunded'].includes(status) ? 'SF001' : '', returnAddressSnapshot: { receiver: '商家', phone: '13800000000', detail: '退货地址' } };
@@ -97,7 +99,7 @@ async function run() {
     assert.equal(detailPage.data.service.receiverAddress, '退货地址', 'return address data is retained for the pre-tracking display');
     if (['refunding', 'refunded'].includes(status)) assert.equal(detailPage.data.service.logisticsNo, 'SF001');
   }
-  const detailTemplate = fs.readFileSync(path.join(root, 'pages/order/after-service-detail/index.wxml'), 'utf8');
+  const detailTemplate = readMiniProgramSource(path.join(root, 'packages/frontend/pages/order/after-service-detail/index.wxml'), 'utf8');
   assert.doesNotMatch(detailTemplate, /name="location"/);
   assert.match(detailTemplate, /class="order-logistics" bindtap="onLogisticsTap"/);
   assert.match(detailTemplate, /<view>查看物流<\/view>/);
@@ -109,13 +111,13 @@ async function run() {
   assert.doesNotMatch(detailTemplate, /title="退货地址"/);
   assert.ok(detailTemplate.indexOf('手机号：') < detailTemplate.indexOf('{{service.receiverAddress}}'), 'address follows phone');
 
-  const trackingApi = load('pages/order/fill-tracking-no/api.ts');
+  const trackingApi = load('packages/api/pages/order/fill-tracking-no/api.ts');
   await trackingApi.create({ afterSaleId: 'return-detail', trackingNo: 'SF001', remark: '易碎物品' });
   assert.equal(calls.at(-1).action, 'afterSales.submitTracking');
   assert.equal(calls.at(-1).payload.trackingNo, 'SF001');
   assert.equal(Object.hasOwn(calls.at(-1).payload, 'remark'), false, 'tracking form no longer submits a remark');
   assert.equal(Object.hasOwn(calls.at(-1).payload, 'logisticsCompanyName'), false);
-  load('pages/order/fill-tracking-no/index.ts');
+  load('packages/frontend/pages/order/fill-tracking-no/index.ts');
   const trackingPage = { ...pageDefinition, data: { ...pageDefinition.data }, setData(patch) { Object.assign(this.data, patch); } };
   trackingPage.onLoad({ rightsNo: 'return-detail', logisticsNo: 'SF001' });
   assert.equal(trackingPage.data.submitActived, true);
@@ -123,11 +125,11 @@ async function run() {
   assert.equal(trackingPage.checkParams(), false);
   trackingPage.data.trackingNo = 'SF002';
   assert.equal(trackingPage.checkParams(), true, 'tracking number alone enables saving');
-  const trackingTemplate = fs.readFileSync(path.join(root, 'pages/order/fill-tracking-no/index.wxml'), 'utf8');
+  const trackingTemplate = readMiniProgramSource(path.join(root, 'packages/frontend/pages/order/fill-tracking-no/index.wxml'), 'utf8');
   assert.doesNotMatch(trackingTemplate, /notice-bar|物流公司/);
   assert.doesNotMatch(trackingTemplate, /备注|t-textarea/);
 
-  load('pages/order/apply-service/index.ts');
+  load('packages/frontend/pages/order/apply-service/index.ts');
   const definition = pageDefinition;
   for (const [status, receipt, showRefundType] of [[10, 2, false], [40, 1, true], [50, 1, true]]) {
     const page = {

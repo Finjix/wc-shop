@@ -1,3 +1,4 @@
+const { readSource: readMiniProgramSource } = require('./miniprogram-test-source.cjs');
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -7,7 +8,7 @@ const storage = new Map();
 let failWrite = false;
 function load() {
   const exports = {};
-  const source = ts.transpileModule(fs.readFileSync('services/address/fetchAddress.ts', 'utf8'), {
+  const source = ts.transpileModule(readMiniProgramSource('packages/api/services/address/fetchAddress.ts', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   vm.runInNewContext(source, { exports,

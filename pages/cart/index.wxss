@@ -1,48 +1,6 @@
+.package-status { padding: 96rpx 32rpx; text-align: center; color: #888; }
+.package-status button { margin-top: 24rpx; font-size: 28rpx; }
+
 page {
   background-color: #fff !important;
-}
-
-:host {
-  display: block;
-  height: 100vh;
-  min-height: 0;
-  overflow: hidden;
-  padding-bottom: 0;
-  background-color: #fff;
-}
-
-.cart-scroll {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100vh;
-}
-
-.cart-page-content {
-  box-sizing: border-box;
-  min-height: 100%;
-  padding-bottom: calc(224rpx + env(safe-area-inset-bottom));
-  background: #fff;
-}
-
-.cart-navbar-content {
-  --td-navbar-bg-color: #fff;
-  --td-navbar-color: #111;
-  background-color: #fff !important;
-  color: #111 !important;
-}
-
-.cart-navbar-title {
-  color: #111 !important;
-}
-
-.t-button {
-  --td-button-default-color: #000;
-  --td-button-primary-text-color: #fff;
-}
-
-.cart-delete-dialog-confirm {
-  color: var(--app-theme-text-color, #695941) !important;
-  --td-button-primary-text-color: var(--app-theme-text-color, #695941);
 }

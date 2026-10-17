@@ -1,3 +1,4 @@
+const { readSource: readMiniProgramSource } = require('./miniprogram-test-source.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -5,7 +6,7 @@ const vm = require('node:vm');
 const ts = require('typescript');
 const sharp = require('../cloudfunctions/node_modules/sharp');
 const root = path.resolve(__dirname, '..');
-const base = path.join(root, 'packages/form-ui/image-processor');
+const base = path.join(root, 'packages/plugins/image-processor');
 
 async function main() {
   // Exercise the shipped Emscripten glue and real WASM through the WeChat adapter.
@@ -39,8 +40,8 @@ async function main() {
     Memory: WebAssembly.Memory, Table: WebAssembly.Table,
     async instantiate(file, imports) {
       instantiations++;
-      assert.equal(file, 'packages/form-ui/image-processor/codec/webp_enc.wasm');
-      return WebAssembly.instantiate(fs.readFileSync(path.join(root, file)), imports);
+      assert.equal(file, 'packages/plugins/image-processor/codec/webp_enc.wasm');
+      return WebAssembly.instantiate(readMiniProgramSource(path.join(root, file)), imports);
     },
   });
   const context = vm.createContext({ console, wx, WXWebAssembly, Uint8Array, Uint8ClampedArray, DataView, ArrayBuffer,
@@ -49,7 +50,7 @@ async function main() {
   function load(file) {
     if (cache.has(file)) return cache.get(file);
     const module = { exports: {} };
-    const wrapper = vm.runInContext(`(function(module, exports, require) { ${fs.readFileSync(file, 'utf8')}\n})`, context);
+    const wrapper = vm.runInContext(`(function(module, exports, require) { ${readMiniProgramSource(file, 'utf8')}\n})`, context);
     wrapper(module, module.exports, (ref) => load(path.resolve(path.dirname(file), ref + '.js')));
     cache.set(file, module.exports);
     return module.exports;
@@ -92,12 +93,13 @@ async function testPageAndUpload() {
   let apiCalls = 0;
   function loadPage(relative) {
     const exports = {};
-    const compiled = ts.transpileModule(fs.readFileSync(path.join(root, relative), 'utf8'), {
+    const compiled = ts.transpileModule(readMiniProgramSource(path.join(root, relative), 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
     }).outputText;
     vm.runInNewContext(compiled, { exports, Page(value) { page = value; },
       wx: { showLoading() {}, hideLoading() {} },
       require(ref) {
+      ref = ref.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
         if (ref.includes('toast')) return { default() {} };
         if (ref === '../config') return {
           OrderStatus: {}, ServiceType: { RETURN_GOODS: 10, ONLY_REFUND: 20 },
@@ -113,8 +115,8 @@ async function testPageAndUpload() {
     };
   }
   for (const [file, quality, callback] of [
-    ['pages/goods/comments/create/index.ts', 50, 'onSubmitBtnClick'],
-    ['pages/order/apply-service/index.ts', 100, 'onSubmit'],
+    ['packages/frontend/pages/goods/comments/create/index.ts', 50, 'onSubmitBtnClick'],
+    ['packages/frontend/pages/order/apply-service/index.ts', 100, 'onSubmit'],
   ]) {
     const instance = loadPage(file);
     instance.data.isAllowedSubmit = true;
@@ -132,18 +134,19 @@ async function testPageAndUpload() {
   }
   let uploadOptions;
   const exports = {};
-  const source = ts.transpileModule(fs.readFileSync(path.join(root, 'utils/cloud.ts'), 'utf8'), {
+  const source = ts.transpileModule(readMiniProgramSource(path.join(root, 'packages/api/utils/cloud.ts'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   const urlExports = {};
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, 'utils/temp-file-urls.ts'), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readMiniProgramSource(path.join(root, 'packages/api/utils/temp-file-urls.ts'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports: urlExports });
   const readRetry = {};
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, 'utils/cloud-read-retry.ts'), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readMiniProgramSource(path.join(root, 'packages/api/utils/cloud-read-retry.ts'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports: readRetry });
-  vm.runInNewContext(source, { exports, require(ref) { return ref === './temp-file-urls' ? urlExports : ref === './cloud-read-retry' ? readRetry : { useLocalBackend: true, localBackendUrl: 'http://localhost' }; },
+  vm.runInNewContext(source, { exports, require(ref) {
+      ref = ref.replace(/^.*\/tdesign\//, "tdesign-miniprogram/"); return ref === './temp-file-urls' ? urlExports : ref === './cloud-read-retry' ? readRetry : { useLocalBackend: true, localBackendUrl: 'http://localhost' }; },
     wx: {
       request({ data, success }) { assert.equal(data.action, 'storage.prepareUpload'); success({ data: { ok: true, data: { cloudPath: 'user/comments/out.webp', fileID: 'local://user/comments/out.webp' } } }); },
       getFileInfo({ success }) { success({ size: 15 * 1024 * 1024 }); },

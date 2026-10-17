@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { showConfirmModal } from '../utils/confirm-modal';
+import { showConfirmModal } from './confirm-modal';
 
 let initialized = false;
 

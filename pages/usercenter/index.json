@@ -3,9 +3,10 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
-    "t-icon": "tdesign-miniprogram/icon/icon",
-    "t-order-group": "./components/order-group/index",
-    "t-toast": "tdesign-miniprogram/toast/toast"
+    "tab-content": "/packages/frontend/pages/usercenter/index"
   },
-  "enablePullDownRefresh": false
+  "enablePullDownRefresh": false,
+  "componentPlaceholder": {
+    "tab-content": "view"
+  }
 }

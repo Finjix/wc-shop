@@ -1,0 +1,6 @@
+{
+    "component": true,
+    "usingComponents": {
+        "goods-card": "/packages/frontend/components/goods-card/index"
+    }
+}

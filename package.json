@@ -28,6 +28,7 @@
     "test:loading": "node scripts/test-loading.cjs",
     "test:comments": "node scripts/test-comments.cjs",
     "test:subpackage-dependencies": "node scripts/test-subpackage-dependencies.cjs",
+    "test:package-loading": "node scripts/test-package-loading.cjs",
     "build:subpackage-ui": "node scripts/build-subpackage-ui.cjs",
     "build:image-codec": "node scripts/build-image-codec.cjs",
     "test:user-images": "node scripts/test-user-images.cjs",

@@ -1,0 +1,10 @@
+{
+  "component": true,
+  "usingComponents": {
+    "t-icon": "../../../../tdesign/icon/icon",
+    "t-popup": "../../../../tdesign/popup/popup",
+    "t-cell": "../../../../tdesign/cell/cell",
+    "t-toast": "../../../../tdesign/toast/toast",
+    "t-button": "../../../../tdesign/button/button"
+  }
+}

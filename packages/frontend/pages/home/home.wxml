@@ -1,0 +1,70 @@
+<top-search
+  top="{{searchTop}}"
+  left="{{searchLeft}}"
+  width="{{searchWidth}}"
+  value="{{searchValue}}"
+  focus="{{searchFocus}}"
+  search-background="rgba(255,255,255,0.5)"
+  bind:focus="handleSearchFocus"
+  bind:blur="handleSearchBlur"
+  bind:change="handleSearchChange"
+  bind:submit="handleSearchSubmit"
+/>
+
+<scroll-view class="home-scroll" scroll-y show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
+  <view class="home-scroll-content">
+    <view wx:if="{{loadError}}" class="home-load-error">
+      <text>{{loadError}}</text>
+      <button class="home-load-error__retry" size="mini" bind:tap="loadHomePage">重新加载</button>
+    </view>
+    <view class="swiper-wrap" wx:if="{{swiperSlides.length}}">
+      <t-swiper
+        t-class="home-swiper"
+        t-class-image="home-swiper__image"
+        height="1333.333rpx"
+        current="{{current}}"
+        autoplay="{{autoplay}}"
+        duration="{{duration}}"
+        interval="{{interval}}"
+        navigation="{{false}}"
+        imageProps="{{swiperImageProps}}"
+        list="{{swiperSlides}}"
+        bind:click="navToGoodsDetail"
+      />
+    </view>
+
+    <view class="home-safety-banner" wx:if="{{bannerText}}"><text>{{bannerText}}</text></view>
+
+    <view class="home-promo-cards" wx:if="{{promos.length}}">
+      <view
+        wx:for="{{promos}}"
+        wx:key="id"
+        class="home-promo-card"
+        data-product-id="{{item.productId}}"
+        bind:tap="navToConfiguredProduct"
+      >
+        <image class="home-promo-card__image" src="{{item.image}}" mode="aspectFill" />
+      </view>
+    </view>
+
+    <view wx:for="{{featuredSections}}" wx:for-item="section" wx:key="id">
+      <view class="home-featured-title"><text class="home-featured-title__zh">{{section.title}}</text></view>
+      <view class="home-recommendation-grid">
+        <view
+          wx:for="{{section.products}}"
+          wx:for-item="product"
+          wx:key="id"
+          class="home-recommendation-card"
+          data-product-id="{{product.productId}}"
+          bind:tap="navToConfiguredProduct"
+        >
+          <image class="home-recommendation-card__image" src="{{product.image}}" mode="aspectFill" lazy-load />
+        </view>
+      </view>
+    </view>
+
+    <view style="text-align: center; color: #b9b9b9" wx:if="{{pageLoading}}">
+      <t-loading theme="circular" size="40rpx" text="" inherit-color />
+    </view>
+  </view>
+</scroll-view>

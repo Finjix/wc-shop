@@ -3,6 +3,9 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
-    "top-search": "/components/top-search/index"
+    "tab-content": "/packages/frontend/pages/category/index"
+  },
+  "componentPlaceholder": {
+    "tab-content": "view"
   }
 }

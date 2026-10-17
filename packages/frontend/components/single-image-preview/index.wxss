@@ -1,0 +1,3 @@
+.image-preview { position: fixed; top: 0; left: 0; z-index: 20000; width: 100vw; height: 100vh; background: #000; }
+.image-preview__area, .image-preview__image, .image-preview__picture { display: block; width: 100%; height: 100%; }
+.image-preview__close { position: absolute; left: 20rpx; top: calc(24rpx + env(safe-area-inset-top)); display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; color: #fff; font-size: 64rpx; line-height: 1; }

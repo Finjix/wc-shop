@@ -1,3 +1,4 @@
+const { readSource: readMiniProgramSource } = require('./miniprogram-test-source.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -6,7 +7,7 @@ const ts = require('typescript');
 
 let modal;
 const exportsObject = {};
-const source = ts.transpileModule(fs.readFileSync(path.resolve(__dirname, '../utils/confirm-modal.ts'), 'utf8'), {
+const source = ts.transpileModule(readMiniProgramSource(path.resolve(__dirname, '../common/confirm-modal.ts'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText;
 vm.runInNewContext(source, { exports: exportsObject, wx: { showModal(options) { modal = options; } } });

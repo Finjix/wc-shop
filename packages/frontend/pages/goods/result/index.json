@@ -1,0 +1,20 @@
+{
+  "navigationBarTitleText": "搜索",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "../../../tdesign/navbar/navbar",
+    "t-search": "../../../tdesign/search/search",
+    "t-input": "/packages/frontend/tdesign/input/input",
+    "t-toast": "../../../tdesign/toast/toast",
+    "goods-list": "/packages/frontend/components/goods-list/index",
+    "filter": "/packages/frontend/components/filter/index",
+    "filter-popup": "/packages/frontend/components/filter-popup/index",
+    "load-more": "/packages/frontend/components/load-more/index",
+    "t-icon": "../../../tdesign/icon/icon"
+  },
+  "onReachBottomDistance": 50,
+  "componentPlaceholder": {
+    "t-input": "view"
+  }
+}

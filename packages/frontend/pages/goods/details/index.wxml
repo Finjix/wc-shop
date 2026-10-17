@@ -1,0 +1,99 @@
+<t-navbar
+  t-class-content="goods-detail-navbar-content"
+  t-class-left="goods-detail-navbar-left"
+  t-class-title="app-page-navbar-title goods-detail-navbar-title"
+  title="商品详情"
+  leftArrow
+  fixed="{{true}}"
+/>
+<view class="goods-detail-layout">
+<scroll-view
+  class="goods-detail-scroll"
+  scroll-y
+  enhanced
+  show-scrollbar="{{true}}"
+  bounces="{{false}}"
+  refresher-enabled="{{false}}"
+>
+<view class="goods-detail-page" style="padding-top: {{customNavHeight}}px;">
+  <view wx:if="{{detailLoading}}" class="goods-detail-state"></view>
+  <view wx:elif="{{detailLoaded && !details.title}}" class="goods-detail-state">商品不存在或已下架</view>
+  <view class="goods-head">
+    <image
+      wx:if="{{details.primaryImage}}"
+      class="goods-cover-image"
+      src="{{details.primaryImage}}"
+      mode="aspectFill"
+      data-src="{{details.primaryImage}}"
+      bindtap="previewProductImage"
+    />
+    <view class="goods-info">
+      <view class="goods-number">
+        <view class="goods-price">
+          <price
+            wr-class="class-goods-price"
+            symbol-class="class-goods-symbol"
+            price="{{minSalePrice}}"
+            type="lighter"
+          />
+          <view class="goods-price-up">起</view>
+        </view>
+      </view>
+      <view class="goods-title">
+        <view class="goods-name">{{details.title}}</view>
+      </view>
+    </view>
+    <view class="comments-wrap">
+      <view class="comments-head" bindtap="navToCommentsListPage">
+        <view class="comments-title-wrap">
+          <view class="comments-title-label">商品评价</view>
+          <view class="comments-title-count"> ({{ commentsStatistics.commentCount }}) </view>
+        </view>
+        <view class="comments-rate-wrap">
+          <t-icon name="chevron-right" size="40rpx" color="#BBBBBB" />
+        </view>
+      </view>
+    </view>
+  </view>
+  <view class="desc-content">
+    <view wx:if="{{details.desc.length > 0}}" wx:for="{{details.desc}}" wx:key="index" data-src="{{item}}" bindtap="previewProductImage">
+      <t-image t-class="desc-content__img" src="{{item}}" mode="widthFix" />
+    </view>
+  </view>
+</view>
+</scroll-view>
+<view class="goods-bottom-operation">
+  <buy-bar
+    jumpArray="{{jumpArray}}"
+    soldout="{{soldout}}"
+    isStock="{{isStock}}"
+    buttonType="{{buttonType}}"
+    bind:toAddCart="toAddCart"
+    bind:toNav="toNav"
+    bind:toBuyNow="buyItNow"
+    class="goods-details-card"
+  />
+</view>
+</view>
+<goods-specs-popup
+  id="goodsSpecsPopup"
+  show="{{isSpuSelectPopupShow}}"
+  src="{{specImg ? specImg : primaryImage}}"
+  title="{{details.title || ''}}"
+  price="{{isAllSelectedSku ? selectSkuSellsPrice : minSalePrice}}"
+  specList="{{details.specList || []}}"
+  skuList="{{skuArray}}"
+  bind:closeSpecsPopup="handlePopupHide"
+  bind:change="chooseSpecItem"
+  bind:previewImage="previewProductImage"
+  bind:changeNum="changeNum"
+  bind:addCart="addCart"
+  bind:buyNow="gotoBuy"
+  bind:specsConfirm="specsConfirm"
+  isStock="{{isStock}}"
+  outOperateStatus="{{outOperateStatus}}"
+>
+</goods-specs-popup>
+<t-toast id="t-toast" />
+
+<single-image-preview id="image-preview" />

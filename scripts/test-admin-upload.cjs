@@ -52,8 +52,8 @@ async function main() {
   };
   const api = load('../admin/src/lib/api.ts', { fetch, FormData, require(name) {
     if (name === './image-upload') return images;
-    if (name === '../../../utils/temp-file-urls') return load('../utils/temp-file-urls.ts', {});
-    if (name === '../../../utils/cloud-read-retry') return load('../utils/cloud-read-retry.ts', {});
+    if (name === '../../../packages/api/utils/temp-file-urls') return load('../packages/api/utils/temp-file-urls.ts', {});
+    if (name === '../../../packages/api/utils/cloud-read-retry') return load('../packages/api/utils/cloud-read-retry.ts', {});
     throw new Error(`Unexpected dependency: ${name}`);
   } });
   const png = await sharp({ create: { width: 2, height: 3, channels: 4, background: '#12345680' } }).png().toBuffer();

@@ -1,3 +1,4 @@
+const { readSource: readMiniProgramSource } = require('./miniprogram-test-source.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -6,14 +7,14 @@ const ts = require('typescript');
 const root = path.resolve(__dirname, '..');
 function load(file, globals = {}) {
   const exports = {};
-  const source = fs.readFileSync(path.join(root, file), 'utf8').replaceAll('import.meta.env', "({VITE_ADMIN_API_URL:'https://api.test/admin'})");
+  const source = readMiniProgramSource(path.join(root, file), 'utf8').replaceAll('import.meta.env', "({VITE_ADMIN_API_URL:'https://api.test/admin'})");
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports, console, ...globals });
   return exports;
 }
-const urls = load('utils/temp-file-urls.ts');
-const readRetry = load('utils/cloud-read-retry.ts');
+const urls = load('packages/api/utils/temp-file-urls.ts');
+const readRetry = load('packages/api/utils/cloud-read-retry.ts');
 async function run() {
   for (const client of ['shop', 'admin']) {
     const batches = [];
@@ -23,7 +24,7 @@ async function run() {
       batches.push([...data.data.fileList]);
       return { result: { ok: true, data: data.data.fileList.map((fileID) => ({ fileID, tempFileURL: `https://images.test/${fileID.split('/').pop()}` })) } };
     } };
-    const api = client === 'shop' ? load('utils/cloud.ts', {
+    const api = client === 'shop' ? load('packages/api/utils/cloud.ts', {
       require: (ref) => ref === './temp-file-urls' ? urls : ref === './cloud-read-retry' ? readRetry : { cloudEnvId: 'test', cloudFunctionName: 'wc-shop-function' },
       wx: { cloud: app }, console: { ...console, error() {} },
     }) : load('admin/src/lib/api.ts', { fetch: async (_url, options) => {
@@ -31,6 +32,7 @@ async function run() {
       const response = await app.callFunction({ data: JSON.parse(options.body) });
       return { status: 200, json: async () => response.result };
     }, console: { ...console, error() {} }, require(ref) {
+      ref = ref.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
       if (ref.includes('temp-file-urls')) return urls;
       if (ref.includes('cloud-read-retry')) return readRetry;
       return {};

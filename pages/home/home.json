@@ -7,9 +7,9 @@
   "backgroundTextStyle": "light",
   "enablePullDownRefresh": false,
   "usingComponents": {
-    "t-loading": "tdesign-miniprogram/loading/loading",
-    "t-swiper": "tdesign-miniprogram/swiper/swiper",
-    "top-search": "/components/top-search/index",
-    "price": "/components/price/index"
+    "tab-content": "/packages/frontend/pages/home/home"
+  },
+  "componentPlaceholder": {
+    "tab-content": "view"
   }
 }

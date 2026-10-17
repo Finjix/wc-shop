@@ -1,3 +1,4 @@
+const { readSource: readMiniProgramSource } = require('./miniprogram-test-source.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -14,7 +15,7 @@ let pageDefinition;
 const address = { _id: 'address-1', receiver: '测试收货人', phone: '13800000000', detail: '测试地址' };
 const mocks = {
   'tdesign-miniprogram/toast/index': (options) => toasts.push(options),
-  [path.join(root, 'utils/api.ts')]: {
+  [path.join(root, 'packages/api/utils/api.ts')]: {
     getApiErrorMessage: (error, fallback) => error.message || fallback,
     getTempFileUrl: async (fileID) => `https://images.example/${fileID.split('://')[1]}`,
     request: async (action, payload) => {
@@ -44,17 +45,18 @@ const mocks = {
 const cache = new Map();
 
 function load(file) {
-  const filename = path.resolve(root, file);
+  const filename = require("./miniprogram-test-source.cjs").resolveSource(path.resolve(root, file));
   if (mocks[filename]) return mocks[filename];
   if (cache.has(filename)) return cache.get(filename);
   const exports = {};
   cache.set(filename, exports);
-  const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+  const source = ts.transpileModule(readMiniProgramSource(filename, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText;
   vm.runInNewContext(source, {
     exports,
     require(name) {
+      name = name.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
       if (mocks[name]) return mocks[name];
       if (name.startsWith('.')) return load(`${path.resolve(path.dirname(filename), name)}.ts`);
       throw new Error(`Unexpected dependency: ${name}`);
@@ -96,8 +98,8 @@ async function run() {
     prepareLocalStorage(workspace, storage);
     assert.equal(fs.existsSync(path.join(migrated.filesRoot, 'previous.webp')), false);
     assert.equal(fs.existsSync(path.join(migrated.filesRoot, 'cover.webp')), false);
-    assert.equal(fs.readFileSync(migrated.dataFile, 'utf8'), '{"version":2}');
-    assert.equal(fs.readFileSync(legacyData, 'utf8'), '{"version":1}');
+    assert.equal(readMiniProgramSource(migrated.dataFile, 'utf8'), '{"version":2}');
+    assert.equal(readMiniProgramSource(legacyData, 'utf8'), '{"version":1}');
     assert.ok(path.relative(workspace, defaultLocalStorageDirectory(workspace)).startsWith('..'));
     assert.equal(defaultLocalStorageDirectory(workspace), defaultLocalStorageDirectory(path.join(workspace, '.')));
     const projectData = path.join(workspace, '.local-data', '.local-backend.json');
@@ -111,8 +113,8 @@ async function run() {
     const sourceTimestamp = fs.statSync(projectData).mtimeMs;
     fs.writeFileSync(projectStorage.dataFile, '{"version":4}');
     prepareLocalStorage(workspace, currentStorage);
-    assert.equal(fs.readFileSync(projectStorage.dataFile, 'utf8'), '{"version":4}');
-    assert.equal(fs.readFileSync(projectData, 'utf8'), '{"version":3}');
+    assert.equal(readMiniProgramSource(projectStorage.dataFile, 'utf8'), '{"version":4}');
+    assert.equal(readMiniProgramSource(projectData, 'utf8'), '{"version":3}');
     assert.equal(fs.statSync(projectData).mtimeMs, sourceTimestamp);
     console.log('PASS runtime writes stay outside the project and do not migrate old directories');
   } finally {
@@ -120,7 +122,7 @@ async function run() {
     assert.ok(resolvedTemporaryRoot.startsWith(`${path.resolve(os.tmpdir())}${path.sep}wc-shop-storage-test-`));
     fs.rmSync(resolvedTemporaryRoot, { recursive: true, force: true });
   }
-  const service = load('services/order/orderConfirm.ts');
+  const service = load('packages/api/services/order/orderConfirm.ts');
   const goods = { skuId: 'sku-1', storeId: 'default', quantity: 2, price: 9999 };
   service.setPendingGoodsRequestList([goods]);
   const preview = await service.fetchSettleDetail({ goodsRequestList: [goods] });
@@ -150,20 +152,20 @@ async function run() {
   assert.equal(calls.at(-1).payload.address.receiver, '测试收货人');
   assert.equal(calls.at(-1).payload.address.userId, undefined);
 
-  const originalOrderCreateRequest = mocks[path.join(root, 'utils/api.ts')].request;
-  mocks[path.join(root, 'utils/api.ts')].request = async (action, payload) => {
+  const originalOrderCreateRequest = mocks[path.join(root, 'packages/api/utils/api.ts')].request;
+  mocks[path.join(root, 'packages/api/utils/api.ts')].request = async (action, payload) => {
     if (action === 'orders.create') return { orderNo: 'unconfirmed-order', status: 'paid' };
     return originalOrderCreateRequest(action, payload);
   };
   await assert.rejects(service.createOrder({
     goodsRequestList: [goods], userAddressReq: withAddress.data.userAddress, requestKey: 'unpaid-test',
   }), (error) => error.code === 'ORDER_NOT_PAID');
-  mocks[path.join(root, 'utils/api.ts')].request = originalOrderCreateRequest;
+  mocks[path.join(root, 'packages/api/utils/api.ts')].request = originalOrderCreateRequest;
 
-  mocks[path.join(root, 'services/address/fetchAddress.ts')] = {
+  mocks[path.join(root, 'packages/api/services/address/fetchAddress.ts')] = {
     fetchDeliveryAddress: async () => null,
   };
-  load('pages/order/order-confirm/index.ts');
+  load('packages/frontend/pages/order/order-confirm/index.ts');
   const page = {
     ...pageDefinition,
     data: structuredClone(pageDefinition.data),
@@ -194,12 +196,12 @@ async function run() {
   assert.equal(calls.at(-1).payload.addressId, 'address-1');
   console.log('PASS checkout previews without an address, preserves goods and server pricing, and requires an address before creating an order');
 
-  const originalRequest = mocks[path.join(root, 'utils/api.ts')].request;
+  const originalRequest = mocks[path.join(root, 'packages/api/utils/api.ts')].request;
   const created = new Map();
   const retryKeys = [];
   const retryPayloads = [];
   page.fromCart = true;
-  mocks[path.join(root, 'utils/api.ts')].request = async (action, payload) => {
+  mocks[path.join(root, 'packages/api/utils/api.ts')].request = async (action, payload) => {
     if (action !== 'orders.create') return originalRequest(action, payload);
     retryKeys.push(payload.requestKey);
     retryPayloads.push(payload);
@@ -230,7 +232,7 @@ async function run() {
   assert.equal(page.data.remarkLocked, false);
   assert.ok(navigation.at(-1).includes('orderNo=order-retry'));
   assert.ok(!navigation.at(-1).includes('totalPaid='));
-  mocks[path.join(root, 'utils/api.ts')].request = originalRequest;
+  mocks[path.join(root, 'packages/api/utils/api.ts')].request = originalRequest;
   console.log('PASS lost create response retries the same key and returns the simulated paid order');
 
   const batchResponse = {
@@ -245,7 +247,7 @@ async function run() {
   const batchPayloads = [];
   let loseBatchResponse = false;
   let unconfirmedBatch = false;
-  mocks[path.join(root, 'utils/api.ts')].request = async (action, payload) => {
+  mocks[path.join(root, 'packages/api/utils/api.ts')].request = async (action, payload) => {
     if (action === 'orders.create') {
       batchKeys.push(payload.requestKey);
       batchPayloads.push(payload);
@@ -294,7 +296,7 @@ async function run() {
   assert.ok(navigation.at(-1).includes('checkoutId=batch-order-1'));
   assert.equal(service.getPendingGoodsRequestList(), null);
 
-  load('pages/order/pay-result/index.ts');
+  load('packages/frontend/pages/order/pay-result/index.ts');
   const resultPage = { ...pageDefinition, data: structuredClone(pageDefinition.data), setData(patch) { Object.assign(this.data, patch); } };
   resultPage.onLoad({ orderNo: 'batch-order-1', checkoutId: 'batch-order-1', totalPaid: '999999' });
   await flush();
@@ -303,11 +305,11 @@ async function run() {
   assert.equal(resultPage.data.paymentConfirmed, true);
   assert.ok(resultPage.data.statusText.includes('2 笔订单'));
   resultPage.onTapReturn({ currentTarget: { dataset: { type: 'orderList' } } });
-  assert.equal(navigation.at(-1), '/pages/order/order-list/index');
-  mocks[path.join(root, 'utils/api.ts')].request = originalRequest;
+  assert.equal(navigation.at(-1), '/packages/frontend/pages/order/order-list/index');
+  mocks[path.join(root, 'packages/api/utils/api.ts')].request = originalRequest;
   console.log('PASS split checkout normalizes every paid order, retries one key, and shows the combined server-confirmed result');
 
-  const cartService = load('services/cart/cart.ts');
+  const cartService = load('packages/api/services/cart/cart.ts');
   const cart = await cartService.fetchCartGroupData();
   const cartGoods = cart.data.storeGoods[0].promotionGoodsList[0].goodsPromotionList[0];
   assert.equal(cartGoods.thumb, 'https://images.example/products/cover.webp');

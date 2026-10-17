@@ -1,0 +1,8 @@
+{
+  "component": true,
+  "usingComponents": {
+    "price": "/packages/frontend/components/price/index",
+    "t-image": "/packages/frontend/components/webp-image/index",
+    "t-icon": "../../../../tdesign/icon/icon"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "top-search": "/packages/frontend/components/top-search/index"
+  }
+}

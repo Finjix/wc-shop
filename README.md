@@ -4,23 +4,33 @@
 
 ## 目录
 
-- `pages/`、`services/`、`components/`：TypeScript 小程序页面、组件和业务适配层。
+- `pages/`：四个 tabBar 页面入口；启动、加载重试和必要共享代码留在主包。
+- `packages/frontend/`：实际页面、交互、组件、样式和图片；内部保留用户、商品、订单目录。
+- `packages/api/`：客户端 API、数据适配、缓存、本地地址簿和结算临时状态。
+- `packages/plugins/`：按需加载的图片处理组件及 WebP WASM 编码器。
 - `cloudfunctions/`：`wc-shop-function` 统一 CloudBase 云函数，按 `shop` / `admin` scope 分流。
 - `admin/`：React + TypeScript + Vite 静态管理后台；商品页管理商品上下架、规格、价格及 SKU 图片，独立 SKU 页管理库存，不单独上下架 SKU；另有分类、订单、评论、售后和首页内容。
 - `docs/cloudbase-migration.md`：环境、数据库、权限和部署清单。
 
 ## 本地检查
 
-小程序包含用户、商品、订单三个业务分包，以及 `form-ui`、`order-ui` 两个异步组件分包。
-四个 tabBar 页面留在主包，表单及订单扩展控件按需下载；共享基础控件仍由主包提供。
+小程序只声明 `frontend`、`api`、`plugins` 三个普通分包，加上主包共四包。
+四个 tabBar 页面保留主包入口，界面通过异步组件加载；主包只保留 tabBar 需要的 TDesign 依赖。
+前端通过缓存 Promise 的 `require.async` 加载客户端服务，失败后可重试；图片处理组件只在评价、售后等相关功能中使用。
+`api` 是客户端服务分包，订单、库存和权限等真正的后端逻辑仍在独立部署的 `cloudfunctions/` 中。
 首次准备项目或更新 TDesign 后，先在微信开发者工具执行「工具 → 构建 npm」，再执行
-`npm run build:subpackage-ui`。该命令从 npm 构建产物生成两个组件分包；生成目录不入库。
-现有业务页面路径保持不变。
+`npm run build:subpackage-ui`。该命令从 npm 构建产物生成前端包所需的 TDesign 组件，以及主包 `main-ui/` 中 tabBar 图标的依赖闭包；生成目录不入库。
+原 `miniprogram_npm/` 仅作为生成源，不进入小程序代码包。
+更新 WebP 编码器时另执行 `npm run build:image-codec`。
+四个 tabBar 路径保持不变；其他页面路径统一为 `/packages/frontend/pages/...`，不兼容旧分享、收藏路径。
+本地地址存储键和云函数请求协议保持不变，无需迁移数据。
 
 ```powershell
 npm install
 npm --prefix admin install
 npm run typecheck
+npm run test:subpackage-dependencies
+npm run test:package-loading
 npm run typecheck:cloud
 npm run test:cloud
 npm run test:checkout

@@ -1,0 +1,83 @@
+<view class="comments-page {{mineOnly ? 'comments-page-own' : ''}}">
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="{{mineOnly ? '我的评价' : '全部评价'}}"
+  leftArrow
+  fixed="{{false}}"
+  background="#fff"
+/>
+<scroll-view
+  class="comments-scroll"
+  scroll-y
+  enhanced
+  show-scrollbar="{{true}}"
+  bounces="{{false}}"
+  refresher-enabled="{{false}}"
+  bindscrolltolower="onReachBottom"
+>
+<view class="comments-scroll-content">
+<block wx:if="{{mineOnly}}">
+  <view class="comments-card-list own-comment-list" wx:if="{{ownComment}}">
+    <comments-card
+      ownView="{{true}}"
+      isLast="{{true}}"
+      commentScore="{{ownComment.commentScore}}"
+      commentResources="{{ownComment.commentResources || []}}"
+      commentContent="{{ownComment.commentContent}}"
+    />
+    <view class="own-seller-reply" wx:if="{{ownComment.sellerReply}}">
+      <view class="own-seller-reply-title">店家回复</view>
+      <text class="own-seller-reply-content">{{ownComment.sellerReply}}</text>
+    </view>
+  </view>
+  <view class="comments-empty" wx:elif="{{ownLoading}}">正在加载…</view>
+  <view class="comments-empty" wx:else>{{loadError || '暂无评价'}}</view>
+</block>
+<block wx:else>
+<view class="comments-header">
+	<t-tag t-class="comments-header-tag {{commentType === '' ? 'comments-header-active' : ''}}" data-commentType="" bindtap="changeTag">
+		全部({{countObj.commentCount}})
+	</t-tag>
+	<t-tag t-class="comments-header-tag {{commentType === '4' ? 'comments-header-active' : ''}}" data-commentType="4" bindtap="changeTag">
+		带图({{countObj.hasImageCount}})
+	</t-tag>
+	<t-tag
+	  t-class="comments-header-tag {{commentType === 'latest' ? 'comments-header-active' : ''}}"
+	  data-commentType="latest"
+	  bindtap="changeTag"
+	>
+		最新
+</t-tag>
+</view>
+<view class="comments-card-list">
+	<block wx:for="{{commentList}}" wx:key="index">
+		<comments-card
+      isLast="{{index === commentList.length - 1}}"
+		  commentScore="{{item.commentScore}}"
+		  commentResources="{{item.commentResources || []}}"
+		  commentContent="{{item.commentContent}}"
+		  isAnonymity="{{item.isAnonymity}}"
+		  commentTime="{{item.commentTime}}"
+		  isAutoComment="{{item.isAutoComment}}"
+		  specInfo="{{item.specInfo}}"
+		  sellerReply="{{item.sellerReply || ''}}"
+		  goodsDetailInfo="{{item.goodsDetailInfo || ''}}"
+		/>
+	</block>
+	<t-load-more
+    wx:if="{{loadMoreStatus === 1}}"
+	  t-class="no-more"
+	  status="{{loadMoreStatus}}"
+	  no-more-text="没有更多了"
+	  color="#BBBBBB"
+	  failedColor="#FA550F"
+	/>
+</view>
+<view class="comments-empty" wx:if="{{loadError}}">{{loadError}}</view>
+</block>
+</view>
+</scroll-view>
+</view>
+<t-toast id="t-toast" />
+
+<single-image-preview id="image-preview" />

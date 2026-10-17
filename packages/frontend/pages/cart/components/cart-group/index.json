@@ -1,0 +1,10 @@
+{
+  "component": true,
+  "usingComponents": {
+    "t-toast": "../../../../tdesign/toast/toast",
+    "t-icon": "../../../../tdesign/icon/icon",
+    "t-stepper": "../../../../tdesign/stepper/stepper",
+    "goods-card": "../goods-card/index",
+    "specs-popup": "../specs-popup/index"
+  }
+}

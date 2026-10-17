@@ -1,3 +1,4 @@
+const { readSource: readMiniProgramSource } = require('./miniprogram-test-source.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -15,27 +16,28 @@ const confirmedOrder = {
 };
 const mocks = new Map([
   ['config/navigation.ts', { isPageNavigationEnabled: () => true }],
-  ['pages/order/utils/dialog.ts', { default: { confirm: async () => { if (dialogCancelled) throw new Error('cancel'); } } }],
-  ['pages/order/services/orderDetail.ts', { confirmOrderReceived: async () => {
+  ['packages/frontend/pages/order/utils/dialog.ts', { default: { confirm: async () => { if (dialogCancelled) throw new Error('cancel'); } } }],
+  ['packages/api/pages/order/services/orderDetail.ts', { confirmOrderReceived: async () => {
     confirmCalls++;
     if (confirmError) throw confirmError;
     return confirmedOrder;
   } }],
-  ['pages/order/services/orderList.ts', {}],
-  ['pages/order/utils/format.ts', { cosThumb: (value) => value }],
-  ['pages/order/after-service-detail/api.ts', {}],
-  ['services/cart/cart.ts', {}],
-  ['utils/api.ts', { getApiErrorMessage: (error) => error.message }],
+  ['packages/api/pages/order/services/orderList.ts', {}],
+  ['packages/frontend/pages/order/utils/format.ts', { cosThumb: (value) => value }],
+  ['packages/api/pages/order/after-service-detail/api.ts', {}],
+  ['packages/api/services/cart/cart.ts', {}],
+  ['packages/api/utils/api.ts', { getApiErrorMessage: (error) => error.message }],
 ].map(([file, value]) => [path.resolve(root, file), value]));
 function load(file) {
-  const filename = path.resolve(root, file);
+  const filename = require("./miniprogram-test-source.cjs").resolveSource(path.resolve(root, file));
   if (mocks.has(filename)) return mocks.get(filename);
   const exports = {};
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readMiniProgramSource(filename, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, {
     exports,
     require(name) {
+      name = name.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
       if (name === 'tdesign-miniprogram/toast/index') return { default: () => {} };
       if (name.startsWith('.')) return load(`${path.resolve(path.dirname(filename), name)}.ts`);
       throw new Error(`Unexpected dependency ${name}`);
@@ -47,9 +49,9 @@ function load(file) {
   return exports;
 }
 async function run() {
-  const { OrderStatus, OrderButtonTypes } = load('pages/order/config.ts');
-  load('pages/order/order-list/index.ts');
-  load('pages/order/components/order-button-bar/index.ts');
+  const { OrderStatus, OrderButtonTypes } = load('packages/frontend/pages/order/config.ts');
+  load('packages/frontend/pages/order/order-list/index.ts');
+  load('packages/frontend/pages/order/components/order-button-bar/index.ts');
   const original = {
     id: 'order-1', orderNo: 'order-1', status: OrderStatus.PENDING_RECEIPT, statusDesc: '待收货', amount: 200,
     goodsList: [{ spuId: 'product-1', skuId: 'sku-1', num: 2, fulfillableQuantity: 1, title: '商品' }],

@@ -3,13 +3,9 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
-    "cart-group": "./components/cart-group/index",
-    "cart-empty": "./components/cart-empty/index",
-    "cart-bar": "./components/cart-bar/index",
-    "specs-popup": "./components/specs-popup/index",
-    "t-navbar": "tdesign-miniprogram/navbar/navbar",
-    "t-icon": "tdesign-miniprogram/icon/icon",
-    "t-toast": "tdesign-miniprogram/toast/toast",
-    "t-dialog": "tdesign-miniprogram/dialog/dialog"
+    "tab-content": "/packages/frontend/pages/cart/index"
+  },
+  "componentPlaceholder": {
+    "tab-content": "view"
   }
 }

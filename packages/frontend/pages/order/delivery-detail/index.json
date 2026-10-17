@@ -1,0 +1,18 @@
+{
+  "navigationBarTitleText": "物流信息",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "../../../tdesign/navbar/navbar",
+    "t-cell": "../../../tdesign/cell/cell",
+    "t-cell-group": "../../../tdesign/cell-group/cell-group",
+    "t-image": "/packages/frontend/components/webp-image/index",
+    "t-icon": "../../../tdesign/icon/icon",
+    "t-steps": "/packages/frontend/tdesign/steps/steps",
+    "t-step": "/packages/frontend/tdesign/step-item/step-item"
+  },
+  "componentPlaceholder": {
+    "t-steps": "view",
+    "t-step": "view"
+  }
+}

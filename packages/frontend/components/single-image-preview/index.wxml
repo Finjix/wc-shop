@@ -1,0 +1,8 @@
+<view wx:if="{{visible}}" class="image-preview" catchtouchmove="preventScroll" aria-role="dialog" aria-label="图片预览">
+  <movable-area class="image-preview__area" scale-area>
+    <movable-view class="image-preview__image" direction="all" inertia scale scale-min="1" scale-max="4" scale-value="1" bindtap="close">
+      <image class="image-preview__picture" src="{{src}}" mode="aspectFit" show-menu-by-longpress binderror="onImageError" />
+    </movable-view>
+  </movable-area>
+  <view class="image-preview__close" catchtap="close" aria-role="button" aria-label="关闭图片预览">×</view>
+</view>

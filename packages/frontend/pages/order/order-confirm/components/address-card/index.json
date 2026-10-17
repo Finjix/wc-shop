@@ -1,0 +1,7 @@
+{
+  "component": true,
+  "usingComponents": {
+    "t-cell": "../../../../../tdesign/cell/cell",
+    "t-icon": "../../../../../tdesign/icon/icon"
+  }
+}

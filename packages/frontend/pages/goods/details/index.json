@@ -1,0 +1,21 @@
+{
+  "navigationBarTitleText": "商品详情",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "../../../tdesign/navbar/navbar",
+    "t-image": "/packages/frontend/components/webp-image/index",
+    "t-tag": "../../../tdesign/tag/tag",
+    "t-toast": "../../../tdesign/toast/toast",
+    "t-swiper": "../../../tdesign/swiper/swiper",
+    "t-swiper-nav": "../../../tdesign/swiper-nav/swiper-nav",
+    "t-button": "../../../tdesign/button/button",
+    "t-icon": "../../../tdesign/icon/icon",
+    "price": "/packages/frontend/components/price/index",
+    "buy-bar": "./components/buy-bar/index",
+    "goods-specs-popup": "./components/goods-specs-popup/index",
+    "single-image-preview": "/packages/frontend/components/single-image-preview/index"
+  }
+}

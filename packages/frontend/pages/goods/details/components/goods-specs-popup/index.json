@@ -1,0 +1,11 @@
+{
+  "component": true,
+  "usingComponents": {
+    "price": "/packages/frontend/components/price/index",
+    "t-popup": "../../../../../tdesign/popup/popup",
+    "t-icon": "../../../../../tdesign/icon/icon",
+    "t-image": "/packages/frontend/components/webp-image/index",
+    "t-stepper": "../../../../../tdesign/stepper/stepper",
+    "t-toast": "../../../../../tdesign/toast/toast"
+  }
+}

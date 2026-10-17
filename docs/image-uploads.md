@@ -6,6 +6,6 @@
 
 后台商品详情图最多 3 张，小程序售后最多 3 张，评价最多 4 张；商品和售后服务端同步校验 3 张上限。图片处理期间禁止再次选图及提交。点击提交才上传处理后的文件，然后保存文件 ID；上传输出不设置 MB 上限。
 
-小程序编码器放在 `packages/form-ui/image-processor/`，通过异步组件共享给评价、售后页面，未放入主包。WASM 在 `project.config.json` 中明确包含，避免未使用文件过滤将其移除。升级编码器后，在安装后台依赖的情况下执行 `npm run build:image-codec`，生成适配 WXWebAssembly 的胶水代码及编码器文件。
+小程序编码器放在 `packages/plugins/image-processor/`，通过异步组件共享给评价、售后页面，未放入主包。WASM 在 `project.config.json` 中明确包含，避免未使用文件过滤将其移除。升级编码器后，在安装后台依赖的情况下执行 `npm run build:image-codec`，生成适配 WXWebAssembly 的胶水代码及编码器文件。
 
 验证：`npm run test:user-images`、`npm run test:admin-upload`、`npm run test:subpackage-dependencies`、`npm run test:cloud`、`npm run check`。前者运行实际 WASM 编码，并模拟微信 Canvas/文件接口及页面回调；真机的 Canvas 解码、WASM 装载和选图交互仍需单独验证。

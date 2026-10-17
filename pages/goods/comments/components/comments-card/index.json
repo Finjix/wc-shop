@@ -1,6 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "images-videos": "./components/images-videos"
-  }
-}

@@ -1,0 +1,9 @@
+{
+  "component": true,
+  "usingComponents": {
+    "t-loading": "../../tdesign/loading/loading",
+    "t-swiper": "../../tdesign/swiper/swiper",
+    "top-search": "/packages/frontend/components/top-search/index",
+    "price": "/packages/frontend/components/price/index"
+  }
+}
