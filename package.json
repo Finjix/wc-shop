@@ -4,8 +4,8 @@
   "description": "",
   "main": "app.ts",
   "scripts": {
-    "lint": "eslint --cache --ext .js,.ts,.tsx . --ignore-pattern admin/** --ignore-pattern cloudfunctions/**",
-    "lint:fix": "eslint --cache --fix --ext .js,.ts,.tsx . --ignore-pattern admin/** --ignore-pattern cloudfunctions/**",
+    "lint": "eslint --cache --cache-location ../.wc-shop-local/cache/eslint --ext .js,.ts,.tsx . --ignore-pattern admin/** --ignore-pattern cloudfunctions/**",
+    "lint:fix": "eslint --cache --cache-location ../.wc-shop-local/cache/eslint --fix --ext .js,.ts,.tsx . --ignore-pattern admin/** --ignore-pattern cloudfunctions/**",
     "typecheck": "tsc --noEmit",
     "typecheck:cloud": "tsc -p cloudfunctions/tsconfig.json",
     "build:cloudfunction": "tsc -p cloudfunctions/tsconfig.json",
@@ -23,8 +23,7 @@
     "dev:local-backend": "npm run build:cloudfunction && node scripts/local-backend.js",
     "build:admin": "npm --prefix admin run build",
     "package:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-deploy-bundles.ps1",
-    "check": "node config/eslintCheck.js && npm run typecheck && npm run typecheck:cloud && npm run build:admin",
-    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
+    "check": "npm run lint && npm run typecheck && npm run typecheck:cloud && npm run build:admin",
     "test:loading": "node scripts/test-loading.cjs",
     "test:comments": "node scripts/test-comments.cjs",
     "test:subpackage-dependencies": "node scripts/test-subpackage-dependencies.cjs",
@@ -46,7 +45,6 @@
     "@types/node": "^24.5.2",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
-    "conventional-changelog-cli": "^2.2.2",
     "eslint": "^8.57.1",
     "miniprogram-api-typings": "^3.12.0",
     "typescript": "^5.9.3"

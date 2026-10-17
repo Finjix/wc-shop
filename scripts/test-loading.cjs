@@ -66,7 +66,7 @@ async function run() {
   console.log('PASS SKU after-sales form uses native product summary and preserves its quantity stepper');
   const orderButtonBarMarkup = readMiniProgramSource(path.join(root, 'packages/frontend/pages/order/components/order-button-bar/index.wxml'), 'utf8');
   const afterServiceMarkupForConfirm = readMiniProgramSource(path.join(root, 'packages/frontend/pages/order/after-service-detail/index.wxml'), 'utf8');
-  const themeStyles = readMiniProgramSource(path.join(root, 'style/theme.wxss'), 'utf8');
+  const themeStyles = readMiniProgramSource(path.join(root, 'app.wxss'), 'utf8');
   assert.match(orderButtonBarMarkup, /t-dialog[^>]*t-class-confirm="commerce-dialog-confirm"/);
   assert.match(afterServiceMarkupForConfirm, /t-dialog id="t-dialog" t-class-confirm="commerce-dialog-confirm"/);
   assert.match(themeStyles, /\.commerce-dialog-confirm\s*\{[^}]*--td-button-primary-text-color:\s*#695941;/);

@@ -1,30 +1,18 @@
 {
-  "description": "项目配置文件，详见文档：https://developers.weixin.qq.com/miniprogram/dev/devtools/projectconfig.html",
   "packOptions": {
     "ignore": [
       { "value": "miniprogram_npm", "type": "folder" },
-      { "value": "packages/form-ui", "type": "folder" },
-      { "value": "packages/order-ui", "type": "folder" },
       { "value": "cloudfunctions", "type": "folder" },
       { "value": "scripts", "type": "folder" },
-      { "value": "docs", "type": "folder" },
-      { "value": "typings", "type": "folder" },
-      { "value": ".local-files", "type": "folder" },
-      { "value": "config/eslintCheck.js", "type": "file" },
-      { "value": "package-lock.json", "type": "file" },
+      { "value": "common/cloud.d.ts", "type": "file" },
       { "value": "README.md", "type": "file" },
+      { "value": "package-lock.json", "type": "file" },
       { "value": "tsconfig.json", "type": "file" },
-      { "value": "jsconfig.json", "type": "file" },
       { "value": "cloudbaserc.json", "type": "file" },
       { "value": "start-local.cmd", "type": "file" },
-      { "value": ".local-data", "type": "folder" },
       { "value": "dist", "type": "folder" },
       {
         "value": "admin",
-        "type": "folder"
-      },
-      {
-        "value": "data",
         "type": "folder"
       }
     ],

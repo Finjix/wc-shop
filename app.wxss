@@ -1,13 +1,63 @@
-
-
-@import 'style/theme.wxss';
-
 page {
+  --app-theme-color: #695941;
+  --app-theme-color-soft: #F0ECE4;
+  --app-theme-text-color: #695941;
   background-color: #fff;
   --app-page-title-font-size: 34rpx;
   --app-page-title-font-weight: 500;
   --td-navbar-title-font-size: var(--app-page-title-font-size);
   --td-navbar-title-font-weight: var(--app-page-title-font-weight);
+}
+
+.t-input {
+  --td-input-placeholder-text-color: #bbbbbb;
+  --td-input-text-color: #333333;
+}
+
+.t-tab-bar {
+  --td-tab-bar-color: #bbb;
+  --td-tab-bar-active-color: #695941;
+}
+
+.t-cascader {
+  --td-cascader-active-color: var(--app-theme-color, #695941);
+}
+
+.t-switch {
+  --td-switch-checked-color: var(--app-theme-color, #695941);
+}
+
+.t-button {
+  --td-button-font-weight: 500;
+  --td-button-medium-font-size: 32rpx;
+  --td-button-default-color: #fff;
+  --td-button-default-bg-color: #695941;
+  --td-button-default-border-color: #695941;
+  --td-button-default-disabled-color: #fff;
+  --td-button-default-disabled-bg: #cccccc;
+  --td-button-default-disabled-border-color: #cccccc;
+  --td-button-default-active-bg-color: #695941;
+  --td-button-default-active-border-color: #695941;
+}
+
+.t-textarea {
+  --td-textarea-placeholder-color: #bbb;
+}
+
+.t-checkbox {
+  --td-checkbox-icon-checked-color: #695941;
+}
+
+.dialog__button-confirm {
+  color: #695941 !important;
+}
+
+.dialog__button-cancel {
+  color: #aeb3b7 !important;
+}
+
+.commerce-dialog-confirm {
+  --td-button-primary-text-color: #695941;
 }
 
 .app-page-scroll {

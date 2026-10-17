@@ -20,10 +20,9 @@ function check() {
   }
   let asyncReferences = 0;
   let modules = 0;
-  const sourceFiles = ['common','config','pages','custom-tab-bar','packages','style','main-ui'].flatMap(dir => walk(path.join(root, dir)));
+  const sourceFiles = ['common','config','pages','custom-tab-bar','packages','main-ui'].flatMap(dir => walk(path.join(root, dir)));
   sourceFiles.push(path.join(root, 'app.ts'), path.join(root, 'app.wxss'));
   for (const file of sourceFiles) {
-    if (file === path.join(root, 'config/eslintCheck.js') || file.startsWith(path.join(root, 'packages/form-ui') + path.sep) || file.startsWith(path.join(root, 'packages/order-ui') + path.sep)) continue;
     if (!/\.(ts|js|json|wxml|wxss|wxs)$/.test(file)) continue;
     const source = fs.readFileSync(file, 'utf8');
     if (/\.(ts|js)$/.test(file)) {

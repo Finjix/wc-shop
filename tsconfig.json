@@ -20,7 +20,6 @@
     "config/**/*.ts",
     "custom-tab-bar/**/*.ts",
     "pages/**/*.ts",
-    "typings/**/*.d.ts",
     "packages/**/*.ts"
   ],
   "exclude": [
