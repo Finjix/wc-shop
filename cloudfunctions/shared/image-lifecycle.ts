@@ -3,7 +3,8 @@ const crypto = require('crypto');
 const { COLLECTIONS } = require('./constants');
 const { getDoc, setDoc, withTransaction, list } = require('./db');
 const { errorFrom } = require('./errors');
-const SOURCES = Object.values(COLLECTIONS);
+// Payment snapshots retain product images even before formal orders exist.
+const SOURCES = [...Object.values(COLLECTIONS), 'payments'];
 const CONTROL = '__image_cleanup_control';
 const IMAGE_NEUTRAL_FIELDS = new Set(['status', 'updatedAt', 'title', 'subtitle', 'name', 'sort', 'stockQuantity', 'soldQuantity', 'price', 'salePrice', 'linePrice', 'weight', 'volume', 'categoryId', 'categoryIds', 'parentId', 'level']);
 const stateId = (id) => `__image_file_${crypto.createHash('sha256').update(id).digest('hex')}`;

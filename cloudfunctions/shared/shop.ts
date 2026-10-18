@@ -511,13 +511,22 @@ async function createdOrderResult(runtime, first) {
   if (!Array.isArray(ids) || !ids.length) throw errorFrom('ORDER_STATE_INVALID');
   const paymentRequired = first.payment?.mode === 'wechat' && first.paymentStatus === 'unpaid';
   if (ids.length === 1) return { ...first, paymentRequired };
-  const orders = await Promise.all(ids.map((id) => getDoc(collection(runtime, COLLECTIONS.orders), id, true)));
+  const orders = (await require('./payments').load(runtime, first.checkoutId || first._id, first.userId)).orders;
   return {
     ...first, orders, orderIds: ids, orderNos: orders.map((order) => order.orderNo),
     orderCount: orders.length,
     checkoutTotalAmount: orders.reduce((sum, order) => sum + order.totalAmount, 0),
     paymentRequired,
   };
+}
+
+async function orderOrPaymentDraft(db, id) {
+  const order = await getDoc(db.collection(COLLECTIONS.orders), id, false);
+  if (order) return order;
+  const intent = await getDoc(db.collection('payments'), require('./payments').tradeId(id), false);
+  if (intent?.status === 'paid') return getDoc(db.collection(COLLECTIONS.orders), id, true);
+  if (intent && !intent.draftOrders?.length) throw errorFrom('ORDER_STATE_INVALID');
+  return intent?.draftOrders?.[0] || null;
 }
 
 async function createOrder(runtime, event, context, data) {
@@ -550,7 +559,7 @@ async function createOrder(runtime, event, context, data) {
   })).digest('hex');
   const matchesCartRetry = (existing) => input.useCart && existing.requestMode === 'cart'
     && existing.requestAddressHash === requestAddressHash && String(existing.requestRemark || '') === remark;
-  const existing = priorOrderId ? await getDoc(collection(runtime, COLLECTIONS.orders), priorOrderId, false) : null;
+  const existing = priorOrderId ? await orderOrPaymentDraft(runtime.db, priorOrderId) : null;
   if (existing) {
     if (explicitNormalized) {
       const requestHash = hashRequest(explicitNormalized);
@@ -563,7 +572,7 @@ async function createOrder(runtime, event, context, data) {
   if (input.useCart && !explicitNormalized && !cartItems.length) {
     const latest = await getDoc(collection(runtime, COLLECTIONS.orderRequests), requestId, false);
     if (latest?.deletedOrderIds?.length) throw errorFrom('ORDER_STATE_INVALID');
-    const raced = latest?.orderId ? await getDoc(collection(runtime, COLLECTIONS.orders), latest.orderId, false) : null;
+    const raced = latest?.orderId ? await orderOrPaymentDraft(runtime.db, latest.orderId) : null;
     if (raced && matchesCartRetry(raced)) return createdOrderResult(runtime, raced);
     throw errorFrom('INVALID_ARGUMENT', { field: 'items' });
   }
@@ -572,7 +581,7 @@ async function createOrder(runtime, event, context, data) {
   const requestHash = hashRequest(normalizedItems);
   const latest = await getDoc(collection(runtime, COLLECTIONS.orderRequests), requestId, false);
   if (latest?.deletedOrderIds?.length) throw errorFrom('ORDER_STATE_INVALID');
-  const concurrent = latest?.orderId ? await getDoc(collection(runtime, COLLECTIONS.orders), latest.orderId, false) : null;
+  const concurrent = latest?.orderId ? await orderOrPaymentDraft(runtime.db, latest.orderId) : null;
   if (concurrent) {
     if (concurrent.requestHash !== requestHash
       && (explicitNormalized || !matchesCartRetry(concurrent))) throw errorFrom('IDEMPOTENCY_CONFLICT');
@@ -587,7 +596,7 @@ async function createOrder(runtime, event, context, data) {
     // rolled-back stock deductions leave no orphan reservation records.
     const orderId = reservation?.orderId || await reserveOrderId(tx, identity.uid);
     const orders = tx.collection(COLLECTIONS.orders);
-    const race = await getDoc(orders, orderId, false);
+    const race = await orderOrPaymentDraft(tx, orderId);
     if (race) {
       if (race.requestHash !== requestHash
         && (explicitNormalized || !matchesCartRetry(race))) throw errorFrom('IDEMPOTENCY_CONFLICT');
@@ -619,8 +628,8 @@ async function createOrder(runtime, event, context, data) {
     for (let index = 1; index < confirmedItems.length; index += 1) {
       checkoutOrderIds.push(await reserveOrderId(tx, identity.uid));
     }
-    // One SKU (including its full quantity) per order. All orders, stock changes
-    // and cart removal commit together; the first order anchors checkout retries.
+    // Real payments reserve immutable drafts and stock atomically. Formal order
+    // documents and cart removal wait for a verified successful payment.
     const created = [];
     for (const [index, item] of confirmedItems.entries()) {
       const id = checkoutOrderIds[index];
@@ -662,7 +671,7 @@ async function createOrder(runtime, event, context, data) {
         createdAt: timestamp,
         updatedAt: timestamp,
       };
-      await setDoc(orders, id, order);
+      if (paymentMode !== 'wechat') await setDoc(orders, id, order);
       created.push(order);
     }
     await setDoc(requests, requestId, { ...reservation, userId: identity.uid, requestKey, orderId,
@@ -671,9 +680,12 @@ async function createOrder(runtime, event, context, data) {
       const c = require('./wechat-pay').config(runtime), id = require('./payments').tradeId(orderId);
       await setDoc(tx.collection('payments'), id, { _id: id, checkoutId: orderId, orderIds: checkoutOrderIds,
         userId: identity.uid, openid, appid: c.appid, mchid: c.mchid, total: subtotal + draft.shippingFee,
+        draftOrders: created,
+        cartItems: cart ? confirmedItems.filter(item => cartItems.some(selected => String(selected.skuId) === String(item.skuId)))
+          .map(item => ({ skuId: item.skuId, quantity: item.quantity })) : [],
         status: 'pending', createdAt: timestamp, expiresAt: created[0].payment.expiresAt });
     }
-    if (cart) {
+    if (cart && paymentMode !== 'wechat') {
       const storedCart = await getDoc(tx.collection(COLLECTIONS.carts), identity.uid, false);
       const orderedSkuIds = new Set(draft.items.map((item) => String(item.skuId)));
       const remaining = (storedCart?.items || []).filter((item) => !item.isSelected || !orderedSkuIds.has(String(item.skuId)));
@@ -768,7 +780,7 @@ async function checkoutDetail(runtime, event, context, data) {
   const identity = requireUser(event, context, runtime);
   const id = string(data.checkoutId, 'checkoutId', { max: 128 });
   await require('./payments').queryCheckout(runtime, event, context, { checkoutId: id });
-  const first = await getDoc(collection(runtime, COLLECTIONS.orders), id, true);
+  const { first } = await require('./payments').load(runtime, id, identity.uid);
   if (first.userId !== identity.uid) throw errorFrom('FORBIDDEN');
   return createdOrderResult(runtime, first);
 }

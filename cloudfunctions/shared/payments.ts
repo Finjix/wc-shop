@@ -9,7 +9,23 @@ const now = () => new Date().toISOString();
 const tradeId = (id) => `wc${crypto.createHash('sha256').update(id).digest('hex').slice(0, 30)}`;
 
 async function load(runtime, id, uid) {
-  const first = await getDoc(runtime.db.collection('orders'), id, true);
+  let first = await getDoc(runtime.db.collection('orders'), id, false);
+  if (!first) {
+    const intent = await getDoc(runtime.db.collection('payments'), tradeId(id), true);
+    if (uid && intent.userId !== uid) throw errorFrom('FORBIDDEN');
+    if (intent.status === 'paid') {
+      // A callback may have committed after the first read; retry that document once.
+      first = await getDoc(runtime.db.collection('orders'), id, true);
+    } else {
+      if (!intent.draftOrders?.length) throw errorFrom('NOT_FOUND');
+      const orders = intent.draftOrders;
+      first = orders[0];
+      if (first._id !== id || orders.some(order => order.userId !== intent.userId || order.checkoutId !== id)) {
+        throw errorFrom('ORDER_STATE_INVALID');
+      }
+      return { root: id, first, orders, total: intent.total };
+    }
+  }
   if (uid && first.userId !== uid) throw errorFrom('FORBIDDEN');
   const root = first.checkoutId || first._id;
   const anchor = root === first._id ? first : await getDoc(runtime.db.collection('orders'), root, true);
@@ -49,14 +65,38 @@ async function confirmPaid(runtime, transaction) {
       return intent;
     }
     if (intent.status === 'closed') throw errorFrom('PAYMENT_MISMATCH');
+    if (intent.draftOrders && (intent.draftOrders.length !== intent.orderIds.length
+      || intent.draftOrders.reduce((total, order) => total + order.totalAmount, 0) !== intent.total)) {
+      throw errorFrom('PAYMENT_MISMATCH');
+    }
     const stamp = now();
     for (const key of intent.orderIds) {
-      const order = await getDoc(tx.collection('orders'), key, true);
+      const order = intent.draftOrders
+        ? intent.draftOrders.find(draft => draft._id === key)
+        : await getDoc(tx.collection('orders'), key, true);
+      if (!order) throw errorFrom('ORDER_STATE_INVALID');
       if (order.status !== 'pending_payment' || order.userId !== intent.userId) throw errorFrom('ORDER_STATE_INVALID');
-      await tx.collection('orders').doc(key).update({ status: 'paid', paymentStatus: 'paid',
+      const patch = { status: 'paid', paymentStatus: 'paid',
         payment: { ...order.payment, status: 'paid', transactionId: transaction.transaction_id,
           tradeNo: id, checkoutTotal: intent.total, paidAt: transaction.success_time || stamp },
-        paymentAmount: order.totalAmount, paidAt: transaction.success_time || stamp, updatedAt: stamp });
+        paymentAmount: order.totalAmount, paidAt: transaction.success_time || stamp, updatedAt: stamp };
+      if (intent.draftOrders) {
+        // The verified provider result is the only path that materializes a new real order.
+        if (await getDoc(tx.collection('orders'), key, false)) throw errorFrom('CONFLICT');
+        await setDoc(tx.collection('orders'), key, { ...order, ...patch,
+          checkoutCreatedAt: order.createdAt, createdAt: transaction.success_time || stamp });
+      } else await tx.collection('orders').doc(key).update(patch);
+    }
+    if (intent.cartItems?.length) {
+      const cart = await getDoc(tx.collection('carts'), intent.userId, false);
+      if (cart) {
+        const purchased = new Map(intent.cartItems.map(item => [String(item.skuId), item.quantity]));
+        const items = (cart.items || []).flatMap(item => {
+          const quantity = Number(item.quantity) - (purchased.get(String(item.skuId)) || 0);
+          return quantity > 0 ? [{ ...item, quantity }] : [];
+        });
+        await setDoc(tx.collection('carts'), intent.userId, { ...cart, items, updatedAt: stamp });
+      }
     }
     await tx.collection('payments').doc(id).update({ status: 'paid', transactionId: transaction.transaction_id, paidAt: stamp,
       shippingPending: true, shippingUpdatedAt: stamp });
@@ -70,7 +110,10 @@ async function releaseClosed(runtime, intent) {
     if (current.status !== 'pending') throw errorFrom('ORDER_STATE_INVALID');
     const stamp = now();
     for (const key of current.orderIds) {
-      const order = await getDoc(tx.collection('orders'), key, true);
+      const order = current.draftOrders
+        ? current.draftOrders.find(draft => draft._id === key)
+        : await getDoc(tx.collection('orders'), key, true);
+      if (!order) throw errorFrom('ORDER_STATE_INVALID');
       if (order.status !== 'pending_payment') throw errorFrom('ORDER_STATE_INVALID');
       if (order.inventoryReserved) {
         for (const item of order.items) {
@@ -80,7 +123,7 @@ async function releaseClosed(runtime, intent) {
             soldQuantity: Math.max(0, Number(sku.soldQuantity || 0) - item.quantity), updatedAt: stamp });
         }
       }
-      await tx.collection('orders').doc(key).update({ status: 'closed', paymentStatus: 'unpaid',
+      if (!current.draftOrders) await tx.collection('orders').doc(key).update({ status: 'closed', paymentStatus: 'unpaid',
         inventoryReserved: false, payment: { ...order.payment, status: 'closed' }, updatedAt: stamp });
     }
     await tx.collection('payments').doc(intent._id).update({ status: 'closed', closedAt: stamp });

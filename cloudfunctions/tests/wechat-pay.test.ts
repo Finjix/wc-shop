@@ -45,7 +45,10 @@ async function run() {
     assert.strictEqual(r.records.skus['sku-new'].stockQuantity, 8);
     const trade = payments.tradeId(order.checkoutId);
     assert.strictEqual(r.records.payments[trade].total, 200);
-    assert.strictEqual((await shopEndpoint({}, ctx, r, 'orders.detail', { orderNo: trade }))._id, order._id);
+    assert.strictEqual(Object.keys(r.records.orders).length, 0, 'an unpaid checkout is only a payment draft');
+    assert.strictEqual((await adminEndpoint({}, {}, r, 'orders.list', {})).total, 0);
+    assert.strictEqual((await shopEndpoint({}, ctx, r, 'orders.list', {})).total, 0);
+    await assert.rejects(() => shopEndpoint({}, ctx, r, 'orders.detail', { orderNo: trade }), (e) => e.code === 'NOT_FOUND');
     await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'other' } }, r, 'orders.detail', { orderNo: trade }), (e) => e.code === 'FORBIDDEN');
     await assert.rejects(() => shopEndpoint({}, ctx, r, 'orders.detail', { orderNo: 'wc' + '0'.repeat(30) }), (e) => e.code === 'NOT_FOUND');
     assert.strictEqual((await create(r))._id, order._id);
@@ -65,17 +68,57 @@ async function run() {
       return response({ prepay_id: 'prepay-test' });
     };
     const prepared = await payments.prepare(r, {}, ctx, { checkoutId: order._id, amount: 1, openid: 'forged' });
+    assert.strictEqual((await shopEndpoint({}, ctx, r, 'orders.checkout', { checkoutId: order.checkoutId })).paymentStatus, 'unpaid');
+    assert.strictEqual(Object.keys(r.records.orders).length, 0, 'prepay and unpaid queries do not create orders');
     const client = prepared.payment;
     assert.ok(crypto.verify('RSA-SHA256', Buffer.from(`${config.appid}\n${client.timeStamp}\n${client.nonceStr}\n${client.package}\n`), merchant.publicKey, Buffer.from(client.paySign, 'base64')));
     const transaction = { appid: config.appid, mchid: config.mchid, out_trade_no: trade, transaction_id: 'wx-transaction',
       trade_state: 'SUCCESS', amount: { total: 200, currency: 'CNY' }, payer: { openid: 'openid-1' } };
     await assert.rejects(() => payments.confirmPaid(r, { ...transaction, amount: { total: 1, currency: 'CNY' } }), (e) => e.code === 'PAYMENT_MISMATCH');
-    assert.strictEqual(r.records.orders[order._id].paymentStatus, 'unpaid');
+    assert.strictEqual(Object.keys(r.records.orders).length, 0, 'a mismatched payment cannot materialize orders');
     await payments.confirmPaid(r, transaction);
     await payments.confirmPaid(r, transaction);
+    assert.strictEqual(Object.keys(r.records.orders).length, 1, 'repeated provider confirmation creates exactly one order');
+    assert.strictEqual((await shopEndpoint({}, ctx, r, 'orders.detail', { orderNo: trade }))._id, order._id);
     assert.strictEqual(r.records.orders[order._id].payment.transactionId, 'wx-transaction');
     assert.strictEqual(r.records.skus['sku-new'].stockQuantity, 8);
     assert.strictEqual((await payments.prepare(r, {}, ctx, { checkoutId: order._id })).paid, true);
+
+    const cartRuntime = runtime();
+    cartRuntime.records.carts['user-1'].items = [
+      { skuId: 'sku-new', quantity: 3, isSelected: true },
+      { skuId: 'sku-old', quantity: 1, isSelected: false },
+    ];
+    const cartRequest = { requestKey: 'paid-cart-only', address: localAddress, useCart: true,
+      items: [{ skuId: 'sku-new', quantity: 2 }] };
+    const cartDraft = await shopEndpoint({}, ctx, cartRuntime, 'orders.create', cartRequest);
+    assert.strictEqual(cartRuntime.records.carts['user-1'].items[0].quantity, 3, 'cancelled or failed payment leaves the cart intact');
+    assert.strictEqual(Object.keys(cartRuntime.records.orders).length, 0);
+    await assert.rejects(() => shopEndpoint({}, ctx, cartRuntime, 'orders.create', { ...cartRequest,
+      items: [{ skuId: 'sku-new', quantity: 1 }] }), e => e.code === 'IDEMPOTENCY_CONFLICT');
+    await assert.rejects(() => payments.queryCheckout(cartRuntime, {}, { auth: { uid: 'other' } }, { checkoutId: cartDraft.checkoutId }), e => e.code === 'FORBIDDEN');
+    cartRuntime.paymentFetch = async () => { throw new Error('provider unavailable'); };
+    await assert.rejects(() => payments.prepare(cartRuntime, {}, ctx, { checkoutId: cartDraft.checkoutId }));
+    assert.strictEqual(Object.keys(cartRuntime.records.orders).length, 0, 'a failed provider call leaves only a draft');
+    const repeatedDraft = await shopEndpoint({}, ctx, cartRuntime, 'orders.create', cartRequest);
+    assert.strictEqual(repeatedDraft.checkoutId, cartDraft.checkoutId);
+    assert.strictEqual(cartRuntime.records.skus['sku-new'].stockQuantity, 8, 'same-key draft retries reserve stock once');
+    cartRuntime.records.carts['user-1'].items[0].quantity = 4; // Items added while the cashier is open are retained.
+    cartRuntime.records.carts['user-1'].items[0].isSelected = false;
+    const cartPaid = { ...transaction, out_trade_no: payments.tradeId(cartDraft.checkoutId), transaction_id: 'wx-cart-paid' };
+    await Promise.all([payments.confirmPaid(cartRuntime, cartPaid), payments.confirmPaid(cartRuntime, cartPaid)]);
+    assert.strictEqual(Object.keys(cartRuntime.records.orders).length, 1);
+    assert.strictEqual(cartRuntime.records.carts['user-1'].items[0].quantity, 2);
+    assert.strictEqual(cartRuntime.records.carts['user-1'].items[1].skuId, 'sku-old');
+    assert.strictEqual((await shopEndpoint({}, ctx, cartRuntime, 'orders.checkout', { checkoutId: cartDraft.checkoutId })).paymentStatus, 'paid');
+    assert.strictEqual((await shopEndpoint({}, ctx, cartRuntime, 'orders.create', cartRequest)).paymentStatus, 'paid');
+
+    const concurrentDrafts = runtime();
+    const draftAttempts = await Promise.all([create(concurrentDrafts, 'same-real-request'), create(concurrentDrafts, 'same-real-request')]);
+    assert.strictEqual(draftAttempts[0].checkoutId, draftAttempts[1].checkoutId);
+    assert.strictEqual(Object.keys(concurrentDrafts.records.payments).length, 1);
+    assert.strictEqual(Object.keys(concurrentDrafts.records.orders).length, 0);
+    assert.strictEqual(concurrentDrafts.records.skus['sku-new'].stockQuantity, 8);
 
     // Encrypt an authentic provider notification and verify both signature and GCM authentication.
     const encode = (data, type) => {
@@ -159,7 +202,23 @@ async function run() {
     };
     await payments.sync(expired, intent); await payments.sync(expired, expired.records.payments[intent._id]);
     assert.ok(closed); assert.strictEqual(expired.records.skus['sku-new'].stockQuantity, 10);
-    assert.strictEqual(expired.records.orders[old._id].status, 'closed');
+    assert.strictEqual(Object.keys(expired.records.orders).length, 0, 'expired drafts never create closed formal orders');
+
+    // Already-created pending orders from older deployed versions keep their original lifecycle.
+    const legacy = runtime(), legacyDraft = await create(legacy, 'legacy-pending');
+    const legacyIntent = legacy.records.payments[payments.tradeId(legacyDraft.checkoutId)];
+    for (const draft of legacyIntent.draftOrders) legacy.records.orders[draft._id] = structuredClone(draft);
+    delete legacyIntent.draftOrders; delete legacyIntent.cartItems;
+    await payments.confirmPaid(legacy, { ...transaction, out_trade_no: legacyIntent._id, transaction_id: 'wx-legacy' });
+    assert.strictEqual(legacy.records.orders[legacyDraft._id].paymentStatus, 'paid');
+    const legacyClosed = runtime(), legacyOld = await create(legacyClosed, 'legacy-close');
+    const legacyCloseIntent = legacyClosed.records.payments[payments.tradeId(legacyOld.checkoutId)];
+    for (const draft of legacyCloseIntent.draftOrders) legacyClosed.records.orders[draft._id] = structuredClone(draft);
+    delete legacyCloseIntent.draftOrders;
+    legacyClosed.paymentFetch = async () => response({ trade_state: 'CLOSED' });
+    await payments.sync(legacyClosed, legacyCloseIntent);
+    assert.strictEqual(legacyClosed.records.orders[legacyOld._id].status, 'closed');
+    assert.strictEqual(legacyClosed.records.skus['sku-new'].stockQuantity, 10);
 
     // A fixed oldest-ten window must not hide later payments when callbacks are lost.
     const queued = runtime(); queued.records.skus['sku-new'].stockQuantity = 100;
@@ -185,6 +244,7 @@ async function run() {
     const multiple = await shopEndpoint({}, ctx, split, 'orders.create', { requestKey: 'split-real', address: localAddress,
       items: [{ skuId: 'sku-new', quantity: 1 }, { skuId: 'sku-second', quantity: 1 }] });
     assert.strictEqual(multiple.orderCount, 2);
+    assert.strictEqual(Object.keys(split.records.orders).length, 0, 'all SKU drafts stay out of formal orders before payment');
     const splitTrade = payments.tradeId(multiple.checkoutId);
     assert.strictEqual(split.records.payments[splitTrade].total, 400);
     await payments.confirmPaid(split, { ...transaction, out_trade_no: splitTrade, transaction_id: 'wx-split', amount: { total: 400, currency: 'CNY' } });
@@ -265,6 +325,28 @@ async function run() {
     assert.strictEqual(batchUploads[0].is_all_delivered, true);
     assert.strictEqual((await adminEndpoint({}, {}, batch, 'orders.logistics.saveBatch', { ...batchInput, trackingNo: 'SF-BATCH-2' })).shippingSyncPending, false);
     assert.strictEqual(batchUploads[1].shipping_list[0].tracking_no, 'SF-BATCH-2');
+
+    const atomic = runtime();
+    atomic.records.skus['sku-second'] = { ...atomic.records.skus['sku-new'], _id: 'sku-second', skuId: 'sku-second', salePrice: 300 };
+    const atomicDraft = await shopEndpoint({}, ctx, atomic, 'orders.create', { requestKey: 'atomic-materialization', address: localAddress,
+      items: [{ skuId: 'sku-new', quantity: 1 }, { skuId: 'sku-second', quantity: 1 }] });
+    const originalTransaction = atomic.db.runTransaction.bind(atomic.db);
+    atomic.db.runTransaction = worker => originalTransaction(tx => worker({ ...tx, collection(name) {
+      const ref = tx.collection(name);
+      return name === 'orders' ? { ...ref, doc(id) {
+        const doc = ref.doc(id);
+        return id === atomicDraft.orderIds[1] ? { ...doc, async set() { throw new Error('second order write failed'); } } : doc;
+      } } : ref;
+    } }));
+    const atomicPaid = { ...transaction, out_trade_no: payments.tradeId(atomicDraft.checkoutId), transaction_id: 'wx-atomic',
+      amount: { total: 400, currency: 'CNY' } };
+    await assert.rejects(() => payments.confirmPaid(atomic, atomicPaid), /second order write failed/);
+    assert.strictEqual(Object.keys(atomic.records.orders).length, 0, 'a failed second write rolls back the first formal order');
+    assert.strictEqual(atomic.records.payments[atomicPaid.out_trade_no].status, 'pending');
+    atomic.db.runTransaction = originalTransaction;
+    await Promise.all([payments.confirmPaid(atomic, atomicPaid), payments.confirmPaid(atomic, atomicPaid)]);
+    assert.strictEqual(Object.keys(atomic.records.orders).length, 2);
+    assert.strictEqual(atomic.records.skus['sku-new'].stockQuantity, 9);
 
     // HTTP admin/timer delivery calls use a cached stable token, never a caller-supplied identity.
     const serverShipping = runtime();

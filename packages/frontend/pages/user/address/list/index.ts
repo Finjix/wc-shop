@@ -4,7 +4,6 @@
 import { showConfirmModal } from '../../../../../../common/confirm-modal';
 import {
   fetchDeliveryAddressList,
-  persistAddress,
   deleteDeliveryAddress,
 } from '../../../../services/address/fetchAddress';
 import Toast from '../../../../tdesign/toast/index';
@@ -70,50 +69,6 @@ Page({
       this.setData({ addressList });
     }).catch((error) => {
       Toast({ context: this, selector: '#t-toast', message: getApiErrorMessage(error, '地址加载失败，请重试'), icon: '' });
-    });
-  },
-  getWXAddressHandle() {
-    wx.chooseAddress({
-      success: (res) => {
-        if (res.errMsg.indexOf('ok') === -1) {
-          Toast({
-            context: this,
-            selector: '#t-toast',
-            message: res.errMsg,
-            icon: '',
-            duration: 1000,
-          });
-          return;
-        }
-        const address = {
-          name: res.userName,
-          phone: res.telNumber,
-          provinceName: res.provinceName,
-          cityName: res.cityName,
-          districtName: res.countryName,
-          detailAddress: res.detailInfo,
-          isDefault: 0,
-          addressTag: '微信地址',
-        };
-        persistAddress(address).then(() => {
-          Toast({
-            context: this,
-            selector: '#t-toast',
-            message: '添加成功',
-            icon: '',
-            duration: 1000,
-          });
-          this.getAddressList();
-        }).catch(() => {
-          Toast({
-            context: this,
-            selector: '#t-toast',
-            message: '地址保存失败，请稍后重试',
-            icon: '',
-            duration: 1000,
-          });
-        });
-      },
     });
   },
   getAddressId(event) {

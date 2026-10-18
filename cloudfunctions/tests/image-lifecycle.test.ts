@@ -56,6 +56,9 @@ async function run() {
   assert(wrapped.removedImages.has(old));
   assert.deepStrictEqual((await cleanup(runtime,{fileList:[old]})).retained,[old]);
   assert.strictEqual(deleted.length,0,'historical order protects shared original');
+  runtime.records.payments = { draft: { _id: 'draft', status: 'pending', draftOrders: [{ items: [{ image: next }] }] } };
+  assert.deepStrictEqual((await cleanup(runtime,{fileList:[next]})).retained,[next], 'unpaid payment snapshots protect images before any formal order exists');
+  delete runtime.records.payments.draft;
   await replaceReference(runtime,{oldFileID:old,newFileID:next,source:'orders',id:'history'});
   assert.strictEqual(runtime.records.orders.history.items[0].image,next);
   await wrapped.db.collection('products').doc('product-1').update({images:[old]});

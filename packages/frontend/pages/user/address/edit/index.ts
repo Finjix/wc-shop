@@ -1,7 +1,6 @@
 // @ts-nocheck
 
 import Toast from '../../../../tdesign/toast/index';
-import { showConfirmModal } from '../../../../../../common/confirm-modal';
 import { fetchDeliveryAddress, persistAddress } from '../../../../services/address/fetchAddress';
 import { areaData } from '../../utils/areaData';
 
@@ -195,84 +194,6 @@ Page({
     };
   },
 
-  builtInSearch({ code, name }) {
-    return new Promise((resolve, reject) => {
-      wx.getSetting({
-        success: (res) => {
-          if (res.authSetting[code] === false) {
-            showConfirmModal({
-              title: `获取${name}失败`,
-              content: `获取${name}失败，请在【右上角】-小程序【设置】项中，将【${name}】开启。`,
-              confirmText: '确定',
-              confirmColor: '#695941',
-              cancelText: '取消',
-              success(res) {
-                if (res.confirm) {
-                  wx.openSetting({
-                    success(settingRes) {
-                      if (settingRes.authSetting[code] === true) {
-                        resolve();
-                      } else {
-                        console.warn('用户未打开权限', name, code);
-                        reject();
-                      }
-                    },
-                  });
-                } else {
-                  reject();
-                }
-              },
-              fail() {
-                reject();
-              },
-            });
-          } else {
-            resolve();
-          }
-        },
-        fail() {
-          reject();
-        },
-      });
-    });
-  },
-
-  onSearchAddress() {
-    this.builtInSearch({ code: 'scope.userLocation', name: '地址位置' }).then(() => {
-      wx.chooseLocation({
-        success: (res) => {
-          if (res.name) {
-            this.triggerEvent('addressParse', {
-              address: res.address,
-              name: res.name,
-              latitude: res.latitude,
-              longitude: res.longitude,
-            });
-          } else {
-            Toast({
-              context: this,
-              selector: '#t-toast',
-              message: '地点为空，请重新选择',
-              icon: '',
-              duration: 1000,
-            });
-          }
-        },
-        fail: function (res) {
-          console.warn(`wx.chooseLocation fail: ${JSON.stringify(res)}`);
-          if (res.errMsg !== 'chooseLocation:fail cancel') {
-            Toast({
-              context: this,
-              selector: '#t-toast',
-              message: '地点错误，请重新选择',
-              icon: '',
-              duration: 1000,
-            });
-          }
-        },
-      });
-    });
-  },
   formSubmit() {
     if (this.isSaving) return;
     const { isLegal, tips } = this.onVerifyInputLegal();
@@ -306,8 +227,6 @@ Page({
       isDefault: locationState.isDefault ? 1 : 0,
       addressTag: locationState.addressTag,
       postalCode: locationState.postalCode,
-      latitude: locationState.latitude,
-      longitude: locationState.longitude,
     };
 
     this.isSaving = true;
