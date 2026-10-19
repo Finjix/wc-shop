@@ -373,12 +373,16 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   );
   await assert.rejects(
     () => adminEndpoint({}, context, runtime, 'products.save', {
-      id: created._id, title: '规格商品', primaryImage: 'cover.jpg', detailImages: Array(4).fill('detail.jpg'),
+      id: created._id, title: '规格商品', primaryImage: 'cover.jpg', detailImages: Array(7).fill('detail.jpg'),
       variants: [{ name: '小份', salePrice: 1900 }],
     }),
     appError('INVALID_ARGUMENT'),
   );
   assert.strictEqual(created.specList[0].specValueList.length, 2);
+  const sixDetails = Array.from({ length: 6 }, (_, index) => `detail-${index + 1}.jpg`);
+  const sixImageProduct = await adminEndpoint({}, context, runtime, 'products.save', { ...requiredFields, detailImages: sixDetails });
+  assert.deepStrictEqual((await shopEndpoint({}, {}, runtime, 'products.detail', { productId: sixImageProduct._id })).product.detailImages, sixDetails);
+  await adminEndpoint({}, context, runtime, 'products.delete', { id: sixImageProduct._id });
   const skus = Object.values(runtime.records.skus).filter((sku) => sku.productId === created._id);
   assert.strictEqual(skus.length, 2);
   skus.forEach((sku) => assert.match(sku._id, /^sku-\d{13}$/));
@@ -408,6 +412,73 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   assert.strictEqual(runtime.records.skus[removedSkuId].deletedByAdmin, true);
   assert.strictEqual(runtime.records.products[created._id].minSalePrice, 2400);
   await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'invalid' }), appError('INVALID_ARGUMENT'));
+}
+
+async function testTwoLevelShoeVariants() {
+  const runtime = makeRuntime();
+  const context = { auth: { uid: 'user-1' } };
+  const base = { title: '两级鞋款', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
+  const legacy = await adminEndpoint({}, context, runtime, 'products.save', {
+    ...base, variants: [{ name: '黑色', salePrice: 19900, stockQuantity: 3 }],
+  });
+  const oldId = legacy.specList[0].specValueList[0].specValueId;
+  const input = { ...base, id: legacy._id, specTitles: ['颜色', '鞋码'], variants: [
+    { skuId: oldId, specValues: ['黑色', '38'], salePrice: 19900, skuImage: 'black.webp' },
+    { specValues: ['黑色', '39'], salePrice: 20900, stockQuantity: 0 },
+    { specValues: ['白色', '39'], salePrice: 21900, stockQuantity: 5 },
+  ] };
+  const product = await adminEndpoint({}, context, runtime, 'products.save', input);
+  assert.deepStrictEqual(product.specList.map((group) => group.title), ['颜色', '鞋码']);
+  assert.deepStrictEqual(product.specList.map((group) => group.specValueList.length), [2, 2]);
+  assert.strictEqual(runtime.records.skus[oldId].stockQuantity, 3, 'upgrading preserves existing SKU inventory');
+  const detail = await shopEndpoint({}, context, runtime, 'products.detail', { productId: product._id });
+  assert.strictEqual(detail.skus.length, 3);
+  assert.deepStrictEqual(detail.skus.find((sku) => sku._id === oldId).specInfo.map((entry) => entry.specValue), ['黑色', '38']);
+  const white = detail.skus.find((sku) => sku.salePrice === 21900);
+  await shopEndpoint({}, context, runtime, 'cart.add', { skuId: oldId, quantity: 1 });
+  await shopEndpoint({}, context, runtime, 'cart.replaceSku', { oldSkuId: oldId, newSkuId: white._id, quantity: 2 });
+  const preview = await shopEndpoint({}, context, runtime, 'orders.preview', { items: [{ skuId: white._id, quantity: 2 }] });
+  assert.deepStrictEqual(preview.items[0].skuSnapshot.specInfo.map((entry) => entry.specValue), ['白色', '39']);
+  assert.strictEqual(preview.totalAmount, 43800);
+  const summary = await adminEndpoint({}, context, runtime, 'dashboard.summary', {});
+  assert(summary.inventoryWarnings.some((item) => item.skuId === oldId && item.specName === '黑色 / 38'));
+  const saved = await adminEndpoint({}, context, runtime, 'products.save', { ...input, variants: detail.skus.map((sku) => ({
+    skuId: sku._id, specValues: sku.specInfo.map((entry) => entry.specValue), salePrice: sku.salePrice,
+  })) });
+  assert.deepStrictEqual(saved.specList, product.specList, 'saving again preserves option IDs');
+  for (const invalid of [
+    { ...input, specTitles: ['颜色', '颜色'] },
+    { ...input, specTitles: ['颜色', '鞋码', '材质'] },
+    { ...input, variants: [{ specValues: [], salePrice: 1 }] },
+    { ...input, variants: [{ specValues: ['', '38'], salePrice: 1 }] },
+    { ...input, variants: [input.variants[0], { specValues: ['黑色', '38'], salePrice: 1 }] },
+  ]) await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.save', invalid), appError('INVALID_ARGUMENT'));
+  await adminEndpoint({}, context, runtime, 'skus.update', { id: oldId, salePrice: 18800 });
+  assert.strictEqual(runtime.records.products[product._id].minSalePrice, 18800);
+  await adminEndpoint({}, context, runtime, 'skus.delete', { id: oldId });
+  const remaining = await shopEndpoint({}, context, runtime, 'products.detail', { productId: product._id });
+  assert.strictEqual(remaining.skus.length, 2);
+  assert.deepStrictEqual(remaining.product.specList[1].specValueList.map((item) => item.specValue), ['39']);
+  assert.deepStrictEqual(remaining.product.specList[0].specValueList.map((item) => item.specValue), ['黑色', '白色']);
+  const single = await adminEndpoint({}, context, runtime, 'products.save', {
+    ...base, specTitles: ['颜色', ''], variants: [
+      { specValues: ['黑色', '  '], salePrice: 100 }, { specValues: ['白色'], salePrice: 200 },
+    ],
+  });
+  assert.strictEqual(single.specList.length, 1, 'no secondary data is created when omitted');
+  const singleDetail = await shopEndpoint({}, context, runtime, 'products.detail', { productId: single._id });
+  assert(singleDetail.skus.every((sku) => sku.specInfo.length === 1));
+  const mixed = await adminEndpoint({}, context, runtime, 'products.save', {
+    ...base, specTitles: ['颜色', '鞋码'], variants: [
+      { specValues: ['黑色'], salePrice: 100 }, { specValues: ['白色', '39'], salePrice: 200 },
+    ],
+  });
+  assert.strictEqual(mixed.specList[1].specValueList.length, 1);
+  const mixedDetail = await shopEndpoint({}, context, runtime, 'products.detail', { productId: mixed._id });
+  assert.deepStrictEqual(mixedDetail.skus.map((sku) => sku.specInfo.length).sort(), [1, 2]);
+  const noSize = mixedDetail.skus.find((sku) => sku.specInfo.length === 1);
+  const noSizePreview = await shopEndpoint({}, context, runtime, 'orders.preview', { items: [{ skuId: noSize._id, quantity: 1 }] });
+  assert.strictEqual(noSizePreview.items[0].skuSnapshot.specInfo.length, 1);
 }
 
 async function testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus() {
@@ -833,7 +904,7 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   const config = {
     searchText: DEFAULT_SEARCH_TEXT,
     bannerText: DEFAULT_BANNER_TEXT,
-    banners: [{ image: 'cloud://home/slide.jpg', productId: 'product-1' }, blankLink, blankLink],
+    banners: [{ image: 'cloud://home/slide.jpg', productId: 'product-1' }, ...Array(5).fill(blankLink)],
     promos: [blankLink, blankLink],
     sections: [{ id: 'featured', title: '精选', productIds: Array(6).fill('product-1') }],
   };
@@ -851,9 +922,9 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   const sections = Array.from({ length: 4 }, (_, index) => ({ ...config.sections[0], id: `section-${index}` }));
   assert.strictEqual(validateHomeConfig({ ...config, sections }).sections.length, 4);
   assert.throws(() => validateHomeConfig({ ...config, sections: [...sections, { ...config.sections[0], id: 'section-4' }] }), appError('INVALID_ARGUMENT'));
-  assert.strictEqual(validateHomeConfig({ ...config, banners: Array(4).fill(blankLink) }).banners.length, 4);
+  assert.strictEqual(validateHomeConfig({ ...config, banners: Array(6).fill(blankLink) }).banners.length, 6);
   assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [] }).banners, []);
-  assert.throws(() => validateHomeConfig({ ...config, banners: Array(5).fill(blankLink) }), appError('INVALID_ARGUMENT'));
+  assert.throws(() => validateHomeConfig({ ...config, banners: Array(7).fill(blankLink) }), appError('INVALID_ARGUMENT'));
 
   const runtime = makeRuntime();
   runtime.records.homeContents = {
@@ -1924,6 +1995,7 @@ const cases = [
   { name: 'product lists sort by title, newest configured SKU timestamp and ascending/descending price before pagination', run: testProductListSortsByNameSkuAndPrice },
   { name: 'timestamp SKU IDs stay unique across variants and saves without overwriting existing SKUs', run: testSkuTimestampIdsAvoidCollisions },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
+  { name: 'two-level shoes preserve legacy stock and support grouped detail, cart, checkout, inventory and removal', run: testTwoLevelShoeVariants },
   { name: 'product save manages SKU inventory and images without SKU status', run: testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus },
   { name: 'SKU inventory is set separately and stale updates conflict', run: testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt },
   { name: 'product SKU list and save read every variant', run: testProductSkuListAndSaveReadEveryVariant },

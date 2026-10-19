@@ -8,6 +8,7 @@ const { errorFrom } = require('./errors');
 const { getDoc, setDoc, list, all, count, listData, affected, withTransaction } = require('./db');
 const { HOME_CONFIG_SLOT, productIds } = require('./home-config');
 const { searchTerms, matchesProductSearch } = require('./product-search');
+const { skuBelongsToProduct } = require('./product-specs');
 const { requireUser } = require('./auth');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
@@ -32,19 +33,6 @@ function skuPrice(sku) { return valueNumber(sku.salePrice, 0); }
 function skuStock(sku) { return valueNumber(sku.stockQuantity, -1); }
 
 function productIdForSku(sku) { return sku.productId; }
-
-function productSkuIds(product) {
-  if (!Array.isArray(product?.specList)) return null;
-  return new Set(product.specList.flatMap((group) =>
-    (Array.isArray(group.specValueList) ? group.specValueList : []).map((value) => String(value.specValueId || ''))));
-}
-
-function skuBelongsToProduct(product, sku) {
-  if (sku.deletedByAdmin) return false;
-  const configuredIds = productSkuIds(product);
-  if (configuredIds === null) return true;
-  return [sku._id, sku.skuId].filter(Boolean).some((id) => configuredIds.has(String(id)));
-}
 
 function pick(source, fields) {
   return fields.reduce((result, field) => {

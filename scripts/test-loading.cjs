@@ -300,6 +300,14 @@ async function run() {
   assert.equal(homepage.data.swiperSlides[0], 'existing');
   respond = async () => ({ config: { banners: [], promos: [], sections: [] } });
   await homepage.loadHomePage(); assert.equal(homepage.data.loadError, '');
+  const sixBanners = Array.from({ length: 6 }, (_, index) => ({ image: `https://example.test/banner-${index + 1}.jpg`, productId: '' }));
+  respond = async () => ({ config: { banners: sixBanners, promos: [], sections: [] } });
+  await homepage.loadHomePage();
+  assert.deepEqual(Array.from(homepage.data.swiperSlides), sixBanners.map((entry) => entry.image));
+  assert.equal(homepage.data.swiperProductIds.length, 6);
+  respond = async () => ({ config: { banners: [...sixBanners, { image: 'https://example.test/extra.jpg' }], promos: [], sections: [] } });
+  await homepage.loadHomePage();
+  assert.equal(homepage.data.swiperSlides.length, 6, 'home carousel displays at most six slides');
   respond = async () => { throw new Error('订单不存在'); };
   const orderpage = instance(orderDetailDefinition); orderpage.orderNo = 'missing'; orderpage.getStoreDetail = () => {};
   await orderpage.init();

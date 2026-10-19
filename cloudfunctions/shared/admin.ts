@@ -13,6 +13,7 @@ const { HOME_CONFIG_SLOT, validateHomeConfig, productIds: homeProductIds } = req
 const { shippingAddressOf, shippingGroupKey } = require('./order-shipping');
 const { presentAfterSale } = require('./after-sale-policy');
 const { orderDisplayStatus } = require('./order-display-status');
+const { skuBelongsToProduct } = require('./product-specs');
 
 async function findProduct(collection, id) {
   return getDoc(collection, id, false);
@@ -87,12 +88,8 @@ async function syncProductPrices(runtime, sku) {
   const product = await getDoc(products, String(reference), false);
   if (!product) return;
   const batches = [await allMatching(col(runtime, COLLECTIONS.skus), { productId: product._id })];
-  const hasConfiguredSpec = Array.isArray(product.specList);
-  const configuredIds = new Set((hasConfiguredSpec ? product.specList : []).flatMap((group) =>
-    (Array.isArray(group.specValueList) ? group.specValueList : []).map((value) => String(value.specValueId || ''))));
   const skus = Array.from(new Map(batches.flat().map((item) => [String(item._id || item.skuId), item])).values())
-    .filter((item) => !item.deletedByAdmin)
-    .filter((item) => !hasConfiguredSpec || [item._id, item.skuId].filter(Boolean).some((id) => configuredIds.has(String(id))));
+    .filter((item) => skuBelongsToProduct(product, item));
   const prices = skus.map((item) => skuPrice(item)).filter((value) => Number.isFinite(value) && value > 0);
   const pricePatch = prices.length
     ? { minSalePrice: Math.min(...prices), maxSalePrice: Math.max(...prices) }
@@ -102,19 +99,31 @@ async function syncProductPrices(runtime, sku) {
 
 async function saveProductWithVariants(runtime, data) {
   assert(Array.isArray(data.variants) && data.variants.length > 0 && data.variants.length <= 100, { field: 'variants' });
+  const grouped = data.specTitles !== undefined;
+  if (grouped) assert(Array.isArray(data.specTitles) && data.specTitles.length >= 1 && data.specTitles.length <= 2, { field: 'specTitles' });
+  const specTitles = grouped ? data.specTitles.map((title, index) => index === 0 ? string(title, 'specTitles', { max: 20 }) : optionalString(typeof title === 'string' ? title.trim() : title, 'specTitles', { max: 20 }) || '') : ['规格'];
   const variants = data.variants.map((item) => {
     assert(item && typeof item === 'object' && !Array.isArray(item), { field: 'variants' });
     assert(item.skuImage === undefined || (typeof item.skuImage === 'string' && item.skuImage.length <= 1024), { field: 'variants.skuImage' });
+    if (grouped) assert(Array.isArray(item.specValues) && item.specValues.length >= 1 && item.specValues.length <= specTitles.length, { field: 'variants.specValues' });
+    const specValues = grouped ? specTitles.map((title, index) => index === 0
+      ? string(item.specValues[index], 'variants.specValues', { max: 80 })
+      : optionalString(typeof item.specValues[index] === 'string' ? item.specValues[index].trim() : item.specValues[index], 'variants.specValues', { max: 80 }) || '') : [string(item.name, 'name', { max: 80 })];
     return {
       skuId: item.skuId ? string(item.skuId, 'skuId', { max: 128 }) : '',
-      name: string(item.name, 'name', { max: 80 }),
+      specValues,
       salePrice: integer(item.salePrice, 'salePrice', { min: 1 }),
       skuImage: item.skuImage === undefined ? undefined : item.skuImage.trim(),
       stockQuantity: item.stockQuantity === undefined ? undefined : integer(item.stockQuantity, 'stockQuantity', { min: 0, max: 100000000 }),
       expectedStockQuantity: item.expectedStockQuantity === undefined ? undefined : integer(item.expectedStockQuantity, 'expectedStockQuantity', { min: -1, max: 100000000 }),
     };
   });
-  assert(new Set(variants.map((item) => item.name)).size === variants.length, { field: 'variants.name' });
+  if (specTitles.length === 2 && !variants.some((item) => item.specValues[1])) {
+    specTitles.pop();
+    variants.forEach((item) => item.specValues.pop());
+  }
+  assert(specTitles.every(Boolean) && new Set(specTitles).size === specTitles.length, { field: 'specTitles' });
+  assert(new Set(variants.map((item) => JSON.stringify(item.specValues))).size === variants.length, { field: 'variants.specValues' });
   assert(new Set(variants.filter((item) => item.skuId).map((item) => item.skuId)).size === variants.filter((item) => item.skuId).length, { field: 'variants.skuId' });
   variants.forEach((item) => assert(item.stockQuantity === undefined || !item.skuId || item.expectedStockQuantity !== undefined, { field: 'variants.expectedStockQuantity' }));
   const productId = data.id ? string(data.id, 'id', { max: 128 }) : crypto.randomUUID();
@@ -125,7 +134,12 @@ async function saveProductWithVariants(runtime, data) {
   variants.forEach((variant) => assert(!variant.skuId || existingById.has(variant.skuId), { field: 'variants.skuId' }));
   const timestamp = now();
   const prices = variants.map((item) => item.salePrice);
-  const specList = [{ specId: 'spec', title: '规格', specValueList: variants.map((item) => ({ specValueId: item.skuId, specValue: item.name })) }];
+  const specList = specTitles.map((title, index) => ({
+    specId: String(current?.specList?.[index]?.specId || (index === 0 ? 'spec' : 'spec2')),
+    title,
+    ...(index === 1 ? { optional: true } : {}),
+    specValueList: [],
+  }));
   const patch = {
     ...allowedFields(data, ['title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'tags', 'description']),
     specList,
@@ -136,7 +150,7 @@ async function saveProductWithVariants(runtime, data) {
   if (patch.categoryIds !== undefined) patch.categoryIds = await validProductCategoryIds(runtime, patch.categoryIds);
   patch.title = string(patch.title, 'title', { max: 200 });
   patch.primaryImage = string(patch.primaryImage, 'primaryImage', { max: 1024 });
-  assert(Array.isArray(patch.detailImages) && patch.detailImages.length >= 1 && patch.detailImages.length <= 3, { field: 'detailImages', min: 1, max: 3 });
+  assert(Array.isArray(patch.detailImages) && patch.detailImages.length >= 1 && patch.detailImages.length <= 6, { field: 'detailImages', min: 1, max: 6 });
   patch.detailImages = patch.detailImages.map((image) => string(image, 'detailImages[]', { max: 1024 }));
   patch.images = [patch.primaryImage];
   const result = await withTransaction(runtime.db, async (tx) => {
@@ -144,13 +158,24 @@ async function saveProductWithVariants(runtime, data) {
     const txSkus = tx.collection(COLLECTIONS.skus);
     // Allocate inside the transaction so concurrent saves cannot overwrite a SKU.
     let skuTimestamp = Date.now();
-    for (const [index, specValue] of specList[0].specValueList.entries()) {
-      if (variants[index].skuId) continue;
+    const skuIds = [];
+    for (const variant of variants) {
+      if (variant.skuId) { skuIds.push(variant.skuId); continue; }
       let skuId;
       do {
         skuId = `sku-${skuTimestamp++}`;
       } while (await getDoc(txSkus, skuId, false));
-      specValue.specValueId = skuId;
+      skuIds.push(skuId);
+    }
+    for (const [groupIndex, group] of specList.entries()) {
+      const oldOptions = current?.specList?.[groupIndex]?.specValueList || [];
+      for (const [index, variant] of variants.entries()) {
+        const specValue = variant.specValues[groupIndex];
+        if (!specValue) continue;
+        if (group.specValueList.some((option) => option.specValue === specValue)) continue;
+        const old = oldOptions.find((option) => option.specValue === specValue);
+        group.specValueList.push({ specValueId: specList.length === 1 ? skuIds[index] : String(old?.specValueId || crypto.randomUUID()), specValue });
+      }
     }
     for (const variant of variants) {
       if (!variant.skuId || variant.stockQuantity === undefined) continue;
@@ -164,10 +189,11 @@ async function saveProductWithVariants(runtime, data) {
     for (let index = 0; index < variants.length; index += 1) {
       const variant = variants[index];
       const old = variant.skuId ? existingById.get(variant.skuId) : null;
-      const skuId = old ? String(old._id || old.skuId) : specList[0].specValueList[index].specValueId;
-      specList[0].specValueList[index].specValueId = skuId;
+      const skuId = skuIds[index];
       kept.add(skuId);
-      const skuPatch = { productId, spuId: current?.spuId || productId, specInfo: [{ specId: 'spec', specValueId: skuId }], salePrice: variant.salePrice, deletedByAdmin: false, updatedAt: timestamp };
+      const specInfo = specList.flatMap((group, groupIndex) => variant.specValues[groupIndex]
+        ? [{ specId: group.specId, specTitle: group.title, ...group.specValueList.find((option) => option.specValue === variant.specValues[groupIndex]) }] : []);
+      const skuPatch = { productId, spuId: current?.spuId || productId, specInfo, salePrice: variant.salePrice, deletedByAdmin: false, updatedAt: timestamp };
       if (variant.skuImage !== undefined) skuPatch.skuImage = variant.skuImage;
       if (old) {
         if (variant.stockQuantity !== undefined) skuPatch.stockQuantity = variant.stockQuantity;
@@ -199,10 +225,13 @@ async function removeSkuFromProductSpec(runtime, sku) {
   const product = await getDoc(products, String(reference), false);
   if (!product || !Array.isArray(product.specList)) return;
   const skuIds = new Set([sku._id, sku.skuId].filter(Boolean).map(String));
+  const remaining = (await allMatching(col(runtime, COLLECTIONS.skus), { productId: product._id }))
+    .filter((item) => !item.deletedByAdmin && !skuIds.has(String(item._id || item.skuId)));
   const specList = product.specList.map((group) => ({
     ...group,
     specValueList: (Array.isArray(group.specValueList) ? group.specValueList : [])
-      .filter((value) => !skuIds.has(String(value.specValueId || ''))),
+      .filter((value) => remaining.some((item) => [item._id, item.skuId].some((id) => String(id) === String(value.specValueId))
+        || (item.specInfo || []).some((entry) => String(entry.specId) === String(group.specId) && String(entry.specValueId) === String(value.specValueId)))),
   }));
   await products.doc(String(product._id || reference)).update({ specList, updatedAt: now() });
 }
@@ -815,11 +844,7 @@ async function dashboardSummary(runtime) {
   const inventoryWarnings = skus.flatMap((sku) => {
     const product = productById.get(String(sku.productId));
     const stock = skuStock(sku);
-    if (!product || stock < 0 || stock > 3) return [];
-    if (Array.isArray(product.specList)) {
-      const ids = product.specList.flatMap((group) => (group.specValueList || []).map((option) => String(option.specValueId)));
-      if (![sku._id, sku.skuId].some((id) => id && ids.includes(String(id)))) return [];
-    }
+    if (!product || stock < 0 || stock > 3 || !skuBelongsToProduct(product, sku)) return [];
     const specName = (sku.specInfo || []).map((spec) => {
       const group = (product.specList || []).find((item) => String(item.specId) === String(spec.specId));
       const option = (group?.specValueList || []).find((item) => String(item.specValueId) === String(spec.specValueId));

@@ -59,7 +59,6 @@ Component({
 
   initStatus: false,
   selectedSku: {},
-  selectSpecObj: {},
 
   data: {
     viewSpecList: [],
@@ -91,8 +90,6 @@ Component({
       specList.forEach((item) => {
         if (item.specValueList.length > 0) {
           item.specValueList.forEach((subItem) => {
-            const obj = this.checkSkuStockQuantity(subItem.specValueId, skuList);
-            subItem.hasStockObj = obj;
             subItem.isSelected = false;
           });
         }
@@ -111,13 +108,13 @@ Component({
           }
         });
       }
+      this.updateAvailability(specList, selectedSku);
       const isAllSelectedSku = skuList.length > 0 && this.isAllSelected(specList, selectedSku);
       this.setData({
         viewSpecList: specList,
         isAllSelectedSku,
-        stockQuantity: isAllSelectedSku ? this.getCompatibleStockQuantity(selectedSku) : 0,
+        stockQuantity: isAllSelectedSku ? this.getCompatibleStockQuantity(selectedSku, true) : 0,
       });
-      this.selectSpecObj = {};
       this.selectedSku = selectedSku;
       this.initStatus = true;
       Promise.resolve().then(() => {
@@ -125,150 +122,28 @@ Component({
       });
     },
 
-    checkSkuStockQuantity(specValueId, skuList) {
-      let hasStock = false;
-      const array = [];
-      skuList.forEach((item) => {
-        (item.specInfo || []).forEach((subItem) => {
-          if (subItem.specValueId === specValueId && item.quantity > 0) {
-            const subArray = [];
-            (item.specInfo || []).forEach((specItem) => {
-              subArray.push(specItem.specValueId);
-            });
-            array.push(subArray);
-            hasStock = true;
-          }
+    updateAvailability(specList, selectedSku) {
+      specList.forEach((group) => {
+        group.hidden = group.optional === true && !this.properties.skuList.some((sku) =>
+          (sku.specInfo || []).some((entry) => String(entry.specId) === String(group.specId)) &&
+          Object.entries(selectedSku).every(([specId, valueId]) => !valueId || String(specId) === String(group.specId) ||
+            (sku.specInfo || []).some((entry) => String(entry.specId) === String(specId) && String(entry.specValueId) === String(valueId))));
+        group.specValueList.forEach((option) => {
+          const candidate = { ...selectedSku, [group.specId]: option.specValueId };
+          option.hasStockObj = { hasStock: this.getCompatibleStockQuantity(candidate) > 0 };
         });
       });
-      return {
-        hasStock,
-        specsArray: array,
-      };
     },
-
-    chooseSpecValueId(specValueId, specId) {
-      const { selectSpecObj } = this;
-      const { skuList } = this.properties;
-      const specList = this.data.viewSpecList;
-      if (selectSpecObj[specId]) {
-        selectSpecObj[specId] = [];
-        this.selectSpecObj = selectSpecObj;
-      } else {
-        selectSpecObj[specId] = [];
-      }
-
-      const itemAllSpecArray = [];
-      const itemUnSelectArray = [];
-      const itemSelectArray = [];
-      specList.forEach((item) => {
-        if (item.specId === specId) {
-          const subSpecValueItem = item.specValueList.find((subItem) => subItem.specValueId === specValueId);
-          let specSelectStatus = false;
-          item.specValueList.forEach((n) => {
-            itemAllSpecArray.push(n.hasStockObj.specsArray);
-            if (n.isSelected) {
-              specSelectStatus = true;
-            }
-            if (n.hasStockObj.hasStock) {
-              itemSelectArray.push(n.specValueId);
-            } else {
-              itemUnSelectArray.push(n.specValueId);
-            }
-          });
-          if (specSelectStatus) {
-            selectSpecObj[specId] = this.flatten(subSpecValueItem?.hasStockObj.specsArray.concat(itemSelectArray));
-          } else {
-            const subSet = function (arr1, arr2) {
-              const set2 = new Set(arr2);
-              const subset = [];
-              arr1.forEach((val) => {
-                if (!set2.has(val)) {
-                  subset.push(val);
-                }
-              });
-              return subset;
-            };
-            selectSpecObj[specId] = subSet(this.flatten(itemAllSpecArray), this.flatten(itemUnSelectArray));
-          }
-        } else {
-          // 未点击规格的逻辑
-          const itemSelectArray = [];
-          let specSelectStatus = false;
-          item.specValueList.map(
-            // 找到有库存的规格数组
-            (n) => {
-              itemSelectArray.push(n.hasStockObj.specsArray);
-              if (n.isSelected) {
-                specSelectStatus = true;
-              }
-              n.hasStockObj.hasStock = true;
-              return n;
-            },
-          );
-          if (specSelectStatus) {
-            selectSpecObj[item.specId] = this.flatten(itemSelectArray);
-          } else {
-            delete selectSpecObj[item.specId];
-          }
-        }
-        this.selectSpecObj = selectSpecObj;
-      });
-      const combatArray = Object.values(selectSpecObj);
-      if (combatArray.length > 0) {
-        const showArray = combatArray.reduce((x, y) => this.getIntersection(x, y));
-        const lastResult = Array.from(new Set(showArray));
-        specList.forEach((item) => {
-          item.specValueList.forEach((subItem) => {
-            if (lastResult.includes(subItem.specValueId)) {
-              subItem.hasStockObj.hasStock = true;
-            } else {
-              subItem.hasStockObj.hasStock = false;
-            }
-          });
-        });
-      } else {
-        specList.forEach((item) => {
-          if (item.specValueList.length > 0) {
-            item.specValueList.forEach((subItem) => {
-              const obj = this.checkSkuStockQuantity(subItem.specValueId, skuList);
-              subItem.hasStockObj = obj;
-            });
-          }
-        });
-      }
-      this.setData({
-        viewSpecList: specList,
-      });
-    },
-
-    flatten(input) {
-      const stack = [...input];
-      const res = [];
-      while (stack.length) {
-        const next = stack.pop();
-        if (Array.isArray(next)) {
-          stack.push(...next);
-        } else {
-          res.push(next);
-        }
-      }
-      return res.reverse();
-    },
-
-    getIntersection(array, nextArray) {
-      return array.filter((item) => nextArray.includes(item));
-    },
-
     getStockQuantity(sku) {
       if (!sku) return 0;
       return Math.max(0, Number(sku.quantity) || 0);
     },
 
-    getCompatibleStockQuantity(selectedSku) {
+    getCompatibleStockQuantity(selectedSku, exact = false) {
       const { skuList } = this.properties;
       const selectedEntries = Object.entries(selectedSku || {}).filter(([, value]) => value !== '');
       return skuList
-        .filter((sku) =>
+        .filter((sku) => (!exact || (sku.specInfo || []).length === selectedEntries.length) &&
           selectedEntries.every(([specId, valueId]) =>
             (sku.specInfo || []).some(
               (item) => String(item.specId) === String(specId) && String(item.specValueId) === String(valueId),
@@ -284,7 +159,7 @@ Component({
       const { id } = e.currentTarget.dataset;
       const specId = e.currentTarget.dataset.specid;
       const hasStock = e.currentTarget.dataset.hasstock;
-      if (!hasStock) {
+      if (hasStock !== true && hasStock !== 'true' && String(this.selectedSku[specId]) !== String(id)) {
         Toast({
           context: this,
           selector: '#t-toast',
@@ -306,8 +181,10 @@ Component({
           }
         });
       });
-      this.chooseSpecValueId(id, specId);
+      this.updateAvailability(specList, selectedSku);
       const isAllSelectedSku = this.isAllSelected(specList, selectedSku);
+      const stockQuantity = isAllSelectedSku ? this.getCompatibleStockQuantity(selectedSku, true) : 0;
+      if (stockQuantity > 0 && this.data.buyNum > stockQuantity) this.setBuyNum(Math.min(99, stockQuantity));
       if (!isAllSelectedSku) {
         this.setData({
           selectSkuSellsPrice: 0,
@@ -317,7 +194,7 @@ Component({
       this.setData({
         viewSpecList: specList,
         isAllSelectedSku,
-        stockQuantity: isAllSelectedSku ? this.getCompatibleStockQuantity(selectedSku) : 0,
+        stockQuantity,
       });
       this.selectedSku = selectedSku;
       this.triggerEvent('change', {
@@ -329,8 +206,10 @@ Component({
 
     // 判断是否所有的sku都已经选中
     isAllSelected(skuTree, selectedSku) {
-      const selected = Object.keys(selectedSku).filter((skuKeyStr) => selectedSku[skuKeyStr] !== '');
-      return skuTree.length === selected.length;
+      const selected = Object.entries(selectedSku).filter(([, value]) => value !== '');
+      return this.properties.skuList.some((sku) => (sku.specInfo || []).length === selected.length
+        && selected.every(([specId, valueId]) => (sku.specInfo || []).some((entry) =>
+          String(entry.specId) === String(specId) && String(entry.specValueId) === String(valueId))));
     },
 
     handlePopupHide() {

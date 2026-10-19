@@ -219,8 +219,10 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .variant-field > strong { color: #333; font-size: 12px; }
 .variant-field > small { color: var(--subtle); font-size: 10px; }
 .variant-row { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 0; }
-.variant-main { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.variant-main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px; align-items: end; }
 .variant-main label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.spec-titles { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.spec-titles label { display: flex; flex-direction: column; gap: 6px; font-size: 11px; }
 .variant-main label > span, .variant-image > span { color: #333; font-size: 11px; font-weight: 600; }
 .variant-image { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .variant-image .product-image-item { width: 100%; }

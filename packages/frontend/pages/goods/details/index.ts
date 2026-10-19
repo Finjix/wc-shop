@@ -139,7 +139,7 @@ Page({
     const skuItem = skuArray.find((item) => {
       const specInfo = item.specInfo || [];
       return (
-        specInfo.length === Object.keys(selectedSku).length &&
+        specInfo.length === selectedSkuValues.length &&
         specInfo.every((subItem) => selectedSku[subItem.specId] && selectedSku[subItem.specId] === subItem.specValueId)
       );
     });

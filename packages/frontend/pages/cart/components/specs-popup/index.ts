@@ -82,7 +82,7 @@ Component({
     },
 
     getSkuPrice(sku) {
-      return sku.salePrice;
+      return sku.salePrice ?? '';
     },
 
     hasSkuValue(sku, specId, valueId) {
@@ -108,13 +108,14 @@ Component({
     },
 
     findMatchingSku(selectedSku) {
-      const { specList, skuList } = this.properties;
-      const isComplete = specList.length > 0 && specList.every((group) => selectedSku[group.specId]);
-      if (!isComplete) return null;
+      const { skuList } = this.properties;
+      const selected = Object.entries(selectedSku).filter(([, value]) => value !== '');
+      if (!selected.length) return null;
       return (
         skuList.find(
           (sku) =>
-            specList.every((group) => this.hasSkuValue(sku, group.specId, selectedSku[group.specId])) &&
+            (sku.specInfo || []).length === selected.length &&
+            selected.every(([specId, valueId]) => this.hasSkuValue(sku, specId, valueId)) &&
             this.getStockQuantity(sku) > 0,
         ) || null
       );
@@ -124,6 +125,9 @@ Component({
       const { specList } = this.properties;
       const optionGroups = specList.map((group) => ({
         ...group,
+        hidden: group.optional === true && !this.properties.skuList.some((sku) =>
+          (sku.specInfo || []).some((entry) => String(entry.specId) === String(group.specId)) &&
+          this.isSkuCompatible(sku, selectedSku, group.specId)),
         specValueList: (group.specValueList || []).map((value) => ({
           ...value,
           isSelected: String(selectedSku[group.specId] || '') === String(value.specValueId),
@@ -135,7 +139,8 @@ Component({
       const currentSku = this.properties.skuList.find(
         (sku) =>
           specList.length > 0 &&
-          specList.every((group) => this.hasSkuValue(sku, group.specId, selectedSku[group.specId])),
+          (sku.specInfo || []).length === Object.values(selectedSku).filter(Boolean).length &&
+          this.isSkuCompatible(sku, selectedSku),
       );
 
       this.setData({
@@ -170,7 +175,7 @@ Component({
         });
         return;
       }
-      this.applySelection({ ...this.data.selectedSku, [specId]: valueId });
+      this.applySelection({ ...this.data.selectedSku, [specId]: String(selectedValue) === String(valueId) ? '' : valueId });
     },
 
     confirmSelection() {

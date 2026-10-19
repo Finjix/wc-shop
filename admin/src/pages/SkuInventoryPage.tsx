@@ -3,7 +3,7 @@ import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { EmptyState, ErrorState, LoadingState, Panel, Table } from '../components/Ui';
 import { adminApi, ApiError } from '../lib/api';
-import { variantName, variantStock } from '../lib/sku';
+import { variantName, variantStock, visibleSkus } from '../lib/sku';
 import type { ListResult, Product, Sku } from '../types';
 
 const PAGE_SIZE = 4;
@@ -11,16 +11,6 @@ const PAGE_SIZE = 4;
 interface StockDraft {
   value: string;
   expectedStock: number;
-}
-
-function visibleSkus(product: Product, skus: Sku[]) {
-  const configuredIds = new Set((Array.isArray(product.specList) ? product.specList : []).flatMap((group) => {
-    const values = (group as { specValueList?: { specValueId?: string }[] }).specValueList;
-    return Array.isArray(values) ? values.map((value) => String(value.specValueId || '')) : [];
-  }));
-  return Array.isArray(product.specList)
-    ? skus.filter((sku) => [sku._id, sku.skuId].filter(Boolean).some((id) => configuredIds.has(String(id))))
-    : skus;
 }
 
 function SkuStockRow({ sku, product, draft, disabled, onChange }: {
