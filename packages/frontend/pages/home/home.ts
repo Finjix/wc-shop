@@ -60,7 +60,7 @@ Component(tabContent({
       const config = home.config || {};
       const products = home.productsById || {};
       const banners = config.banners || [];
-      const slides = banners.slice(0, 4).flatMap((entry) => {
+      const slides = banners.slice(0, 6).flatMap((entry) => {
         const product = products[entry.productId];
         if (!entry.image || (entry.productId && !product)) return [];
         return [{

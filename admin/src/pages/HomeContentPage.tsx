@@ -35,7 +35,7 @@ function readConfig(rows: HomeRecord[]): HomeConfig {
   const stored = rows.find((row) => row.slot === SLOT && row.type === 'pageConfig')?.payload as Partial<HomeConfig> | undefined;
   const draft = defaultConfig();
   if (stored) {
-    const banners = Array.isArray(stored.banners) ? stored.banners.slice(0, 4).map((entry) => ({ ...blankLink(), ...entry })) : [];
+    const banners = Array.isArray(stored.banners) ? stored.banners.slice(0, 6).map((entry) => ({ ...blankLink(), ...entry })) : [];
     while (banners.length > 1 && !banners[banners.length - 1].image && !banners[banners.length - 1].productId) banners.pop();
     return {
       searchText: stored.searchText ?? draft.searchText,
@@ -271,7 +271,7 @@ export function HomeContentPage() {
     <div className="floating-save-actions"><Button theme="primary" loading={saving} disabled={!dirty || saving || draftImages.processing} onClick={() => void save()}>保存</Button></div>
     <Panel><div className="panel-heading"><h3>顶部搜索栏</h3></div><Field label="滚动文字"><Input value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={120} /></Field></Panel>
 
-    <Panel><div className="panel-heading"><h3>轮播图（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 4} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button></div></div>
+    <Panel><div className="panel-heading"><h3>轮播图（9:16，最多 6 张）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 6} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button></div></div>
       {config.banners.map((entry, index) => <div className="home-config-entry" key={index}>
         <div className="home-config-entry-head"><strong>轮播 {index + 1}</strong><Button size="small" variant="text" disabled={config.banners.length <= 1} onClick={() => setConfig((old) => ({ ...old, banners: old.banners.filter((_, i) => i !== index) }))}>删除</Button></div>
         {imageLinkFields('banners', entry, index)}
