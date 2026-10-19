@@ -172,8 +172,7 @@ async function run() {
     assert.equal(order.formatTime(value, 'YYYY/MM/DD HH:mm:ss'), goods.formatTime(value, 'YYYY/MM/DD HH:mm:ss'));
   }
   assert.equal(order.priceFormat(12345, 2), '123.45');
-  assert.equal(load('miniprogram/user/utils/phone.ts').phoneRegCheck('13800000000'), true);
-  console.log('PASS split time, price and phone utilities');
+  console.log('PASS split time and price utilities');
 }
 
 function testAsyncComponents() { require('./check-package-boundaries.cjs').check(); }

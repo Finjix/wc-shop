@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const ts = require('typescript');
 const root = path.resolve(__dirname, '..');
 const miniRoot = path.join(root, 'miniprogram');
 const packages = ['', 'goods', 'order', 'user', 'services', 'utils'];
@@ -12,6 +13,20 @@ function resolveSource(from, ref) {
   const base = ref.startsWith('.') ? path.resolve(path.dirname(from), ref) : path.join(sourceRoot, 'miniprogram_npm', ref);
   return ['', '.js', '.json', '.wxs', '.wxss', '.wxml', '/index.js'].map(ext => base + ext)
     .find(file => file.startsWith(sourceRoot + path.sep) && fs.existsSync(file) && fs.statSync(file).isFile());
+}
+function runtimeReferences(file, source) {
+  if (file.endsWith('.json')) return Object.values(JSON.parse(source).usingComponents || {});
+  if (file.endsWith('.wxss')) return [...source.matchAll(/@import\s+["']([^"']+)["']/g)].map(match => match[1]);
+  if (file.endsWith('.wxml')) return [...source.matchAll(/<(?:import|include|wxs)\b[^>]*\bsrc=["']([^"']+)["']/g)].map(match => match[1]);
+  const refs = [];
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  function visit(node) {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && !node.importClause?.isTypeOnly && !node.isTypeOnly) refs.push(node.moduleSpecifier.text);
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'require' && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) refs.push(node.arguments[0].text);
+    ts.forEachChild(node, visit);
+  }
+  visit(parsed);
+  return refs;
 }
 function build() {
   if (!sourceRoot) throw new Error('请先在微信开发者工具执行「工具 → 构建 npm」');
@@ -84,8 +99,8 @@ function build() {
     const queue = files.filter(file => packageOf(file) === pack);
     for (let i = 0; i < queue.length; i++) {
       const file = queue[i];
-      for (const match of fs.readFileSync(file, 'utf8').matchAll(references)) {
-        for (const target of dependencies(file, match[2])) if (!set.has(target)) { set.add(target); queue.push(target); }
+      for (const ref of runtimeReferences(file, fs.readFileSync(file, 'utf8'))) {
+        for (const target of dependencies(file, ref)) if (!set.has(target)) { set.add(target); queue.push(target); }
       }
     }
     uses.set(pack, set);
