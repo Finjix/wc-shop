@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "分类",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "top-search": "/components/top-search/index"
+  }
+}

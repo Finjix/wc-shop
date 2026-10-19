@@ -9,7 +9,7 @@ if ([string]::IsNullOrWhiteSpace($Version) -or $Version -notmatch '^[A-Za-z0-9][
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$runtimeConfig = Get-Content -LiteralPath (Join-Path $repoRoot 'config\runtime.ts') -Raw
+$runtimeConfig = Get-Content -LiteralPath (Join-Path $repoRoot 'miniprogram\config\runtime.ts') -Raw
 if ($runtimeConfig -notmatch 'export\s+const\s+useLocalBackend\s*=\s*false\s*;') {
   throw 'Mini-program deployment requires useLocalBackend = false.'
 }

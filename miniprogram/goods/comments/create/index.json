@@ -1,0 +1,18 @@
+{
+  "navigationBarTitleText": "评价商品",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "image-processor": "/utils/image-processor/index",
+    "t-navbar": "../../../components/tdesign/navbar/navbar",
+    "t-image": "/components/webp-image/index",
+    "t-textarea": "/goods/components/tdesign/textarea/textarea",
+    "t-button": "../../../components/tdesign/button/button",
+    "t-upload": "/goods/components/tdesign/upload/upload",
+    "t-toast": "../../../components/tdesign/toast/toast",
+    "single-image-preview": "/components/single-image-preview/index"
+  },
+  "componentPlaceholder": {
+    "image-processor": "view"
+  }
+}

@@ -15,18 +15,18 @@ const confirmedOrder = {
   items: [{ productId: 'product-1', skuId: 'sku-1', quantity: 2 }], refundedQuantities: { 'sku-1': 1 },
 };
 const mocks = new Map([
-  ['config/navigation.ts', { isPageNavigationEnabled: () => true }],
-  ['packages/frontend/pages/order/utils/dialog.ts', { default: { confirm: async () => { if (dialogCancelled) throw new Error('cancel'); } } }],
-  ['packages/api/pages/order/services/orderDetail.ts', { confirmOrderReceived: async () => {
+  ['miniprogram/config/navigation.ts', { isPageNavigationEnabled: () => true }],
+  ['miniprogram/order/utils/dialog.ts', { default: { confirm: async () => { if (dialogCancelled) throw new Error('cancel'); } } }],
+  ['miniprogram/services/order/services/orderDetail.ts', { confirmOrderReceived: async () => {
     confirmCalls++;
     if (confirmError) throw confirmError;
     return confirmedOrder;
   } }],
-  ['packages/api/pages/order/services/orderList.ts', {}],
-  ['packages/frontend/pages/order/utils/format.ts', { cosThumb: (value) => value }],
-  ['packages/api/pages/order/after-service-detail/api.ts', {}],
-  ['packages/api/services/cart/cart.ts', {}],
-  ['packages/api/utils/api.ts', { getApiErrorMessage: (error) => error.message }],
+  ['miniprogram/services/order/services/orderList.ts', {}],
+  ['miniprogram/services/order/utils/format.ts', { cosThumb: (value) => value }],
+  ['miniprogram/services/order/after-service-detail/api.ts', {}],
+  ['miniprogram/services/cart/cart.ts', {}],
+  ['miniprogram/services/utils/api.ts', { getApiErrorMessage: (error) => error.message }],
 ].map(([file, value]) => [path.resolve(root, file), value]));
 function load(file) {
   const filename = require("./miniprogram-test-source.cjs").resolveSource(path.resolve(root, file));
@@ -49,9 +49,9 @@ function load(file) {
   return exports;
 }
 async function run() {
-  const { OrderStatus, OrderButtonTypes } = load('packages/frontend/pages/order/config.ts');
-  load('packages/frontend/pages/order/order-list/index.ts');
-  load('packages/frontend/pages/order/components/order-button-bar/index.ts');
+  const { OrderStatus, OrderButtonTypes } = load('miniprogram/order/config.ts');
+  load('miniprogram/order/order-list/index.ts');
+  load('miniprogram/order/components/order-button-bar/index.ts');
   const original = {
     id: 'order-1', orderNo: 'order-1', status: OrderStatus.PENDING_RECEIPT, statusDesc: '待收货', amount: 200,
     goodsList: [{ spuId: 'product-1', skuId: 'sku-1', num: 2, fulfillableQuantity: 1, title: '商品' }],

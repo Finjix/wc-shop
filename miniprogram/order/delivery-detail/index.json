@@ -1,0 +1,14 @@
+{
+  "navigationBarTitleText": "物流信息",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "../../components/tdesign/navbar/navbar",
+    "t-cell": "../../components/tdesign/cell/cell",
+    "t-cell-group": "../../components/tdesign/cell-group/cell-group",
+    "t-image": "/components/webp-image/index",
+    "t-icon": "../../components/tdesign/icon/icon",
+    "t-steps": "/order/components/tdesign/steps/steps",
+    "t-step": "/order/components/tdesign/step-item/step-item"
+  }
+}

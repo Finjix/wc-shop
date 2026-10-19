@@ -1,0 +1,245 @@
+// @ts-nocheck
+
+import { request } from '../utils/api';
+import { fetchGood } from '../good/fetchGood';
+import { resolveGoodsListImages } from '../good/resolveImages';
+
+const skuStockCache = new Map();
+
+function dataOf(response) { return response; }
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== '');
+}
+
+function getSkuSnapshot(goods = {}) {
+  return goods.skuSnapshot || {};
+}
+
+function getStockInfo(goods = {}, liveSku) {
+  const liveStock = liveSku?.stockQuantity;
+  const storedStock = goods.stockKnown === false
+    ? undefined
+    : goods.stockQuantity;
+  const snapshotStock = goods.stockKnown === false
+    ? undefined
+    : goods.skuSnapshot?.stockQuantity;
+  const rawStock = firstDefined(liveStock, storedStock, snapshotStock);
+  if (rawStock === undefined) return { stockQuantity: 0, stockKnown: false };
+  const stockQuantity = Number(rawStock);
+  return Number.isFinite(stockQuantity)
+    ? { stockQuantity: Math.max(0, stockQuantity), stockKnown: true }
+    : { stockQuantity: 0, stockKnown: false };
+}
+
+function getSkuPrice(goods = {}, snapshot = {}, liveSku) {
+  return firstDefined(
+    goods.unitPrice,
+    goods.price,
+    liveSku?.salePrice,
+    snapshot.salePrice,
+    0,
+  );
+}
+
+function normalizeGoods(goods = {}, store = {}, liveSku) {
+  const snapshot = getSkuSnapshot(goods);
+  const stock = getStockInfo({ ...goods, skuSnapshot: snapshot }, liveSku);
+  const skuId = goods.skuId;
+  const spuId = goods.productId;
+  const liveSpecInfo = Array.isArray(liveSku?.specInfo) && liveSku.specInfo.length > 0
+    ? liveSku.specInfo
+    : null;
+  const specInfo = liveSpecInfo || goods.specInfo || snapshot.specInfo || [];
+  const price = getSkuPrice(goods, snapshot, liveSku);
+  const image = liveSku?.skuImage || goods.image || snapshot.skuImage || goods.thumb || goods.primaryImage || goods.goodsPictureUrl || '';
+  return {
+    ...goods,
+    storeId: goods.storeId ?? store.storeId,
+    storeName: goods.storeName ?? store.storeName,
+    spuId,
+    skuId,
+    extKey: JSON.stringify([String(spuId), String(skuId)]),
+    title: goods.title || goods.goodsName || '',
+    thumb: image,
+    primaryImage: image,
+    price,
+    unitPrice: goods.unitPrice ?? price,
+    quantity: Math.max(1, Number(goods.quantity ?? goods.buyQuantity ?? goods.num) || 1),
+    stockQuantity: stock.stockQuantity,
+    stockKnown: stock.stockKnown,
+    skuSnapshot: { ...snapshot, ...(liveSku ? { stockQuantity: stock.stockQuantity } : {}) },
+    isSelected: goods.isSelected === true || goods.isSelected === 1 || goods.selected === true ? 1 : 0,
+    specInfo: Array.isArray(specInfo) ? specInfo.map((spec) => ({
+      ...spec,
+      specTitle: spec.specTitle || spec.title || '',
+      specValue: spec.specValue || spec.value || '',
+    }))
+      : [],
+  };
+}
+
+function normalizeCart(response) {
+  const source = response.data;
+  let stores = [];
+  const items = source.items;
+  if (items.length) {
+    const byStore = new Map();
+    items.forEach((item) => {
+      const storeId = item.storeId ?? 0;
+      if (!byStore.has(String(storeId))) byStore.set(String(storeId), { storeId, storeName: item.storeName || '', promotionGoodsList: [{ goodsPromotionList: [] }], shortageGoodsList: [] });
+      const store = byStore.get(String(storeId));
+      const goods = normalizeGoods(item, store);
+      if (goods.stockKnown !== true || goods.stockQuantity > 0) store.promotionGoodsList[0].goodsPromotionList.push(goods);
+      else store.shortageGoodsList.push(goods);
+    });
+    stores = Array.from(byStore.values());
+  }
+  const storeGoods = stores.map((store) => ({
+    ...store,
+    promotionGoodsList: (Array.isArray(store.promotionGoodsList) ? store.promotionGoodsList : []).map((promotion) => ({
+      ...promotion,
+      goodsPromotionList: (Array.isArray(promotion.goodsPromotionList) ? promotion.goodsPromotionList : []).map((goods) => normalizeGoods(goods, store)),
+    })),
+    shortageGoodsList: (Array.isArray(store.shortageGoodsList) ? store.shortageGoodsList : []).map((goods) => normalizeGoods(goods, store)),
+  }));
+  const invalidGoodItems = [];
+  const hasStoreItems = storeGoods.some((store) => (
+    (store.promotionGoodsList || []).some((promotion) => (promotion.goodsPromotionList || []).length > 0)
+    || (store.shortageGoodsList || []).length > 0
+  ));
+  return { ...source, storeGoods, invalidGoodItems, isNotEmpty: Boolean(hasStoreItems || invalidGoodItems.length), totalAmount: source.totalAmount ?? '0' };
+}
+
+function getStoreGoodsEntries(store) {
+  const entries = [];
+  (store.promotionGoodsList || []).forEach((promotion, promotionIndex) => {
+    (promotion.goodsPromotionList || []).forEach((goods) => entries.push({ goods, promotionIndex }));
+  });
+  (store.shortageGoodsList || []).forEach((goods) => entries.push({ goods, promotionIndex: 0 }));
+  return entries;
+}
+
+function loadSkuForGoods(goods) {
+  if (goods.spuId === undefined || goods.spuId === null || goods.spuId === '') {
+    return Promise.resolve(null);
+  }
+  const key = String(goods.spuId);
+  const cached = skuStockCache.get(key);
+  const detailsPromise = cached && cached.expiresAt > Date.now()
+    ? cached.promise
+    : fetchGood(key).catch(() => null);
+  if (!cached || cached.expiresAt <= Date.now()) skuStockCache.set(key, { expiresAt: Date.now() + 30000, promise: detailsPromise });
+  return detailsPromise.then((details) => {
+    const sku = (details?.skuList || []).find((item) => String(item.skuId ?? item._id) === String(goods.skuId));
+    if (!sku) return null;
+    return {
+      ...sku,
+      specInfo: (sku.specInfo || []).map((spec) => {
+        const group = (details.specList || []).find((item) => String(item.specId) === String(spec.specId));
+        const option = (group?.specValueList || []).find((item) => String(item.specValueId) === String(spec.specValueId));
+        return { ...spec, specTitle: group?.title || spec.specTitle || '', specValue: option?.specValue || spec.specValue || '' };
+      }),
+    };
+  });
+}
+
+async function hydrateCartStock(cart) {
+  const references = [];
+  (cart.storeGoods || []).forEach((store) => getStoreGoodsEntries(store).forEach(({ goods }) => references.push({ store, goods })));
+  const uniqueGoods = Array.from(new Map(references.map(({ goods }) => [`${goods.spuId}:${goods.skuId}`, goods])).values());
+  const resolved = await Promise.all(uniqueGoods.map(async (goods) => [
+    `${goods.spuId}:${goods.skuId}`,
+    await loadSkuForGoods(goods),
+  ]));
+  const skuByItem = new Map(resolved);
+  const storeGoods = (cart.storeGoods || []).map((store) => {
+    const promotions = (store.promotionGoodsList || []).map((promotion) => ({
+      ...promotion,
+      goodsPromotionList: [],
+    }));
+    const shortageGoodsList = [];
+    getStoreGoodsEntries(store).forEach(({ goods, promotionIndex }) => {
+      const liveSku = skuByItem.get(`${goods.spuId}:${goods.skuId}`);
+      const normalized = normalizeGoods(goods, store, liveSku);
+      if (normalized.stockKnown === true && normalized.stockQuantity <= 0) {
+        shortageGoodsList.push(normalized);
+        return;
+      }
+      const targetIndex = Math.min(promotionIndex, Math.max(promotions.length - 1, 0));
+      if (!promotions[targetIndex]) promotions.push({ goodsPromotionList: [] });
+      promotions[targetIndex].goodsPromotionList.push(normalized);
+    });
+    return {
+      ...store,
+      promotionGoodsList: promotions.filter((promotion) => promotion.goodsPromotionList.length > 0),
+      shortageGoodsList,
+    };
+  });
+  return { ...cart, storeGoods };
+}
+
+function action(name, payload = {}) {
+  return request(name, payload).then((response) => ({ data: dataOf(response) }));
+}
+
+async function resolveCartImages(cart) {
+  return {
+    ...cart,
+    storeGoods: await Promise.all((cart.storeGoods || []).map(async (store) => ({
+      ...store,
+      promotionGoodsList: await Promise.all((store.promotionGoodsList || []).map(async (promotion) => ({
+        ...promotion,
+        goodsPromotionList: await resolveGoodsListImages(promotion.goodsPromotionList),
+      }))),
+      shortageGoodsList: await resolveGoodsListImages(store.shortageGoodsList),
+    }))),
+    invalidGoodItems: await resolveGoodsListImages(cart.invalidGoodItems),
+  };
+}
+
+export function fetchCartGroupData(params = {}) {
+  return action('cart.get', params)
+    .then((response) => normalizeCart(response))
+    .then(hydrateCartStock)
+    .then(resolveCartImages)
+    .then((data) => ({ data }));
+}
+
+export function addGoodsToCart(goods) {
+  if (!goods || goods.spuId === undefined || goods.skuId === undefined) {
+    const error = new Error('购物车商品信息不完整');
+    error.code = 'CART_ITEM_INVALID';
+    error.msg = error.message;
+    return Promise.reject(error);
+  }
+  return action('cart.add', { ...goods, skuId: String(goods.skuId), quantity: Math.max(1, Number(goods.quantity) || 1) });
+}
+
+export function updateCartItemSelection({ spuId, skuId, isSelected }) { return action('cart.updateSelection', { spuId, skuId: String(skuId), isSelected: Boolean(isSelected) }); }
+export function updateCartStoreSelection({ storeId, isSelected }) { return action('cart.updateStoreSelection', { storeId, isSelected: Boolean(isSelected) }); }
+export function updateAllCartSelection({ isSelected }) { return action('cart.updateAllSelection', { isSelected: Boolean(isSelected) }); }
+export function updateCartItemQuantity({ spuId, skuId, quantity }) { return action('cart.updateQuantity', { spuId, skuId: String(skuId), quantity: Math.max(1, Number(quantity) || 1) }); }
+
+export function replaceCartItemSku({ oldGoods, goods }) {
+  if (!oldGoods || !goods || oldGoods.skuId === undefined || goods.skuId === undefined) {
+    const error = new Error('购物车规格信息不完整');
+    error.code = 'CART_ITEM_INVALID';
+    error.msg = error.message;
+    return Promise.reject(error);
+  }
+  const newSkuId = String(goods.skuId);
+  return action('cart.replaceSku', {
+    // The backend validates data.skuId before entering the replace branch.
+    skuId: newSkuId,
+    oldSpuId: oldGoods.spuId,
+    oldSkuId: String(oldGoods.skuId),
+    newSpuId: goods.spuId,
+    newSkuId,
+    quantity: Math.max(1, Number(goods.quantity) || 1),
+  });
+}
+
+export function deleteCartItem({ spuId, skuId }) { return action('cart.remove', { spuId, skuId: String(skuId) }); }
+export function clearInvalidCartItems() { return action('cart.clearInvalid'); }
+// @ts-nocheck

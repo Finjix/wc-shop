@@ -1,9 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "t-cell": "../../../../tdesign/cell/cell",
-    "t-cell-group": "../../../../tdesign/cell-group/cell-group",
-    "t-badge": "../../../../tdesign/badge/badge",
-    "t-icon": "../../../../tdesign/icon/icon"
-  }
-}

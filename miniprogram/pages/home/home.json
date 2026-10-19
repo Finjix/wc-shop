@@ -1,0 +1,15 @@
+{
+  "navigationBarTitleText": "番薯小店",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "backgroundTextStyle": "light",
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "t-loading": "../../components/tdesign/loading/loading",
+    "t-swiper": "../../components/tdesign/swiper/swiper",
+    "top-search": "/components/top-search/index",
+    "price": "/components/price/index"
+  }
+}

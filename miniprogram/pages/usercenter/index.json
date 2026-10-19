@@ -1,0 +1,11 @@
+{
+  "navigationBarTitleText": "个人中心",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "t-icon": "../../components/tdesign/icon/icon",
+    "t-order-group": "./components/order-group/index",
+    "t-toast": "../../components/tdesign/toast/toast"
+  }
+}

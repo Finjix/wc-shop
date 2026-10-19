@@ -1,7 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "price": "/packages/frontend/components/price/index",
-    "t-icon": "../../../../tdesign/icon/icon"
-  }
-}

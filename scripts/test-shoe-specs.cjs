@@ -22,7 +22,7 @@ const skuList = [
 ].map(([skuId, color, size, quantity, salePrice]) => ({ skuId, quantity, stockQuantity: quantity, salePrice,
   specInfo: [{ specId: 'color', specValueId: color }, { specId: 'size', specValueId: size }],
 }));
-const component = loadComponent('packages/frontend/pages/goods/details/components/goods-specs-popup/index.ts');
+const component = loadComponent('miniprogram/goods/details/components/goods-specs-popup/index.ts');
 const events = [];
 const popup = { ...component.methods, properties: { specList, skuList, isStock: true }, data: { ...component.data },
   setData(value) { Object.assign(this.data, value); }, triggerEvent(name, value) { events.push({ name, value }); },
@@ -57,10 +57,10 @@ click('size', '39');
 assert.equal(popup.data.buyNum, 2, 'quantity is capped to the selected combination');
 assert(events.some((event) => event.name === 'changeNum' && event.value.buyNum === 2));
 
-const cartComponent = loadComponent('packages/frontend/pages/cart/components/specs-popup/index.ts');
-const cartComponentConfig = JSON.parse(fs.readFileSync('packages/frontend/pages/cart/components/specs-popup/index.json', 'utf8'));
-assert.equal(cartComponentConfig.usingComponents.price, '/packages/frontend/components/price/index');
-assert.equal(cartComponentConfig.usingComponents['t-toast'], '../../../../tdesign/toast/toast');
+const cartComponent = loadComponent('miniprogram/pages/cart/components/specs-popup/index.ts');
+const cartComponentConfig = JSON.parse(fs.readFileSync('miniprogram/pages/cart/components/specs-popup/index.json', 'utf8'));
+assert.equal(cartComponentConfig.usingComponents.price, '/components/price/index');
+assert.equal(cartComponentConfig.usingComponents['t-toast'], '../../../../components/tdesign/toast/toast');
 const cart = { ...cartComponent.methods, properties: { specList, skuList, selectedSkuId: 'black38' }, data: {},
   setData(value) { Object.assign(this.data, value); }, triggerEvent(name, value) { events.push({ name, value }); },
 };

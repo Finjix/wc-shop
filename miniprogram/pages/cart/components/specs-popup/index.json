@@ -1,0 +1,9 @@
+{
+  "component": true,
+  "usingComponents": {
+    "price": "/components/price/index",
+    "t-toast": "../../../../components/tdesign/toast/toast",
+    "t-popup": "../../../../components/tdesign/popup/popup",
+    "goods-card": "../goods-card/index"
+  }
+}

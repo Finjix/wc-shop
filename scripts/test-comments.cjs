@@ -20,7 +20,7 @@ let items = [{
 }];
 function load(file) {
   const filename = require("./miniprogram-test-source.cjs").resolveSource(path.resolve(root, file));
-  if (filename === path.join(root, 'packages/api/utils/api.ts')) return {
+  if (filename === path.join(root, 'miniprogram/services/utils/api.ts')) return {
     request: async (action, payload) => {
       requests.push({ action, payload });
       return action === 'comments.create' ? { ...payload, createdAt: '2026-01-01' } : { items, total: items.length, page: 1 };
@@ -33,7 +33,7 @@ function load(file) {
     getApiErrorMessage: (error) => error.message,
     cleanupCloudFiles: async (ids) => { cleanups.push(...ids); },
   };
-  if (filename === path.join(root, 'packages/api/utils/images.ts')) return { resolveImage: async (id) => `https://example.test/${id.split('://')[1]}` };
+  if (filename === path.join(root, 'miniprogram/services/utils/images.ts')) return { resolveImage: async (id) => `https://example.test/${id.split('://')[1]}` };
   if (cache.has(filename)) return cache.get(filename);
   const exports = {};
   cache.set(filename, exports);
@@ -52,15 +52,15 @@ function load(file) {
   return exports;
 }
 async function run() {
-  const api = load('packages/api/pages/goods/services/comments/api.ts');
-  const list = await load('packages/api/pages/goods/services/comments/fetchComments.ts').fetchComments({ spuId: 'product-1' });
+  const api = load('miniprogram/services/goods/services/comments/api.ts');
+  const list = await load('miniprogram/services/goods/services/comments/fetchComments.ts').fetchComments({ spuId: 'product-1' });
   assert.equal(list.pageList[0].sellerReply, '谢谢支持');
   assert.equal(list.pageList[0].commentContent, '好用');
   assert.equal(list.pageList[0].commentScore, 5);
   assert.equal(list.pageList[0].commentTime, '01/01');
   assert.equal(list.pageList[0].commentResources[0].image, 'https://example.test/comment.webp');
   assert.equal(list.pageList[0].commentResources[0].fileID, 'cloud://comment.webp');
-  const own = await load('packages/api/pages/goods/services/comments/fetchOrderComment.ts').fetchOrderComment('order-1', 'product-1');
+  const own = await load('miniprogram/services/goods/services/comments/fetchOrderComment.ts').fetchOrderComment('order-1', 'product-1');
   assert.equal(own.sellerReply, '谢谢支持');
   assert.equal(own.commentTime, '01/01');
   assert.equal(api.normalizeComment({ images: [], createdAt: 'invalid' }).commentTime, '');
@@ -69,17 +69,17 @@ async function run() {
   for (const reply of ['', undefined]) assert.equal(api.normalizeComment({ images: [], reply }).sellerReply, '');
   assert.equal(api.normalizeComment(null), null);
   items = [{ ...items[0], content: '', rating: 1, reply: '' }];
-  const imageOnly = await load('packages/api/pages/goods/services/comments/fetchOrderComment.ts').fetchOrderComment('order-1');
+  const imageOnly = await load('miniprogram/services/goods/services/comments/fetchOrderComment.ts').fetchOrderComment('order-1');
   assert.equal(imageOnly.commentContent, '');
   assert.equal(imageOnly.commentScore, 1);
   assert.equal(imageOnly.commentResources.length, 1);
   items = [{ ...items[0], images: ['http://usr/deleted.webp'] }];
-  const expired = await load('packages/api/pages/goods/services/comments/fetchOrderComment.ts').fetchOrderComment('order-1');
+  const expired = await load('miniprogram/services/goods/services/comments/fetchOrderComment.ts').fetchOrderComment('order-1');
   assert.equal(expired.commentResources[0].expired, true);
   assert.equal(expired.commentResources[0].image, '');
   items = [];
-  assert.equal(await load('packages/api/pages/goods/services/comments/fetchOrderComment.ts').fetchOrderComment('order-1'), null);
-  const create = load('packages/api/pages/goods/services/comments/createComment.ts').createComment;
+  assert.equal(await load('miniprogram/services/goods/services/comments/fetchOrderComment.ts').fetchOrderComment('order-1'), null);
+  const create = load('miniprogram/services/goods/services/comments/createComment.ts').createComment;
   await create({ productId: 'product-1', commentContent: '测试', rating: 5, commentResources: [
     { tempFilePath: 'http://usr/prepared.webp' }, { url: 'http://tmp/selected.jpg' }, 'wxfile://usr/native.webp',
   ] });
@@ -96,7 +96,7 @@ async function run() {
   uploadError = new Error('上传失败');
   await assert.rejects(() => create({ commentResources: ['http://usr/failed.webp'] }), /上传失败/);
   assert.equal(requests.length, beforeFailure, 'failed uploads must not save a temporary path');
-  load('packages/frontend/pages/goods/comments/index.ts');
+  load('miniprogram/goods/comments/index.ts');
   const instance = { ...page, data: { ...page.data, commentType: 'latest' }, setData(patch) { Object.assign(this.data, patch); } };
   instance.setCommentResult({ totalCount: 2, pageList: [
     api.normalizeComment({ _id: 'older', createdAt: '2025-12-31', images: [] }),
@@ -115,7 +115,7 @@ async function run() {
   items[0].reply = '';
   await instance.getOwnComment('order-1');
   assert.equal(instance.data.ownComment.sellerReply, '');
-  const pageMarkup = readMiniProgramSource(path.join(root, 'packages/frontend/pages/goods/comments/index.wxml'), 'utf8');
+  const pageMarkup = readMiniProgramSource(path.join(root, 'miniprogram/goods/comments/index.wxml'), 'utf8');
   assert.doesNotMatch(pageMarkup, /自己\(|data-commentType="5"/);
   for (const label of ['全部(', '带图(', '最新']) assert.ok(pageMarkup.includes(label));
   const ownMarkup = pageMarkup.split('<block wx:if="{{mineOnly}}">')[1].split('</block>')[0];
@@ -124,20 +124,20 @@ async function run() {
   assert.doesNotMatch(ownReviewComponent, /commentTime|sellerReply|goodsDetailInfo|isAnonymity/);
   assert.match(ownMarkup, /class="own-seller-reply" wx:if="\{\{ownComment\.sellerReply\}\}"/);
   assert.match(ownMarkup, /class="own-seller-reply-content">\{\{ownComment\.sellerReply\}\}/);
-  const ownStyles = readMiniProgramSource(path.join(root, 'packages/frontend/pages/goods/comments/index.wxss'), 'utf8');
+  const ownStyles = readMiniProgramSource(path.join(root, 'miniprogram/goods/comments/index.wxss'), 'utf8');
   assert.match(ownStyles, /\.comments-page-own \.comments-scroll-content\s*\{\s*background-color:\s*#fff;/);
   assert.match(ownStyles, /\.own-seller-reply-content\s*\{[^}]*white-space:\s*pre-wrap;[^}]*word-break:\s*break-all;[^}]*overflow-wrap:\s*anywhere;/);
-  const cardStyles = readMiniProgramSource(path.join(root, 'packages/frontend/pages/goods/comments/components/comments-card/index.wxss'), 'utf8');
+  const cardStyles = readMiniProgramSource(path.join(root, 'miniprogram/goods/comments/components/comments-card/index.wxss'), 'utf8');
   const ownCardStyles = cardStyles.match(/\.comments-card-own\s*\{([^}]*)\}/)[1];
   assert.doesNotMatch(ownCardStyles, /border:|border-radius:|box-shadow:/);
   assert.match(cardStyles, /\.comments-card-reply \.content\s*\{[^}]*display:\s*block;[^}]*white-space:\s*pre-wrap;[^}]*word-break:\s*break-all;[^}]*overflow-wrap:\s*anywhere;/);
-  const cardMarkup = readMiniProgramSource(path.join(root, 'packages/frontend/pages/goods/comments/components/comments-card/index.wxml'), 'utf8');
+  const cardMarkup = readMiniProgramSource(path.join(root, 'miniprogram/goods/comments/components/comments-card/index.wxml'), 'utf8');
   assert.match(cardMarkup, /wx:if="\{\{ownView\}\}"[\s\S]*?'好评' : '差评'/);
   assert.match(cardMarkup, /wx:else class="comments-title"/);
   assert.match(cardMarkup, /sellerReply && !ownView/);
-  load('packages/frontend/pages/goods/comments/components/comments-card/index.ts');
+  load('miniprogram/goods/comments/components/comments-card/index.ts');
   assert.equal(component.properties.ownView.value, false, 'public cards retain their metadata by default');
-  load('packages/frontend/pages/goods/comments/components/comments-card/components/images-videos/index.ts');
+  load('miniprogram/goods/comments/components/comments-card/components/images-videos/index.ts');
   const gallery = { ...component.methods, data: { imageResources: [
     { image: 'https://example.test/one.webp' }, { image: 'https://example.test/two.webp' },
     { image: '', expired: true }, { image: 'https://example.test/broken.webp', failed: true },

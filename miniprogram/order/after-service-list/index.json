@@ -1,0 +1,17 @@
+{
+  "navigationBarTitleText": "售后",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "../../components/tdesign/navbar/navbar",
+    "wr-load-more": "/components/load-more/index",
+    "wr-after-service-button-bar": "../components/after-service-button-bar/index",
+    "wr-price": "/components/price/index",
+    "wr-order-card": "../components/order-card/index",
+    "specs-goods-card": "../components/specs-goods-card/index",
+    "t-icon": "../../components/tdesign/icon/icon",
+    "t-toast": "../../components/tdesign/toast/toast",
+    "t-dialog": "../../components/tdesign/dialog/dialog",
+    "t-pull-down-refresh": "/order/components/tdesign/pull-down-refresh/pull-down-refresh"
+  }
+}

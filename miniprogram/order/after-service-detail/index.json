@@ -1,0 +1,24 @@
+{
+  "navigationBarTitleText": "售后详情",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "../../components/tdesign/navbar/navbar",
+    "wr-loading-content": "/order/components/loading-content/index",
+    "wr-price": "/components/price/index",
+    "wr-service-goods-card": "../components/order-goods-card/index",
+    "t-cell": "../../components/tdesign/cell/cell",
+    "t-icon": "../../components/tdesign/icon/icon",
+    "t-cell-group": "../../components/tdesign/cell-group/cell-group",
+    "t-pull-down-refresh": "/order/components/tdesign/pull-down-refresh/pull-down-refresh",
+    "t-grid": "/order/components/tdesign/grid/grid",
+    "t-grid-item": "/order/components/tdesign/grid-item/grid-item",
+    "t-toast": "../../components/tdesign/toast/toast",
+    "t-dialog": "../../components/tdesign/dialog/dialog",
+    "t-input": "/order/components/tdesign/input/input",
+    "t-swiper": "../../components/tdesign/swiper/swiper",
+    "t-swiper-nav": "../../components/tdesign/swiper-nav/swiper-nav",
+    "wr-after-service-button-bar": "../components/after-service-button-bar/index",
+    "t-image": "/components/webp-image/index"
+  }
+}

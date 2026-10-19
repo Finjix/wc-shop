@@ -1,7 +1,7 @@
 import type { ApiEnvelope } from '../types';
 import { prepareImageUpload, type UploadPhase } from './image-upload';
-import { TempFileUrls } from '../../../packages/api/utils/temp-file-urls';
-import { cloudReadRetry } from '../../../packages/api/utils/cloud-read-retry';
+import { TempFileUrls } from '../../../miniprogram/services/utils/temp-file-urls';
+import { cloudReadRetry } from '../../../miniprogram/services/utils/cloud-read-retry';
 
 const localApiUrl = import.meta.env.VITE_LOCAL_API_URL?.trim() ?? '';
 const adminApiUrl = localApiUrl ? `${localApiUrl.replace(/\/$/, '')}/api` : import.meta.env.VITE_ADMIN_API_URL?.trim() ?? '';

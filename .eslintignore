@@ -1,6 +1,5 @@
 node_modules/
 miniprogram_npm/
-main-ui/
-packages/*/tdesign/
-packages/plugins/image-processor/codec/
+miniprogram/**/components/tdesign/
+miniprogram/utils/image-processor/codec/
 .eslintcache

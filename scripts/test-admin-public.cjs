@@ -40,8 +40,8 @@ async function run() {
       return { status: 200, json: async () => ({ ok: true, data }) };
     },
     require(ref) {
-      if (ref.endsWith('cloud-read-retry')) return load('packages/api/utils/cloud-read-retry.ts');
-      if (ref.endsWith('temp-file-urls')) return load('packages/api/utils/temp-file-urls.ts');
+      if (ref.endsWith('cloud-read-retry')) return load('miniprogram/services/utils/cloud-read-retry.ts');
+      if (ref.endsWith('temp-file-urls')) return load('miniprogram/services/utils/temp-file-urls.ts');
       if (ref === './image-upload') return {};
       throw new Error(`Unexpected dependency: ${ref}`);
     },

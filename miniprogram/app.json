@@ -1,0 +1,93 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/category/index",
+    "pages/cart/index",
+    "pages/usercenter/index"
+  ],
+  "subpackages": [
+    {
+      "root": "goods",
+      "name": "goods",
+      "pages": [
+        "list/index",
+        "details/index",
+        "search/index",
+        "result/index",
+        "comments/index",
+        "comments/create/index"
+      ]
+    },
+    {
+      "root": "order",
+      "name": "order",
+      "pages": [
+        "order-confirm/index",
+        "pay-result/index",
+        "order-list/index",
+        "order-detail/index",
+        "apply-service/index",
+        "after-service-list/index",
+        "after-service-detail/index",
+        "fill-tracking-no/index",
+        "delivery-detail/index",
+        "logistics-webview/index"
+      ]
+    },
+    {
+      "root": "user",
+      "name": "user",
+      "pages": [
+        "person-info/index",
+        "address/list/index",
+        "address/edit/index",
+        "help/index",
+        "about/index"
+      ]
+    },
+    {
+      "root": "services",
+      "name": "services",
+      "pages": []
+    },
+    {
+      "root": "utils",
+      "name": "utils",
+      "pages": []
+    }
+  ],
+  "tabBar": {
+    "custom": true,
+    "color": "#666666",
+    "selectedColor": "#695941",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/category/index",
+        "text": "分类"
+      },
+      {
+        "pagePath": "pages/cart/index",
+        "text": "购物车"
+      },
+      {
+        "pagePath": "pages/usercenter/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "lazyCodeLoading": "requiredComponents",
+  "window": {
+    "backgroundColor": "#ffffff",
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#fff",
+    "navigationBarTitleText": "Weixin",
+    "navigationBarTextStyle": "black"
+  },
+  "sitemapLocation": "sitemap.json"
+}

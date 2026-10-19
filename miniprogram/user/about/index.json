@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "关于",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "../../components/tdesign/navbar/navbar"
+  }
+}

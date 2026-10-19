@@ -12,13 +12,13 @@ let submitError;
 let backCalls = 0;
 const timers = [];
 const mocks = new Map([
-  ['packages/api/utils/api.ts', { getApiErrorMessage: (error) => error.message }],
-  ['packages/api/utils/images.ts', { resolveImage: async (value) => value }],
-  ['packages/frontend/utils/goods-detail-navigation.ts', {}],
-  ['packages/api/pages/order/services/orderList.ts', {}],
-  ['packages/api/pages/order/services/orderDetail.ts', {}],
-  ['packages/frontend/pages/order/utils/format.ts', { cosThumb: (value) => value, formatTime: () => '' }],
-  ['packages/api/pages/goods/services/comments/createComment.ts', { createComment: async () => {
+  ['miniprogram/services/utils/api.ts', { getApiErrorMessage: (error) => error.message }],
+  ['miniprogram/services/utils/images.ts', { resolveImage: async (value) => value }],
+  ['miniprogram/common/utils/goods-detail-navigation.ts', {}],
+  ['miniprogram/services/order/services/orderList.ts', {}],
+  ['miniprogram/services/order/services/orderDetail.ts', {}],
+  ['miniprogram/services/order/utils/format.ts', { cosThumb: (value) => value, formatTime: () => '' }],
+  ['miniprogram/services/goods/services/comments/createComment.ts', { createComment: async () => {
     submitCalls++;
     if (submitError) throw submitError;
     return { orderNo: 'order-1', productId: 'product-1' };
@@ -51,7 +51,7 @@ function instance(file) {
   return { ...definition, data: { ...definition.data }, setData(patch, callback) { Object.assign(this.data, patch); callback?.(); } };
 }
 async function run() {
-  const { OrderStatus, OrderButtonTypes } = load('packages/frontend/pages/order/config.ts');
+  const { OrderStatus, OrderButtonTypes } = load('miniprogram/order/config.ts');
   const original = {
     id: 'order-1', orderNo: 'order-1', status: OrderStatus.COMPLETE, statusDesc: '已完成', amount: 200,
     commentedProductIds: [], commentableProductId: 'product-1',
@@ -59,12 +59,12 @@ async function run() {
     buttons: [{ type: OrderButtonTypes.COMMENT, name: '评价', primary: true }],
   };
   let refreshes = 0;
-  const list = instance('packages/frontend/pages/order/order-list/index.ts');
+  const list = instance('miniprogram/order/order-list/index.ts');
   list.hasShownOnce = true;
   list.page = { size: 5, num: 3 };
   Object.assign(list.data, { curTab: OrderStatus.COMPLETE, status: OrderStatus.COMPLETE, pendingCommentOnly: true, orderList: [original, { ...original, orderNo: 'order-2' }] });
   list.refreshList = () => { refreshes++; };
-  const create = instance('packages/frontend/pages/goods/comments/create/index.ts');
+  const create = instance('miniprogram/goods/comments/create/index.ts');
   create.orderNo = 'order-1'; create.productId = 'product-1'; create.textAreaValue = '好评';
   create.data.isAllowedSubmit = true;
   currentPages = [list, create];
@@ -89,7 +89,7 @@ async function run() {
   list.onTabChange({ detail: { value: -1 } });
   assert.equal(refreshes, 2, 'explicit tab changes still reload');
 
-  const { applyCommentToOrder } = load('packages/frontend/pages/order/utils/comment-state.ts');
+  const { applyCommentToOrder } = load('miniprogram/order/utils/comment-state.ts');
   const multi = applyCommentToOrder({ ...original, goodsList: [
     ...original.goodsList, { spuId: 'product-2', fulfillableQuantity: 1 }, { spuId: 'refunded', fulfillableQuantity: 0 },
   ] }, 'product-1');
@@ -99,13 +99,13 @@ async function run() {
   assert.equal(completed.buttons[0].type, OrderButtonTypes.VIEW_COMMENT);
   assert.equal(completed.hasPendingComments, false);
 
-  const detail = instance('packages/frontend/pages/order/order-detail/index.ts');
+  const detail = instance('miniprogram/order/order-detail/index.ts');
   detail.hasShownOnce = true;
   detail.data._order = original;
   detail.data.order = { commentedProductIds: [], hasPendingComments: true };
   let detailRefreshes = 0;
   detail.onRefresh = () => { detailRefreshes++; };
-  const fromDetail = instance('packages/frontend/pages/goods/comments/create/index.ts');
+  const fromDetail = instance('miniprogram/goods/comments/create/index.ts');
   fromDetail.orderNo = 'order-1'; fromDetail.productId = 'product-1'; fromDetail.data.isAllowedSubmit = true;
   currentPages = [list, detail, fromDetail];
   fromDetail.onSubmitBtnClick();
@@ -118,7 +118,7 @@ async function run() {
   assert.equal(detail.data._order.buttons[0].type, OrderButtonTypes.VIEW_COMMENT);
   assert.equal(detail.data.order.hasPendingComments, false);
 
-  const failed = instance('packages/frontend/pages/goods/comments/create/index.ts');
+  const failed = instance('miniprogram/goods/comments/create/index.ts');
   failed.orderNo = 'order-2'; failed.productId = 'product-1'; failed.data.isAllowedSubmit = true;
   currentPages = [list, failed];
   submitError = new Error('提交失败');

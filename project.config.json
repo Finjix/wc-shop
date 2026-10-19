@@ -1,23 +1,20 @@
 {
   "packOptions": {
     "ignore": [
-      { "value": "miniprogram_npm", "type": "folder" },
-      { "value": "cloudfunctions", "type": "folder" },
-      { "value": "scripts", "type": "folder" },
-      { "value": "common/cloud.d.ts", "type": "file" },
-      { "value": "README.md", "type": "file" },
-      { "value": "package-lock.json", "type": "file" },
-      { "value": "tsconfig.json", "type": "file" },
-      { "value": "cloudbaserc.json", "type": "file" },
-      { "value": "start-local.cmd", "type": "file" },
-      { "value": "dist", "type": "folder" },
       {
-        "value": "admin",
+        "value": "common/cloud.d.ts",
+        "type": "file"
+      },
+      {
+        "value": "miniprogram_npm",
         "type": "folder"
       }
     ],
     "include": [
-      { "value": "packages/plugins/image-processor/codec/webp_enc.wasm", "type": "file" }
+      {
+        "value": "utils/image-processor/codec/webp_enc.wasm",
+        "type": "file"
+      }
     ]
   },
   "setting": {
@@ -51,8 +48,13 @@
     "enableEngineNative": false,
     "useIsolateContext": true,
     "userConfirmedBundleSwitch": false,
-    "packNpmManually": false,
-    "packNpmRelationList": [],
+    "packNpmManually": true,
+    "packNpmRelationList": [
+      {
+        "packageJsonPath": "./package.json",
+        "miniprogramNpmDistDir": "./miniprogram/"
+      }
+    ],
     "minifyWXSS": true,
     "disableUseStrict": false,
     "minifyWXML": true,
@@ -92,55 +94,55 @@
         },
         {
           "name": "示例页-商品列表",
-          "pathName": "packages/frontend/pages/goods/list/index",
+          "pathName": "goods/list/index",
           "query": "",
           "scene": null
         },
         {
           "name": "示例页-商品详情",
-          "pathName": "packages/frontend/pages/goods/details/index",
+          "pathName": "goods/details/index",
           "query": "",
           "scene": null
         },
         {
           "name": "示例页-商品评论",
-          "pathName": "packages/frontend/pages/goods/comments/index",
+          "pathName": "goods/comments/index",
           "query": "",
           "scene": null
         },
         {
           "name": "示例页-售后列表",
-          "pathName": "packages/frontend/pages/order/after-service-list/index",
+          "pathName": "order/after-service-list/index",
           "query": "",
           "scene": null
         },
         {
           "name": "示例页-售后详情",
-          "pathName": "packages/frontend/pages/order/after-service-detail/index",
+          "pathName": "order/after-service-detail/index",
           "query": "rightsNo=123123423",
           "scene": null
         },
         {
           "name": "示例页-搜索页",
-          "pathName": "packages/frontend/pages/goods/search/index",
+          "pathName": "goods/search/index",
           "query": "",
           "scene": null
         },
         {
           "name": "示例页-搜索结果",
-          "pathName": "packages/frontend/pages/goods/result/index",
+          "pathName": "goods/result/index",
           "query": "",
           "scene": null
         },
         {
           "name": "示例页-商品评价",
-          "pathName": "packages/frontend/pages/goods/comments/create/index",
+          "pathName": "goods/comments/create/index",
           "query": "",
           "scene": null
         },
         {
           "name": "示例页-申请售后",
-          "pathName": "packages/frontend/pages/order/apply-service/index",
+          "pathName": "order/apply-service/index",
           "query": "orderNo=132222623132329291&skuId=135691625",
           "scene": null
         }
@@ -150,5 +152,6 @@
   "editorSetting": {
     "tabIndent": "insertSpaces",
     "tabSize": 2
-  }
+  },
+  "miniprogramRoot": "miniprogram/"
 }

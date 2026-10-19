@@ -1,0 +1,9 @@
+{
+  "component": true,
+  "usingComponents": {
+    "t-button": "../../../components/tdesign/button/button",
+    "t-toast": "../../../components/tdesign/toast/toast",
+    "t-dialog": "../../../components/tdesign/dialog/dialog",
+    "price": "/components/price/index"
+  }
+}

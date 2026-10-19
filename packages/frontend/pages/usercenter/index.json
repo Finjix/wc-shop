@@ -1,8 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "t-icon": "../../tdesign/icon/icon",
-    "t-order-group": "./components/order-group/index",
-    "t-toast": "../../tdesign/toast/toast"
-  }
-}

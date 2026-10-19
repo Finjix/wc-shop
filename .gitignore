@@ -3,8 +3,8 @@ node_modules/
 
 # 小程序 npm 构建产物（微信开发者工具「构建 npm」生成）
 miniprogram_npm/
-main-ui/
-packages/*/tdesign/
+miniprogram/**/components/tdesign/
+miniprogram/miniprogram_npm/
 
 # macOS
 .DS_Store

@@ -13,8 +13,8 @@ function load(file, globals = {}) {
   }).outputText, { exports, console, ...globals });
   return exports;
 }
-const urls = load('packages/api/utils/temp-file-urls.ts');
-const readRetry = load('packages/api/utils/cloud-read-retry.ts');
+const urls = load('miniprogram/services/utils/temp-file-urls.ts');
+const readRetry = load('miniprogram/services/utils/cloud-read-retry.ts');
 async function run() {
   for (const client of ['shop', 'admin']) {
     const batches = [];
@@ -24,7 +24,7 @@ async function run() {
       batches.push([...data.data.fileList]);
       return { result: { ok: true, data: data.data.fileList.map((fileID) => ({ fileID, tempFileURL: `https://images.test/${fileID.split('/').pop()}` })) } };
     } };
-    const api = client === 'shop' ? load('packages/api/utils/cloud.ts', {
+    const api = client === 'shop' ? load('miniprogram/services/utils/cloud.ts', {
       require: (ref) => ref === './temp-file-urls' ? urls : ref === './cloud-read-retry' ? readRetry : { cloudEnvId: 'test', cloudFunctionName: 'wc-shop-function' },
       wx: { cloud: app }, console: { ...console, error() {} },
     }) : load('admin/src/lib/api.ts', { fetch: async (_url, options) => {

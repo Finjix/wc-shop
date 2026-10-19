@@ -1,0 +1,7 @@
+{
+  "component": true,
+  "usingComponents": {
+    "t-stepper": "../../../components/tdesign/stepper/stepper",
+    "goods-card": "../specs-goods-card/index"
+  }
+}

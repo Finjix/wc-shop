@@ -1,0 +1,12 @@
+{
+  "navigationBarTitleText": "个人资料",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "../../components/tdesign/navbar/navbar",
+    "t-cell-group": "../../components/tdesign/cell-group/cell-group",
+    "t-cell": "../../components/tdesign/cell/cell",
+    "t-input": "/user/components/tdesign/input/input",
+    "t-toast": "../../components/tdesign/toast/toast"
+  }
+}

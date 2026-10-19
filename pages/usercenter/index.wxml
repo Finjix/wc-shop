@@ -1,2 +1,0 @@
-<view wx:if="{{!contentReady}}" class="package-status"><text>{{packageError || "加载中…"}}</text><button wx:if="{{packageError}}" bindtap="retryPackage">重新加载</button></view>
-<tab-content wx:if="{{mountContent}}" id="tab-content" bind:contentready="onContentReady" />

@@ -1,0 +1,18 @@
+{
+  "navigationBarTitleText": "我的订单",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "../../components/tdesign/navbar/navbar",
+    "t-tabs": "/order/components/tdesign/tabs/tabs",
+    "t-tab-panel": "/order/components/tdesign/tab-panel/tab-panel",
+    "t-toast": "../../components/tdesign/toast/toast",
+    "t-dialog": "../../components/tdesign/dialog/dialog",
+    "t-pull-down-refresh": "/order/components/tdesign/pull-down-refresh/pull-down-refresh",
+    "load-more": "/components/load-more/index",
+    "order-button-bar": "../components/order-button-bar/index",
+    "price": "/components/price/index",
+    "order-card": "../components/order-card/index",
+    "specs-goods-card": "../components/specs-goods-card/index"
+  }
+}

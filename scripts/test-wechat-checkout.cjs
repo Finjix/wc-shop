@@ -5,7 +5,7 @@ const ts = require('typescript');
 const path = require('node:path');
 
 async function run() {
-  const file = path.join(__dirname, '../packages/api/services/order/orderConfirm.ts');
+  const file = path.join(__dirname, '../miniprogram/services/order/orderConfirm.ts');
   const code = ts.transpile(fs.readFileSync(file, 'utf8'), { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 });
   const calls = []; let paymentCalls = 0, cancelled = false, state = 'unpaid';
   const module = { exports: {} };
@@ -18,7 +18,7 @@ async function run() {
     throw new Error(action);
   } };
   vm.runInNewContext(code, { module, exports: module.exports, require: (id) => {
-    if (id === '../../utils/api') return api;
+    if (id === '../utils/api') return api;
     if (id === '../address/fetchAddress') return { toOrderAddress: (value) => value };
     throw new Error(id);
   }, wx: { requestPayment: (options) => {

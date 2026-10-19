@@ -15,12 +15,7 @@
     ]
   },
   "include": [
-    "app.ts",
-    "common/**/*.ts",
-    "config/**/*.ts",
-    "custom-tab-bar/**/*.ts",
-    "pages/**/*.ts",
-    "packages/**/*.ts"
+    "miniprogram/**/*.ts"
   ],
   "exclude": [
     "node_modules",

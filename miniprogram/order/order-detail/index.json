@@ -1,0 +1,19 @@
+{
+  "navigationBarTitleText": "订单详情",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "../../components/tdesign/navbar/navbar",
+    "t-pull-down-refresh": "/order/components/tdesign/pull-down-refresh/pull-down-refresh",
+    "t-button": "../../components/tdesign/button/button",
+    "t-cell": "../../components/tdesign/cell/cell",
+    "t-icon": "../../components/tdesign/icon/icon",
+    "t-image": "/components/webp-image/index",
+    "t-toast": "../../components/tdesign/toast/toast",
+    "t-dialog": "../../components/tdesign/dialog/dialog",
+    "price": "/components/price/index",
+    "order-card": "../components/order-card/index",
+    "order-goods-card": "../components/order-goods-card/index",
+    "order-button-bar": "../components/order-button-bar/index"
+  }
+}

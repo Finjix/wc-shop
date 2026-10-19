@@ -1,4 +1,0 @@
-.package-status { padding: 96rpx 32rpx; text-align: center; color: #888; }
-.package-status button { margin-top: 24rpx; font-size: 28rpx; }
-
-page { padding-bottom: 0; background: #fff; }

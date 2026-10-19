@@ -2,11 +2,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
-const root = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(__dirname, '..');
+const root = path.join(repoRoot, 'miniprogram');
 const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
 function check() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
-  assert.deepEqual(app.subpackages.map(p => p.root), ['packages/frontend', 'packages/api', 'packages/plugins']);
+  assert.deepEqual(app.subpackages.map(p => p.root), ['goods', 'order', 'user', 'services', 'utils']);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(repoRoot, 'project.config.json'), 'utf8')).miniprogramRoot, 'miniprogram/');
   assert.equal(app.pages.length, 4);
   assert.deepEqual(app.tabBar.list.map(p => p.pagePath), app.pages);
   const packOf = file => app.subpackages.find(p => file.startsWith(path.join(root, p.root) + path.sep))?.root || 'main';
@@ -20,8 +22,7 @@ function check() {
   }
   let asyncReferences = 0;
   let modules = 0;
-  const sourceFiles = ['common','config','pages','custom-tab-bar','packages','main-ui'].flatMap(dir => walk(path.join(root, dir)));
-  sourceFiles.push(path.join(root, 'app.ts'), path.join(root, 'app.wxss'));
+  const sourceFiles = walk(root).filter(file => !file.includes(`${path.sep}miniprogram_npm${path.sep}`));
   for (const file of sourceFiles) {
     if (!/\.(ts|js|json|wxml|wxss|wxs)$/.test(file)) continue;
     const source = fs.readFileSync(file, 'utf8');
@@ -44,7 +45,7 @@ function check() {
         ts.forEachChild(node, visit);
       }
       visit(parsed);
-      if (packOf(file) === 'packages/api') assert.doesNotMatch(source, /getCurrentPages\s*\(|\b(?:Page|Component)\s*\(/, `${file}: UI logic in API services`);
+      if (packOf(file) === 'services') assert.doesNotMatch(source, /getCurrentPages\s*\(|\b(?:Page|Component)\s*\(/, `${file}: UI logic in services`);
     }
     if (file.endsWith('.json')) {
       const json = JSON.parse(source);
@@ -68,11 +69,17 @@ function check() {
   for (const p of [...app.pages, ...app.subpackages.flatMap(pack => pack.pages.map(p => `${pack.root}/${p}`))]) {
     for (const ext of ['.ts','.json','.wxml']) assert.ok(fs.existsSync(path.join(root, p + ext)), `${p}: missing ${ext}`);
   }
-  const include = JSON.parse(fs.readFileSync(path.join(root, 'project.config.json'), 'utf8')).packOptions.include;
-  assert.ok(include.some(p => p.value === 'packages/plugins/image-processor/codec/webp_enc.wasm'));
-  assert.ok(fs.existsSync(path.join(root, 'packages/plugins/image-processor/codec/webp_enc.wasm')));
-  assert.ok(asyncReferences >= 8);
-  console.log(`PASS four-package graph: ${modules} module dependencies, ${asyncReferences} async references, page/template/style paths and plugin WASM`);
+  for (const page of app.pages) {
+    const source = fs.readFileSync(path.join(root, page + '.ts'), 'utf8');
+    assert.match(source, /\bPage\s*\(/, `${page}: tabs must run directly in main`);
+    assert.doesNotMatch(source, /tabContent|createTabPage|loadFrontend/);
+    assert.ok(!JSON.parse(fs.readFileSync(path.join(root, page + '.json'), 'utf8')).component);
+  }
+  const include = JSON.parse(fs.readFileSync(path.join(repoRoot, 'project.config.json'), 'utf8')).packOptions.include;
+  assert.ok(include.some(p => p.value === 'utils/image-processor/codec/webp_enc.wasm'));
+  assert.ok(fs.existsSync(path.join(root, 'utils/image-processor/codec/webp_enc.wasm')));
+  assert.equal(asyncReferences, 3, 'service entry and the two image processor components load asynchronously');
+  console.log(`PASS main + goods/order/user/services/utils graph: ${modules} module dependencies, ${asyncReferences} async references and all page/template/style paths`);
 }
 if (require.main === module) check();
 module.exports = { check };

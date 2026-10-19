@@ -2,7 +2,7 @@
   "name": "@tencent/tdesign-miniprogram-starter-retail",
   "version": "0.2.0",
   "description": "",
-  "main": "app.ts",
+  "main": "miniprogram/app.ts",
   "scripts": {
     "lint": "eslint --cache --cache-location ../.wc-shop-local/cache/eslint --ext .js,.ts,.tsx . --ignore-pattern admin/** --ignore-pattern cloudfunctions/**",
     "lint:fix": "eslint --cache --cache-location ../.wc-shop-local/cache/eslint --fix --ext .js,.ts,.tsx . --ignore-pattern admin/** --ignore-pattern cloudfunctions/**",

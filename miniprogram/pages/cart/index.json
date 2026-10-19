@@ -1,0 +1,15 @@
+{
+  "navigationBarTitleText": "购物车",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "cart-group": "./components/cart-group/index",
+    "cart-empty": "./components/cart-empty/index",
+    "cart-bar": "./components/cart-bar/index",
+    "specs-popup": "./components/specs-popup/index",
+    "t-navbar": "../../components/tdesign/navbar/navbar",
+    "t-icon": "../../components/tdesign/icon/icon",
+    "t-toast": "../../components/tdesign/toast/toast",
+    "t-dialog": "../../components/tdesign/dialog/dialog"
+  }
+}

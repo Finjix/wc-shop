@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const ts = require('typescript');
 const sharp = require('../cloudfunctions/node_modules/sharp');
 const root = path.resolve(__dirname, '..');
-const base = path.join(root, 'packages/plugins/image-processor');
+const base = path.join(root, 'miniprogram/utils/image-processor');
 
 async function main() {
   // Exercise the shipped Emscripten glue and real WASM through the WeChat adapter.
@@ -40,8 +40,8 @@ async function main() {
     Memory: WebAssembly.Memory, Table: WebAssembly.Table,
     async instantiate(file, imports) {
       instantiations++;
-      assert.equal(file, 'packages/plugins/image-processor/codec/webp_enc.wasm');
-      return WebAssembly.instantiate(readMiniProgramSource(path.join(root, file)), imports);
+      assert.equal(file, 'utils/image-processor/codec/webp_enc.wasm');
+      return WebAssembly.instantiate(readMiniProgramSource(path.join(root, 'miniprogram', file)), imports);
     },
   });
   const context = vm.createContext({ console, wx, WXWebAssembly, Uint8Array, Uint8ClampedArray, DataView, ArrayBuffer,
@@ -115,8 +115,8 @@ async function testPageAndUpload() {
     };
   }
   for (const [file, quality, callback] of [
-    ['packages/frontend/pages/goods/comments/create/index.ts', 50, 'onSubmitBtnClick'],
-    ['packages/frontend/pages/order/apply-service/index.ts', 100, 'onSubmit'],
+    ['miniprogram/goods/comments/create/index.ts', 50, 'onSubmitBtnClick'],
+    ['miniprogram/order/apply-service/index.ts', 100, 'onSubmit'],
   ]) {
     const instance = loadPage(file);
     instance.data.isAllowedSubmit = true;
@@ -134,15 +134,15 @@ async function testPageAndUpload() {
   }
   let uploadOptions;
   const exports = {};
-  const source = ts.transpileModule(readMiniProgramSource(path.join(root, 'packages/api/utils/cloud.ts'), 'utf8'), {
+  const source = ts.transpileModule(readMiniProgramSource(path.join(root, 'miniprogram/services/utils/cloud.ts'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   const urlExports = {};
-  vm.runInNewContext(ts.transpileModule(readMiniProgramSource(path.join(root, 'packages/api/utils/temp-file-urls.ts'), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readMiniProgramSource(path.join(root, 'miniprogram/services/utils/temp-file-urls.ts'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports: urlExports });
   const readRetry = {};
-  vm.runInNewContext(ts.transpileModule(readMiniProgramSource(path.join(root, 'packages/api/utils/cloud-read-retry.ts'), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readMiniProgramSource(path.join(root, 'miniprogram/services/utils/cloud-read-retry.ts'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports: readRetry });
   vm.runInNewContext(source, { exports, require(ref) {

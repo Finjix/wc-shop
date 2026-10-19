@@ -30,18 +30,18 @@ function load(file) {
     if (name === 'tdesign-miniprogram/toast/index') return { default() {} };
     if (!name.startsWith('.')) throw new Error(`Unexpected import: ${name}`);
     const dependency = path.resolve(path.dirname(absolute), `${name}.ts`);
-    if (dependency === path.join(root, 'common/updateManager.ts')) return { default() {} };
-    if (dependency === path.join(root, 'packages/api/utils/api.ts')) return { getApiErrorMessage: (error) => error.message };
+    if (dependency === path.join(root, 'miniprogram/common/updateManager.ts')) return { default() {} };
+    if (dependency === path.join(root, 'miniprogram/services/utils/api.ts')) return { getApiErrorMessage: (error) => error.message };
     return load(dependency);
   });
   return exports;
 }
 
 async function testAddressSelection() {
-  load('app.ts');
-  load('packages/frontend/pages/order/order-confirm/index.ts');
+  load('miniprogram/app.ts');
+  load('miniprogram/order/order-confirm/index.ts');
   const order = { ...page, handleOptionsParams(value) { this.selected = value.userAddressReq; } };
-  load('packages/frontend/pages/user/address/list/index.ts');
+  load('miniprogram/user/address/list/index.ts');
   const addresses = { ...page, selectMode: true };
   order.onGotoAddress();
   assert.match(navigation.at(-1).url, /selectMode=1/);
@@ -74,7 +74,7 @@ async function testAddressSelection() {
 }
 
 async function testAddressEditDefaultSwitch() {
-  load('packages/frontend/pages/user/address/edit/index.ts');
+  load('miniprogram/user/address/edit/index.ts');
   const edit = {
     ...page,
     data: JSON.parse(JSON.stringify(page.data)),
@@ -82,7 +82,7 @@ async function testAddressEditDefaultSwitch() {
     setData(values, done) { Object.assign(this.data, values); done?.(); },
     onVerifyInputLegal() { return { isLegal: true, tips: '' }; },
   };
-  const service = load('packages/api/services/address/fetchAddress.ts');
+  const service = load('miniprogram/services/address/fetchAddress.ts');
   const originalFetch = service.fetchDeliveryAddress;
   try {
     for (const value of [true, 1, '1', 'true', false, 0, '0', 'false']) {
@@ -130,7 +130,7 @@ async function dialogScenario(file) {
   assert.equal(component.data.confirmBtn.content, options.confirmBtn.content);
   assert.equal(component.data.confirmBtn.rootClass, options.confirmBtn.rootClass);
   const data = JSON.parse(JSON.stringify(component.data));
-  if (file === 'packages/frontend/pages/order/utils/dialog.ts') {
+  if (file === 'miniprogram/order/utils/dialog.ts') {
     assert.match(component.data.confirmBtn.style, /order: -1/);
     delete data.confirmBtn.style;
   }
@@ -141,7 +141,7 @@ async function dialogScenario(file) {
   component._onCancel('cancel');
   assert.equal(await caught, 'cancel');
   assert.equal(state.selector, '#custom-dialog');
-  if (file === 'packages/frontend/pages/order/utils/dialog.ts') {
+  if (file === 'miniprogram/order/utils/dialog.ts') {
     const custom = dialog.confirm({ confirmBtn: { content: '删除', disabled: true }, cancelBtn: '暂不删除' });
     assert.equal(component.data.confirmBtn.content, '确定');
     assert.equal(component.data.confirmBtn.disabled, true);
@@ -150,7 +150,7 @@ async function dialogScenario(file) {
     await custom;
   }
   const alert = dialog.alert({ content: '请选择订单' });
-  if (file === 'packages/frontend/pages/order/utils/dialog.ts') {
+  if (file === 'miniprogram/order/utils/dialog.ts') {
     assert.equal(component.data.confirmBtn.content, '确定');
     assert.equal(component.data.cancelBtn, '');
   }
@@ -164,15 +164,15 @@ async function run() {
   testAsyncComponents();
   await testAddressSelection();
   await testAddressEditDefaultSwitch();
-  assert.deepEqual(await dialogScenario('packages/frontend/pages/order/utils/dialog.ts'), await dialogScenario('node_modules/tdesign-miniprogram/miniprogram_dist/dialog/index.js'));
+  assert.deepEqual(await dialogScenario('miniprogram/order/utils/dialog.ts'), await dialogScenario('node_modules/tdesign-miniprogram/miniprogram_dist/dialog/index.js'));
   console.log('PASS subpackage Dialog matches TDesign confirm/cancel/alert and preserves button styling');
-  const order = load('packages/frontend/pages/order/utils/format.ts');
-  const goods = load('packages/frontend/pages/goods/utils/formatTime.ts');
+  const order = load('miniprogram/services/order/utils/format.ts');
+  const goods = load('miniprogram/services/goods/utils/formatTime.ts');
   for (const value of ['2026-10-05T04:00:00Z', 'invalid', '', null, 1791172800000, '1791172800000']) {
     assert.equal(order.formatTime(value, 'YYYY/MM/DD HH:mm:ss'), goods.formatTime(value, 'YYYY/MM/DD HH:mm:ss'));
   }
   assert.equal(order.priceFormat(12345, 2), '123.45');
-  assert.equal(load('packages/frontend/pages/user/utils/phone.ts').phoneRegCheck('13800000000'), true);
+  assert.equal(load('miniprogram/user/utils/phone.ts').phoneRegCheck('13800000000'), true);
   console.log('PASS split time, price and phone utilities');
 }
 
