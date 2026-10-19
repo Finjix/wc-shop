@@ -345,14 +345,15 @@ async function testSkuTimestampIdsAvoidCollisions() {
 async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   const runtime = makeRuntime();
   const context = { auth: { uid: 'admin-1' } };
+  const detailImages = Array.from({ length: 6 }, (_, index) => `detail-${index + 1}.jpg`);
   const created = await adminEndpoint({}, context, runtime, 'products.save', {
-    title: '规格商品', primaryImage: 'cover.jpg', detailImages: ['detail-1.jpg', 'detail-2.jpg'],
+    title: '规格商品', primaryImage: 'cover.jpg', detailImages,
     variants: [{ name: '大份', salePrice: 3900 }, { name: '小份', salePrice: 1900 }],
   });
   assert.strictEqual(created.minSalePrice, 1900);
   assert.strictEqual(created.maxSalePrice, 3900);
   assert.deepStrictEqual(created.images, ['cover.jpg']);
-  assert.deepStrictEqual(created.detailImages, ['detail-1.jpg', 'detail-2.jpg']);
+  assert.deepStrictEqual(created.detailImages, detailImages);
   const requiredFields = { title: '规格商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'], variants: [{ name: '小份', salePrice: 1900 }] };
   for (const invalid of [
     { ...requiredFields, title: '' },
@@ -373,7 +374,7 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   );
   await assert.rejects(
     () => adminEndpoint({}, context, runtime, 'products.save', {
-      id: created._id, title: '规格商品', primaryImage: 'cover.jpg', detailImages: Array(4).fill('detail.jpg'),
+      id: created._id, title: '规格商品', primaryImage: 'cover.jpg', detailImages: Array(7).fill('detail.jpg'),
       variants: [{ name: '小份', salePrice: 1900 }],
     }),
     appError('INVALID_ARGUMENT'),
@@ -386,12 +387,12 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   const small = skus.find((sku) => sku.salePrice === 1900);
   assert.strictEqual(small.specInfo[0].specValueId, created.specList[0].specValueList[1].specValueId);
   const updated = await adminEndpoint({}, context, runtime, 'products.save', {
-    id: created._id, title: '规格商品', primaryImage: 'new-cover.jpg', detailImages: ['detail-1.jpg'],
+    id: created._id, title: '规格商品', primaryImage: 'new-cover.jpg', detailImages,
     variants: [{ skuId: small._id, name: '小份', salePrice: 2400 }],
   });
   assert.strictEqual(updated.minSalePrice, 2400);
   assert.deepStrictEqual(updated.images, ['new-cover.jpg']);
-  assert.deepStrictEqual(updated.detailImages, ['detail-1.jpg']);
+  assert.deepStrictEqual(updated.detailImages, detailImages);
   assert.strictEqual(runtime.records.skus[small._id].salePrice, 2400);
   const removedSkuId = skus.find((sku) => sku._id !== small._id)._id;
   assert.strictEqual(runtime.records.skus[removedSkuId].deletedByAdmin, true);
