@@ -5,6 +5,5 @@ Component({
   properties: {
     asset: { type: String, value: '' },
     size: { type: String, value: '100%' },
-    height: { type: String, value: '16px' },
   },
 });

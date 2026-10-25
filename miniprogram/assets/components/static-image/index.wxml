@@ -1,4 +1,3 @@
 <image wx:if="{{asset === 'invite-cashback'}}" style="display:block;width:{{size}};height:{{size}};" src="../../home/invite-cashback.gif" mode="aspectFill" />
 <image wx:elif="{{asset === 'customer-gift'}}" style="display:block;width:{{size}};height:{{size}};" src="../../home/customer-gift.gif" mode="aspectFill" />
 <image wx:elif="{{asset === 'default-avatar'}}" style="display:block;width:{{size}};height:{{size}};" src="../../user/default-avatar.jpg" mode="aspectFill" />
-<image wx:elif="{{asset === 'service-promise'}}" style="display:block;width:{{size}};height:{{height}};" src="../../home/service-promise.gif" mode="scaleToFill" />

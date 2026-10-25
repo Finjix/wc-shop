@@ -88,15 +88,11 @@ async function main() {
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'wc-shop-promos-'));
   fs.mkdirSync(output, { recursive: true });
   try {
-    for (const [name, input, heading, backdrop, peach] of [
-      ['invite-cashback', 'coins.png', 'invite-title.png', 'invite-background.png', false],
-      ['customer-gift', 'gift.png', 'gift-title.png', 'gift-background.png', true],
+    for (const [name, input, backdrop, peach] of [
+      ['invite-cashback', 'coins.png', 'invite-background.png', false],
+      ['customer-gift', 'gift.png', 'gift-background.png', true],
     ]) {
       if (process.argv[2] && process.argv[2] !== name) continue;
-      const title = path.join(temporary, `${name}-title.png`);
-      await sharp(path.join(source, heading)).trim({ background: '#00000000', threshold: 8 })
-        .extend({top:4,bottom:4,left:4,right:4,background:'#00000000'})
-        .resize({width:peach ? 430 : 330}).png().toFile(title);
       const particleDir = path.join(temporary, name);
       fs.mkdirSync(particleDir);
       const giftPixels=peach ? await sharp(path.join(source,input)).resize(390,390).blur(0.55).ensureAlpha().raw().toBuffer({resolveWithObject:true}) : null;
@@ -112,6 +108,17 @@ async function main() {
           const cell=await sharp(atlas).extract({left,top,width,height}).png().toBuffer();
           glyphs.push(await sharp(cell).trim({background:'#00000000',threshold:8}).resize({width:68,height:84,fit:'inside'}).png().toBuffer({resolveWithObject:true}));
         }
+      } else {
+        const atlas=path.join(source,'invite-glyphs.png');
+        const meta=await sharp(atlas).metadata();
+        const width=Math.floor(meta.width/2);
+        // The top row's bevel extends below the geometric midpoint; split in the empty row gap.
+        const rowBoundary=Math.round(meta.height*0.515625);
+        for(let i=0;i<4;i++) {
+          const top=i<2 ? 0 : rowBoundary,height=i<2 ? rowBoundary : meta.height-rowBoundary;
+          const cell=await sharp(atlas).extract({left:i%2*width,top,width,height}).png().toBuffer();
+          glyphs.push(await sharp(cell).trim({background:'#00000000',threshold:8}).resize({width:82,height:100,fit:'inside'}).png().toBuffer({resolveWithObject:true}));
+        }
       }
       for (let frame=0;frame<FRAMES;frame++) {
         const angle=frame/FRAMES*Math.PI*2;
@@ -119,9 +126,6 @@ async function main() {
         const art=peach ? await flutterRibbon(giftPixels,angle) : await sharp(path.join(source,input)).resize(iconWidth,iconWidth).blur(0.55).png().toBuffer();
         const iconX=Math.round((512-iconWidth)/2);
         const iconY=peach ? 18 : 88;
-        const titleWidth=Math.round((peach ? 430 : 330)*(1+0.025*Math.sin(angle)));
-        const text=peach ? null : await sharp(title).resize({width:titleWidth}).rotate(0.69,{background:'#00000000'}).png().toBuffer({resolveWithObject:true});
-        const titleY=text ? Math.round(28+6*Math.sin(angle)+(140-text.info.height)/2) : 0;
         const canvas=()=>sharp({create:{width:512,height:512,channels:4,background:'#00000000'}});
         await canvas().composite([{input:art,left:iconX,top:iconY}]).png().toFile(path.join(particleDir,`art-${String(frame).padStart(3,'0')}.png`));
         const lettering=[];
@@ -131,7 +135,15 @@ async function main() {
             const glyph=await sharp(glyphs[i].data).resize({width:Math.round(glyphs[i].info.width*scale)}).png().toBuffer({resolveWithObject:true});
             lettering.push({input:glyph.data,left:Math.round(80+i*72-glyph.info.width/2),top:Math.round(434-glyph.info.height/2)});
           }
-        } else lettering.push({input:text.data,left:Math.round((512-text.info.width)/2),top:titleY});
+        } else {
+          const t=frame/FRAMES;
+          const smooth=x=>x*x*(3-2*x);
+          const spread=t<0.1 ? 0 : t<0.4 ? smooth((t-0.1)/0.3) : t<0.55 ? 1 : t<0.85 ? 1-smooth((t-0.55)/0.3) : 0;
+          for(let i=0;i<4;i++) {
+            const glyph=glyphs[i];
+            lettering.push({input:glyph.data,left:Math.round(256+(i-1.5)*(80+28*spread)-glyph.info.width/2),top:Math.round(98-glyph.info.height/2)});
+          }
+        }
         await canvas().composite(lettering).png().toFile(path.join(particleDir,`title-${String(frame).padStart(3,'0')}.png`));
         await sharp(particles(frame, peach)).png().toFile(path.join(particleDir, `${String(frame).padStart(3,'0')}.png`));
         await sharp(highlights(frame, peach)).png().toFile(path.join(particleDir, `fx-${String(frame).padStart(3,'0')}.png`));

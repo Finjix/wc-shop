@@ -36,20 +36,10 @@
   border-radius: 0 !important;
 }
 
-.home-safety-banner {
-  display: flex;
-  width: 100%;
-  height: 16px;
-  box-sizing: border-box;
-  align-items: center;
-  justify-content: center;
-  background-color: #FCF8EE !important;
-  overflow: hidden;
-}
-
 .home-promo-cards {
   display: flex;
-  gap: 4rpx;
+  gap: 8rpx;
+  margin-top: 8rpx;
   padding: 0;
   background: #FCF8EE;
 }
@@ -65,8 +55,8 @@
   font-size: 32rpx;
   line-height: normal;
   display: flex;
-  width: calc((100% - 4rpx) / 2);
-  height: calc((100vw - 4rpx) / 2);
+  width: calc((100% - 8rpx) / 2);
+  height: calc((100vw - 8rpx) / 2);
   box-sizing: border-box;
   align-items: center;
   justify-content: center;

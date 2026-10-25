@@ -41,8 +41,7 @@
     "test:temp-file-urls": "node scripts/test-temp-file-urls.cjs",
     "test:admin-public": "node scripts/test-admin-public.cjs",
     "build:home-promos": "node scripts/build-home-promos.cjs",
-    "test:home-promos": "node scripts/test-home-promos.cjs",
-    "build:service-promise": "node scripts/build-service-promise.cjs"
+    "test:home-promos": "node scripts/test-home-promos.cjs"
   },
   "author": "",
   "license": "ISC",

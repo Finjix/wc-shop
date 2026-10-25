@@ -50,7 +50,6 @@ async function run() {
     bytes+=fs.statSync(file).size;
     console.log(`PASS ${name}: 256x256, 128 colors, 35 frames / 2.5 seconds (14 fps), opaque, looping`);
   }
-  bytes+=fs.statSync(path.join(mini,'assets/home/service-promise.gif')).size;
   bytes+=fs.statSync(path.join(mini,'assets/user/default-avatar.jpg')).size;
   bytes+=fs.readdirSync(path.join(mini,'assets/components/static-image')).reduce((sum,name)=>sum+fs.statSync(path.join(mini,'assets/components/static-image',name)).size,0);
   assert.ok(bytes<2*1024*1024,`resource package exceeds 2 MiB: ${bytes}`);
