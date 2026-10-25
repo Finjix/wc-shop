@@ -46,7 +46,7 @@ Component({
       try {
         const result = await request('home.get', {});
         const text = result?.config?.searchText;
-        this.setData({ marqueeText: typeof text === 'string' && text.trim() !== '欢迎光临番薯鞋店！' ? text.trim() : '' });
+        this.setData({ marqueeText: typeof text === 'string' && text.trim() !== '欢迎光临番薯鞋店！' ? Array.from(text.trim()).slice(0, 16).join('') : '' });
       } catch { /* 离线时保留当前显示状态 */ }
     },
     focusSearch() {

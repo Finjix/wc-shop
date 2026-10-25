@@ -16,7 +16,7 @@ function imageLink(value, field) {
 function optionalText(value, field, max) {
   assert(typeof value === 'string', { field });
   const text = value.trim();
-  assert(text.length <= max, { field, max });
+  assert(Array.from(text).length <= max, { field, max });
   return text;
 }
 
@@ -27,7 +27,7 @@ function validateHomeConfig(value) {
   assert(banners.length <= 4, { field: 'banners', max: 4 });
   assert(recommendations.length <= 4, { field: 'recommendations', max: 4 });
   return {
-    searchText: optionalText(input.searchText, 'searchText', 120),
+    searchText: optionalText(input.searchText, 'searchText', 16),
     banners: banners.map((item, index) => imageLink(item, `banners.${index}`)),
     recommendations: recommendations.map((item, index) => imageLink(item, `recommendations.${index}`)),
   };

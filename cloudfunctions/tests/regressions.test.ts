@@ -963,6 +963,10 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   const config = { searchText: DEFAULT_SEARCH_TEXT,
     banners: [{ image: 'cloud://home/slide.jpg', productId: 'product-1' }],
     recommendations: [{ image: 'cloud://home/recommend.jpg', productId: 'product-1' }, blank, blank, blank] };
+  for (const searchText of ['', '好'.repeat(16), 'a'.repeat(16), '❤️']) {
+    assert.strictEqual(validateHomeConfig({ ...config, searchText }).searchText, searchText);
+  }
+  assert.throws(() => validateHomeConfig({ ...config, searchText: '好'.repeat(17) }), appError('INVALID_ARGUMENT'));
   assert.deepStrictEqual(validateHomeConfig({ ...config, sections: 'retired', promos: 'retired', bannerText: {} }), config);
   for (const count of [0, 1, 2, 3, 4]) {
     assert.strictEqual(validateHomeConfig({ ...config, recommendations: Array(count).fill(blank) }).recommendations.length, count);

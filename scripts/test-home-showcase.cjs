@@ -126,7 +126,7 @@ async function testAssets() {
   const search = fs.readFileSync('miniprogram/components/top-search/index.wxml', 'utf8');
   assert.equal((search.match(/\{\{marqueeText\}\}/g) || []).length, 1);
   assert.match(search, /!focus && !value && marqueeText/);
-  assert.match(fs.readFileSync('miniprogram/components/top-search/index.wxss', 'utf8'), /top-search-blink 1\.6s/);
-  console.log('PASS assets: transparent single PNGs and single blinking search label');
+  assert.doesNotMatch(fs.readFileSync('miniprogram/components/top-search/index.wxss', 'utf8'), /animation|@keyframes/);
+  console.log('PASS assets: transparent single PNGs and static search label');
 }
 Promise.resolve().then(testHome).then(testDetails).then(testAssets).catch((error) => { console.error(error); process.exitCode = 1; });

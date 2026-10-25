@@ -56,14 +56,8 @@
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
-  animation: top-search-blink 1.6s ease-in-out infinite;
   color: #5d5d5d;
   font-size: 26rpx;
   line-height: 64rpx;
   white-space: nowrap;
-}
-
-@keyframes top-search-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .25; }
 }
