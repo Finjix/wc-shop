@@ -31,7 +31,7 @@
     </view>
   </view>
   <view class="comments-empty" wx:elif="{{ownLoading}}">正在加载…</view>
-  <view class="comments-empty" wx:else>{{loadError || '暂无评价'}}</view>
+  <view class="comments-empty" wx:else>{{loadError || '暂无'}}</view>
 </block>
 <block wx:else>
 <view class="comments-header">
@@ -74,6 +74,7 @@
 	/>
 </view>
 <view class="comments-empty" wx:if="{{loadError}}">{{loadError}}</view>
+<view class="comments-empty" wx:elif="{{hasLoaded && loadMoreStatus !== 1 && loadMoreStatus !== 3 && commentList.length === 0}}">暂无</view>
 </block>
 </view>
 </scroll-view>

@@ -90,6 +90,7 @@
         bind:click="gotoGoodsDetail"
       />
     </view>
+    <view class="goods-list-empty" wx:if="{{hasLoaded && !loading && goodsList.length === 0 && loadMoreStatus !== 3}}">暂无</view>
     <load-more
       wx:if="{{goodsList.length > 0 || loadMoreStatus === 3}}"
       status="{{loadMoreStatus}}"

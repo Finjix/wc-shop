@@ -112,7 +112,8 @@ async function readProducts(runtime, data) {
     where.minSalePrice = command.and(command.gte(minPrice), command.lte(maxPrice));
   } else if (Number.isFinite(minPrice) && command && command.gte) where.minSalePrice = command.gte(minPrice);
   else if (Number.isFinite(maxPrice) && command && command.lte) where.minSalePrice = command.lte(maxPrice);
-  const keyword = data.keyword ? string(data.keyword, 'keyword', { max: 80 }) : '';
+  const keyword = typeof data.keyword === 'string' && !data.keyword.trim()
+    ? '' : data.keyword ? string(data.keyword, 'keyword', { max: 80 }) : '';
   const sort = Number(data.sort);
   if (keyword || sort === 3) {
     // Cross-field search and SKU ordering must run before pagination.

@@ -313,7 +313,7 @@ async function run() {
   const sixBanners = Array.from({ length: 6 }, (_, index) => ({ image: `https://example.test/banner-${index + 1}.jpg`, productId: '' }));
   respond = async () => ({ config: { banners: sixBanners, promos: [], sections: [] } });
   await homepage.loadHomePage();
-  assert.deepEqual(Array.from(homepage.data.swiperSlides), sixBanners.slice(0, 4).map((entry) => entry.image));
+  assert.deepEqual(Array.from(homepage.data.swiperSlides), [sixBanners[0], ...sixBanners.slice(1, 4).reverse()].map((entry) => entry.image));
   assert.equal(homepage.data.swiperProductIds.length, 4);
   assert.equal(homepage.data.interval, 2500);
   respond = async () => ({ config: { banners: [...sixBanners, { image: 'https://example.test/extra.jpg' }], promos: [], sections: [] } });
@@ -359,6 +359,23 @@ async function run() {
   viewer.onImageError();
   assert.equal(previewFailed, true);
   assert.equal(viewer.data.visible, false);
+  load('miniprogram/goods/result/index.ts');
+  const searchPage = instance(page);
+  let finishSearch;
+  respond = () => new Promise((resolve) => { finishSearch = resolve; });
+  const searchLoad = searchPage.init(true);
+  await flush();
+  assert.equal(searchPage.data.loading, true);
+  assert.equal(searchPage.data.hasLoaded, false, 'do not show empty state while waiting');
+  finishSearch({ items: [], total: 0 }); await searchLoad;
+  assert.equal(searchPage.data.hasLoaded, true); assert.equal(searchPage.data.loading, false);
+  assert.equal(searchPage.data.goodsList.length, 0); assert.equal(searchPage.data.loadMoreStatus, 0);
+  respond = async () => { throw new Error('网络不可用'); };
+  await searchPage.init(true);
+  assert.equal(searchPage.data.loadMoreStatus, 3, 'failed searches expose retry instead of the empty state');
+  searchPage.onReachBottom();
+  assert.equal(searchPage.data.loadMoreStatus, 3, 'bottom events cannot replace errors with an empty result');
+  console.log('PASS search loading, successful empty results and retryable errors');
   console.log('PASS image URLs, snapshot adapters, comment IDs, async races, home failure and retry, product image preview');
 }
 run().catch((error) => { console.error(error); process.exitCode = 1; });

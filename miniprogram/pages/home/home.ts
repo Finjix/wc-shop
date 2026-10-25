@@ -23,7 +23,7 @@ Page({
     pageLoading: false,
     loadError: '',
     current: 0,
-    autoplay: true,
+    autoplay: false,
     duration: '500',
     interval: 2500,
     swiperImageProps: { mode: 'aspectFill', showMenuByLongpress: true },
@@ -101,13 +101,15 @@ Page({
         if (!entry.image || !product) return [];
         return [{ image: entry.image, title: product.title || '', productId: String(product._id) }];
       });
-      // Preserve the old visual order and rightward autoplay without mirroring
-      // the native touch surface. Four physical slides disambiguate a two-card loop.
-      const orderedSlides = recommendations.length ? [recommendations[0], ...recommendations.slice(1).reverse()] : [];
-      const recommendationSlides = orderedSlides.length === 2 ? [...orderedSlides, ...orderedSlides] : orderedSlides;
+      // Reverse banner playback while keeping configured content order and native gestures.
+      // Two items need four physical slides to make the circular direction unambiguous.
+      const orderedBanners = slides.length ? [slides[0], ...slides.slice(1).reverse()] : [];
+      const bannerSlides = orderedBanners.length === 2 ? [...orderedBanners, ...orderedBanners] : orderedBanners;
+      const recommendationSlides = recommendations.length === 2 ? [...recommendations, ...recommendations] : recommendations;
       this.setData({
-        swiperSlides: slides.map((item) => item.image),
-        swiperProductIds: slides.map((item) => item.productId),
+        swiperSlides: bannerSlides.map((item) => item.image),
+        swiperProductIds: bannerSlides.map((item) => item.productId),
+        current: 0,
         recommendations,
         recommendationSlides,
         recommendationCurrent: 0,
@@ -127,10 +129,14 @@ Page({
 
   startRecommendationTimer() {
     this.stopRecommendationTimer();
-    if (!this.visible || this.data.recommendations.length < 2) return;
+    if (!this.visible || (this.data.recommendations.length < 2 && this.data.swiperSlides.length < 2)) return;
     this.recommendationTimer = setInterval(() => {
       const count = this.data.recommendationSlides.length;
-      this.setData({ recommendationCurrent: (this.data.recommendationCurrent + count - 1) % count });
+      const banners = this.data.swiperSlides.length;
+      const update = {};
+      if (count > 1) update.recommendationCurrent = (this.data.recommendationCurrent + 1) % count;
+      if (banners > 1) update.current = (this.data.current + banners - 1) % banners;
+      this.setData(update);
     }, 2500);
   },
 
@@ -141,6 +147,11 @@ Page({
 
   onRecommendationChange({ detail }) {
     this.setData({ recommendationCurrent: detail.current });
+    if (detail.source === 'touch') this.startRecommendationTimer();
+  },
+
+  onBannerChange({ detail }) {
+    this.setData({ current: detail.current });
     if (detail.source === 'touch') this.startRecommendationTimer();
   },
 

@@ -162,7 +162,7 @@ async function main() {
         '-framerate', String(FPS), '-i', path.join(particleDir, '%03d.png'),
         '-framerate', String(FPS), '-i', path.join(particleDir, 'fx-%03d.png'),
         '-filter_complex', graph, '-frames:v', String(FRAMES), '-loop', '0', '-final_delay', '7', raw]);
-      const destination=path.join(output,`${name}.gif`);
+      const destination=path.join(output,`${name}-source.webp`);
       const optimized=path.join(temporary,`${name}-optimized.gif`);
       const budget=peach ? 700000 : 500000;
       let lossiness;
@@ -171,9 +171,9 @@ async function main() {
         if(fs.statSync(optimized).size<=budget) break;
       }
       if(fs.statSync(optimized).size>budget) throw new Error(`${name}: ${fs.statSync(optimized).size} bytes exceeds the resource package budget`);
-      fs.copyFileSync(optimized,destination);
+      await sharp(optimized,{animated:true}).webp({lossless:true,effort:6}).toFile(destination);
       console.log(`${name}: lossy=${lossiness}`);
-      console.log(`${name}.gif: ${fs.statSync(path.join(output, `${name}.gif`)).size} bytes`);
+      console.log(`${name}-source.webp: ${fs.statSync(destination).size} bytes`);
     }
   } finally {
     // Only remove the unique temporary directory created by this process.

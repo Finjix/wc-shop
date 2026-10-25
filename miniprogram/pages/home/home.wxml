@@ -30,6 +30,7 @@
         imageProps="{{swiperImageProps}}"
         list="{{swiperSlides}}"
         bind:click="navToGoodsDetail"
+        bind:change="onBannerChange"
       />
     </view>
 

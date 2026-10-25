@@ -91,8 +91,9 @@
         bind:click="gotoGoodsDetail"
       />
     </view>
+    <view class="goods-list-empty" wx:if="{{hasLoaded && !loading && goodsList.length === 0 && loadMoreStatus !== 3}}">暂无</view>
     <load-more
-      wx:if="{{loadMoreStatus === 1}}"
+      wx:if="{{loadMoreStatus === 1 || loadMoreStatus === 3}}"
       status="{{loadMoreStatus}}"
       no-more-text="没有更多了"
       bind:retry="onRetryLoad"

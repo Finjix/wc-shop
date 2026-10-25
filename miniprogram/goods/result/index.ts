@@ -150,7 +150,7 @@ Page({
         goodsList: [],
         loading: false,
         hasLoaded: true,
-        loadMoreStatus: 0,
+        loadMoreStatus: 3,
       });
       wx.showToast({ title: getApiErrorMessage(error, '查询失败，请稍后重试'), icon: 'none' });
     }
@@ -187,6 +187,7 @@ Page({
   },
 
   onReachBottom() {
+    if ([1, 3].includes(this.data.loadMoreStatus)) return;
     const { goodsList } = this.data;
     const { total = 0 } = this;
     if (goodsList.length === total) {

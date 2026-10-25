@@ -1,18 +1,12 @@
 // @ts-nocheck
 
 function normalize(value) {
-  return String(value || '').normalize('NFKC').toLowerCase();
+  return String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/gu, '');
 }
 
 function searchTerms(keyword) {
-  const text = normalize(keyword);
-  // Chinese words as well as whitespace-separated/English words. Punctuation
-  // separates terms rather than acting as a regular expression.
-  if (typeof Intl.Segmenter === 'function') {
-    return [...new Set(Array.from(new Intl.Segmenter('zh-CN', { granularity: 'word' }).segment(text))
-      .filter((part) => part.isWordLike).map((part) => part.segment))];
-  }
-  return [...new Set(text.split(/[^\p{L}\p{N}]+/u).filter(Boolean))];
+  // Search characters independently; punctuation is never a regular expression.
+  return [...new Set(Array.from(normalize(keyword)).filter((character) => /[\p{L}\p{N}]/u.test(character)))];
 }
 
 function matchesProductSearch(product, skus, categories, terms) {
@@ -34,8 +28,8 @@ function matchesProductSearch(product, skus, categories, terms) {
     for (const spec of sku.specInfo || []) fields.push(spec.specValue, spec.specValueName, spec.value, spec.valueName);
   }
   const texts = fields.filter((field) => typeof field === 'string').map(normalize);
-  // Each term must match, but different terms may match different fields.
-  return terms.every((term) => texts.some((text) => text.includes(term)));
+  // Any one character in any searchable field is enough.
+  return terms.some((term) => texts.some((text) => text.includes(term)));
 }
 
 module.exports = { searchTerms, matchesProductSearch };

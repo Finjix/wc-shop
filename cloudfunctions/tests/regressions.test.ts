@@ -261,18 +261,22 @@ async function testProductSearchAcrossNamesCategoriesAndSpecs() {
   };
   const read = (keyword, extra = {}) => shopEndpoint({}, {}, runtime, 'products.list', { keyword, ...extra });
   const ids = (response) => response.items.map((item) => item._id);
-  assert.deepStrictEqual(ids(await read('ARABICA')), ['arabica']);
+  assert.deepStrictEqual(ids(await read('ARABICA')), ['arabica', 'blend']);
+  assert.deepStrictEqual(ids(await read(' Ａ R\tA B I C A　')), ['arabica', 'blend'], 'ignore whitespace, case and full-width forms');
+  assert.deepStrictEqual(ids(await read('不存在杯')), ['cup'], 'one Chinese character is sufficient');
+  assert.deepStrictEqual(ids(await read('ZZZ 5')), ['arabica', 'blend'], 'one matching number is sufficient');
   assert.deepStrictEqual(ids(await read('饮品')), ['arabica', 'blend']);
   assert.deepStrictEqual(ids(await read('咖啡')), ['arabica', 'blend']);
-  assert.deepStrictEqual(ids(await read('500g')), ['arabica']);
-  assert.deepStrictEqual(ids(await read('浅烘焙')), ['arabica']);
-  assert.deepStrictEqual(ids(await read('咖啡 大份')), ['arabica']);
-  assert.deepStrictEqual(ids(await read('咖啡大份')), ['arabica']);
-  assert.deepStrictEqual(ids(await read('饮品 ARABICA 500g 浅烘焙')), ['arabica']);
-  assert.deepStrictEqual(ids(await read('咖啡 陶瓷杯')), []);
+  assert.deepStrictEqual(ids(await read('500g')), ['arabica', 'blend']);
+  assert.deepStrictEqual(ids(await read('浅烘焙')), ['arabica', 'blend']);
+  assert.deepStrictEqual(ids(await read('咖啡 大份')), ['arabica', 'blend']);
+  assert.deepStrictEqual(ids(await read('咖啡大份')), ['arabica', 'blend']);
+  assert.deepStrictEqual(ids(await read('饮品 ARABICA 500g 浅烘焙')), ['arabica', 'blend']);
+  assert.deepStrictEqual(ids(await read('咖啡 陶瓷杯')), ['cup', 'arabica', 'blend']);
   assert.deepStrictEqual(ids(await read('已删除规格')), []);
   assert.deepStrictEqual(ids(await read('未配置规格')), []);
   assert.deepStrictEqual(ids(await read('.*')), []);
+  assert.deepStrictEqual(ids(await read(' \t　 ')), ['cup', 'arabica', 'blend'], 'only whitespace means no search filter');
   assert.deepStrictEqual(ids(await read('咖啡', { sort: 1, direction: 'asc' })), ['blend', 'arabica']);
   assert.deepStrictEqual(ids(await read('咖啡', { sort: 3 })), ['blend', 'arabica']);
   assert.deepStrictEqual(ids(await read('咖啡', { minPrice: 150 })), ['arabica']);
@@ -311,7 +315,7 @@ async function testProductListSortsByNameSkuAndPrice() {
   const secondPage = await read({ sort: 3, page: 2, pageSize: 1 });
   assert.deepStrictEqual(ids(secondPage), ['a']);
   assert.strictEqual(secondPage.total, 3);
-  assert.deepStrictEqual(ids(await read({ sort: 3, keyword: 'Apple' })), ['a']);
+  assert.deepStrictEqual(ids(await read({ sort: 3, keyword: 'Apple' })), ['b', 'a', 'c']);
   assert.deepStrictEqual(ids(await read({ sort: 3, minPrice: 200 })), ['a', 'c']);
   assert.deepStrictEqual(ids(await read({ sort: 1, direction: 'asc' })), ['b', 'c', 'a']);
   assert.deepStrictEqual(ids(await read({ sort: 1, direction: 'desc' })), ['a', 'c', 'b']);
@@ -2056,7 +2060,7 @@ const cases = [
   { name: 'legacy paid orders do not receive synthetic payment records for refunds', run: testLegacyPaidOrdersDoNotGainSyntheticPaymentRecords },
   { name: 'dashboard counts are complete beyond the SDK default query limit', run: testDashboardCountsBeyondSdkQueryLimit },
   { name: 'image uploads preserve bytes with unrestricted prepared admin and user output', run: testImageUploads },
-  { name: 'product search combines segmented terms across names, parent/child categories and configured specs before pagination', run: testProductSearchAcrossNamesCategoriesAndSpecs },
+  { name: 'product search matches any normalized character across names, categories and configured specs before pagination', run: testProductSearchAcrossNamesCategoriesAndSpecs },
   { name: 'product lists sort by title, newest configured SKU timestamp and ascending/descending price before pagination', run: testProductListSortsByNameSkuAndPrice },
   { name: 'timestamp SKU IDs stay unique across variants and saves without overwriting existing SKUs', run: testSkuTimestampIdsAvoidCollisions },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },

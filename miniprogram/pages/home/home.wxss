@@ -12,7 +12,7 @@
 .home-promo-card { position: relative; width: calc((100% - 8rpx) / 2); height: calc((100vw - 8rpx) / 2); }
 .home-promo-card__action { position: absolute; top: 0; left: 0; z-index: 1; display: block; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .home-promo-card__action::after { border: 0; }
-.home-promo-card__image { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.home-promo-card__image { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: block; width: 100%; height: 100%; }
 
 .showcase-heading { display: flex; align-items: center; justify-content: center; gap: 12rpx; min-height: 64px; padding: 40rpx 24rpx 28rpx; }
 .showcase-heading__mascot { width: 64px; height: 64px; flex: 0 0 64px; }
@@ -30,7 +30,7 @@
 @keyframes heart-mascot { 0%, 60%, 100% { transform: translateY(0) scale(1) rotate(0); } 20% { transform: translateY(-6rpx) scale(1.08) rotate(-5deg); } 35% { transform: translateY(0) scale(1.02) rotate(4deg); } }
 @keyframes star-mascot { 0%, 100% { transform: translateY(0) rotate(-8deg) scale(1); opacity: .9; } 35% { transform: translateY(-7rpx) rotate(8deg) scale(1.06); opacity: 1; } 65% { transform: translateY(2rpx) rotate(0) scale(.98); opacity: .85; } }
 
-/* Keep native touch coordinates; automatic rightward rotation is driven by current. */
+/* Keep native touch coordinates; automatic rotation is driven by current. */
 .home-recommendation-swiper { width: 100%; height: calc(100vw * 0.8 * 16 / 9 + 32rpx); }
 .home-recommendation-card { width: 100%; height: calc(100vw * 0.8 * 16 / 9); overflow: hidden; border-radius: 48rpx; box-shadow: 0 10rpx 22rpx rgba(105, 89, 65, .12); opacity: .72; transform: scale(.84); transition: transform 500ms ease, opacity 500ms ease; }
 .home-recommendation-card--current { transform: scale(1); opacity: 1; }

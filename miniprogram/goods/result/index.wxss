@@ -140,3 +140,11 @@ page {
 .goods-list-container .price-ipts-wrap .price-ipt {
   border-radius: 8rpx;
 }
+
+.goods-list-empty {
+  padding: 120rpx 32rpx;
+  color: #999;
+  font-size: 28rpx;
+  line-height: 40rpx;
+  text-align: center;
+}

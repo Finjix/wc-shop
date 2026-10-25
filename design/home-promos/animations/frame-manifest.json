@@ -1,0 +1,30 @@
+[
+  {
+    "name": "invite-cashback",
+    "key": "invite",
+    "originalGifBytes": 164857,
+    "quality": 48,
+    "bytes": 163589,
+    "file": "invite-cashback-frames-v261025.jpg",
+    "width": 256,
+    "height": 256,
+    "columns": 7,
+    "rows": 5,
+    "frames": 35,
+    "duration": 2500
+  },
+  {
+    "name": "customer-gift",
+    "key": "gift",
+    "originalGifBytes": 243880,
+    "quality": 74,
+    "bytes": 248948,
+    "file": "customer-gift-frames-v261025.jpg",
+    "width": 256,
+    "height": 256,
+    "columns": 7,
+    "rows": 5,
+    "frames": 35,
+    "duration": 2500
+  }
+]

@@ -194,6 +194,7 @@ Page({
   },
 
   onReachBottom() {
+    if ([1, 3].includes(this.data.loadMoreStatus)) return;
     const { goodsList } = this.data;
     const { total = 0 } = this;
     if (goodsList.length === total) {

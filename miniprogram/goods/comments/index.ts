@@ -164,6 +164,7 @@ Page({
   },
 
   onReachBottom() {
+    if ([1, 3].includes(this.data.loadMoreStatus)) return;
     const { totalCount = 0, commentList } = this.data;
     if (commentList.length >= totalCount) {
       this.setData({ loadMoreStatus: 2 });
