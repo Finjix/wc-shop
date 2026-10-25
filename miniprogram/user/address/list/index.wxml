@@ -22,6 +22,7 @@
       />
     </block>
   </view>
+  <view class="address-empty" wx:elif="{{addressLoaded}}">暂无</view>
 </view>
 </scroll-view>
 <view class="address-container">

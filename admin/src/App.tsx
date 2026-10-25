@@ -1,7 +1,7 @@
 import { createHashRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { AdminLayout } from './components/Layout';
 import { HomeContentPage, OverviewPage, ProductsPage } from './pages/Pages';
-import { AfterSalesPage, CommentsPage, OrderDetailPage, OrdersPage, SettingsPage } from './pages/CommercePages';
+import { AfterSalesPage, CommentsPage, OrderDetailPage, OrdersPage } from './pages/CommercePages';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { SkuInventoryPage } from './pages/SkuInventoryPage';
 import { MaintenancePage } from './pages/MaintenancePage';
@@ -25,8 +25,8 @@ const router = createHashRouter([
         { path: 'comments', element: <CommentsPage /> },
         { path: 'after-sales', element: <AfterSalesPage /> },
         { path: 'after-sales/:afterSaleId', element: <AfterSalesPage /> },
-        { path: 'after-sales/address', element: <SettingsPage /> },
-        { path: 'settings', element: <Navigate to="/after-sales/address" replace /> },
+        { path: 'after-sales/address', element: <Navigate to="/after-sales" replace /> },
+        { path: 'settings', element: <Navigate to="/after-sales" replace /> },
       ],
   },
   { path: '*', element: <Navigate to="/overview" replace /> },

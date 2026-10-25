@@ -1030,18 +1030,6 @@ async function settingsAction(runtime, data, action) {
   if (key === 'global' && existing?.value && value && typeof value === 'object' && !Array.isArray(value)) {
     value = { ...existing.value, ...value };
   }
-  if (key === 'global' && value && Object.prototype.hasOwnProperty.call(value, 'returnAddress')) {
-    const raw = value.returnAddress;
-    if (raw === null || raw === false || raw === '') value.returnAddress = null;
-    else {
-      assert(raw && typeof raw === 'object' && !Array.isArray(raw), { field: 'returnAddress' });
-      const receiver = string(raw.receiver, 'returnAddress.receiver', { max: 80 });
-      const phone = string(raw.phone, 'returnAddress.phone', { max: 32 });
-      assert(/^\+?[0-9][0-9\s-]{5,23}$/.test(phone), { field: 'returnAddress.phone' });
-      const detail = string(raw.detail, 'returnAddress.detail', { max: 240 });
-      value.returnAddress = { receiver, phone, detail };
-    }
-  }
   const item = { _id: key, key, value: clone(value), description: optionalString(data.description, 'description', { max: 240 }) || '', updatedAt: now() };
   if (existing) await settings.doc(key).update(item);
   else await setDoc(settings, key, { ...item, createdAt: now() });

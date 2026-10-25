@@ -69,11 +69,8 @@ async function main() {
     await shop('comments.create', { orderId: order._id, productId: 'p1', rating: 5, content: '隔离验收评价' });
     await shop('comments.create', { orderId: order._id, productId: 'p1', rating: 5 }, 'CONFLICT');
     const returned = await shop('afterSales.create', { orderId: order._id, type: 10, reason: '测试退货', rightsItem: [{ skuId: 's1', rightsQuantity: 2 }] });
-    await admin('afterSales.review', { id: returned._id, status: 'approved' }, 'RETURN_ADDRESS_REQUIRED');
-    assert.equal((await shop('afterSales.detail', { afterSaleId: returned._id })).status, 'pending_review', 'missing return address leaves the application pending without refunding');
-    await admin('settings.upsert', { key: 'global', value: { returnAddress: address } });
     const approved = await admin('afterSales.review', { id: returned._id, status: 'approved' });
-    assert.equal(approved.status, 'approved'); assert.equal(approved.returnAddressSnapshot.receiver, address.receiver);
+    assert.equal(approved.status, 'approved'); assert.equal(approved.returnAddressSnapshot, undefined);
     await shop('afterSales.submitTracking', { afterSaleId: returned._id, trackingNo: 'TEST-RETURN-1', logisticsCompanyName: '手工记录' });
     await admin('afterSales.confirmReturn', { afterSaleId: returned._id, amount: 200 });
     await admin('afterSales.confirmReturn', { afterSaleId: returned._id, amount: 200 });

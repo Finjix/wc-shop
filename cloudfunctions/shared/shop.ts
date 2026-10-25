@@ -993,21 +993,6 @@ function afterSaleType(value) {
   return mapped;
 }
 
-function cleanReturnAddress(value) {
-  if (!value || typeof value !== 'object') return null;
-  const receiver = String(value.receiver || '').trim();
-  const phone = String(value.phone || '').trim();
-  const detail = String(value.detail || '').trim();
-  if (!receiver || !phone || !detail) return null;
-  return { receiver, phone, detail };
-}
-
-async function returnAddressFrom(settingsCollection) {
-  const global = await getDoc(settingsCollection, 'global', false);
-  const value = global?.value || {};
-  return cleanReturnAddress(value.returnAddress);
-}
-
 async function pendingAggregate(tx, order, claim, timestamp, persist = true) {
   const hasAggregate = order.pendingRefundQuantities && typeof order.pendingRefundQuantities === 'object'
     && Number.isSafeInteger(Number(order.pendingRefundAmount));
@@ -1202,12 +1187,11 @@ async function afterSalesAction(runtime, event, context, data, action) {
   const order = await getDoc(collection(runtime, COLLECTIONS.orders), orderId, true);
   if (order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
   if (action === 'afterSales.preview') {
-    const configuredAddress = await returnAddressFrom(collection(runtime, COLLECTIONS.settings));
     const allowedStatuses = [STATUS.paid, STATUS.shipped, STATUS.received, STATUS.completed];
     const decorated = await orderWithComments(runtime, order);
     const scenario = scenarioForOrder(order);
     const policy = policyForScenario(scenario);
-    const response = { orderId, scenario, applicationPolicy: policy, items: decorated.items, allowed: allowedStatuses.includes(order.status), allowedTypes: policy.allowedTypes, returnAddressConfigured: Boolean(configuredAddress) };
+    const response = { orderId, scenario, applicationPolicy: policy, items: decorated.items, allowed: allowedStatuses.includes(order.status), allowedTypes: policy.allowedTypes };
     if (data.includeReasons) response.rightsReasonList = ['质量问题', '商品错发', '商品少发', '不想要了', '其他'].map((item) => ({ id: item, desc: item }));
     return response;
   }
@@ -1353,9 +1337,7 @@ async function moderateAfterSale(runtime, data) {
       }
       return finishRefund(tx, { ...current, ...decisionPatch, status: STATUS.approved }, order, timestamp);
     }
-    const address = await returnAddressFrom(tx.collection(COLLECTIONS.settings));
-    if (!address) throw errorFrom('RETURN_ADDRESS_REQUIRED');
-    const patch = { ...decisionPatch, status: STATUS.approved, returnAddressSnapshot: clone(address), updatedAt: timestamp };
+    const patch = { ...decisionPatch, status: STATUS.approved, updatedAt: timestamp };
     const result = await tx.collection(COLLECTIONS.afterSales).doc(existing._id).update(patch);
     if (affected(result) !== 1) throw errorFrom('CONFLICT');
     return { ...current, ...patch, _id: existing._id };

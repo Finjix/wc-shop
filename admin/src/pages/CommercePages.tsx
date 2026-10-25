@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Dialog, Input, Select, Tag } from 'tdesign-react';
-import { adminApi, ApiError } from '../lib/api';
+import { adminApi } from '../lib/api';
 import { parseRefundAmount } from '../lib/refund-amount';
 import { afterSalePolicy, afterSaleRequestLabel, afterSaleReceiptLabel } from '../lib/after-sale-policy';
 import { useConfirm } from '../components/ConfirmProvider';
-import { useBrowserLeaveWarning } from '../lib/useBrowserLeaveWarning';
 import type { AfterSale, Comment, ListResult, Order, OrderAddressGroup } from '../types';
 import { EmptyState, EmptyTable, ErrorState, Field, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
 
@@ -151,7 +150,7 @@ export function OrdersPage() {
     {loading && <LoadingState />}
     {error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
     {!loading && !error && <div className={`orders-address-groups${groups.length === 0 ? ' orders-address-groups-empty' : ''}`}>
-      {groups.length === 0 && <Panel className="orders-empty-panel orders-address-group"><Table minWidth={970}><thead><tr><th>订单号</th><th>商品 / 规格 / 数量</th><th>订单状态</th><th>操作</th></tr></thead><tbody><EmptyTable colSpan={4} /></tbody></Table></Panel>}
+      {groups.length === 0 && <Panel className="orders-empty-panel orders-address-group"><Table minWidth={970}><thead><tr><th>订单号</th><th>商品 / 规格 / 数量</th><th>订单状态</th><th>操作</th></tr></thead><tbody><EmptyTable colSpan={4} description="暂无" /></tbody></Table></Panel>}
       {groups.map((group) => {
         const pending = group.orders.filter(orderCanShip);
         return <Panel key={group.key} className="orders-address-group">
@@ -433,7 +432,7 @@ export function CommentsPage() {
       <Table minWidth={1200}>
         <colgroup><col /><col /><col /><col /><col /><col /><col /></colgroup>
         <thead><tr><th>订单号</th><th>商品 / 规格</th><th>评价</th><th colSpan={contentExpanded ? 4 : 1}>内容</th>{!contentExpanded && <><th>图片</th><th>状态</th><th>操作</th></>}</tr></thead><tbody>
-        {rows.length === 0 && <EmptyTable colSpan={7} />}
+        {rows.length === 0 && <EmptyTable colSpan={7} description="暂无" />}
         {rows.map((row) => {
           const id = String(row._id || row.id || '');
           const photos = imageIds(row.images);
@@ -563,10 +562,10 @@ export function AfterSalesPage() {
     setRefreshKey((key) => key + 1);
   };
   return <div className="orders-page after-sales-page">
-    {!afterSaleId && <div className="toolbar commerce-toolbar orders-toolbar"><Input value={query} onChange={setQuery} placeholder="订单号" /><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部</option><option value="pending_review">待审核</option><option value="approved">待寄回</option><option value="refunding">待退款</option><option value="refunded">已完成</option><option value="rejected">已拒绝</option></select><Button onClick={submitSearch}>查询</Button><Link className="after-sales-address-link" to="/after-sales/address"><Button variant="outline">售后地址设置</Button></Link></div>}
+    {!afterSaleId && <div className="toolbar commerce-toolbar orders-toolbar"><Input value={query} onChange={setQuery} placeholder="订单号" /><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部</option><option value="pending_review">待审核</option><option value="approved">待寄回</option><option value="refunding">待退款</option><option value="refunded">已完成</option><option value="rejected">已拒绝</option></select><Button onClick={submitSearch}>查询</Button></div>}
     {loading && <LoadingState />}{error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
     {!afterSaleId && !loading && !error && <Panel className={rows.length === 0 ? 'orders-empty-panel' : undefined}><Table minWidth={700}><thead><tr><th>订单号</th><th>类型</th><th>金额</th><th>状态</th><th>操作</th></tr></thead><tbody>
-      {rows.length === 0 && <EmptyTable colSpan={5} />}
+      {rows.length === 0 && <EmptyTable colSpan={5} description="暂无" />}
       {rows.map((row) => {
         const id = afterSaleIdOf(row);
         const state = afterSaleState(row.status);
@@ -638,83 +637,6 @@ export function AfterSalesPage() {
     </section></div>}
     {rejection && <div className="home-config-dialog-backdrop" role="presentation"><section className="home-config-dialog" role="dialog" aria-modal="true" aria-label="拒绝售后申请"><label className="field"><span className="rejection-field-heading"><span>拒绝原因</span><small className="rejection-character-count">{rejectReason.length} / 200</small></span><textarea rows={4} style={{ resize: 'none' }} value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} maxLength={200} /></label><div className="home-config-dialog-actions rejection-dialog-actions"><Button theme="primary" disabled={busy || !rejectReason.trim()} loading={busy} onClick={() => void review(rejection, 'rejected', rejectReason.trim())}>确认</Button><Button variant="outline" disabled={busy} onClick={() => setRejection(null)}>取消</Button></div></section></div>}
   </div>;
-}
-
-type ReturnAddress = { receiver: string; phone: string; detail: string };
-const emptyReturnAddress: ReturnAddress = { receiver: '', phone: '', detail: '' };
-
-function returnAddressFrom(value: unknown): ReturnAddress {
-  const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-  return { receiver: String(source.receiver || ''), phone: String(source.phone || ''), detail: String(source.detail || '') };
-}
-
-export function SettingsPage() {
-  const [value, setValue] = useState<ReturnAddress>(emptyReturnAddress);
-  const [saved, setSaved] = useState<ReturnAddress>(emptyReturnAddress);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const busyRef = useRef(false);
-  const confirm = useConfirm();
-  const dirty = !loading && JSON.stringify(value) !== JSON.stringify(saved);
-  const blocker = useBlocker(dirty);
-  useBrowserLeaveWarning(dirty || busy);
-  useEffect(() => {
-    if (blocker.state !== 'blocked') return;
-    let active = true;
-    void confirm('退货地址尚未保存，确定离开吗？').then((confirmed) => {
-      if (!active) return;
-      if (confirmed) { setValue(saved); blocker.proceed(); }
-      else blocker.reset();
-    });
-    return () => { active = false; };
-  }, [blocker.state, blocker.proceed, blocker.reset, confirm, saved]);
-  useEffect(() => {
-    let active = true;
-    void adminApi.call<Record<string, unknown>>('settings.get', { key: 'global' }).then((result) => {
-      const outer = result && typeof result === 'object' ? result : {};
-      const base = outer.value as Record<string, unknown>;
-      const address = returnAddressFrom(base.returnAddress);
-      if (active) { setValue(address); setSaved(address); }
-    }).catch((err: unknown) => {
-      if (!active) return;
-      if (err instanceof ApiError && ['NOT_FOUND', 'SETTING_NOT_FOUND'].includes(String(err.code || '').toUpperCase())) {
-        setValue(emptyReturnAddress); setSaved(emptyReturnAddress); return;
-      }
-      if (err instanceof Error && /请求的数据不存在/.test(err.message)) { setValue(emptyReturnAddress); setSaved(emptyReturnAddress); return; }
-      setError(err instanceof Error ? err.message : '设置读取失败');
-    }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
-  const update = (key: keyof ReturnAddress, next: string) => setValue((old) => ({ ...old, [key]: next }));
-  const save = async () => {
-    if (busyRef.current || !dirty) return;
-    if (!value.receiver.trim() || !value.phone.trim() || !value.detail.trim()) { message('请填写收件人、联系电话和地址', 'warning'); return; }
-    if (!/^\+?[0-9][0-9\s-]{5,23}$/.test(value.phone.trim())) { message('请填写有效的联系电话', 'warning'); return; }
-    busyRef.current = true;
-    setBusy(true);
-    try {
-      let existing: Record<string, unknown> = {};
-      try {
-        const current = await adminApi.call<Record<string, unknown>>('settings.get', { key: 'global' });
-        const outer = current && typeof current === 'object' ? current : {};
-        existing = outer.value as Record<string, unknown>;
-      } catch (err) {
-        if (!(err instanceof ApiError && ['NOT_FOUND', 'SETTING_NOT_FOUND'].includes(String(err.code || '').toUpperCase()))
-          && !(err instanceof Error && /请求的数据不存在/.test(err.message))) throw err;
-      }
-      await adminApi.call('settings.upsert', { key: 'global', value: { ...existing, returnAddress: value } });
-      setSaved(value); message('退货地址已保存');
-    } catch (err) { message(err instanceof Error ? err.message : '退货地址保存失败', 'error'); }
-    finally { busyRef.current = false; setBusy(false); }
-  };
-  return <>
-    <div className="panel-heading"><div className="orders-address-actions after-sales-address-link"><Button theme="primary" disabled={loading || Boolean(error) || busy || !dirty} loading={busy} onClick={() => void save()}>保存</Button><Link to="/after-sales"><Button variant="outline">返回</Button></Link></div></div>
-    {loading && <LoadingState />}{error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
-    {!loading && !error && <Panel className="form-panel commerce-settings-panel">
-      <div className="form-grid"><Field label="收件人"><Input value={value.receiver} onChange={(next) => update('receiver', next)} maxlength={40} /></Field><Field label="联系电话"><Input value={value.phone} onChange={(next) => update('phone', next)} maxlength={30} /></Field><Field label="地址"><Input value={value.detail} onChange={(next) => update('detail', next)} placeholder="请输入完整地址（含省市区及详细地址）" maxlength={240} /></Field></div>
-    </Panel>}
-  </>;
 }
 
 export function OverviewWorkQueue({ orders, afterSales }: { orders?: number; afterSales?: number }) {

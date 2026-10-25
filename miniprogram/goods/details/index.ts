@@ -132,10 +132,7 @@ Page({
   getSkuItem(specList, selectedSku) {
     const { skuArray, primaryImage } = this.data;
     const selectedSkuValues = this.getSelectedSkuValues(specList, selectedSku);
-    let selectedAttrStr = ` 件  `;
-    selectedSkuValues.forEach((item) => {
-      selectedAttrStr += `，${item.specValue}  `;
-    });
+    const selectedAttrStr = ` 件 ${selectedSkuValues.map((item) => item.specValue).filter(Boolean).join(' / ')}`;
     // eslint-disable-next-line array-callback-return
     const skuItem = skuArray.find((item) => {
       const specInfo = item.specInfo || [];

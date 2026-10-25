@@ -100,3 +100,17 @@ assert.equal(cart.data.optionGroups[1].hidden, true);
 cart.confirmSelection();
 assert.equal(events.at(-1).value.sku.specInfo.length, 1);
 console.log('PASS omitted optional size stays absent and single-level SKUs remain purchasable alongside two-level SKUs');
+
+const specsWxs = { module: { exports: {} } };
+vm.runInNewContext(fs.readFileSync('miniprogram/common/utils/specs.wxs', 'utf8'), specsWxs);
+const formatSpecs = specsWxs.module.exports.format;
+assert.equal(formatSpecs(['黑色', '38']), '黑色 / 38');
+assert.equal(formatSpecs(['200g', '']), '200g');
+assert.equal(formatSpecs(['', null, '38', undefined]), '38');
+assert.equal(formatSpecs([]), '');
+assert.equal(formatSpecs('黑色 / 38'), '黑色 / 38');
+assert.equal(formatSpecs(undefined), '');
+for (const file of ['miniprogram/order/components/goods-card/index.wxml', 'miniprogram/pages/cart/components/goods-card/index.wxml', 'miniprogram/order/order-confirm/index.wxml']) {
+  assert.match(fs.readFileSync(file, 'utf8'), /specFormat\.format\(goods\.specs\)/);
+}
+console.log('PASS primary/secondary specifications use slash separators in cart, checkout, order and after-sales cards without changing SKU data');

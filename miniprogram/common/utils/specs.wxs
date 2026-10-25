@@ -1,0 +1,13 @@
+function format(values) {
+  if (!values) return '';
+  if (typeof values === 'string') return values;
+  var parts = [];
+  for (var i = 0; i < values.length; i++) {
+    if (values[i] !== undefined && values[i] !== null && values[i] !== '') {
+      parts.push(values[i]);
+    }
+  }
+  return parts.join(' / ');
+}
+
+module.exports = { format: format };

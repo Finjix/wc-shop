@@ -454,7 +454,6 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .nav-link-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: auto; }
 .commerce-toolbar { flex-wrap: wrap; }
 .orders-toolbar { margin-bottom: 20px; }
-.after-sales-address-link { margin-left: auto; white-space: nowrap; }
 .orders-toolbar .t-input, .orders-toolbar select, .orders-toolbar .t-button { height: var(--td-comp-size-m, 32px); box-sizing: border-box; }
 .orders-toolbar select { padding-top: 0; padding-bottom: 0; font-size: var(--td-font-size-body-medium, 14px); }
 .commerce-toolbar > :first-child { flex: 1 1 240px; width: auto; max-width: 360px; }

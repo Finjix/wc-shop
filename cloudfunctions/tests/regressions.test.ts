@@ -1711,15 +1711,16 @@ async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
     orderId: created._id, type: 10, reason: '退货退款', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
   });
   assert.strictEqual(requestWithoutAddress.requestedType, 10);
-  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'afterSales.review', {
+  const returnPreview = await shopEndpoint({}, user, runtime, 'afterSales.preview', { orderId: created._id });
+  assert(returnPreview.allowedTypes.includes(10));
+  assert.strictEqual(returnPreview.returnAddressConfigured, undefined);
+  const approvedWithoutAddress = await adminEndpoint({}, admin, runtime, 'afterSales.review', {
     id: requestWithoutAddress._id, status: 'approved', type: 10,
-  }), appError('RETURN_ADDRESS_REQUIRED'));
+  });
+  assert.strictEqual(approvedWithoutAddress.status, 'approved', 'return approval does not require a configured return address');
+  assert.strictEqual(approvedWithoutAddress.returnAddressSnapshot, undefined);
   await shopEndpoint({}, user, runtime, 'afterSales.withdraw', { afterSaleId: requestWithoutAddress._id });
-  const address = { receiver: '退货收件人', phone: '13800000000', detail: '浙江省杭州市西湖区退货地址 1 号' };
-  const savedSettings = await adminEndpoint({}, admin, runtime, 'settings.upsert', { key: 'global', value: { returnAddress: address } });
-  assert.deepStrictEqual(savedSettings.value.returnAddress, address);
-  const invalidAddress = { ...address, phone: 'bad' };
-  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'settings.upsert', { key: 'global', value: { returnAddress: invalidAddress } }), appError('INVALID_ARGUMENT'));
+  runtime.records.settings = { global: { _id: 'global', value: { returnAddress: { receiver: '旧地址', phone: '13800000000', detail: '不应再使用的系统地址' } } } };
 
   const returned = await shopEndpoint({}, user, runtime, 'afterSales.create', {
     orderId: created._id, type: 20, reason: '质量问题', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
@@ -1729,7 +1730,7 @@ async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
   assert.strictEqual(approved.decidedType, 10);
   assert.strictEqual(runtime.records.afterSales[returned._id].type, 10);
   assert.strictEqual(approved.status, 'approved');
-  assert.strictEqual(approved.returnAddressSnapshot.detail, address.detail);
+  assert.strictEqual(approved.returnAddressSnapshot, undefined, 'legacy configured addresses are not supplied to new return approvals');
   const tracking = await shopEndpoint({}, user, runtime, 'afterSales.submitTracking', {
     afterSaleId: returned._id, logisticsCompanyName: '中通', trackingNo: 'ZT003',
   });
@@ -1877,7 +1878,6 @@ async function testMerchantRefundAmountsAndReservationRelease() {
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, 9);
   const shipped = await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: order._id, trackingNo: 'SF001' });
   assert.strictEqual(shipped.shippedQuantities['sku-new'], 1);
-  runtime.records.settings = { global: { _id: 'global', value: { returnAddress: { receiver: '商家', phone: '13800000000', detail: '退货地址' } } } };
   const last = await shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: order._id, type: 10, receiptStatus: 1, reason: '退货', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }] });
   const approved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: last._id, status: 'approved', type: 10, amount: 30 });
   assert.strictEqual(approved.amount, 100, 'return application approval must not set the final refund amount');

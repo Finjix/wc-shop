@@ -21,7 +21,6 @@ Page({
     uploading: false, // 凭证上传状态
     processingImages: false,
     canApplyReturn: true, // 是否可退货
-    returnAddressMissing: false,
     goodsInfo: {},
     goodsInfoList: [],
     orderLevel: false,
@@ -170,10 +169,9 @@ Page({
       const availableGoods = previewGoods.filter((goods) => Number(
         goods.numOfSkuAvailable ?? goods.boughtQuantity ?? goods.quantity ?? 0,
       ) > 0);
-      const returnAddressConfigured = preview.returnAddressConfigured ?? preview.hasReturnAddress;
       const policy = preview.applicationPolicy;
       const allowsReturn = policy ? policy.allowedTypes.includes(ServiceType.RETURN_GOODS) : this.data.canApplyReturn;
-      const canApplyReturn = allowsReturn && returnAddressConfigured !== false;
+      const canApplyReturn = allowsReturn;
       if (!availableGoods.length) {
         throw new Error('该订单没有可申请售后的商品');
       }
@@ -198,7 +196,6 @@ Page({
           ? true : this.data.receiptStatusLocked,
         'serviceFrom.remark': this.data.serviceFrom.remark || policy?.defaultReason || '',
         canApplyReturn,
-        returnAddressMissing: allowsReturn && returnAddressConfigured === false,
         goodsInfo: goodsInfoList[0] || {},
         goodsInfoList,
         refundAmountText: priceFormat(refundableAmount, 2),
@@ -257,7 +254,7 @@ Page({
 
   onApplyReturnGoods() {
     if (!this.data.canApplyReturn) {
-      Toast({ context: this, selector: '#t-toast', message: '商家尚未配置退货地址，暂不能申请退货退款', icon: '' });
+      Toast({ context: this, selector: '#t-toast', message: '该订单暂不支持退货退款', icon: '' });
       return;
     }
     wx.setNavigationBarTitle({ title: '售后申请' });

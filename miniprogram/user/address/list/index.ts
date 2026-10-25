@@ -24,6 +24,7 @@ function sortAddressList(addressList) {
 Page({
   data: {
     addressList: [],
+    addressLoaded: false,
     deleteID: '',
     showDeleteConfirm: false,
     isOrderSure: false,
@@ -66,7 +67,7 @@ Page({
         address.checked = this.selectMode && id !== '' && String(addressIdOf(address)) === String(id);
       });
       this.hasLoaded = true;
-      this.setData({ addressList });
+      this.setData({ addressList, addressLoaded: true });
     }).catch((error) => {
       Toast({ context: this, selector: '#t-toast', message: getApiErrorMessage(error, '地址加载失败，请重试'), icon: '' });
     });

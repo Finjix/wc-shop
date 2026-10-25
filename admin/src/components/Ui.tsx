@@ -44,8 +44,8 @@ export function Table({ children, minWidth = 760 }: { children: ReactNode; minWi
   return <div className="table-scroll"><table style={{ minWidth }}>{children}</table></div>;
 }
 
-export function EmptyTable({ colSpan }: { colSpan: number }) {
-  return <tr><td colSpan={colSpan}><EmptyState /></td></tr>;
+export function EmptyTable({ colSpan, description }: { colSpan: number; description?: string }) {
+  return <tr><td colSpan={colSpan}><EmptyState description={description} /></td></tr>;
 }
 
 export function formatMoney(value: unknown) {

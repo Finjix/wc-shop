@@ -37,24 +37,8 @@
         </view>
         <view class="logistics-divider" />
       </view>
-      <!-- 收货地址 -->
-      <view class="service-section goods-refund-address" wx:if="{{!service.logisticsNo && (service.receiverName || service.receiverPhone || service.receiverAddress)}}">
-        <t-cell-group>
-          <t-cell align="top" bordered="{{false}}">
-            <view
-              slot="note"
-              class="right text-btn goods-refund-address-copy-btn"
-              hover-class="text-btn--active"
-              bindtap="onAddressCopy"
-              >复制
-            </view>
-            <view slot="description">
-              <view>收件人：{{service.receiverName}}</view>
-              <view>手机号：{{service.receiverPhone}}</view>
-              <view>退货地址：{{service.receiverAddress}}</view>
-            </view>
-          </t-cell>
-        </t-cell-group>
+      <view class="service-section return-instructions" wx:if="{{service.showReturnInstructions}}">
+        请按原包裹的寄件地址退货，并填写退货物流单号。
       </view>
       <!-- 商品卡片 -->
       <view

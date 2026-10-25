@@ -222,7 +222,7 @@ export function SkuInventoryPage() {
     </div>
     {loading && <LoadingState />}
     {!loading && error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
-    {!loading && !error && products.length === 0 && <Panel><EmptyState title={query ? '没有找到相关商品' : '暂无商品'} /></Panel>}
+    {!loading && !error && products.length === 0 && <Panel><EmptyState description="暂无" /></Panel>}
     {!loading && !error && pageProducts.map((product) => {
       const productId = String(product._id || product.spuId);
       const skus = skusByProduct[productId] || [];

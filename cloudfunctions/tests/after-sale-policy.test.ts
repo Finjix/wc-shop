@@ -126,8 +126,6 @@ async function run() {
     requestKey: 'withdraw-approved-return', addressId: 'address-1', address: localAddress, items: [{ skuId: 'sku-new', quantity: 1 }],
   });
   await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: withdrawOrder._id, trackingNo: 'SF003' });
-  const returnAddress = { receiver: '商家', phone: '13800000000', detail: '退货地址' };
-  await adminEndpoint({}, admin, runtime, 'settings.upsert', { key: 'global', value: { returnAddress } });
   const applyReturn = () => shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: withdrawOrder._id, type: 10, reason: '退货退款' });
   const approvedReturn = await applyReturn();
   await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: approvedReturn._id, status: 'approved', type: 10 });
@@ -147,7 +145,7 @@ async function run() {
   await shopEndpoint({}, user, runtime, 'afterSales.submitTracking', { afterSaleId: resubmittedReturn._id, trackingNo: 'RETURN001' });
   const afterTracking = await shopEndpoint({}, user, runtime, 'afterSales.detail', { afterSaleId: resubmittedReturn._id });
   assert.strictEqual(afterTracking.actions.withdraw, false);
-  assert.deepStrictEqual(afterTracking.returnAddressSnapshot, returnAddress);
+  assert.strictEqual(afterTracking.returnAddressSnapshot, undefined);
   assert.strictEqual(afterTracking.trackingNo, 'RETURN001');
   await assert.rejects(() => shopEndpoint({}, user, runtime, 'afterSales.withdraw', { afterSaleId: resubmittedReturn._id }), errorCode('ORDER_STATE_INVALID'));
   assert.strictEqual(runtime.records.orders[withdrawOrder._id].pendingRefundAmount, 100);

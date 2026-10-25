@@ -98,7 +98,6 @@ Page({
       const rawStatus = rights.userRightsStatus;
       const serviceStatus = normalizeServiceStatus(rawStatus);
       const buttons = normalizeServiceButtons(rawStatus, serviceType, serviceRaw.buttonVOs, logisticsVO.logisticsNo, serviceRaw.actions);
-      const returnAddress = serviceRaw.returnAddressSnapshot || {};
       const service = {
         id: rights._id,
         storeName: rights.storeName,
@@ -109,7 +108,7 @@ Page({
         typeDesc: serviceRaw.presentation?.typeLabel || ServiceTypeDesc[serviceType] || rights.typeDesc || '',
         status: serviceStatus,
         statusIcon: this.genStatusIcon(rights),
-        statusName: rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rawStatus, serviceType),
+        statusName: Number(serviceType) === 10 && serviceStatus === ServiceStatus.VERIFIED ? '待用户退货' : rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rawStatus, serviceType),
         statusDesc: rights.userRightsStatusDesc || rights.statusDesc || rights.description || serviceStatusLabel(rawStatus, serviceType),
         amount: rights.refundRequestAmount ?? rights.refundAmount,
         goodsList: rightsItem.map((item, i) => ({
@@ -137,9 +136,7 @@ Page({
         logisticsCompanyCode: logisticsVO.logisticsCompanyCode, // 退货物流公司
         remark: logisticsVO.remark, // 退货备注
         logisticsDescription: logisticsVO.description || logisticsVO.logisticsDescription || '',
-        receiverName: returnAddress.receiver || '',
-        receiverPhone: returnAddress.phone || '',
-        receiverAddress: returnAddress.detail || '',
+        showReturnInstructions: Number(serviceType) === 10 && !logisticsVO.logisticsNo && buttons.some((button) => button.type === ServiceButtonTypes.FILL_TRACKING_NO),
         buttons,
         bottomActions: buttons.some((button) => [ServiceButtonTypes.REVOKE, ServiceButtonTypes.REAPPLY, ServiceButtonTypes.FILL_TRACKING_NO, ServiceButtonTypes.CHANGE_TRACKING_NO].includes(button.type)),
         logistics: logisticsVO,
@@ -217,12 +214,6 @@ Page({
     const orderNo = this.data.service.orderNo;
     if (!orderNo) return;
     wx.setClipboardData({ data: String(orderNo) });
-  },
-
-  onAddressCopy() {
-    wx.setClipboardData({
-      data: `${this.data.service.receiverName}  ${this.data.service.receiverPhone}\n${this.data.service.receiverAddress}`,
-    });
   },
 
   /** 获取状态ICON */

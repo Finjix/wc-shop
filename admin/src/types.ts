@@ -160,7 +160,6 @@ export interface AfterSale {
   trackingNo?: string;
   orderId?: Id;
   items?: unknown[];
-  returnAddressSnapshot?: Record<string, unknown>;
   createdAt?: string | number;
   [key: string]: unknown;
 }

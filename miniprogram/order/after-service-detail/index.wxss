@@ -77,7 +77,7 @@
   line-height: 56rpx;
 }
 
-.service-detail .service-detail__header--return-approved ~ .goods-refund-address {
+.service-detail .service-detail__header--return-approved ~ .return-instructions {
   margin-top: 0;
 }
 
@@ -558,15 +558,11 @@
   color: #b9b9b9 !important;
 }
 
-.service-detail .goods-refund-address {
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
-.service-detail .goods-refund-address .goods-refund-address-copy-btn {
-  position: absolute;
-  top: 22rpx;
-  right: 32rpx;
+.service-detail .return-instructions {
+  padding: 24rpx 32rpx;
+  color: #695941;
+  font-size: 28rpx;
+  line-height: 1.6;
 }
 
 .service-detail .service-goods-card-wrap {

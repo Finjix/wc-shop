@@ -195,8 +195,8 @@ async function run() {
   const returnDetail = instance(page);
   returnDetail.rightsNo = 'r1';
   await returnDetail.getService();
-  assert.equal(returnDetail.data.service.receiverName, '退货收件人');
-  assert.equal(returnDetail.data.service.receiverAddress, '完整退货地址');
+  assert.equal(returnDetail.data.service.showReturnInstructions, true);
+  assert.equal(returnDetail.data.service.receiverAddress, undefined, 'old system return addresses must not be displayed');
   respond = async () => ({ items: [snapshot, { ...snapshot, skuId: 's2', skuSnapshot: { _id: 's2' } }] });
   const preview = await load('miniprogram/services/order/apply-service/api.ts').fetchRightsPreview({ orderNo: 'o1', skuId: 's1' });
   assert.equal(preview.data.goodsList.length, 1);

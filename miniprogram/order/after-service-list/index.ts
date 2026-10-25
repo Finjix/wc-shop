@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import { getRightsList } from './api';
-import { AfterServiceStatus, ServiceType, ServiceTypeDesc } from '../config';
+import { AfterServiceStatus, ServiceType, ServiceTypeDesc, ServiceStatus } from '../config';
 import Toast from '../../components/tdesign/toast/index';
 import { getApiErrorMessage } from '../../common/services/utils/api';
 import { normalizeLogistics, normalizeServiceType, normalizeServiceStatus, serviceStatusLabel } from '../common/after-service-contract';
@@ -132,6 +132,8 @@ Page({
             const rights = _data.rights || _data;
             const rightsItem = _data.rightsItem || _data.items || [];
             const logistics = _data.logisticsVO || _data.logistics || {};
+            const awaitingReturn = normalizeServiceType(rights.rightsType ?? rights.type) === ServiceType.RETURN_GOODS
+              && normalizeServiceStatus(rights.userRightsStatus ?? rights.rightsStatus ?? rights.status) === ServiceStatus.VERIFIED;
             return {
               id: rights._id,
               orderNo: rights.orderNo || rights.orderId || '',
@@ -143,7 +145,7 @@ Page({
                   ? 'money-circle'
                   : 'return-goods-1',
               status: normalizeServiceStatus(rights.userRightsStatus ?? rights.rightsStatus ?? rights.status),
-              statusName: rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rights.status ?? rights.rightsStatus, rights.rightsType ?? rights.type),
+              statusName: awaitingReturn ? '待用户退货' : rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rights.status ?? rights.rightsStatus, rights.rightsType ?? rights.type),
               statusDesc: rights.userRightsStatusDesc || rights.statusDesc || serviceStatusLabel(rights.status ?? rights.rightsStatus, rights.rightsType ?? rights.type),
               amount: _data.paymentAmount ?? rights.paymentAmount ?? 0,
               goodsList: rightsItem.map((item, i) => ({

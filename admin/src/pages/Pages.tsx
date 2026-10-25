@@ -659,7 +659,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     </div>
     {(loading || routeEditLoading) && <LoadingState />}{!routeEditLoading && error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
     {!loading && !routeEditLoading && !error && <Panel className="product-list-panel"><Table><thead><tr><th>商品</th><th>操作</th></tr></thead><tbody>
-      {rows.length === 0 && <tr><td colSpan={2}><EmptyState title={productQuery ? '没有找到相关商品' : '暂无商品'} /></td></tr>}
+      {rows.length === 0 && <tr><td colSpan={2}><EmptyState description="暂无" /></td></tr>}
       {rows.map((product) => {
         const fileID = String(product.primaryImage || '');
         const resolvedImage = imageUrls[fileID];

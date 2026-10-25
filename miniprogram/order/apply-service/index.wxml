@@ -38,17 +38,7 @@
           color="#695941"
         />
       </t-cell>
-      <t-cell wx:if="{{canApplyReturn}}" title="退货退款" description="已收到货，需要退还收到的商品" arrow bindtap="onApplyReturnGoods">
-        <t-icon
-          slot="left-icon"
-          prefix="wr"
-          class="t-cell__left__icon"
-          name="goods_return"
-          size="48rpx"
-          color="#695941"
-        />
-      </t-cell>
-      <t-cell wx:elif="{{returnAddressMissing}}" class="non-returnable" title="退货退款" description="商家尚未配置退货地址，暂不能申请退货退款">
+      <t-cell wx:if="{{canApplyReturn}}" title="退货退款" description="请按原包裹的寄件地址退货" arrow bindtap="onApplyReturnGoods">
         <t-icon
           slot="left-icon"
           prefix="wr"

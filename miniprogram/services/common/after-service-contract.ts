@@ -13,7 +13,7 @@ export function serviceStatusLabel(value, serviceType) {
   if (value === 'withdrawn') return '已撤销';
   const status = normalizeServiceStatus(value);
   if (status === 100) return '等待商家审核';
-  if (status === 110) return Number(serviceType) === 10 ? '请按以下地址退货并填写物流单号' : '退款处理中';
+  if (status === 110) return Number(serviceType) === 10 ? '请按寄件地址退货并填写物流单号' : '退款处理中';
   if (status === 120) return '等待填写退货物流';
   if (status === 130) return '等待商家收货并同意退款';
   if (status === 140) return '商家确认退货';

@@ -25,7 +25,6 @@ const ERRORS = Object.freeze({
   PAYMENT_EXPIRED: ['PAYMENT_EXPIRED', '支付已超时，请重新下单'],
   PAYMENT_PROVIDER_ERROR: ['PAYMENT_PROVIDER_ERROR', '微信支付暂时不可用，请稍后重试'],
   SHIPPING_SYNC_FAILED: ['SHIPPING_SYNC_FAILED', '微信发货信息同步失败，将稍后重试'],
-  RETURN_ADDRESS_REQUIRED: ['RETURN_ADDRESS_REQUIRED', '商家尚未设置退货地址，暂不能申请退货退款'],
   IDEMPOTENCY_CONFLICT: ['IDEMPOTENCY_CONFLICT', '该请求正在处理或已使用不同参数提交'],
   DATABASE_ERROR: ['DATABASE_ERROR', '数据服务暂时不可用'],
   STORAGE_ERROR: ['STORAGE_ERROR', '文件服务暂时不可用'],

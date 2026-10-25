@@ -37,7 +37,7 @@ useBrowserLeaveWarning(true);
 previous.cleanup();
 assert.equal(listeners.size, 0, 'unmount removes the browser listener');
 assert.equal(removals, 2);
-for (const page of ['Pages', 'HomeContentPage', 'CategoriesPage', 'SkuInventoryPage', 'CommercePages']) {
+for (const page of ['Pages', 'HomeContentPage', 'CategoriesPage', 'SkuInventoryPage']) {
   const source = fs.readFileSync(`admin/src/pages/${page}.tsx`, 'utf8');
   assert.match(source, /useBrowserLeaveWarning\([^;]+\)/, `${page} must register a browser leave warning`);
 }
