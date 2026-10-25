@@ -195,7 +195,8 @@ async function readSkus(runtime, data) {
 
 async function readHome(runtime, data) {
   const record = await getDoc(collection(runtime, COLLECTIONS.homeContents), HOME_CONFIG_SLOT, false);
-  const config = record?.status === STATUS.active && record.type === 'pageConfig' ? record.payload : null;
+  const payload = record?.status === STATUS.active && record.type === 'pageConfig' ? record.payload : null;
+  const config = payload ? { searchText: payload.searchText, banners: payload.banners, sections: payload.sections } : null;
   const ids = productIds(config);
   const products = await Promise.all(ids.map((id) => getActiveProduct(runtime, id, false)));
   const productsById = Object.fromEntries(ids.flatMap((id, index) => products[index] ? [[id, publicProduct(products[index])]] : []));
@@ -206,7 +207,7 @@ async function getOrCreateUser(runtime, identity, data) {
   return {
     uid: identity.uid,
     ...(data && data.nickname !== undefined ? { nickname: optionalString(data.nickname, 'nickname', { max: 40 }) } : {}),
-    avatarUrl: '/assets/user-avatar.jpg',
+    avatarUrl: '/assets/user/default-avatar.jpg',
   };
 }
 

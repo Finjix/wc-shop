@@ -33,17 +33,18 @@
       />
     </view>
 
-    <view class="home-safety-banner" wx:if="{{bannerText}}"><text>{{bannerText}}</text></view>
+    <view class="home-safety-banner" aria-label="极速发货，品质保证，售后无忧">
+      <static-image asset="service-promise" size="100vw" height="16px" />
+    </view>
 
-    <view class="home-promo-cards" wx:if="{{promos.length}}">
-      <view
-        wx:for="{{promos}}"
-        wx:key="id"
-        class="home-promo-card"
-        data-product-id="{{item.productId}}"
-        bind:tap="navToConfiguredProduct"
-      >
-        <image class="home-promo-card__image" src="{{item.image}}" mode="aspectFill" />
+    <view class="home-promo-cards">
+      <view class="home-promo-card">
+        <static-image class="home-promo-card__image" asset="invite-cashback" size="calc((100vw - 4rpx) / 2)" />
+        <button class="home-promo-card__action" bind:tap="showInviteComingSoon" aria-label="邀请返现"></button>
+      </view>
+      <view class="home-promo-card">
+        <static-image class="home-promo-card__image" asset="customer-gift" size="calc((100vw - 4rpx) / 2)" />
+        <button class="home-promo-card__action" open-type="contact" aria-label="加客服拿好礼"></button>
       </view>
     </view>
 

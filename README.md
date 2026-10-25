@@ -36,6 +36,8 @@ npm --prefix admin run dev -- --host 127.0.0.1 --port 5173
 | `miniprogram/user/` | 用户分包：资料、地址、帮助和关于 |
 | `miniprogram/services/` | 接口服务分包：请求、数据转换和共享业务状态 |
 | `miniprogram/utils/` | 工具分包：图片处理和 WebP 编码 |
+| `miniprogram/assets/` | 资源分包：首页固定活动 GIF、默认头像和异步图片组件 |
+| `design/home-promos/` | 活动图原始插画、背景、花字和生成提示词，不参与小程序上传 |
 | `miniprogram/components/` | 主包公共组件 |
 | `miniprogram/common/`、`miniprogram/config/` | 公共逻辑、异步服务入口、类型声明和运行配置 |
 | `admin/` | React 管理后台 |
@@ -54,6 +56,7 @@ npm run test:cloud                    # 服务端回归
 npm run test:commerce-http            # 本地 HTTP 验收
 npm run test:subpackage-dependencies  # 分包依赖检查
 npm run test:package-loading          # 分包加载回归
+npm run test:home-promos               # 固定入口、GIF 和资源分包验收
 ```
 
 其他测试见 `package.json` 的 `test:*`。

@@ -3,7 +3,7 @@ const path = require('node:path');
 const ts = require('typescript');
 const root = path.resolve(__dirname, '..');
 const miniRoot = path.join(root, 'miniprogram');
-const packages = ['', 'goods', 'order', 'user', 'services', 'utils'];
+const packages = ['', ...JSON.parse(fs.readFileSync(path.join(miniRoot, 'app.json'), 'utf8')).subpackages.map(pack => pack.root)];
 const sourceRoot = [path.join(miniRoot, 'miniprogram_npm/tdesign-miniprogram'), path.join(root, 'miniprogram_npm/tdesign-miniprogram')].find(fs.existsSync);
 const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
 const slash = value => value.replaceAll('\\', '/');

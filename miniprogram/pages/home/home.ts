@@ -9,9 +9,7 @@ Page({
   data: {
     swiperSlides: [],
     swiperProductIds: [],
-    promos: [],
     featuredSections: [],
-    bannerText: '',
     pageLoading: false,
     loadError: '',
     current: 0,
@@ -67,16 +65,6 @@ Page({
           productId: product ? String(product.spuId || product._id) : '',
         }];
       });
-      const promos = Array.from({ length: 2 }, (_, index) => {
-        const entry = config.promos?.[index] || {};
-        const product = products[entry.productId];
-        if (!entry.image || (entry.productId && !product)) return null;
-        return {
-          id: index,
-          image: entry.image,
-          productId: product ? String(product.spuId || product._id) : '',
-        };
-      }).filter(Boolean);
       const featuredSections = Array.isArray(config.sections) && config.sections.length
         ? config.sections.slice(0, 4).map((section) => ({
           id: section.id,
@@ -96,9 +84,7 @@ Page({
       this.setData({
         swiperSlides: slides.map((item) => item.image),
         swiperProductIds: slides.map((item) => item.productId),
-        promos,
         featuredSections,
-        bannerText: config.bannerText || '',
         pageLoading: false,
         loadError: '',
       });
@@ -111,6 +97,8 @@ Page({
       if (this.loadVersion === version) wx.stopPullDownRefresh();
     }
   },
+
+  showInviteComingSoon() { wx.showToast({ title: '敬请期待！', icon: 'none' }); },
 
   focusSearch() { if (!this.data.searchFocus) this.setData({ searchFocus: true }); },
   handleSearchFocus() { this.setData({ searchFocus: true }); },

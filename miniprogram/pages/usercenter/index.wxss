@@ -36,11 +36,15 @@
 }
 
 .user-profile__avatar {
+  position: relative;
   display: block;
   width: 112rpx;
   height: 112rpx;
   flex-shrink: 0;
 }
+
+.user-profile__avatar { background: #FCF8EE; }
+.user-profile__avatar-image { display: block; width: 100%; height: 100%; }
 
 .user-profile__name {
   margin-left: 24rpx;

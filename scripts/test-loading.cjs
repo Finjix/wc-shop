@@ -12,6 +12,7 @@ const imagePreviews = [];
 const deferred = new Map();
 const tabNavigations = [];
 const pageNavigations = [];
+const toastCalls = [];
 const api = {
   getApiErrorMessage: (error) => error.message,
   getTempFileUrl: async (id) => {
@@ -41,7 +42,7 @@ function load(file) {
     },
     Page: (value) => { page = value; }, Component: (value) => { component = value; },
     getCurrentPages: () => [{ selectComponent: () => ({ open(src, fail) { imagePreviews.push({ current: src, urls: [src], fail }); } }) }],
-    wx: { getWindowInfo: () => ({ screenWidth: 375, pixelRatio: 2 }), stopPullDownRefresh() {}, showToast() {}, navigateTo(options) { pageNavigations.push(options.url); }, switchTab(options) { tabNavigations.push(options.url); }, previewImage(options) { imagePreviews.push(options); } },
+    wx: { getWindowInfo: () => ({ screenWidth: 375, pixelRatio: 2 }), stopPullDownRefresh() {}, showToast(options) { toastCalls.push(options); }, navigateTo(options) { pageNavigations.push(options.url); }, switchTab(options) { tabNavigations.push(options.url); }, previewImage(options) { imagePreviews.push(options); } },
   }, { filename });
   return exports;
 }
@@ -115,7 +116,7 @@ async function run() {
   assert.equal(await images.resolveImage('/assets/user-avatar.jpg'), '/assets/user-avatar.jpg');
   respond = async () => ({ items: [{ images: ['cloud://comment.webp'], avatarUrl: 'local://avatar.webp' }] });
   const comments = await load('miniprogram/services/goods/services/comments/fetchComments.ts').fetchComments();
-  assert.equal(comments.pageList[0].userHeadUrl, '/assets/usercenter-avatar.jpg');
+  assert.equal(comments.pageList[0].userHeadUrl, '/assets/user/default-avatar.jpg');
   assert(fs.existsSync(path.join(root, 'miniprogram', comments.pageList[0].userHeadUrl.slice(1))), 'avatar references a shipped asset');
   const resource = comments.pageList[0].commentResources[0];
   assert.equal(resource.image, 'https://example.test/comment.webp');
@@ -297,9 +298,15 @@ async function run() {
   await assert.rejects(load('miniprogram/services/good/fetchHomeContent.ts').fetchHomeContent(), /网络不可用/);
   load('miniprogram/pages/home/home.ts'); const homepage = instance(page);
   homepage.data.swiperSlides = ['existing'];
+  homepage.showInviteComingSoon();
+  assert.deepEqual(JSON.parse(JSON.stringify(toastCalls.at(-1))), { title: '敬请期待！', icon: 'none' });
   await homepage.loadHomePage();
   assert.equal(homepage.data.pageLoading, false); assert.equal(homepage.data.loadError, '网络不可用');
   assert.equal(homepage.data.swiperSlides[0], 'existing');
+  const beforeLegacyResolve = resolves;
+  const retiredHome = await load('miniprogram/services/good/resolveImages.ts').resolveHomeContentImages({ config: { banners: [], promos: [{ image: 'cloud://retired-promo.gif' }] } });
+  assert.equal(retiredHome.config.promos, undefined);
+  assert.equal(resolves, beforeLegacyResolve, 'retired promo images are never downloaded');
   respond = async () => ({ config: { banners: [], promos: [], sections: [] } });
   await homepage.loadHomePage(); assert.equal(homepage.data.loadError, '');
   const sixBanners = Array.from({ length: 6 }, (_, index) => ({ image: `https://example.test/banner-${index + 1}.jpg`, productId: '' }));

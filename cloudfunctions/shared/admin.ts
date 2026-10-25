@@ -26,7 +26,7 @@ async function clearHomeProductLinks(tx, product, id, timestamp) {
   const ids = new Set([id, product._id].filter(Boolean).map(String));
   const payload = clone(config.payload);
   let changed = false;
-  for (const item of [...(payload.banners || []), ...(payload.promos || [])]) {
+  for (const item of (payload.banners || [])) {
     if (ids.has(String(item.productId || ''))) {
       item.productId = '';
       changed = true;

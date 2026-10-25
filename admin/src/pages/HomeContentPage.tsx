@@ -15,9 +15,7 @@ type ImageLink = { image: string; productId: string };
 type ProductSection = { id: string; title: string; productIds: string[] };
 type HomeConfig = {
   searchText: string;
-  bannerText: string;
   banners: ImageLink[];
-  promos: ImageLink[];
   sections: ProductSection[];
 };
 type HomeRecord = { _id?: string; slot?: string; type?: string; image?: string; content?: string; link?: string; payload?: unknown; sort?: number; status?: string };
@@ -26,9 +24,7 @@ const blankLink = (): ImageLink => ({ image: '', productId: '' });
 const blankSection = (): ProductSection => ({ id: `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title: '', productIds: ['', ''] });
 const defaultConfig = (): HomeConfig => ({
   searchText: '',
-  bannerText: '',
   banners: [blankLink()],
-  promos: Array.from({ length: 2 }, blankLink),
   sections: [blankSection()],
 });
 
@@ -40,9 +36,7 @@ function readConfig(rows: HomeRecord[]): HomeConfig {
     while (banners.length > 1 && !banners[banners.length - 1].image && !banners[banners.length - 1].productId) banners.pop();
     return {
       searchText: stored.searchText ?? draft.searchText,
-      bannerText: stored.bannerText ?? draft.bannerText,
       banners: banners.length ? banners : [blankLink()],
-      promos: draft.promos.map((fallback, index) => ({ ...fallback, ...stored.promos?.[index] })),
       sections: Array.isArray(stored.sections) && stored.sections.length ? stored.sections.slice(0, 4).map((section) => ({
         id: section.id,
         title: section.title,
@@ -178,7 +172,6 @@ export function HomeContentPage() {
 
   const selectedIds = useMemo(() => Array.from(new Set([
     ...config.banners.map((item) => item.productId),
-    ...config.promos.map((item) => item.productId),
     ...config.sections.flatMap((section) => section.productIds),
   ].filter(Boolean))), [config]);
   const selectedKey = selectedIds.join('|');
@@ -189,7 +182,6 @@ export function HomeContentPage() {
     const clearLinks = (old: HomeConfig): HomeConfig => ({
       ...old,
       banners: old.banners.map((item) => unavailable.has(item.productId) ? { ...item, productId: '' } : item),
-      promos: old.promos.map((item) => unavailable.has(item.productId) ? { ...item, productId: '' } : item),
       sections: old.sections.map((section) => ({ ...section, productIds: section.productIds.map((id) => unavailable.has(id) ? '' : id) })),
     });
     void adminApi.call<HomeRecord>('home.clearUnavailableLinks', { id: SLOT })
@@ -221,7 +213,7 @@ export function HomeContentPage() {
     // selectedKey captures the selected IDs; known is checked only when selection changes.
   }, [selectedKey]);
 
-  const updateLink = (kind: 'banners' | 'promos', index: number, field: keyof ImageLink, value: string) => {
+  const updateLink = (kind: 'banners', index: number, field: keyof ImageLink, value: string) => {
     setConfig((old) => ({ ...old, [kind]: old[kind].map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item) }));
   };
   const updateSection = (index: number, change: Partial<ProductSection>) => setConfig((old) => ({
@@ -247,9 +239,8 @@ export function HomeContentPage() {
       await adminApi.call('homeContent.save', {
         id: SLOT, slot: SLOT, type: 'pageConfig', status: 'active', sort: -100,
         payload: {
-          searchText: saved.searchText.trim(), bannerText: saved.bannerText.trim(),
+          searchText: saved.searchText.trim(),
           banners: saved.banners.map((item) => ({ image: item.image.trim(), productId: item.productId.trim() })),
-          promos: saved.promos.map((item) => ({ image: item.image.trim(), productId: item.productId.trim() })),
           sections: saved.sections.map((section) => ({ id: section.id, title: section.title.trim(), productIds: section.productIds })),
         },
       });
@@ -265,7 +256,7 @@ export function HomeContentPage() {
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
   const productSelect = (value: string, onChange: (value: string) => void) => <ProductSelect value={value} onChange={onChange} known={known} onKnown={(product) => setKnown((old) => ({ ...old, [String(product._id)]: product }))} />;
-  const imageLinkFields = (kind: 'banners' | 'promos', entry: ImageLink, index: number) => <div className="home-config-link-fields">
+  const imageLinkFields = (kind: 'banners', entry: ImageLink, index: number) => <div className="home-config-link-fields">
     <Field label="封面图片" fileUpload><ImagePicker select={draftImages.select} disabled={saving} onChange={(value) => updateLink(kind, index, 'image', value)} /></Field>
     <Field label="跳转商品（可选）">{productSelect(entry.productId, (value) => updateLink(kind, index, 'productId', value))}</Field>
   </div>;
@@ -284,14 +275,6 @@ export function HomeContentPage() {
       </div>}
     </Panel>
 
-    <Panel><div className="panel-heading"><h3>轮播下方文字</h3></div><Field label="显示文字"><Input value={config.bannerText} onChange={(value) => setConfig((old) => ({ ...old, bannerText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={160} /></Field></Panel>
-
-    <Panel><div className="panel-heading"><h3>轮播下方两个图片位（1:1）</h3></div>
-      {config.promos.map((entry, index) => <div className="home-config-entry" key={index}><div className="home-config-entry-head"><strong>{index === 0 ? '左侧位置' : '右侧位置'}</strong></div>{imageLinkFields('promos', entry, index)}</div>)}
-      {config.promos.some((entry) => entry.image) && <div className="home-config-image-previews">
-        {config.promos.map((entry, index) => entry.image && <div className="home-config-image-preview" key={index}><ImagePreview image={entry.image} aspect="square" /><span className="home-config-image-caption">{index === 0 ? '左侧封面' : '右侧封面'}</span></div>)}
-      </div>}
-    </Panel>
 
     <Panel><div className="panel-heading"><h3>商品区</h3><div className="home-config-panel-actions"><Button disabled={config.sections.length >= 4} onClick={() => setConfig((old) => ({ ...old, sections: [...old.sections, blankSection()] }))}>新增商品区</Button></div></div>
       {config.sections.map((section, sectionIndex) => <div className="home-config-entry" key={section.id}>

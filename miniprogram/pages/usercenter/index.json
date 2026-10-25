@@ -6,6 +6,10 @@
   "usingComponents": {
     "t-icon": "../../components/tdesign/icon/icon",
     "t-order-group": "./components/order-group/index",
-    "t-toast": "../../components/tdesign/toast/toast"
+    "t-toast": "../../components/tdesign/toast/toast",
+    "static-image": "/assets/components/static-image/index"
+  },
+  "componentPlaceholder": {
+    "static-image": "view"
   }
 }

@@ -9,7 +9,7 @@ const { normalizeOrderItems, shopEndpoint } = require('../shared/shop');
 const { STATUS, ORDER_STATUS } = require('../shared/constants');
 const { adminEndpoint } = require('../shared/admin');
 const { page } = require('../shared/validation');
-const { validateHomeConfig, DEFAULT_SEARCH_TEXT, DEFAULT_BANNER_TEXT } = require('../shared/home-config');
+const { validateHomeConfig, DEFAULT_SEARCH_TEXT } = require('../shared/home-config');
 const { processImageBuffer, processStagedImage, MAX_IMAGE_BYTES } = require('../shared/image-upload');
 const { isNotFound, toPublicError } = require('../shared/errors');
 
@@ -620,13 +620,13 @@ async function testDeletingProductClearsHomeLinksWithoutRemovingSlots() {
   await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.delete', { id: 'product-1' });
   const saved = runtime.records.homeContents['home.page-config'].payload;
   assert.deepStrictEqual(saved.banners, [{ image: 'banner.jpg', productId: '' }]);
-  assert.deepStrictEqual(saved.promos, [{ image: 'promo.jpg', productId: '' }, { image: 'other.jpg', productId: 'other-product' }]);
+  assert.deepStrictEqual(saved.promos, payload.promos, 'retired promo links are not managed');
   assert.deepStrictEqual(saved.sections[0].productIds, ['', 'other-product', '']);
   assert.strictEqual(saved.searchText, '欢迎');
   runtime.records.homeContents['home.page-config'].payload = payload;
   const repaired = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'home.clearUnavailableLinks', { id: 'home.page-config' });
   assert.strictEqual(repaired.payload.banners[0].productId, '');
-  assert.strictEqual(repaired.payload.promos[0].productId, '');
+  assert.strictEqual(repaired.payload.promos[0].productId, 'product-1');
   const reread = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'home.get', { id: 'home.page-config' });
   assert.deepStrictEqual(reread.payload, repaired.payload);
   assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.banners[0].productId, '');
@@ -637,11 +637,11 @@ async function testDeletingProductClearsHomeLinksWithoutRemovingSlots() {
   runtime.records.homeContents['home.page-config'].payload = payload;
   await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.update', { id: 'product-1', status: 'inactive' });
   assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.banners[0].productId, '');
-  assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.promos[0].productId, '');
+  assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.promos[0].productId, 'product-1');
   assert.deepStrictEqual(runtime.records.homeContents['home.page-config'].payload.sections[0].productIds, ['', 'other-product', '']);
   await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.update', { id: 'product-1', status: 'active' });
   assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.banners[0].productId, '');
-  assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.promos[0].productId, '');
+  assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.promos[0].productId, 'product-1');
 }
 
 async function testHomeCleanupPreservesActiveLegacyProductLinks() {
@@ -661,7 +661,7 @@ async function testHomeCleanupPreservesActiveLegacyProductLinks() {
   for (const action of ['home.get', 'home.clearUnavailableLinks']) {
     const result = await call(action, { id: 'home.page-config' });
     assert.deepStrictEqual(result.payload.banners, [{ image: 'banner.jpg', productId: '' }]);
-    assert.deepStrictEqual(result.payload.promos, [{ image: 'promo.jpg', productId: '' }, { image: '', productId: '' }]);
+    assert.deepStrictEqual(result.payload.promos, payload.promos);
     assert.deepStrictEqual(result.payload.sections[0].productIds, ['', 'product-1', '']);
   }
   for (const patch of [{ status: 'inactive' }, { status: 'active', deletedByAdmin: true }]) {
@@ -669,7 +669,7 @@ async function testHomeCleanupPreservesActiveLegacyProductLinks() {
     runtime.records.homeContents['home.page-config'].payload = payload;
     const result = await call('home.clearUnavailableLinks', { id: 'home.page-config' });
     assert.strictEqual(result.payload.banners[0].productId, '');
-    assert.strictEqual(result.payload.promos[0].productId, '');
+    assert.strictEqual(result.payload.promos[0].productId, 'legacy-product-1');
     assert.deepStrictEqual(result.payload.sections[0].productIds, ['', '', '']);
     assert.strictEqual(result.payload.banners[0].image, 'banner.jpg');
   }
@@ -962,18 +962,17 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   const blankLink = { image: '', productId: '' };
   const config = {
     searchText: DEFAULT_SEARCH_TEXT,
-    bannerText: DEFAULT_BANNER_TEXT,
     banners: [{ image: 'cloud://home/slide.jpg', productId: 'product-1' }, ...Array(5).fill(blankLink)],
-    promos: [blankLink, blankLink],
     sections: [{ id: 'featured', title: '精选', productIds: Array(6).fill('product-1') }],
   };
   assert.strictEqual(validateHomeConfig(config).sections[0].productIds.length, 6);
+  assert.deepStrictEqual(validateHomeConfig({ ...config, promos: 'retired' }), config, 'legacy promo field is ignored regardless of its value');
   for (const count of [0, 1, 2, 3, 4]) {
     assert.strictEqual(validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: Array(count).fill('product-1') }] }).sections[0].productIds.length, count);
   }
   assert.strictEqual(validateHomeConfig({ ...config, searchText: '' }).searchText, '');
   assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [{ image: 'cloud://home/banner.webp', productId: '' }], promos: [{ image: 'cloud://home/promo.webp', productId: '' }, blankLink] }).banners[0], { image: 'cloud://home/banner.webp', productId: '' });
-  assert.strictEqual(validateHomeConfig({ ...config, bannerText: '' }).bannerText, '');
+  assert.deepStrictEqual(validateHomeConfig({ ...config, bannerText: { legacy: true } }), config, 'retired banner text is ignored');
   assert.deepStrictEqual(validateHomeConfig({ ...config, sections: [{ ...config.sections[0], title: '', productIds: ['', 'product-1'] }] }).sections[0], { id: 'featured', title: '', productIds: ['', 'product-1'] });
   assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [{ image: '', productId: 'product-1' }] }).banners[0], { image: '', productId: 'product-1' });
   assert.throws(() => validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: Array(8).fill('product-1') }] }), appError('INVALID_ARGUMENT'));
@@ -1003,6 +1002,13 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   const loaded = await shopEndpoint({}, {}, writable, 'home.get', {});
   assert.strictEqual(loaded.config.sections[0].productIds.length, 6);
   assert.strictEqual(loaded.productsById['product-1'].title, '测试商品');
+  writable.records.homeContents['home.page-config'].payload.promos = [{ image: 'legacy.gif', productId: 'promo-only' }];
+  writable.records.homeContents['home.page-config'].payload.bannerText = '旧版手动文字';
+  const legacyHome = await shopEndpoint({}, {}, writable, 'home.get', {});
+  assert.strictEqual(legacyHome.config.promos, undefined);
+  assert.strictEqual(legacyHome.config.bannerText, undefined);
+  assert.strictEqual(legacyHome.productsById['promo-only'], undefined);
+  assert.deepStrictEqual(legacyHome.config, config);
   for (const count of [0, 1, 2, 3, 4]) {
     const smallerConfig = { ...config, sections: [{ ...config.sections[0], productIds: Array(count).fill('product-1') }] };
     await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
@@ -1027,7 +1033,7 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   assert.deepStrictEqual(unfinishedHome.config, unfinished);
   assert.strictEqual(unfinishedHome.productsById['product-1'], undefined);
   const entirelyBlank = {
-    searchText: '', bannerText: '', banners: [blankLink], promos: [blankLink, blankLink],
+    searchText: '', banners: [blankLink],
     sections: [{ id: 'empty', title: '', productIds: ['', ''] }],
   };
   await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {

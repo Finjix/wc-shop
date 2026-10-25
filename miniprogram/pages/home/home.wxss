@@ -39,15 +39,12 @@
 .home-safety-banner {
   display: flex;
   width: 100%;
-  height: 72rpx;
+  height: 16px;
   box-sizing: border-box;
   align-items: center;
   justify-content: center;
   background-color: #FCF8EE !important;
-  color: #695941;
-  font-size: 28rpx;
-  line-height: 1;
-  letter-spacing: 1rpx;
+  overflow: hidden;
 }
 
 .home-promo-cards {
@@ -58,6 +55,15 @@
 }
 
 .home-promo-card {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #FCF8EE;
+  color: #695941;
+  font-size: 32rpx;
+  line-height: normal;
   display: flex;
   width: calc((100% - 4rpx) / 2);
   height: calc((100vw - 4rpx) / 2);
@@ -66,7 +72,26 @@
   justify-content: center;
 }
 
+.home-promo-card__action {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.home-promo-card__action::after { border: 0; }
+
 .home-promo-card__image {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;

@@ -54,6 +54,11 @@
       "root": "utils",
       "name": "utils",
       "pages": []
+    },
+    {
+      "root": "assets",
+      "name": "assets",
+      "pages": []
     }
   ],
   "tabBar": {
