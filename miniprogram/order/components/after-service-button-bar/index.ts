@@ -6,6 +6,7 @@ import Toast from '../../../components/tdesign/toast/index';
 import { cancelRights } from '../../after-service-detail/api';
 import { fetchOrderDetail } from '../../services/orderDetail';
 import { ServiceButtonTypes } from '../../config';
+import { openLogistics } from '../../utils/logistics';
 
 Component({
   properties: {
@@ -96,11 +97,7 @@ Component({
     },
 
     viewDelivery(service) {
-      wx.navigateTo({
-        url: `/order/delivery-detail/index?data=${encodeURIComponent(
-          JSON.stringify(service.logistics || service.logisticsVO || {}),
-        )}&source=2`,
-      });
+      openLogistics(service.logistics || service.logisticsVO || service);
     },
 
     onChangeTrackingNo(service) {

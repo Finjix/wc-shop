@@ -5,6 +5,7 @@ import { ServiceTypeDesc, ServiceStatus, ServiceButtonTypes } from '../config';
 import { formatTime, getRightsDetail } from './api';
 import { navigateToGoodsDetail } from '../../common/utils/goods-detail-navigation';
 import { getApiErrorMessage } from '../../common/services/utils/api';
+import { openLogistics } from '../utils/logistics';
 import {
   normalizeServiceStatus,
   normalizeServiceButtons,
@@ -161,17 +162,7 @@ Page({
   },
 
   onLogisticsTap() {
-    const logistics = this.data.service.logistics || {};
-    if (!logistics.logisticsNo && !logistics.nodes?.length) {
-      Toast({ context: this, selector: '#t-toast', message: '暂无物流信息', icon: '' });
-      return;
-    }
-
-    wx.navigateTo({
-      url: `/order/delivery-detail/index?data=${encodeURIComponent(
-        JSON.stringify(logistics),
-      )}&source=2`,
-    });
+    openLogistics(this.data.service.logistics || {});
   },
 
   editLogistices() {

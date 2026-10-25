@@ -78,6 +78,13 @@
           <text class="order-no normal-color">{{formatCreateTime}}</text>
         </view>
       </view>
+      <view class="pay-item pay-item--logistics" wx:if="{{order.logisticsVO.logisticsNo}}">
+        <text>物流单号</text>
+        <view class="pay-item__right" bindtap="onLogisticsNoCopy">
+          <text class="logistics-tracking-no">{{order.logisticsVO.logisticsNo}}</text>
+          <view class="pay-item__right__copy">复制</view>
+        </view>
+      </view>
       <view class="pay-item pay-item--remark" wx:if="{{order.remark}}">
         <text>备注</text>
         <view class="pay-item__right">
@@ -95,4 +102,4 @@
   </view>
 </t-pull-down-refresh>
 <t-toast id="t-toast" />
-<t-dialog id="t-dialog" />
+<t-dialog id="t-dialog" t-class-confirm="commerce-dialog-confirm" />

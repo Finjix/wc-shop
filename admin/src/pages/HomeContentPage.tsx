@@ -251,7 +251,7 @@ export function HomeContentPage() {
 
   return <div className="home-config-page" inert={saving}>
     <div className="floating-save-actions"><Button theme="primary" loading={saving} disabled={!dirty || saving || draftImages.processing} onClick={() => void save()}>保存</Button></div>
-    <Panel><div className="panel-heading"><h3>顶部搜索栏</h3></div><Field label="提示文字"><Input value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: Array.from(value).slice(0, 16).join('') }))} placeholder={CONTENT_PLACEHOLDER} maxlength={16} showLimitNumber /></Field></Panel>
+    <Panel><div className="panel-heading"><h3>搜索栏内文字</h3></div><Input aria-label="搜索栏内文字" value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: Array.from(value).slice(0, 16).join('') }))} placeholder={CONTENT_PLACEHOLDER} maxlength={16} showLimitNumber /></Panel>
 
     <Panel><div className="panel-heading"><h3>轮播图（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 4} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button></div></div>
       {config.banners.map((entry, index) => <div className="home-config-entry" key={index}>

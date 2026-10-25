@@ -23,6 +23,7 @@
     "test:wechat-checkout": "node scripts/test-wechat-checkout.cjs",
     "test:local-addresses": "node scripts/test-local-addresses.cjs",
     "test:order-after-sales": "node scripts/test-order-after-sales.cjs",
+    "test:logistics": "node scripts/test-logistics-navigation.cjs",
     "test:order-receipt": "node scripts/test-order-receipt.cjs",
     "test:order-comment": "node scripts/test-order-comment.cjs",
     "test:commerce-http": "npm run build:cloudfunction && node scripts/test-commerce-http.cjs",

@@ -17,9 +17,9 @@ const defaultOptions = {
 };
 
 // TDesign's virtual-host button accepts a style on its flex item.
-function confirmOnLeft(options) {
+function confirmOnLeft(options, confirmText = '确定') {
   const button = options.confirmBtn;
-  const confirmBtn = button ? { ...(typeof button === 'object' ? button : {}), content: '确定' } : button;
+  const confirmBtn = button ? { ...(typeof button === 'object' ? button : {}), content: confirmText } : button;
   if (confirmBtn) confirmBtn.style = `${confirmBtn.style || ''}; order: -1; margin-left: 0;`;
   const cancel = options.cancelBtn;
   const cancelBtn = cancel ? (typeof cancel === 'object' ? { ...cancel, content: '取消' } : '取消') : cancel;
@@ -32,7 +32,9 @@ export default {
     const dialog = getInstance(context, selector);
     if (!dialog) return Promise.reject();
     return new Promise((resolve) => {
-      dialog.setData(confirmOnLeft({ ...defaultOptions, ...dialog.properties, ...rest, cancelBtn: '', visible: true }));
+      const confirmText = typeof rest.confirmBtn === 'string' ? rest.confirmBtn : rest.confirmBtn?.content;
+      // TDesign 将空字符串也转换成按钮；必须用 null 才会移除取消按钮占位。
+      dialog.setData(confirmOnLeft({ ...defaultOptions, ...dialog.properties, ...rest, cancelBtn: null, visible: true }, confirmText));
       dialog._onConfirm = resolve;
     });
   },

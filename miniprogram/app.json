@@ -29,9 +29,7 @@
         "apply-service/index",
         "after-service-list/index",
         "after-service-detail/index",
-        "fill-tracking-no/index",
-        "delivery-detail/index",
-        "logistics-webview/index"
+        "fill-tracking-no/index"
       ]
     },
     {

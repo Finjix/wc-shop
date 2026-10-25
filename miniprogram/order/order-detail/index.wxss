@@ -121,6 +121,18 @@
 .order-detail .pay-detail .pay-item--remark {
   align-items: flex-start;
 }
+.pay-item--logistics > text {
+  flex-shrink: 0;
+}
+.logistics-tracking-no {
+  min-width: 0;
+  padding-right: 16rpx;
+  word-break: break-all;
+  text-align: right;
+}
+.pay-item--logistics .pay-item__right__copy {
+  flex-shrink: 0;
+}
 .order-remark-content {
   white-space: pre-wrap;
   word-break: break-all;

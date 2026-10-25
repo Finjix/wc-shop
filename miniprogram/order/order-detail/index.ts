@@ -6,6 +6,7 @@ import { OrderButtonTypes, OrderStatus } from '../config';
 import { fetchBusinessTime, fetchOrderDetail } from '../services/orderDetail';
 import { navigateToGoodsDetail } from '../../common/utils/goods-detail-navigation';
 import { applyCommentToOrder } from '../utils/comment-state';
+import { openLogistics } from '../utils/logistics';
 
 function refundableQuantityOf(goods = {}) {
   return Math.max(0, Number(
@@ -219,11 +220,12 @@ Page({
   },
 
   onDeliveryClick() {
-    const logistics = this.data.order.logisticsVO || {};
-    if (!logistics.logisticsNo && !logistics.logisticsCompanyName) return;
-    wx.navigateTo({
-      url: `/order/delivery-detail/index?data=${encodeURIComponent(JSON.stringify(logistics))}`,
-    });
+    openLogistics(this.data.order.logisticsVO || {});
+  },
+
+  onLogisticsNoCopy() {
+    const logisticsNo = String(this.data.order.logisticsVO?.logisticsNo || '').trim();
+    if (logisticsNo) wx.setClipboardData({ data: logisticsNo });
   },
 
 });

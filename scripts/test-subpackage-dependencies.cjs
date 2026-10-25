@@ -152,10 +152,18 @@ async function dialogScenario(file) {
   const alert = dialog.alert({ content: '请选择订单' });
   if (file === 'miniprogram/order/utils/dialog.ts') {
     assert.equal(component.data.confirmBtn.content, '确定');
-    assert.equal(component.data.cancelBtn, '');
+    assert.equal(component.data.cancelBtn, null, 'single-button alerts must not render an empty cancel button');
   }
   component._onConfirm();
   await alert;
+  if (file === 'miniprogram/order/utils/dialog.ts') {
+    const logisticsAlert = dialog.alert({ title: '物流查询失败', confirmBtn: '确认' });
+    assert.equal(component.data.confirmBtn.content, '确认');
+    assert.equal(component.data.cancelBtn, null, 'the confirm button occupies the full footer');
+    assert.equal(component.data.content, '');
+    component._onConfirm();
+    await logisticsAlert;
+  }
   await assert.rejects(dialog.confirm({ context: { selectComponent: () => null } }));
   return data;
 }
