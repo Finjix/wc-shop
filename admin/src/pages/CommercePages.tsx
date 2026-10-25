@@ -535,7 +535,7 @@ export function AfterSalesPage() {
   const review = async (row: AfterSale, next: 'approved' | 'rejected', reason = '') => {
     if (next === 'approved' && !isReturnApproval && approvedAmount === null) return;
     const type = afterSalePolicy(row).fixedType ?? decisionType;
-    const result = await run('afterSales.review', { id: afterSaleIdOf(row), status: next, ...(next === 'approved' ? { type, ...(type === 20 ? { amount: approvedAmount } : {}) } : {}), ...(reason ? { reason } : {}) }, next === 'approved' ? type === 10 ? '已同意退货申请，等待用户寄回，尚未退款' : '已同意申请并完成模拟退款' : '售后申请已拒绝');
+    const result = await run('afterSales.review', { id: afterSaleIdOf(row), status: next, ...(next === 'approved' ? { type, ...(type === 20 ? { amount: approvedAmount } : {}) } : {}), ...(reason ? { reason } : {}) }, next === 'approved' ? type === 10 ? '已同意退货申请，等待用户寄回，尚未退款' : '已同意退款申请' : '售后申请已拒绝');
     if (result !== undefined) { await updateAfterSale(row); setApproval(null); setRejection(null); setRejectReason(''); setSelected(null); }
   };
   const deleteAfterSale = async (row: AfterSale) => {
@@ -554,7 +554,7 @@ export function AfterSalesPage() {
   };
   const confirmReturn = async () => {
     if (busy || !returnApproval || returnRefundAmount === null) return;
-    const result = await run('afterSales.confirmReturn', { afterSaleId: afterSaleIdOf(returnApproval), amount: returnRefundAmount }, '已确认收货并同意退款，模拟退款已完成');
+    const result = await run('afterSales.confirmReturn', { afterSaleId: afterSaleIdOf(returnApproval), amount: returnRefundAmount }, '已确认收货并同意退款');
     if (result !== undefined) { await updateAfterSale(returnApproval); setReturnApproval(null); setSelected(null); }
   };
   const submitSearch = () => {
