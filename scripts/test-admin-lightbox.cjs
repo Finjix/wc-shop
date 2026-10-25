@@ -114,8 +114,22 @@ tree = open();
 assert.equal(tree.props.children.props.children.props.style.transform, 'translate(0px, 0px) scale(1)');
 documentEvents.get('keydown')({ key: 'Escape' });
 assert.equal(render(), null);
+class Filename extends Element {
+  dataset = { imagePreview: 'https://example.test/sku.webp', imageAlt: 'sku-photo.jpg' };
+  closest(selector) { return selector === '[data-image-preview]' ? this : null; }
+}
+documentEvents.get('click')({ target: new Filename(), preventDefault() {}, stopPropagation() {} });
+tree = render();
+assert.equal(tree.props['aria-label'], 'sku-photo.jpg');
+assert.equal(tree.props.children.props.children.props.src, 'https://example.test/sku.webp');
+documentEvents.get('keydown')({ key: 'Escape' });
+assert.equal(render(), null);
+const unavailable = new Filename();
+unavailable.dataset.imagePreview = '';
+documentEvents.get('click')({ target: unavailable, preventDefault() {}, stopPropagation() {} });
+assert.equal(render(), null, 'unresolved filename links must not open an empty preview');
 const styles = fs.readFileSync(path.join(root, 'admin/src/styles.css'), 'utf8');
 assert.match(styles, /\*, \*::before, \*::after\s*\{[^}]*animation: none !important;[^}]*transition: none !important;[^}]*scroll-behavior: auto !important;/);
 const main = fs.readFileSync(path.join(root, 'admin/src/main.tsx'), 'utf8');
 assert.match(main, /exclude: \['ripple', 'expand', 'fade'\]/);
-console.log('PASS no admin animations; centered wheel zoom, bounds, drag/click separation, reset, Escape and listener/focus/scroll cleanup');
+console.log('PASS image and filename previews; no admin animations; centered wheel zoom, bounds, drag/click separation, reset, Escape and listener/focus/scroll cleanup');

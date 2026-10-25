@@ -2,10 +2,10 @@
 
 import { resolveImage } from '../utils/images';
 
-export function resolveGoodsListImages(items = []) {
+export function resolveGoodsListImages(items = [], { preferSecondary = false } = {}) {
   return Promise.all((Array.isArray(items) ? items : []).map(async (item) => {
     const [thumb, primaryImage] = await Promise.all([
-      resolveImage(item.thumb),
+      resolveImage(preferSecondary ? item.secondaryImage || item.thumb : item.thumb),
       resolveImage(item.primaryImage),
     ]);
     return {
@@ -28,8 +28,9 @@ export function resolveCategoryListImages(list = []) {
 }
 
 export async function resolveProductDetailImages(product = {}) {
-  const [primaryImage, images, detailImages, skuList] = await Promise.all([
+  const [primaryImage, secondaryImage, images, detailImages, skuList] = await Promise.all([
     resolveImage(product.primaryImage),
+    resolveImage(product.secondaryImage),
     Promise.all((Array.isArray(product.images) ? product.images : []).map(resolveImage)),
     Promise.all((Array.isArray(product.detailImages) ? product.detailImages : []).map(resolveImage)),
     Promise.all((Array.isArray(product.skuList) ? product.skuList : []).map(async (sku) => ({
@@ -40,6 +41,8 @@ export async function resolveProductDetailImages(product = {}) {
   return {
     ...product,
     primaryImage: primaryImage || images[0] || '',
+    secondaryImage,
+    coverImages: Array.from(new Set([primaryImage || images[0], secondaryImage].filter(Boolean))),
     images,
     detailImages,
     skuList,

@@ -18,15 +18,26 @@ export function ImageLightbox() {
   useEffect(() => {
     const open = (event: MouseEvent) => {
       const target = event.target;
-      if (!(target instanceof HTMLImageElement) || target.closest('.image-lightbox')) return;
-      if (!target.currentSrc || !target.naturalWidth) return;
+      let src = '';
+      let alt = '图片预览';
+      if (target instanceof HTMLImageElement) {
+        if (target.closest('.image-lightbox') || !target.currentSrc || !target.naturalWidth) return;
+        src = target.currentSrc;
+        alt = target.alt || alt;
+      } else if (target instanceof HTMLElement) {
+        const trigger = target.closest<HTMLElement>('[data-image-preview]');
+        if (!trigger || trigger.closest('.image-lightbox')) return;
+        src = trigger.dataset.imagePreview || '';
+        alt = trigger.dataset.imageAlt || alt;
+      }
+      if (!src) return;
       event.preventDefault();
       event.stopPropagation();
       changeView(INITIAL_LIGHTBOX_VIEW);
       drag.current = null;
       suppressClick.current = false;
       setDragging(false);
-      setImage({ src: target.currentSrc, alt: target.alt || '图片预览' });
+      setImage({ src, alt });
     };
     document.addEventListener('click', open, true);
     return () => document.removeEventListener('click', open, true);

@@ -28,6 +28,10 @@ async function testNativeTabs() {
     getMenuButtonBoundingClientRect: () => ({ top: 26, left: 281, right: 368, height: 32 }),
     getStorageSync: () => '', createSelectorQuery: () => query,
     showToast() {}, stopPullDownRefresh() {}, navigateTo({ url }) { navigation.push(url); },
+    request({ data, success }) {
+      requests.push(data.action);
+      success({ statusCode: 200, data: { ok: true, data: { items: [], total: 0, config: {}, productsById: {} } } });
+    },
     cloud: { async callFunction({ data }) {
       requests.push(data.action);
       return { result: { ok: true, data: { items: [], total: 0, config: {}, productsById: {} } } };

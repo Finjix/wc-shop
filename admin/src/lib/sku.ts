@@ -38,6 +38,18 @@ export function variantName(sku: Sku, product: Product) {
   }).filter(Boolean).join(' / ') || '默认规格';
 }
 
+export function groupSkusByPrimary(product: Product, skus: Sku[]) {
+  const groups = new Map<string, { sku: Sku; secondaryName: string }[]>();
+  skus.forEach((sku) => {
+    const values = variantValues(sku, product);
+    const primaryName = values[0] || variantName(sku, product);
+    const items = groups.get(primaryName) || [];
+    items.push({ sku, secondaryName: values[1] || '' });
+    groups.set(primaryName, items);
+  });
+  return Array.from(groups, ([name, items]) => ({ name, items }));
+}
+
 export function variantStock(sku: Sku) {
   const source = sku.stockQuantity;
   const value = Number(source);

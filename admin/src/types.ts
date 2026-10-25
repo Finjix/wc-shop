@@ -19,9 +19,11 @@ export interface Product {
   _id?: Id;
   spuId?: Id;
   title: string;
+  name: string;
   subtitle?: string;
   description?: string;
   primaryImage?: string;
+  secondaryImage?: string;
   images?: string[];
   detailImages?: string[];
   categoryIds?: Id[];
@@ -165,8 +167,10 @@ export interface AfterSale {
 
 export interface ProductDraft {
   title: string;
+  name: string;
   categoryId: string;
   primaryImage: string;
+  secondaryImage: string;
   detailImages: string[];
   [key: string]: unknown;
 }

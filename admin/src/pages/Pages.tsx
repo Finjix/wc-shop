@@ -3,11 +3,15 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Input, MessagePlugin, Tag } from 'tdesign-react';
 import { adminApi } from '../lib/api';
 import { IMAGE_ACCEPT } from '../lib/image-upload';
+import { ProductCoverPicker } from '../components/ProductCoverPicker';
+import { SkuImagePicker } from '../components/SkuImagePicker';
 import { useDraftImages } from '../lib/useDraftImages';
+import { useBrowserLeaveWarning } from '../lib/useBrowserLeaveWarning';
 import { useConfirm } from '../components/ConfirmProvider';
 import { variantName, variantValues, visibleSkus } from '../lib/sku';
+import { emptyVariant, groupVariantDrafts, type VariantDraft } from '../lib/variant-drafts';
 import type { Category, ListResult, Order, Product, ProductDraft, Sku } from '../types';
-import { EmptyState, EmptyTable, ErrorState, Field, ImageFilePicker, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
+import { EmptyState, EmptyTable, ErrorState, Field, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
 
 
 function useResource<T>(action: string, payload: Record<string, unknown> = {}, refreshKey = 0, enabled = true) {
@@ -176,7 +180,7 @@ export function OverviewPage() {
   const { data, loading, error } = useResource<Record<string, unknown>>('dashboard.summary');
   const warnings = (data?.inventoryWarnings || []) as { productId: string; title: string; skuId: string; specName: string; stockQuantity: number }[];
   const [warningPage, setWarningPage] = useState(1);
-  const warningPageSize = 6;
+  const warningPageSize = 12;
   const warningPageCount = Math.max(1, Math.ceil(warnings.length / warningPageSize));
   useEffect(() => { setWarningPage((current) => Math.min(current, warningPageCount)); }, [warningPageCount]);
   const visibleWarnings = warnings.slice((warningPage - 1) * warningPageSize, warningPage * warningPageSize);
@@ -220,24 +224,14 @@ export function OverviewPage() {
 }
 
 const emptyProduct: ProductDraft = {
-  title: '', categoryId: '', primaryImage: '', detailImages: [],
+  title: '', name: '', categoryId: '', primaryImage: '', secondaryImage: '', detailImages: [],
 };
 
 const PRODUCT_LIST_PAGE_SIZE = 7;
 
-interface VariantDraft {
-  localId: string;
-  skuId?: string;
-  name: string;
-  secondName: string;
-  price: string;
-  skuImage: string;
-}
-const emptyVariant = (): VariantDraft => ({ localId: crypto.randomUUID(), name: '', secondName: '', price: '', skuImage: '' });
-
 function productDetailImages(product: Product) {
   const cover = product.primaryImage || product.images?.[0];
-  const images = product.detailImages?.length ? product.detailImages : product.images?.filter((image) => image !== cover) || [];
+  const images = product.detailImages?.length ? product.detailImages : product.images?.filter((image) => image !== cover && image !== product.secondaryImage) || [];
   return images.slice(0, 6);
 }
 
@@ -337,15 +331,19 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const [editing, setEditing] = useState<Product | null>(null);
   const [draft, setDraft] = useState<ProductDraft>(emptyProduct);
   const [variants, setVariants] = useState<VariantDraft[]>([emptyVariant()]);
-  const [specTitles, setSpecTitles] = useState(['颜色', '鞋码']);
+  const [specTitles, setSpecTitles] = useState(['规格', '二级规格']);
+  const [secondaryInputs, setSecondaryInputs] = useState<Record<string, string>>({});
+  const variantGroups = groupVariantDrafts(variants);
   const [savedEditor, setSavedEditor] = useState<string | null>(null);
-  const editorSnapshot = JSON.stringify({ draft, variants, specTitles });
+  const editorSnapshot = JSON.stringify({ draft, variants, specTitles, secondaryInputs });
   const editorDirty = savedEditor !== null && editorSnapshot !== savedEditor;
   const editorRequest = useRef(0);
   const [variantsLoading, setVariantsLoading] = useState(false);
   const [uploading, setUploading] = useState('');
   const [routeEditLoading, setRouteEditLoading] = useState(false);
   const detailInputRef = useRef<HTMLInputElement>(null);
+  const detailReplaceInputRef = useRef<HTMLInputElement>(null);
+  const detailReplaceIndexRef = useRef(0);
   const { data, loading, error } = useResource<unknown>('products.list', {
     page: productPage,
     pageSize: PRODUCT_LIST_PAGE_SIZE,
@@ -371,6 +369,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     return () => { active = false; };
   }, []);
   const { busy, run } = useAction();
+  useBrowserLeaveWarning(editorOpen && (editorDirty || busy || Boolean(uploading) || draftImages.processing));
   const rows = useMemo(() => readList<Product>(data), [data]);
   const total = readTotal(data, rows.length);
   const pageCount = Math.max(1, Math.ceil(total / PRODUCT_LIST_PAGE_SIZE));
@@ -429,14 +428,17 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     setEditing(product || null);
     setVariants([emptyVariant()]);
     const groups = (product?.specList || []) as { title?: string }[];
-    setSpecTitles([String(groups[0]?.title || (product ? '规格' : '颜色')), String(groups[1]?.title || '鞋码')]);
+    setSpecTitles([String(groups[0]?.title || '规格'), String(groups[1]?.title || '二级规格')]);
+    setSecondaryInputs({});
     setVariantsLoading(Boolean(product));
     setUploading('');
     setDraft(product ? {
       ...emptyProduct,
       title: product.title || '',
+      name: product.name || '',
       categoryId: String(product.categoryIds?.[0] || ''),
       primaryImage: product.primaryImage || product.images?.[0] || '',
+      secondaryImage: product.secondaryImage || '',
       detailImages: productDetailImages(product),
     } : emptyProduct);
     if (product) {
@@ -446,8 +448,14 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
         if (request !== editorRequest.current) return;
         const allSkus = Array.from(new Map(results.flatMap((result) => readList<Sku>(result)).map((sku) => [String(sku._id || sku.skuId), sku])).values());
         const existing = visibleSkus(product, allSkus);
+        const groupIds = new Map<string, string>();
+        existing.forEach((sku) => {
+          const name = variantValues(sku, product)[0] || variantName(sku, product);
+          if (!groupIds.has(name)) groupIds.set(name, crypto.randomUUID());
+        });
         setVariants(existing.length ? existing.map((sku) => ({
           localId: String(sku._id || sku.skuId),
+          groupId: groupIds.get(variantValues(sku, product)[0] || variantName(sku, product))!,
           skuId: String(sku._id || sku.skuId),
           name: variantValues(sku, product)[0] || variantName(sku, product),
           secondName: variantValues(sku, product)[1] || '',
@@ -490,14 +498,21 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     return () => { active = false; };
   }, [routeEditProductId, editorMode]);
   const setValue = (key: keyof ProductDraft, value: string | boolean | string[]) => setDraft((old) => ({ ...old, [key]: value }));
-  const uploadCover = async (file?: File) => {
-    if (!file) return;
+  const uploadCovers = async (files: File[], replaceIndex?: number) => {
+    if (!files.length || uploading) return;
+    const covers = [draft.primaryImage, draft.secondaryImage].filter(Boolean);
+    if (replaceIndex === undefined && covers.length + files.length > 2) { await MessagePlugin.warning('封面最多 2 张，第一张为主封面，第二张为副封面'); return; }
     const request = editorRequest.current;
-    setUploading('cover');
+    setUploading('covers');
     try {
-      const fileID = await draftImages.select(file);
-      if (request !== editorRequest.current) return;
-      setDraft((old) => ({ ...old, primaryImage: fileID }));
+      const selected: string[] = [];
+      for (const file of files) {
+        selected.push(await draftImages.select(file));
+        if (request !== editorRequest.current) return;
+      }
+      if (replaceIndex === undefined) covers.push(...selected);
+      else covers[replaceIndex] = selected[0];
+      setDraft((old) => ({ ...old, primaryImage: covers[0] || '', secondaryImage: covers[1] || '' }));
     } catch (err) {
       await MessagePlugin.error(err instanceof Error ? err.message : '图片上传失败');
     } finally { if (request === editorRequest.current) setUploading(''); }
@@ -505,25 +520,28 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const uploadVariantImage = async (localId: string, file?: File) => {
     if (!file || uploading) return;
     const request = editorRequest.current;
+    const groupId = variants.find((item) => item.localId === localId)?.groupId;
+    if (!groupId) return;
     setUploading(`sku:${localId}`);
     try {
       const fileID = await draftImages.select(file);
       if (request !== editorRequest.current) return;
-      setVariants((old) => old.map((item) => item.localId === localId ? { ...item, skuImage: fileID } : item));
+      setVariants((old) => old.map((item) => item.groupId === groupId ? { ...item, skuImage: fileID } : item));
+      return fileID;
     } catch (err) {
       await MessagePlugin.error(err instanceof Error ? err.message : '图片上传失败');
     } finally { if (request === editorRequest.current) setUploading(''); }
   };
-  const uploadDetails = async (files: File[]) => {
+  const uploadDetails = async (files: File[], replaceIndex?: number) => {
     if (!files.length || uploading) return;
-    if (draft.detailImages.length + files.length > 6) { await MessagePlugin.warning('商品详情图最多 6 张'); return; }
+    if (replaceIndex === undefined && draft.detailImages.length + files.length > 6) { await MessagePlugin.warning('商品详情图最多 6 张'); return; }
     const request = editorRequest.current;
     setUploading('details');
     try {
       for (const file of files) {
         const fileID = await draftImages.select(file);
         if (request !== editorRequest.current) return;
-        setDraft((old) => ({ ...old, detailImages: [...old.detailImages, fileID] }));
+        setDraft((old) => ({ ...old, detailImages: replaceIndex === undefined ? [...old.detailImages, fileID] : old.detailImages.map((image, index) => index === replaceIndex ? fileID : image) }));
       }
     } catch (err) {
       await MessagePlugin.error(err instanceof Error ? err.message : '详情图片上传失败');
@@ -531,11 +549,30 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
       if (request === editorRequest.current) setUploading('');
     }
   };
+  const addSecondaryValue = (groupId: string) => {
+    setVariants((old) => {
+      if (old.length >= 100) return old;
+      const items = old.filter((item) => item.groupId === groupId);
+      const first = items[0];
+      if (!first) return old;
+      if (items.length === 1 && !first.secondName && !first.isSecondary) {
+        return old.map((item) => item.localId === first.localId ? { ...item, isSecondary: true } : item);
+      }
+      const addition = { ...first, localId: crypto.randomUUID(), skuId: undefined, secondName: '', isSecondary: true };
+      return old.flatMap((item) => item.localId === items[items.length - 1].localId ? [item, addition] : [item]);
+    });
+  };
+  const variantImagePicker = (variant: VariantDraft) => <div className="variant-image"><span>SKU 图片（可选）</span><SkuImagePicker fileID={variant.skuImage} onSelect={(file) => uploadVariantImage(variant.localId, file)} disabled={busy || Boolean(uploading)} />
+    {variant.skuImage && <Button variant="text" disabled={busy || Boolean(uploading)} onClick={() => setVariants((old) => old.map((item) => item.groupId === variant.groupId ? { ...item, skuImage: '' } : item))}>移除图片</Button>}
+  </div>;
   const save = async () => {
     if (busy || variantsLoading || uploading || draftImages.processing) return;
     const fail = async (message: string) => { await MessagePlugin.warning(message); };
-    if (!draft.title.trim()) { await fail('请填写商品名称'); return; }
-    const cleaned = variants.map((variant) => ({ ...variant, name: variant.name.trim(), secondName: variant.secondName.trim(), price: variant.price.trim() }));
+    if (variants.some((variant) => variant.isSecondary && !variant.secondName.trim())) { await fail('请填写具体二级规格，或删除空的二级规格'); return; }
+    if (!draft.title.trim()) { await fail('请填写商品标题'); return; }
+    if (!draft.name.trim() || draft.name.trim().length > 10) { await fail('请填写商品名称（最多 10 个字）'); return; }
+    const groupImages = new Map(variantGroups.map(({ id, items }) => [id, items.find((item) => item.skuImage)?.skuImage || '']));
+    const cleaned = variants.map((variant) => ({ ...variant, name: variant.name.trim(), secondName: variant.secondName.trim(), price: variant.price.trim(), skuImage: groupImages.get(variant.groupId) || '' }));
     const hasSecondSpec = cleaned.some((variant) => variant.secondName);
     const titles = specTitles.slice(0, hasSecondSpec ? 2 : 1).map((title) => title.trim());
     if (titles.some((title) => !title || title.length > 20) || new Set(titles).size !== titles.length) { await fail('请填写不同的规格名称（最多 20 个字）'); return; }
@@ -545,14 +582,14 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
       await fail('请填写一级规格和大于 0 的价格（元，最多两位小数）'); return;
     }
     if (new Set(cleaned.map((variant) => JSON.stringify(titles.length === 2 ? [variant.name, variant.secondName] : [variant.name]))).size !== cleaned.length) { await fail('规格组合不能重复'); return; }
-    if (!draft.primaryImage) { await fail('请上传商品封面图片'); return; }
+    if (!draft.primaryImage) { await fail('请上传商品主封面'); return; }
     if (!draft.detailImages.some(Boolean)) { await fail('请至少上传 1 张商品详情图片'); return; }
     const { categoryId, ...productDraft } = draft;
     setUploading('save');
     try { const payload = await draftImages.images.upload({
       ...(editing ? { id: editing._id || editing.spuId } : {}),
       ...productDraft,
-      images: [draft.primaryImage],
+      images: Array.from(new Set([draft.primaryImage, draft.secondaryImage].filter(Boolean))),
       detailImages: draft.detailImages.filter(Boolean),
       specTitles: titles,
       variants: cleaned.map((variant) => ({
@@ -621,8 +658,8 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
       <Button theme="primary" onClick={() => navigate('/products/new')}>新建商品</Button>
     </div>
     {(loading || routeEditLoading) && <LoadingState />}{!routeEditLoading && error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
-    {!loading && !routeEditLoading && !error && <Panel className="product-list-panel"><Table><thead><tr><th>商品</th><th>操作</th><th aria-label="商品状态" /></tr></thead><tbody>
-      {rows.length === 0 && <tr><td colSpan={3}><EmptyState title={productQuery ? '没有找到相关商品' : '暂无商品'} /></td></tr>}
+    {!loading && !routeEditLoading && !error && <Panel className="product-list-panel"><Table><thead><tr><th>商品</th><th>操作</th></tr></thead><tbody>
+      {rows.length === 0 && <tr><td colSpan={2}><EmptyState title={productQuery ? '没有找到相关商品' : '暂无商品'} /></td></tr>}
       {rows.map((product) => {
         const fileID = String(product.primaryImage || '');
         const resolvedImage = imageUrls[fileID];
@@ -630,7 +667,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
         const status = productStatusOf(product);
         const productId = String(product._id || product.spuId);
         const productActionInProgress = Boolean(statusChangingId || deletingProductId);
-        return <tr key={productId} className={status === 'active' ? '' : 'product-list-inactive'}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong></div></div></td><td><div className="product-list-actions"><Button variant="text" className="product-list-edit" disabled={productActionInProgress || busy} onClick={() => navigate(`/products/${encodeURIComponent(productId)}/edit`)}>编辑</Button><Link className="product-list-sku-link" to={`/skus?query=${encodeURIComponent(product.title)}`}>库存</Link><Button variant="text" className="product-list-edit" loading={statusChangingId === productId} disabled={productActionInProgress || busy} onClick={() => void toggleProductStatus(product)}>{status === 'active' ? '下架' : '上架'}</Button><Button variant="text" className="product-list-delete" loading={deletingProductId === productId} disabled={productActionInProgress || busy} onClick={() => void deleteProduct(product)}>删除</Button></div></td><td className="product-list-status">{status !== 'active' && <strong className="product-list-inactive-label">已下架</strong>}</td></tr>;
+        return <tr key={productId} className={status === 'active' ? '' : 'product-list-inactive'}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong></div></div></td><td><div className="product-list-actions"><Button variant="text" className="product-list-edit" disabled={productActionInProgress || busy} onClick={() => navigate(`/products/${encodeURIComponent(productId)}/edit`)}>编辑</Button><Link className="product-list-sku-link" to={`/skus?query=${encodeURIComponent(product.title)}`}>库存</Link><Button variant="text" className={`product-list-edit${status !== 'active' ? ' product-list-activate' : ''}`} loading={statusChangingId === productId} disabled={productActionInProgress || busy} onClick={() => void toggleProductStatus(product)}>{status === 'active' ? '下架' : '上架'}</Button><Button variant="text" className="product-list-delete" loading={deletingProductId === productId} disabled={productActionInProgress || busy} onClick={() => void deleteProduct(product)}>删除</Button></div></td></tr>;
       })}
     </tbody></Table>
       <div className="product-list-pagination">
@@ -644,42 +681,55 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     </Panel>}
     </>}{editorMode && routeEditLoading && <LoadingState />}
     {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions floating-save-actions"><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} disabled={!editorDirty || busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存</Button><Button variant="outline" disabled={busy || Boolean(uploading)} onClick={cancelEditor}>取消</Button></div><div className="form-grid">
-       <Field label="商品名称"><Input value={draft.title} onChange={(value) => setValue('title', value)} placeholder="请输入商品名称" /></Field>
-       <Field label="分类" fileUpload hint={categoriesError || undefined}><CategoryPicker value={draft.categoryId} onChange={(id) => setValue('categoryId', id)} options={categoryOptions} disabled={categoriesLoading || Boolean(categoriesError)} /></Field>
+       <div className="product-basic-fields"><Field label="商品标题"><Input value={draft.title} onChange={(value) => setValue('title', value)} placeholder="请输入商品标题" /></Field>
+       <Field label="商品名称" labelHint="用于分类页显示"><Input value={draft.name} onChange={(value) => setValue('name', value)} placeholder="请输入商品名称" maxlength={10} showLimitNumber /></Field>
+       <Field label="分类" fileUpload hint={categoriesError || undefined}><CategoryPicker value={draft.categoryId} onChange={(id) => setValue('categoryId', id)} options={categoryOptions} disabled={categoriesLoading || Boolean(categoriesError)} /></Field></div>
        <div className="variant-field"><strong>商品规格</strong>
-         <div className="spec-titles">{specTitles.map((title, index) => <label key={index}><span>{index === 0 ? '一级规格名称' : '二级规格名称（选填）'}</span><Input value={title} onChange={(value) => setSpecTitles((old) => old.map((item, position) => position === index ? value : item))} placeholder={index === 0 ? '例如：颜色' : '例如：鞋码'} /></label>)}</div>
-         <small>每行是一个可售组合，同一颜色可填写多个鞋码。二级规格可留空，留空的组合只保存一级规格。</small>
-         {variants.map((variant) => <div className="variant-row" key={variant.localId}>
-           <div className="variant-main">
-             <label><span>{specTitles[0] || '一级规格'}</span><Input value={variant.name} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, name: value } : item))} placeholder="例如：黑色" /></label>
-             <label><span>{specTitles[1] || '二级规格'}（选填）</span><Input value={variant.secondName} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, secondName: value } : item))} placeholder="可留空，例如：38" /></label>
-             <label><span>售价（元）</span><Input value={variant.price} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, price: value } : item))} placeholder="例如：29.90" /></label>
-             <Button variant="text" disabled={variants.length === 1} onClick={() => setVariants((old) => old.filter((item) => item.localId !== variant.localId))}>删除</Button>
-           </div>
-           <div className="variant-image"><span>SKU 图片（可选）</span><ImageFilePicker onSelect={(file) => void uploadVariantImage(variant.localId, file)} disabled={Boolean(uploading)} />
-             {variant.skuImage && <div className="product-image-item"><ProductImagePreview fileID={variant.skuImage} alt={`${variant.name || 'SKU'} 图片预览`} /><Button variant="text" onClick={() => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, skuImage: '' } : item))}>移除图片</Button></div>}
-           </div>
-         </div>)}
+         {variantGroups.map(({ id, items, first }) => {
+           const hasSecondary = items.length > 1 || Boolean(first.secondName) || Boolean(first.isSecondary);
+           const secondaryOpen = hasSecondary || secondaryInputs[id] !== undefined;
+           return <div className="variant-row" key={id}>
+             <div className={`variant-main ${hasSecondary ? 'variant-main-group' : ''}`}>
+               <label><span>一级规格</span><Input aria-label="一级规格" value={first.name} onChange={(value) => setVariants((old) => old.map((item) => item.groupId === id ? { ...item, name: value } : item))} placeholder="例如：黑色" /></label>
+               {!hasSecondary && <label><span>售价（元）</span><Input value={first.price} onChange={(value) => setVariants((old) => old.map((item) => item.localId === first.localId ? { ...item, price: value } : item))} placeholder="例如：29.90" /></label>}
+               <div className="variant-primary-actions"><Button variant="outline" disabled={variants.length >= 100 || secondaryOpen} onClick={() => {
+                 setSecondaryInputs((old) => ({ ...old, [id]: '' }));
+                 if (specTitles[1] === '二级规格') setSpecTitles((old) => [old[0], '']);
+               }}>新增二级规格</Button><Button variant="text" disabled={variantGroups.length === 1} onClick={() => {
+                 setVariants((old) => old.filter((item) => item.groupId !== id));
+                 setSecondaryInputs((old) => { const next = { ...old }; delete next[id]; return next; });
+               }}>删除</Button></div>
+             </div>
+             {secondaryOpen && <div className="secondary-variant-add"><label><span>二级规格名称</span><Input value={specTitles[1] === '二级规格' ? '' : specTitles[1]} onChange={(value) => setSpecTitles((old) => [old[0], value])} placeholder="例如：鞋码" aria-label="二级规格名称" /></label></div>}
+             {hasSecondary && <div className="secondary-variant-list">{items.map((variant) => <div className="secondary-variant-row" key={variant.localId}>
+               <div className="secondary-variant-main">
+                 <label><span>{specTitles[1] || '二级规格'}</span><Input aria-label="二级规格具体值" value={variant.secondName} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, secondName: value } : item))} /></label>
+                 <label><span>售价（元）</span><Input value={variant.price} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, price: value } : item))} placeholder="例如：29.90" /></label>
+                 <Button variant="text" onClick={() => setVariants((old) => items.length === 1 ? old.map((item) => item.localId === variant.localId ? { ...item, secondName: '', isSecondary: false } : item) : old.filter((item) => item.localId !== variant.localId))}>删除</Button>
+               </div>
+             </div>)}</div>}
+             {secondaryOpen && <div className="secondary-variant-actions"><Button variant="outline" disabled={variants.length >= 100} onClick={() => addSecondaryValue(id)}>增加</Button>{!hasSecondary && <Button variant="text" onClick={() => setSecondaryInputs((old) => { const next = { ...old }; delete next[id]; return next; })}>取消</Button>}</div>}
+             {variantImagePicker({ ...first, skuImage: items.find((item) => item.skuImage)?.skuImage || '' })}
+           </div>;
+         })}
          <Button variant="outline" disabled={variants.length >= 100} onClick={() => setVariants((old) => [...old, emptyVariant()])}>添加规格组合</Button>
        </div>
-       <div className="product-cover-field"><Field label="封面图片（1:1）" fileUpload>
-         <ImageFilePicker onSelect={(file) => void uploadCover(file)} disabled={Boolean(uploading)} />
-         {draft.primaryImage && <div className="product-image-item product-cover-preview"><ProductImagePreview fileID={draft.primaryImage} alt="商品封面预览" /></div>}
-       </Field></div>
+       <ProductCoverPicker images={[draft.primaryImage, draft.secondaryImage].filter(Boolean)} disabled={busy || variantsLoading || Boolean(uploading)} onSelect={(files, replaceIndex) => void uploadCovers(files, replaceIndex)} onChange={(images) => setDraft((old) => ({ ...old, primaryImage: images[0] || '', secondaryImage: images[1] || '' }))} renderImage={(fileID, alt) => <ProductImagePreview fileID={fileID} alt={alt} />} />
        <div className="product-detail-images">
-         <div className="product-detail-image-heading"><strong>商品详情图片（最多 6 张）</strong></div>
-         {draft.detailImages.length > 0 && <div className="product-detail-image-grid">
-           {draft.detailImages.map((image, index) => <div className="product-detail-image-card" key={`${image}-${index}`}>
-             <ProductImagePreview fileID={image} alt={`详情图 ${index + 1} 预览`} />
-             <div className="product-detail-image-card-actions"><span>第 {index + 1} 张</span><Button variant="text" disabled={Boolean(uploading)} onClick={() => setDraft((old) => ({ ...old, detailImages: old.detailImages.filter((_, i) => i !== index) }))}>删除</Button></div>
-           </div>)}
-         </div>}
+         <div className="product-detail-image-heading"><strong>商品详情图片</strong></div>
          <div className="product-detail-image-upload"><div className="image-file-picker">
            <button type="button" disabled={draft.detailImages.length >= 6 || Boolean(uploading)} onClick={() => detailInputRef.current?.click()}>选择文件</button>
            <span>{draft.detailImages.length ? `已上传 ${draft.detailImages.length} 张` : '未选择文件'}</span>
            <input ref={detailInputRef} className="image-file-picker-input" type="file" accept={IMAGE_ACCEPT} multiple disabled={Boolean(uploading)} aria-label="选择商品详情图片"
              onChange={(event) => { const files = Array.from(event.target.files || []); event.target.value = ''; void uploadDetails(files); }} />
          </div></div>
+         {draft.detailImages.length > 0 && <div className="product-detail-image-grid">
+           {draft.detailImages.map((image, index) => <div className="product-detail-image-card" key={`${image}-${index}`}>
+             <ProductImagePreview fileID={image} alt={`详情图 ${index + 1} 预览`} />
+             <div className="product-detail-image-card-actions"><span>第 {index + 1} 张</span><div><Button variant="text" disabled={busy || Boolean(uploading)} onClick={() => { detailReplaceIndexRef.current = index; detailReplaceInputRef.current?.click(); }}>更换</Button><Button variant="text" disabled={Boolean(uploading)} onClick={() => setDraft((old) => ({ ...old, detailImages: old.detailImages.filter((_, i) => i !== index) }))}>删除</Button></div></div>
+           </div>)}
+         </div>}
+         <input ref={detailReplaceInputRef} className="image-file-picker-input" type="file" accept={IMAGE_ACCEPT} disabled={busy || Boolean(uploading)} aria-label="更换商品详情图片" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void uploadDetails([file], detailReplaceIndexRef.current); }} />
        </div>
     </div></Panel> : null}
   </>;

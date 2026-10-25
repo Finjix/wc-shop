@@ -5,6 +5,7 @@ import { ChevronDownIcon, ChevronUpIcon, DeleteIcon, EditIcon, ImageIcon } from 
 import { adminApi } from '../lib/api';
 import { IMAGE_ACCEPT } from '../lib/image-upload';
 import { useDraftImages } from '../lib/useDraftImages';
+import { useBrowserLeaveWarning } from '../lib/useBrowserLeaveWarning';
 import { useConfirm } from '../components/ConfirmProvider';
 import type { Category, ListResult } from '../types';
 import { ErrorState, LoadingState, Panel, Table } from '../components/Ui';
@@ -60,6 +61,7 @@ export function CategoriesPage() {
   const dirty = !loading && (Boolean(uploadingId) || categorySnapshot(rows) !== categorySnapshot(savedRows)
     || Boolean(editingId && editingName.trim() !== rows.find((item) => idOf(item) === editingId)?.name));
   const blocker = useBlocker(dirty);
+  useBrowserLeaveWarning(dirty || busy || draftImages.processing || Boolean(newParentName.trim() || newChildName.trim()));
 
   const parents = useMemo(() => rows.filter((row) => !row.parentId), [rows]);
   const parent = parents.find((row) => idOf(row) === selectedParentId) || parents[0];
@@ -256,6 +258,6 @@ export function CategoriesPage() {
         {orphans.map((item) => <tr key={idOf(item)}><td>{item.name}</td><td>{String(item.parentId)}</td><td><div className="category-manager-actions">{reparentingId === idOf(item) ? <><select value={newParentId} onChange={(event) => setNewParentId(event.target.value)}>{parents.map((parentItem) => <option key={idOf(parentItem)} value={idOf(parentItem)}>{parentItem.name}</option>)}</select><Button size="small" theme="primary" disabled={busy} onClick={() => reparent(item)}>确定归属</Button><Button size="small" variant="text" onClick={() => setReparentingId('')}>取消</Button></> : <Button size="small" variant="text" disabled={busy || !parents.length} onClick={() => { setReparentingId(idOf(item)); setNewParentId(idOf(parent || parents[0])); }}>重新归属</Button>}<Button size="small" variant="text" disabled={busy} onClick={() => remove(item)}>删除</Button></div></td></tr>)}
       </tbody></Table>
     </Panel>}
-    {blocker.state === 'blocked' && <div className="home-config-dialog-backdrop" role="presentation"><div className="home-config-dialog" role="alertdialog" aria-modal="true" aria-labelledby="category-unsaved-title"><h3 id="category-unsaved-title">分类设置尚未保存</h3><p>保存修改后再切换页面，或放弃本次修改。</p><div className="home-config-dialog-actions"><Button variant="outline" disabled={busy} onClick={() => blocker.reset()}>继续编辑</Button><Button variant="outline" disabled={busy} onClick={() => blocker.proceed()}>放弃修改</Button><Button theme="primary" loading={busy} onClick={() => void save().then((saved) => { if (saved) blocker.proceed(); })}>保存并离开</Button></div></div></div>}
+    {blocker.state === 'blocked' && <div className="home-config-dialog-backdrop" role="presentation"><div className="home-config-dialog" role="alertdialog" aria-modal="true" aria-labelledby="category-unsaved-title"><h3 id="category-unsaved-title">分类设置尚未保存</h3><div className="home-config-dialog-actions"><Button variant="outline" disabled={busy} onClick={() => blocker.reset()}>继续编辑</Button><Button variant="outline" disabled={busy} onClick={() => blocker.proceed()}>放弃修改</Button><Button theme="primary" loading={busy} onClick={() => void save().then((saved) => { if (saved) blocker.proceed(); })}>保存并离开</Button></div></div></div>}
   </>;
 }

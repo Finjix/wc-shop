@@ -30,6 +30,15 @@ async function run() {
     slot: 'home.page-config', type: 'pageConfig', payload: { banners: imageIds.map(image => ({ image, productId: '' })) },
   });
   assert.deepStrictEqual(serial.records.homeContents['home.page-config'].payload.banners.map(item => item.image), imageIds);
+  const covers = makeRuntime();
+  const secondary = 'cloud://test.bucket/admin/products/secondary.webp';
+  covers.records.products['product-1'].secondaryImage = secondary;
+  covers.app = { deleteFile: async ({ fileList }) => ({ fileList: fileList.map(fileID => ({ fileID, code: 'SUCCESS' })) }) };
+  assert.deepStrictEqual((await cleanup(covers, { fileList: [secondary] })).retained, [secondary], 'a secondary cover is protected even if only its dedicated field references it');
+  const coverRuntime = imageLifecycleRuntime(covers);
+  await coverRuntime.db.collection('products').doc('product-1').update({ secondaryImage: '' });
+  assert(coverRuntime.removedImages.has(secondary), 'removing a secondary cover queues image cleanup');
+  assert.deepStrictEqual((await cleanup(covers, { fileList: [secondary] })).deleted, [secondary]);
   const metadata = makeRuntime();
   metadata.records.products['product-1'].images = [next];
   metadata.records.homeContents = { 'home.page-config': { _id: 'home.page-config', payload: { banners: [{ productId: 'product-1', image: next }], sections: [{ productIds: ['product-1'] }] } } };

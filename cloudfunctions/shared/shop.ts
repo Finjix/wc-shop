@@ -67,7 +67,7 @@ async function getActiveProduct(runtime, id, required) {
 function publicProduct(product) {
   if (!product) return product;
   return pick(product, [
-    '_id', 'spuId', 'title', 'subtitle', 'description', 'primaryImage', 'images', 'detailImages',
+    '_id', 'spuId', 'title', 'name', 'subtitle', 'description', 'primaryImage', 'secondaryImage', 'images', 'detailImages',
     'categoryIds', 'tags', 'brand', 'storeId', 'storeName', 'sort', 'minSalePrice', 'maxSalePrice',
     'minLinePrice', 'maxLinePrice', 'soldQuantity', 'status', 'createdAt',
     'updatedAt', 'specList', 'video',

@@ -141,7 +141,7 @@ async function saveProductWithVariants(runtime, data) {
     specValueList: [],
   }));
   const patch = {
-    ...allowedFields(data, ['title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'tags', 'description']),
+    ...allowedFields(data, ['title', 'name', 'subtitle', 'primaryImage', 'secondaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'tags', 'description']),
     specList,
     minSalePrice: Math.min(...prices),
     maxSalePrice: Math.max(...prices),
@@ -149,10 +149,12 @@ async function saveProductWithVariants(runtime, data) {
   };
   if (patch.categoryIds !== undefined) patch.categoryIds = await validProductCategoryIds(runtime, patch.categoryIds);
   patch.title = string(patch.title, 'title', { max: 200 });
+  patch.name = string(patch.name, 'name', { max: 10 });
   patch.primaryImage = string(patch.primaryImage, 'primaryImage', { max: 1024 });
+  patch.secondaryImage = patch.secondaryImage === undefined ? current?.secondaryImage || '' : optionalString(patch.secondaryImage, 'secondaryImage', { max: 1024 }) || '';
   assert(Array.isArray(patch.detailImages) && patch.detailImages.length >= 1 && patch.detailImages.length <= 6, { field: 'detailImages', min: 1, max: 6 });
   patch.detailImages = patch.detailImages.map((image) => string(image, 'detailImages[]', { max: 1024 }));
-  patch.images = [patch.primaryImage];
+  patch.images = [...new Set([patch.primaryImage, patch.secondaryImage].filter(Boolean))];
   const result = await withTransaction(runtime.db, async (tx) => {
     const txProducts = tx.collection(COLLECTIONS.products);
     const txSkus = tx.collection(COLLECTIONS.skus);
@@ -405,10 +407,12 @@ async function catalogAction(runtime, data, action) {
     const timestamp = now();
     let item;
     if (entity === 'categories') item = { ...allowedFields(data, ['name', 'parentId', 'level', 'sort', 'icon', 'description']), status: statusValue(data.status, STATUS.active) };
-    else if (entity === 'products') item = { ...allowedFields(data, ['spuId', 'title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList']), status: statusValue(data.status, STATUS.active) };
+    else if (entity === 'products') item = { ...allowedFields(data, ['spuId', 'title', 'name', 'subtitle', 'primaryImage', 'secondaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList']), status: statusValue(data.status, STATUS.active) };
     else item = { ...allowedFields(data, ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity']), stockQuantity: integer(data.stockQuantity === undefined ? 999 : data.stockQuantity, 'stockQuantity', { min: 0 }), soldQuantity: integer(data.soldQuantity === undefined ? 0 : data.soldQuantity, 'soldQuantity', { min: 0 }) };
     item.createdAt = timestamp;
     item.updatedAt = timestamp;
+    if (entity === 'products') item.name = string(item.name, 'name', { max: 10 });
+    if (entity === 'products' && item.secondaryImage !== undefined) item.secondaryImage = optionalString(item.secondaryImage, 'secondaryImage', { max: 1024 }) || '';
     if (entity === 'products' && item.categoryIds !== undefined) {
       item.categoryIds = await validProductCategoryIds(runtime, item.categoryIds);
     }
@@ -450,9 +454,11 @@ async function catalogAction(runtime, data, action) {
   const fields = entity === 'categories'
     ? ['name', 'parentId', 'level', 'sort', 'icon', 'description', 'status']
     : entity === 'products'
-      ? ['spuId', 'title', 'subtitle', 'primaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList', 'status']
+      ? ['spuId', 'title', 'name', 'subtitle', 'primaryImage', 'secondaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList', 'status']
       : ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity'];
   const patch = allowedFields(data, fields);
+  if (entity === 'products' && patch.name !== undefined) patch.name = string(patch.name, 'name', { max: 10 });
+  if (entity === 'products' && patch.secondaryImage !== undefined) patch.secondaryImage = optionalString(patch.secondaryImage, 'secondaryImage', { max: 1024 }) || '';
   if (entity === 'products' && patch.categoryIds !== undefined) patch.categoryIds = await validProductCategoryIds(runtime, patch.categoryIds);
   if (patch.status) patch.status = statusValue(patch.status);
   if (entity === 'products' && patch.status && ![STATUS.active, STATUS.inactive].includes(patch.status)) throw errorFrom('INVALID_ARGUMENT', { field: 'status' });

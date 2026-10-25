@@ -16,9 +16,12 @@
           <view class="category-section-title">{{section.name}}</view>
           <image class="category-section-banner {{!section.isParent ? 'category-section-banner-rounded' : ''}}" wx:if="{{section.image}}" src="{{section.image}}" mode="widthFix" lazy-load data-category-id="{{section.id}}" data-category-name="{{section.name}}" data-is-parent="{{section.isParent}}" bindtap="openCategoryResults" />
           <view class="category-product-grid" wx:if="{{section.goodsList.length}}">
-            <view class="category-product-card" wx:for="{{section.goodsList}}" wx:for-item="goods" wx:key="spuId" data-id="{{goods.spuId || goods._id}}" bindtap="openGoods">
-              <image class="category-product-image" wx:if="{{goods.thumb}}" src="{{goods.thumb}}" mode="aspectFill" lazy-load />
-              <view class="category-product-image category-product-image-empty" wx:else></view>
+            <view class="category-product-item" wx:for="{{section.goodsList}}" wx:for-item="goods" wx:key="spuId" data-id="{{goods.spuId || goods._id}}" bindtap="openGoods">
+              <view class="category-product-card">
+                <image class="category-product-image" wx:if="{{goods.thumb}}" src="{{goods.thumb}}" mode="aspectFill" lazy-load />
+                <view class="category-product-image category-product-image-empty" wx:else></view>
+              </view>
+              <view class="category-product-name">{{goods.name}}</view>
             </view>
           </view>
         </view>

@@ -327,7 +327,7 @@ async function testSkuTimestampIdsAvoidCollisions() {
     const occupied = `sku-${timestamp}`;
     runtime.records.skus[occupied] = { _id: occupied, skuId: occupied, productId: 'product-1', stockQuantity: 7 };
     const input = {
-      title: '时间戳规格', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'],
+      title: '时间戳规格', name: '时间戳商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'],
       variants: [{ name: '大份', salePrice: 200 }, { name: '小份', salePrice: 100 }],
     };
     const first = await adminEndpoint({}, context, runtime, 'products.save', input);
@@ -346,16 +346,19 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   const runtime = makeRuntime();
   const context = { auth: { uid: 'admin-1' } };
   const created = await adminEndpoint({}, context, runtime, 'products.save', {
-    title: '规格商品', primaryImage: 'cover.jpg', detailImages: ['detail-1.jpg', 'detail-2.jpg'],
+    title: '规格商品', name: '规格商品', primaryImage: 'cover.jpg', detailImages: ['detail-1.jpg', 'detail-2.jpg'],
     variants: [{ name: '大份', salePrice: 3900 }, { name: '小份', salePrice: 1900 }],
   });
   assert.strictEqual(created.minSalePrice, 1900);
   assert.strictEqual(created.maxSalePrice, 3900);
   assert.deepStrictEqual(created.images, ['cover.jpg']);
   assert.deepStrictEqual(created.detailImages, ['detail-1.jpg', 'detail-2.jpg']);
-  const requiredFields = { title: '规格商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'], variants: [{ name: '小份', salePrice: 1900 }] };
+  const requiredFields = { title: '规格商品', name: '规格商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'], variants: [{ name: '小份', salePrice: 1900 }] };
   for (const invalid of [
     { ...requiredFields, title: '' },
+    { ...requiredFields, name: undefined },
+    { ...requiredFields, name: '' },
+    { ...requiredFields, name: '名'.repeat(11) },
     { ...requiredFields, variants: [] },
     { ...requiredFields, variants: [{ name: '小份', salePrice: 0 }] },
     { ...requiredFields, primaryImage: '' },
@@ -366,14 +369,14 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.save', { title: '规格商品' }), appError('INVALID_ARGUMENT'));
   await assert.rejects(
     () => adminEndpoint({}, context, runtime, 'products.save', {
-      id: created._id, title: '规格商品', primaryImage: 'cover.jpg', detailImages: [],
+      id: created._id, title: '规格商品', name: '规格商品', primaryImage: 'cover.jpg', detailImages: [],
       variants: [{ name: '小份', salePrice: 1900 }],
     }),
     appError('INVALID_ARGUMENT'),
   );
   await assert.rejects(
     () => adminEndpoint({}, context, runtime, 'products.save', {
-      id: created._id, title: '规格商品', primaryImage: 'cover.jpg', detailImages: Array(7).fill('detail.jpg'),
+      id: created._id, title: '规格商品', name: '规格商品', primaryImage: 'cover.jpg', detailImages: Array(7).fill('detail.jpg'),
       variants: [{ name: '小份', salePrice: 1900 }],
     }),
     appError('INVALID_ARGUMENT'),
@@ -390,7 +393,7 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   const small = skus.find((sku) => sku.salePrice === 1900);
   assert.strictEqual(small.specInfo[0].specValueId, created.specList[0].specValueList[1].specValueId);
   const updated = await adminEndpoint({}, context, runtime, 'products.save', {
-    id: created._id, title: '规格商品', primaryImage: 'new-cover.jpg', detailImages: ['detail-1.jpg'],
+    id: created._id, title: '规格商品', name: '规格商品', primaryImage: 'new-cover.jpg', detailImages: ['detail-1.jpg'],
     variants: [{ skuId: small._id, name: '小份', salePrice: 2400 }],
   });
   assert.strictEqual(updated.minSalePrice, 2400);
@@ -414,10 +417,66 @@ async function testSimpleProductVariantsSetCoverPriceAndSkus() {
   await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.update', { id: created._id, status: 'invalid' }), appError('INVALID_ARGUMENT'));
 }
 
+async function testProductCategoryName() {
+  const runtime = makeRuntime();
+  const context = { auth: { uid: 'admin-1' } };
+  const input = { title: '详情页完整商品标题', name: '  分类短名称  ', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'], variants: [{ name: '标准', salePrice: 100 }] };
+  const created = await adminEndpoint({}, context, runtime, 'products.save', input);
+  assert.strictEqual(created.name, '分类短名称');
+  assert.strictEqual(created.title, '详情页完整商品标题');
+  assert.strictEqual((await adminEndpoint({}, context, runtime, 'products.get', { id: created._id })).name, '分类短名称');
+  assert.strictEqual((await shopEndpoint({}, {}, runtime, 'products.detail', { productId: created._id })).product.name, '分类短名称');
+  const results = await shopEndpoint({}, {}, runtime, 'products.list', { keyword: '分类短名称' });
+  assert.deepStrictEqual(results.items.map((item) => item._id), [created._id]);
+  assert.strictEqual(results.items[0].name, '分类短名称');
+  for (const name of ['', '   ', undefined, 123, '名'.repeat(11)]) {
+    await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.save', { ...input, name }), appError('INVALID_ARGUMENT'));
+  }
+  for (const name of ['', '名'.repeat(11)]) {
+    await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.update', { id: created._id, name }), appError('INVALID_ARGUMENT'));
+  }
+  await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, name: '名'.repeat(10) });
+  assert.strictEqual(runtime.records.products[created._id].name.length, 10);
+  assert.strictEqual(runtime.records.products[created._id].title, input.title);
+  const direct = await adminEndpoint({}, context, runtime, 'products.create', { title: '独立标题', name: '独立名称' });
+  assert.strictEqual(direct.name, '独立名称');
+}
+
+async function testProductPrimaryAndSecondaryCovers() {
+  const runtime = makeRuntime();
+  const context = { auth: { uid: 'admin-1' } };
+  const base = { title: '双封面商品', name: '双封面', primaryImage: 'main.jpg', detailImages: ['description.jpg'], variants: [{ name: '标准款', salePrice: 100 }] };
+  const created = await adminEndpoint({}, context, runtime, 'products.save', { ...base, secondaryImage: 'category.jpg' });
+  assert.strictEqual(created.primaryImage, 'main.jpg');
+  assert.strictEqual(created.secondaryImage, 'category.jpg');
+  assert.deepStrictEqual(created.images, ['main.jpg', 'category.jpg']);
+  assert.deepStrictEqual(created.detailImages, ['description.jpg']);
+  const detail = await shopEndpoint({}, {}, runtime, 'products.detail', { productId: created._id });
+  assert.strictEqual(detail.product.secondaryImage, 'category.jpg');
+  const listing = await shopEndpoint({}, {}, runtime, 'products.list', { query: '双封面商品' });
+  assert.strictEqual(listing.items.find((item) => item._id === created._id).secondaryImage, 'category.jpg');
+  const skuId = created.specList[0].specValueList[0].specValueId;
+  const update = { ...base, id: created._id, variants: [{ skuId, name: '标准款', salePrice: 100 }] };
+  const preserved = await adminEndpoint({}, context, runtime, 'products.save', update);
+  assert.strictEqual(preserved.secondaryImage, 'category.jpg', 'older clients omitting the field must preserve the secondary cover');
+  const changed = await adminEndpoint({}, context, runtime, 'products.save', { ...update, secondaryImage: 'new-category.jpg' });
+  assert.deepStrictEqual(changed.images, ['main.jpg', 'new-category.jpg']);
+  const duplicate = await adminEndpoint({}, context, runtime, 'products.save', { ...update, secondaryImage: 'main.jpg' });
+  assert.deepStrictEqual(duplicate.images, ['main.jpg']);
+  const cleared = await adminEndpoint({}, context, runtime, 'products.save', { ...update, secondaryImage: '' });
+  assert.strictEqual(cleared.secondaryImage, '');
+  assert.deepStrictEqual(cleared.images, ['main.jpg']);
+  for (const secondaryImage of [123, {}, 'x'.repeat(1025)]) {
+    await assert.rejects(() => adminEndpoint({}, context, runtime, 'products.save', { ...update, secondaryImage }), appError('INVALID_ARGUMENT'));
+  }
+  await adminEndpoint({}, context, runtime, 'products.update', { id: created._id, secondaryImage: 'updated.jpg' });
+  assert.strictEqual((await shopEndpoint({}, {}, runtime, 'products.detail', { productId: created._id })).product.secondaryImage, 'updated.jpg');
+}
+
 async function testTwoLevelShoeVariants() {
   const runtime = makeRuntime();
   const context = { auth: { uid: 'user-1' } };
-  const base = { title: '两级鞋款', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
+  const base = { title: '两级鞋款', name: '两级鞋款', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
   const legacy = await adminEndpoint({}, context, runtime, 'products.save', {
     ...base, variants: [{ name: '黑色', salePrice: 19900, stockQuantity: 3 }],
   });
@@ -484,7 +543,7 @@ async function testTwoLevelShoeVariants() {
 async function testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus() {
   const runtime = makeRuntime();
   const context = { auth: { uid: 'admin-1' } };
-  const base = { title: '统一管理商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
+  const base = { title: '统一管理商品', name: '统一管理商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
   const created = await adminEndpoint({}, context, runtime, 'products.save', {
     ...base,
     variants: [
@@ -630,7 +689,7 @@ async function testInactiveProductsArePinnedBeforePagination() {
 async function testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt() {
   const runtime = makeRuntime();
   const context = { auth: { uid: 'admin-1' } };
-  const base = { title: '分开管理库存', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
+  const base = { title: '分开管理库存', name: '库存商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'] };
   const created = await adminEndpoint({}, context, runtime, 'products.save', {
     ...base,
     variants: [{ name: '标准', salePrice: 1000 }],
@@ -670,7 +729,7 @@ async function testProductSkuListAndSaveReadEveryVariant() {
   const listed = await adminEndpoint({}, context, runtime, 'skus.list', { productId: 'product-1' });
   assert.strictEqual(listed.items.length, 101);
   await adminEndpoint({}, context, runtime, 'products.save', {
-    id: 'product-1', title: '测试商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'], variants,
+    id: 'product-1', title: '测试商品', name: '测试商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'], variants,
   });
   assert.strictEqual(runtime.records.skus['sku-99'].stockQuantity, 99);
   assert.strictEqual(runtime.records.skus['sku-99'].deletedByAdmin, false);
@@ -992,7 +1051,7 @@ async function testTwoLevelCategoriesAndCascadeDeletion() {
   assert.strictEqual(child.image, 'cloud://test/admin/categories/cover.webp');
   assert.deepStrictEqual(runtime.records.products['product-1'].categoryIds, [child._id]);
   await adminEndpoint({}, context, runtime, 'products.save', {
-    id: 'product-1', title: '修改后的商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'],
+    id: 'product-1', title: '修改后的商品', name: '修改商品', primaryImage: 'cover.jpg', detailImages: ['detail.jpg'],
     categoryIds: [child._id], variants: [{ skuId: 'sku-new', name: '规格', salePrice: 100 }],
   });
   await assert.rejects(() => adminEndpoint({}, context, runtime, 'categories.save', { name: '错误图片', parentId: null, image: 'cloud://test/admin/categories/cover.webp' }), appError('INVALID_ARGUMENT'));
@@ -1995,6 +2054,8 @@ const cases = [
   { name: 'product lists sort by title, newest configured SKU timestamp and ascending/descending price before pagination', run: testProductListSortsByNameSkuAndPrice },
   { name: 'timestamp SKU IDs stay unique across variants and saves without overwriting existing SKUs', run: testSkuTimestampIdsAvoidCollisions },
   { name: 'simple product variants set cover price and SKUs', run: testSimpleProductVariantsSetCoverPriceAndSkus },
+  { name: 'primary and secondary covers persist, remain public, validate and support legacy saves and removal', run: testProductPrimaryAndSecondaryCovers },
+  { name: 'category product names are independent, public, searchable and limited to 10 characters', run: testProductCategoryName },
   { name: 'two-level shoes preserve legacy stock and support grouped detail, cart, checkout, inventory and removal', run: testTwoLevelShoeVariants },
   { name: 'product save manages SKU inventory and images without SKU status', run: testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus },
   { name: 'SKU inventory is set separately and stale updates conflict', run: testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt },

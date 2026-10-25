@@ -62,7 +62,7 @@ Page({
           sections = [...sections, { id: String(child._id || child.id), name: child.name, image: child.image || '', isParent: childIndex === 0, goodsList: [], loaded: false }];
           this.setData({ goodsSections: sections });
         }
-        const result = await fetchGoodsList({ categoryId: String(child._id || child.id), pageNum: this.goodsPage, pageSize: 100 });
+        const result = await fetchGoodsList({ categoryId: String(child._id || child.id), pageNum: this.goodsPage, pageSize: 100 }, { preferSecondary: true });
         if (requestId !== this.goodsRequestId) return;
         const goodsList = [...sections[childIndex].goodsList, ...result.spuList];
         const loaded = goodsList.length >= result.totalCount || result.spuList.length === 0;

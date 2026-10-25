@@ -3,7 +3,8 @@ import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { EmptyState, ErrorState, LoadingState, Panel, Table } from '../components/Ui';
 import { adminApi, ApiError } from '../lib/api';
-import { variantName, variantStock, visibleSkus } from '../lib/sku';
+import { useBrowserLeaveWarning } from '../lib/useBrowserLeaveWarning';
+import { groupSkusByPrimary, variantName, variantStock, visibleSkus } from '../lib/sku';
 import type { ListResult, Product, Sku } from '../types';
 
 const PAGE_SIZE = 4;
@@ -13,10 +14,13 @@ interface StockDraft {
   expectedStock: number;
 }
 
-function SkuStockRow({ sku, product, draft, disabled, onChange }: {
+function SkuStockRow({ sku, product, draft, disabled, onChange, primaryName, secondaryName, hasSecondary }: {
   sku: Sku;
   product: Product;
   draft?: StockDraft;
+  primaryName: string;
+  secondaryName: string;
+  hasSecondary: boolean;
   disabled: boolean;
   onChange: (sku: Sku, value: string) => void;
 }) {
@@ -24,9 +28,10 @@ function SkuStockRow({ sku, product, draft, disabled, onChange }: {
   const value = draft?.value ?? '';
 
   return <tr>
-    <td>{variantName(sku, product)}</td>
+    <td className="sku-primary-name">{primaryName}</td>
+    {hasSecondary && <td>{secondaryName || '—'}</td>}
     <td>{currentStock < 0 ? '未设置' : currentStock}</td>
-    <td><Input value={value} disabled={disabled} onChange={(nextValue) => onChange(sku, nextValue)} aria-label={`${product.title} ${variantName(sku, product)} 库存数量`} placeholder="输入库存数量" /></td>
+    <td className="sku-stock-edit-cell"><Input value={value} disabled={disabled} onChange={(nextValue) => onChange(sku, nextValue)} aria-label={`${product.title} ${variantName(sku, product)} 库存数量`} placeholder="输入库存数量" /></td>
   </tr>;
 }
 
@@ -52,6 +57,7 @@ export function SkuInventoryPage() {
   });
   const dirty = stockChanges.length > 0;
   const blocker = useBlocker(dirty);
+  useBrowserLeaveWarning(dirty || saving);
 
   useEffect(() => { setQueryInput(routeQuery); setQuery(routeQuery); setPage(1); }, [routeQuery]);
 
@@ -220,17 +226,19 @@ export function SkuInventoryPage() {
     {!loading && !error && pageProducts.map((product) => {
       const productId = String(product._id || product.spuId);
       const skus = skusByProduct[productId] || [];
+      const groups = groupSkusByPrimary(product, skus);
+      const hasSecondary = groups.some((group) => group.items.some((item) => item.secondaryName));
       return <Panel className="sku-inventory-panel" key={productId}>
         <div className="panel-heading">
           <h3>{product.title || '未命名商品'}</h3>
           <Button variant="text" disabled={saving} onClick={() => navigate(`/products/${encodeURIComponent(productId)}/edit`)}>编辑商品</Button>
         </div>
         {skus.length === 0 ? <EmptyState title="该商品暂无规格" /> : <Table minWidth={560}>
-          <thead><tr><th>规格</th><th>当前库存</th><th>设置库存</th></tr></thead>
-          <tbody>{skus.map((sku) => {
+          <thead><tr><th>一级规格</th>{hasSecondary && <th className="sku-secondary-column">二级规格</th>}<th className="sku-stock-current-column">当前库存</th><th className="sku-stock-edit-column">设置库存</th></tr></thead>
+          <tbody>{groups.flatMap((group) => group.items.map(({ sku, secondaryName }) => {
             const skuId = String(sku._id || sku.skuId);
-            return <SkuStockRow key={skuId} sku={sku} product={product} draft={stockDrafts[skuId]} disabled={saving} onChange={changeStock} />;
-          })}</tbody>
+            return <SkuStockRow key={skuId} sku={sku} product={product} primaryName={group.name} secondaryName={secondaryName} hasSecondary={hasSecondary} draft={stockDrafts[skuId]} disabled={saving} onChange={changeStock} />;
+          }))}</tbody>
         </Table>}
       </Panel>;
     })}
@@ -241,6 +249,6 @@ export function SkuInventoryPage() {
         <Button variant="outline" disabled={page >= pageCount || saving} onClick={() => setPage((value) => value + 1)}>下一页</Button>
       </div>
     </div>}
-    {blocker.state === 'blocked' && <div className="home-config-dialog-backdrop" role="presentation"><div className="home-config-dialog" role="alertdialog" aria-modal="true" aria-labelledby="sku-inventory-unsaved-title"><h3 id="sku-inventory-unsaved-title">库存设置尚未保存</h3><p>保存修改后再切换页面，或放弃本次修改。</p><div className="home-config-dialog-actions"><Button variant="outline" disabled={saving} onClick={() => blocker.reset()}>继续编辑</Button><Button variant="outline" disabled={saving} onClick={() => blocker.proceed()}>放弃修改</Button><Button theme="primary" loading={saving} onClick={() => void save().then((saved) => { if (saved) blocker.proceed(); })}>保存并离开</Button></div></div></div>}
+    {blocker.state === 'blocked' && <div className="home-config-dialog-backdrop" role="presentation"><div className="home-config-dialog" role="alertdialog" aria-modal="true" aria-labelledby="sku-inventory-unsaved-title"><h3 id="sku-inventory-unsaved-title">库存设置尚未保存</h3><div className="home-config-dialog-actions"><Button variant="outline" disabled={saving} onClick={() => blocker.reset()}>继续编辑</Button><Button variant="outline" disabled={saving} onClick={() => blocker.proceed()}>放弃修改</Button><Button theme="primary" loading={saving} onClick={() => void save().then((saved) => { if (saved) blocker.proceed(); })}>保存并离开</Button></div></div></div>}
   </>;
 }

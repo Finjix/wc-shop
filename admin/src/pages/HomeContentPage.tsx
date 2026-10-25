@@ -3,6 +3,7 @@ import { useBlocker } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { adminApi } from '../lib/api';
 import { useDraftImages } from '../lib/useDraftImages';
+import { useBrowserLeaveWarning } from '../lib/useBrowserLeaveWarning';
 import type { ListResult, Product } from '../types';
 import { ErrorState, Field, ImageFilePicker, LoadingState, Panel } from '../components/Ui';
 
@@ -104,6 +105,7 @@ function ProductSelect({ value, onChange, known, onKnown }: {
     {open && <div className="home-product-picker-menu">
       <input autoFocus type="search" value={query} placeholder="搜索商品名称" onChange={(event) => { setQuery(event.target.value); setPage(1); }} onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }} />
       <div className="home-product-picker-list" ref={listRef}>
+        <button type="button" aria-pressed={!value} onClick={() => { onChange(''); setOpen(false); }}>无跳转</button>
         {loading ? null : error ? <p>{error}</p> : options.map((product) => <button type="button" key={String(product._id)} onClick={() => { onKnown(product); onChange(String(product._id)); setOpen(false); }}>{product.title}</button>)}
       </div>
       <div className="home-product-picker-footer">
@@ -154,6 +156,7 @@ export function HomeContentPage() {
   const [known, setKnown] = useState<Record<string, Product | null>>({});
   const dirty = !loading && JSON.stringify(config) !== savedConfig;
   const blocker = useBlocker(dirty);
+  useBrowserLeaveWarning(dirty || saving || draftImages.processing);
 
 
   useEffect(() => {
@@ -271,7 +274,7 @@ export function HomeContentPage() {
     <div className="floating-save-actions"><Button theme="primary" loading={saving} disabled={!dirty || saving || draftImages.processing} onClick={() => void save()}>保存</Button></div>
     <Panel><div className="panel-heading"><h3>顶部搜索栏</h3></div><Field label="滚动文字"><Input value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={120} /></Field></Panel>
 
-    <Panel><div className="panel-heading"><h3>轮播图（9:16，最多 6 张）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 6} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button></div></div>
+    <Panel><div className="panel-heading"><h3>轮播图（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 6} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button></div></div>
       {config.banners.map((entry, index) => <div className="home-config-entry" key={index}>
         <div className="home-config-entry-head"><strong>轮播 {index + 1}</strong><Button size="small" variant="text" disabled={config.banners.length <= 1} onClick={() => setConfig((old) => ({ ...old, banners: old.banners.filter((_, i) => i !== index) }))}>删除</Button></div>
         {imageLinkFields('banners', entry, index)}
@@ -301,7 +304,7 @@ export function HomeContentPage() {
     {blocker.state === 'blocked' && <div className="home-config-dialog-backdrop" role="presentation">
       <div className="home-config-dialog" role="alertdialog" aria-modal="true" aria-labelledby="home-config-unsaved-title">
         <h3 id="home-config-unsaved-title">首页设置尚未保存</h3>
-        <p>保存修改后再切换页面，或放弃本次修改。</p>
+
         <div className="home-config-dialog-actions">
           <Button variant="outline" disabled={saving} onClick={() => blocker.reset()}>继续编辑</Button>
           <Button variant="outline" disabled={saving} onClick={() => blocker.proceed()}>放弃修改</Button>

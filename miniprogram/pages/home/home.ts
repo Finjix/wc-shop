@@ -17,7 +17,7 @@ Page({
     current: 0,
     autoplay: true,
     duration: '500',
-    interval: 2500,
+    interval: 2000,
     swiperImageProps: { mode: 'aspectFill', showMenuByLongpress: true },
     searchTop: 0,
     searchLeft: 0,

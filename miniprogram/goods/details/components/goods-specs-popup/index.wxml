@@ -13,7 +13,7 @@
     <view class="popup-sku-body">
       <view class="popup-sku-group-container">
         <view class="popup-sku-row" wx:for="{{viewSpecList}}" wx:key="specId" hidden="{{item.hidden}}">
-          <view class="popup-sku-row__title">{{item.title}}</view>
+          <view wx:if="{{index > 0}}" class="popup-sku-row__title">{{item.title}}</view>
           <block
             wx:for="{{item.specValueList}}"
             wx:for-item="valuesItem"

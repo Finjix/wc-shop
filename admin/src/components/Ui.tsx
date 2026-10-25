@@ -18,8 +18,8 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   return <div className="error-state"><strong>请求失败</strong><span>{message}</span>{onRetry && <Button size="small" onClick={onRetry}>重试</Button>}</div>;
 }
 
-export function Field({ label, children, hint, fileUpload = false }: { label: string; children: ReactNode; hint?: string; fileUpload?: boolean }) {
-  const content = <><span>{label}</span>{children}{hint && <small>{hint}</small>}</>;
+export function Field({ label, children, hint, labelHint, fileUpload = false }: { label: string; children: ReactNode; hint?: string; labelHint?: string; fileUpload?: boolean }) {
+  const content = <><span>{label}{labelHint && <small className="field-label-hint">{labelHint}</small>}</span>{children}{hint && <small>{hint}</small>}</>;
   return fileUpload
     ? <div className="field" role="group" aria-label={label}>{content}</div>
     : <label className="field">{content}</label>;

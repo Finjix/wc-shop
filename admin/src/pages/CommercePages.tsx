@@ -5,6 +5,7 @@ import { adminApi, ApiError } from '../lib/api';
 import { parseRefundAmount } from '../lib/refund-amount';
 import { afterSalePolicy, afterSaleRequestLabel, afterSaleReceiptLabel } from '../lib/after-sale-policy';
 import { useConfirm } from '../components/ConfirmProvider';
+import { useBrowserLeaveWarning } from '../lib/useBrowserLeaveWarning';
 import type { AfterSale, Comment, ListResult, Order, OrderAddressGroup } from '../types';
 import { EmptyState, EmptyTable, ErrorState, Field, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
 
@@ -150,7 +151,7 @@ export function OrdersPage() {
     {loading && <LoadingState />}
     {error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
     {!loading && !error && <div className={`orders-address-groups${groups.length === 0 ? ' orders-address-groups-empty' : ''}`}>
-      {groups.length === 0 && <Panel className="orders-empty-panel"><EmptyState /></Panel>}
+      {groups.length === 0 && <Panel className="orders-empty-panel orders-address-group"><Table minWidth={970}><thead><tr><th>订单号</th><th>商品 / 规格 / 数量</th><th>订单状态</th><th>操作</th></tr></thead><tbody><EmptyTable colSpan={4} /></tbody></Table></Panel>}
       {groups.map((group) => {
         const pending = group.orders.filter(orderCanShip);
         return <Panel key={group.key} className="orders-address-group">
@@ -657,6 +658,7 @@ export function SettingsPage() {
   const confirm = useConfirm();
   const dirty = !loading && JSON.stringify(value) !== JSON.stringify(saved);
   const blocker = useBlocker(dirty);
+  useBrowserLeaveWarning(dirty || busy);
   useEffect(() => {
     if (blocker.state !== 'blocked') return;
     let active = true;

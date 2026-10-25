@@ -17,7 +17,7 @@ function searchTerms(keyword) {
 
 function matchesProductSearch(product, skus, categories, terms) {
   if (!terms.length) return false;
-  const fields = [product.title, product.etitle];
+  const fields = [product.title, product.name, product.etitle];
   for (const id of product.categoryIds || []) {
     let category = categories.get(String(id));
     const visited = new Set();
