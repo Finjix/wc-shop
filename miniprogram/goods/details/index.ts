@@ -10,10 +10,12 @@ import { getApiErrorMessage } from '../../common/services/utils/api';
 import { previewSingleImage } from '../utils/preview-image';
 
 import { cdnBase } from '../../config/runtime';
+import { productShareHandlers, enablePageSharing } from '../../common/share';
 
 const imgPrefix = `${cdnBase}/`;
 
 Page({
+  ...productShareHandlers,
   data: {
     commentsStatistics: {
       badCount: 0,
@@ -398,6 +400,10 @@ Page({
         detailLoading: false,
         detailLoaded: true,
       });
+        if (this.pendingSkuAction === 'addCart') {
+          this.pendingSkuAction = '';
+          this.toAddCart();
+        }
     }).catch((error) => {
       this.setData({ detailLoading: false, detailLoaded: true });
       Toast({
@@ -407,22 +413,6 @@ Page({
         icon: '',
       });
     });
-  },
-
-  onShareAppMessage() {
-    // 自定义的返回信息
-    const { selectedAttrStr } = this.data;
-    let shareSubTitle = '';
-    if (selectedAttrStr.indexOf('件') > -1) {
-      const count = selectedAttrStr.indexOf('件');
-      shareSubTitle = selectedAttrStr.slice(count + 1, selectedAttrStr.length);
-    }
-    const customInfo = {
-      imageUrl: this.data.details.primaryImage,
-      title: this.data.details.title + shareSubTitle,
-      path: `/goods/details/index?spuId=${this.data.spuId}`,
-    };
-    return customInfo;
   },
 
   /** 获取评价统计 */
@@ -458,7 +448,9 @@ Page({
   },
 
   onLoad(query) {
+    enablePageSharing();
     const { spuId } = query;
+    this.pendingSkuAction = query.skuAction === 'addCart' ? 'addCart' : '';
     const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const menuButtonInfo = wx.getMenuButtonBoundingClientRect();
     const statusBarHeight = windowInfo.statusBarHeight || 0;

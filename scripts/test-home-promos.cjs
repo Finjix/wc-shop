@@ -51,12 +51,13 @@ async function run() {
     console.log(`PASS ${name}: 256x256, 128 colors, 35 frames / 2.5 seconds (14 fps), opaque, looping`);
   }
   bytes+=fs.statSync(path.join(mini,'assets/user/default-avatar.jpg')).size;
+  for(const name of ['recommend-heart','gift-star']) bytes+=fs.statSync(path.join(mini,'assets/home',`${name}.png`)).size;
   bytes+=fs.readdirSync(path.join(mini,'assets/components/static-image')).reduce((sum,name)=>sum+fs.statSync(path.join(mini,'assets/components/static-image',name)).size,0);
   assert.ok(bytes<2*1024*1024,`resource package exceeds 2 MiB: ${bytes}`);
   const markup=fs.readFileSync(path.join(mini,'pages/home/home.wxml'),'utf8');
   assert.match(markup,/<button[^>]+bind:tap="showInviteComingSoon"[^>]+aria-label="邀请返现"/);
   assert.match(markup,/<button[^>]+open-type="contact"[^>]+aria-label="加客服拿好礼"/);
-  const cards=markup.slice(markup.indexOf('<view class="home-promo-cards"'),markup.indexOf('<view wx:for="{{featuredSections}}"'));
+  const cards=markup.slice(markup.indexOf('<view class="home-promo-cards"'),markup.indexOf('<view wx:if="{{recommendations.length}}"'));
   assert.doesNotMatch(cards,/<text|wx:if|promos|data-product-id/,'fixed GIF cards contain all visible text and never depend on the home API');
   console.log(`PASS fixed native actions, no separate text, and resource package ${bytes} bytes`);
 }

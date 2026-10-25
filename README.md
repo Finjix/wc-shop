@@ -57,9 +57,17 @@ npm run test:commerce-http            # 本地 HTTP 验收
 npm run test:subpackage-dependencies  # 分包依赖检查
 npm run test:package-loading          # 分包加载回归
 npm run test:home-promos               # 固定入口、GIF 和资源分包验收
+npm run test:home-showcase             # 推荐轮播、下滑后每批 6 个、加购跳转和标题图片
+npm run test:sharing                   # 好友/朋友圈分享回调、商品和分类链接
 ```
 
 其他测试见 `package.json` 的 `test:*`。
+
+首页原商品区已替换为固定的「倾心推荐」和「更多献礼」。后台提供四个推荐位，每位选择在售商品并上传独立的 9:16 封面；未完成的位置不展示，旧 `sections` 不自动迁入，新版保存时移除。推荐卡片每 2.5 秒向右切换，单张静态显示。更多献礼进入首页时不加载，首次向下浏览才加载 6 个，此后触底每批加载 6 个，每轮随机且轮内不重复，展示完后重新打乱循环。购物车图标进入详情后自动打开规格选择，返回首页保留浏览位置。
+
+标题卡通图标位于资源分包 `miniprogram/assets/home/`，为透明的单张 PNG（64×64，以 64px 显示）；爱心、星星、花字与搜索栏闪烁均使用 WXSS 动画。运行 `npm run build:home-mascots` 可从 `design/home-showcase/` 的原画重新导出两张静态图标，原画和提示词不参与小程序打包。
+
+首页、分类、商品搜索、列表、搜索结果和商品详情均注册好友与朋友圈分享回调，并显式开启右上角分享菜单。好友商品链接进入对应商品详情，朋友圈使用当前页面和商品查询参数；列表分享保留分类、搜索词。分享商品不携带 `skuAction` 等临时操作参数。本地存储图片地址不会作为分享封面发送。回归测试不实际发送微信消息，最终发送及接收需在真机预览或发布版本验证。
 
 发布前将 `useLocalBackend` 改为 `false`，确认云环境和后台接口配置后执行 `npm run package:deploy`，部署包输出到 `dist/`。
 

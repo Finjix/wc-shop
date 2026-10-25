@@ -11,6 +11,7 @@
     "t-swiper": "../../components/tdesign/swiper/swiper",
     "top-search": "/components/top-search/index",
     "price": "/components/price/index",
+    "t-icon": "../../components/tdesign/icon/icon",
     "static-image": "/assets/components/static-image/index"
   },
   "componentPlaceholder": {

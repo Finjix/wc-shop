@@ -12,20 +12,18 @@ const CONTENT_PLACEHOLDER = '请输入内容';
 const PRODUCT_PICKER_PAGE_SIZE = 6;
 
 type ImageLink = { image: string; productId: string };
-type ProductSection = { id: string; title: string; productIds: string[] };
 type HomeConfig = {
   searchText: string;
   banners: ImageLink[];
-  sections: ProductSection[];
+  recommendations: ImageLink[];
 };
 type HomeRecord = { _id?: string; slot?: string; type?: string; image?: string; content?: string; link?: string; payload?: unknown; sort?: number; status?: string };
 
 const blankLink = (): ImageLink => ({ image: '', productId: '' });
-const blankSection = (): ProductSection => ({ id: `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title: '', productIds: ['', ''] });
 const defaultConfig = (): HomeConfig => ({
   searchText: '',
   banners: [blankLink()],
-  sections: [blankSection()],
+  recommendations: [blankLink()],
 });
 
 function readConfig(rows: HomeRecord[]): HomeConfig {
@@ -34,24 +32,23 @@ function readConfig(rows: HomeRecord[]): HomeConfig {
   if (stored) {
     const banners = Array.isArray(stored.banners) ? stored.banners.slice(0, 4).map((entry) => ({ ...blankLink(), ...entry })) : [];
     while (banners.length > 1 && !banners[banners.length - 1].image && !banners[banners.length - 1].productId) banners.pop();
+    const recommendations = Array.isArray(stored.recommendations) ? stored.recommendations.slice(0, 4).map((entry) => ({ ...blankLink(), ...entry })) : [];
+    while (recommendations.length > 1 && !recommendations[recommendations.length - 1].image && !recommendations[recommendations.length - 1].productId) recommendations.pop();
     return {
       searchText: stored.searchText ?? draft.searchText,
       banners: banners.length ? banners : [blankLink()],
-      sections: Array.isArray(stored.sections) && stored.sections.length ? stored.sections.slice(0, 4).map((section) => ({
-        id: section.id,
-        title: section.title,
-        productIds: [...section.productIds],
-      })) : [blankSection()],
+      recommendations: recommendations.length ? recommendations : [blankLink()],
     };
   }
   return draft;
 }
 
-function ProductSelect({ value, onChange, known, onKnown }: {
+function ProductSelect({ value, onChange, known, onKnown, emptyLabel = '无跳转' }: {
   value: string;
   onChange: (value: string) => void;
   known: Record<string, Product | null>;
   onKnown: (product: Product) => void;
+  emptyLabel?: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -93,13 +90,13 @@ function ProductSelect({ value, onChange, known, onKnown }: {
 
   return <div className="home-product-picker" ref={rootRef}>
     <button type="button" className="home-product-picker-trigger" aria-expanded={open} onClick={() => setOpen((old) => !old)}>
-      <span>{value ? `${selected?.title || value}${selected === null ? '（已下架或删除）' : ''}` : '无跳转'}</span>
+      <span>{value ? `${selected?.title || value}${selected === null ? '（已下架或删除）' : ''}` : emptyLabel}</span>
       <span aria-hidden="true">⌄</span>
     </button>
     {open && <div className="home-product-picker-menu">
       <input autoFocus type="search" value={query} placeholder="搜索商品名称" onChange={(event) => { setQuery(event.target.value); setPage(1); }} onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }} />
       <div className="home-product-picker-list" ref={listRef}>
-        <button type="button" aria-pressed={!value} onClick={() => { onChange(''); setOpen(false); }}>无跳转</button>
+        {emptyLabel === '无跳转' && <button type="button" aria-pressed={!value} onClick={() => { onChange(''); setOpen(false); }}>{emptyLabel}</button>}
         {loading ? null : error ? <p>{error}</p> : options.map((product) => <button type="button" key={String(product._id)} onClick={() => { onKnown(product); onChange(String(product._id)); setOpen(false); }}>{product.title}</button>)}
       </div>
       <div className="home-product-picker-footer">
@@ -172,7 +169,7 @@ export function HomeContentPage() {
 
   const selectedIds = useMemo(() => Array.from(new Set([
     ...config.banners.map((item) => item.productId),
-    ...config.sections.flatMap((section) => section.productIds),
+    ...config.recommendations.map((item) => item.productId),
   ].filter(Boolean))), [config]);
   const selectedKey = selectedIds.join('|');
   useEffect(() => {
@@ -182,7 +179,7 @@ export function HomeContentPage() {
     const clearLinks = (old: HomeConfig): HomeConfig => ({
       ...old,
       banners: old.banners.map((item) => unavailable.has(item.productId) ? { ...item, productId: '' } : item),
-      sections: old.sections.map((section) => ({ ...section, productIds: section.productIds.map((id) => unavailable.has(id) ? '' : id) })),
+      recommendations: old.recommendations.map((item) => unavailable.has(item.productId) ? { ...item, productId: '' } : item),
     });
     void adminApi.call<HomeRecord>('home.clearUnavailableLinks', { id: SLOT })
       .then(() => {
@@ -213,18 +210,9 @@ export function HomeContentPage() {
     // selectedKey captures the selected IDs; known is checked only when selection changes.
   }, [selectedKey]);
 
-  const updateLink = (kind: 'banners', index: number, field: keyof ImageLink, value: string) => {
+  const updateLink = (kind: 'banners' | 'recommendations', index: number, field: keyof ImageLink, value: string) => {
     setConfig((old) => ({ ...old, [kind]: old[kind].map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item) }));
   };
-  const updateSection = (index: number, change: Partial<ProductSection>) => setConfig((old) => ({
-    ...old, sections: old.sections.map((section, itemIndex) => itemIndex === index ? { ...section, ...change } : section),
-  }));
-  const resizeSectionProducts = (index: number, count: 2 | -2) => setConfig((old) => ({
-    ...old,
-    sections: old.sections.map((section, itemIndex) => itemIndex === index && section.productIds.length + count >= 2 && section.productIds.length + count <= 6
-      ? { ...section, productIds: count > 0 ? [...section.productIds, '', ''] : section.productIds.slice(0, -2) }
-      : section),
-  }));
 
   const save = async (): Promise<boolean> => {
     const fail = async (message: string) => {
@@ -241,7 +229,7 @@ export function HomeContentPage() {
         payload: {
           searchText: saved.searchText.trim(),
           banners: saved.banners.map((item) => ({ image: item.image.trim(), productId: item.productId.trim() })),
-          sections: saved.sections.map((section) => ({ id: section.id, title: section.title.trim(), productIds: section.productIds })),
+          recommendations: saved.recommendations.map((item) => ({ image: item.image.trim(), productId: item.productId.trim() })),
         },
       });
       setConfig(saved);
@@ -255,7 +243,7 @@ export function HomeContentPage() {
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
-  const productSelect = (value: string, onChange: (value: string) => void) => <ProductSelect value={value} onChange={onChange} known={known} onKnown={(product) => setKnown((old) => ({ ...old, [String(product._id)]: product }))} />;
+  const productSelect = (value: string, onChange: (value: string) => void, emptyLabel?: string) => <ProductSelect value={value} onChange={onChange} emptyLabel={emptyLabel} known={known} onKnown={(product) => setKnown((old) => ({ ...old, [String(product._id)]: product }))} />;
   const imageLinkFields = (kind: 'banners', entry: ImageLink, index: number) => <div className="home-config-link-fields">
     <Field label="封面图片" fileUpload><ImagePicker select={draftImages.select} disabled={saving} onChange={(value) => updateLink(kind, index, 'image', value)} /></Field>
     <Field label="跳转商品（可选）">{productSelect(entry.productId, (value) => updateLink(kind, index, 'productId', value))}</Field>
@@ -263,7 +251,7 @@ export function HomeContentPage() {
 
   return <div className="home-config-page" inert={saving}>
     <div className="floating-save-actions"><Button theme="primary" loading={saving} disabled={!dirty || saving || draftImages.processing} onClick={() => void save()}>保存</Button></div>
-    <Panel><div className="panel-heading"><h3>顶部搜索栏</h3></div><Field label="滚动文字"><Input value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={120} /></Field></Panel>
+    <Panel><div className="panel-heading"><h3>顶部搜索栏</h3></div><Field label="闪烁文字"><Input value={config.searchText} onChange={(value) => setConfig((old) => ({ ...old, searchText: value }))} placeholder={CONTENT_PLACEHOLDER} maxcharacter={120} /></Field></Panel>
 
     <Panel><div className="panel-heading"><h3>轮播图（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.banners.length >= 4} onClick={() => setConfig((old) => ({ ...old, banners: [...old.banners, blankLink()] }))}>新增轮播图</Button></div></div>
       {config.banners.map((entry, index) => <div className="home-config-entry" key={index}>
@@ -276,12 +264,17 @@ export function HomeContentPage() {
     </Panel>
 
 
-    <Panel><div className="panel-heading"><h3>商品区</h3><div className="home-config-panel-actions"><Button disabled={config.sections.length >= 4} onClick={() => setConfig((old) => ({ ...old, sections: [...old.sections, blankSection()] }))}>新增商品区</Button></div></div>
-      {config.sections.map((section, sectionIndex) => <div className="home-config-entry" key={section.id}>
-        <div className="home-config-entry-head"><strong>商品区 {sectionIndex + 1}</strong><div><Button size="small" variant="text" disabled={section.productIds.length >= 6} onClick={() => resizeSectionProducts(sectionIndex, 2)}>增加商品</Button><Button size="small" variant="text" disabled={section.productIds.length <= 2} onClick={() => resizeSectionProducts(sectionIndex, -2)}>减少商品</Button><Button size="small" variant="text" disabled={config.sections.length <= 1} onClick={() => setConfig((old) => ({ ...old, sections: old.sections.filter((item) => item.id !== section.id) }))}>删除</Button></div></div>
-        <Field label="标题"><Input value={section.title} onChange={(value) => updateSection(sectionIndex, { title: value })} placeholder="商品区标题" /></Field>
-        <div className="home-config-product-grid">{section.productIds.map((id, productIndex) => <Field key={productIndex} label={`商品 ${productIndex + 1}`}>{productSelect(id, (value) => updateSection(sectionIndex, { productIds: section.productIds.map((old, i) => i === productIndex ? value : old) }))}</Field>)}</div>
+    <Panel><div className="panel-heading"><h3>动态卡片展区</h3><div className="home-config-panel-actions"><Button disabled={config.recommendations.length >= 4} onClick={() => setConfig((old) => ({ ...old, recommendations: [...old.recommendations, blankLink()] }))}>新增卡片</Button></div></div>
+      {config.recommendations.map((entry, index) => <div className="home-config-entry" key={index}>
+        <div className="home-config-entry-head"><strong>卡片 {index + 1}</strong><Button size="small" variant="text" disabled={config.recommendations.length <= 1} onClick={() => setConfig((old) => ({ ...old, recommendations: old.recommendations.filter((_, i) => i !== index) }))}>删除</Button></div>
+        <div className="home-config-link-fields">
+          <Field label="封面图片" fileUpload><ImagePicker select={draftImages.select} disabled={saving} onChange={(value) => updateLink('recommendations', index, 'image', value)} /></Field>
+          <Field label="跳转商品">{productSelect(entry.productId, (value) => updateLink('recommendations', index, 'productId', value), '请选择商品')}</Field>
+        </div>
       </div>)}
+      {config.recommendations.some((entry) => entry.image) && <div className="home-config-image-previews">
+        {config.recommendations.map((entry, index) => entry.image && <div className="home-config-image-preview" key={index}><ImagePreview image={entry.image} aspect="banner" /><span className="home-config-image-caption">卡片{index + 1}</span></div>)}
+      </div>}
     </Panel>
 
     {blocker.state === 'blocked' && <div className="home-config-dialog-backdrop" role="presentation">

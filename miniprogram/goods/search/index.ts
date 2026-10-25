@@ -2,8 +2,10 @@
 
 import { addSearchHistory, clearSearchHistory, deleteSearchHistory, getSearchHistory } from '../../common/services/good/fetchSearchHistory';
 import { getApiErrorMessage } from '../../common/services/utils/api';
+import { shopShareHandlers, enablePageSharing } from '../../common/share';
 
 Page({
+  ...shopShareHandlers,
   data: {
     historyWords: [],
     searchValue: '',
@@ -19,6 +21,7 @@ Page({
   deleteIndex: '',
 
   onShow() {
+    enablePageSharing();
     this.queryHistory();
   },
 

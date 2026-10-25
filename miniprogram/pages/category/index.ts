@@ -5,8 +5,10 @@ import { fetchGoodsList } from '../../common/services/good/fetchGoodsList';
 import { addSearchHistory } from '../../common/services/good/fetchSearchHistory';
 import { getApiErrorMessage } from '../../common/services/utils/api';
 import { navigateToGoodsDetail } from '../../common/utils/goods-detail-navigation';
+import { shopShareHandlers, enablePageSharing } from '../../common/share';
 
 Page({
+  ...shopShareHandlers,
   data: {
     list: [], activeParentIndex: 0,
     goodsSections: [], goodsLoading: false, goodsError: '',
@@ -88,6 +90,7 @@ Page({
     if (id) navigateToGoodsDetail(`/goods/details/index?spuId=${encodeURIComponent(String(id))}`);
   },
   onShow() {
+    enablePageSharing();
     this.getTabBar()?.init();
 
     void this.loadCategories();

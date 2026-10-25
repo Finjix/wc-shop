@@ -1,15 +1,24 @@
 // @ts-nocheck
 
-import { fetchHomeContent } from '../../common/services/good/fetchHomeContent';
+import { fetchHomeContent, fetchHomeFeed } from '../../common/services/good/fetchHomeContent';
 import { addSearchHistory } from '../../common/services/good/fetchSearchHistory';
 import { getApiErrorMessage } from '../../common/services/utils/api';
 import { navigateToGoodsDetail } from '../../common/utils/goods-detail-navigation';
+import { shopShareHandlers, enablePageSharing } from '../../common/share';
 
 Page({
+  ...shopShareHandlers,
   data: {
     swiperSlides: [],
     swiperProductIds: [],
-    featuredSections: [],
+    recommendations: [],
+    recommendationCurrent: 0,
+    heartTitle: ['倾', '心', '推', '荐'],
+    giftTitle: ['更', '多', '献', '礼'],
+    feedItems: [],
+    feedLoading: false,
+    feedEmpty: false,
+    feedError: '',
     pageLoading: false,
     loadError: '',
     current: 0,
@@ -27,7 +36,20 @@ Page({
   },
 
   onShow() {
-    this.getTabBar()?.init();  this.loadHomePage(); },
+    enablePageSharing();
+    this.getTabBar()?.init();
+    this.visible = true;
+    if (!this.homeRequested) this.loadHomePage();
+    this.startRecommendationTimer();
+  },
+
+  onHide() { this.visible = false; this.stopRecommendationTimer(); },
+  onUnload() {
+    this.visible = false;
+    this.stopRecommendationTimer();
+    this.loadVersion = (this.loadVersion || 0) + 1;
+    this.feedRequestId = (this.feedRequestId || 0) + 1;
+  },
 
   onLoad() {
     const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
@@ -49,8 +71,16 @@ Page({
   onPullDownRefresh() { this.loadHomePage(); },
 
   async loadHomePage() {
+    this.homeRequested = true;
     const version = this.loadVersion = (this.loadVersion || 0) + 1;
-    this.setData({ pageLoading: true, loadError: '' });
+    this.stopRecommendationTimer();
+    this.feedRequestId = (this.feedRequestId || 0) + 1;
+    this.feedCursor = '';
+    this.feedActivated = false;
+    this.feedScrollTop = 0;
+    this.feedTouchStartY = null;
+    this.setData({ pageLoading: true, loadError: '', feedItems: [],
+      feedEmpty: false, feedLoading: false, feedError: '' });
     try {
       const home = await fetchHomeContent();
       if (this.loadVersion !== version) return;
@@ -65,29 +95,20 @@ Page({
           productId: product ? String(product.spuId || product._id) : '',
         }];
       });
-      const featuredSections = Array.isArray(config.sections) && config.sections.length
-        ? config.sections.slice(0, 4).map((section) => ({
-          id: section.id,
-          title: section.title || '',
-          products: (section.productIds || []).flatMap((id, index) => {
-            const product = products[id];
-            const image = product?.thumb || product?.primaryImage;
-            if (!image) return [];
-            return [{
-              id: `${section.id}-${index}`,
-              image,
-              productId: String(product.spuId || product._id),
-            }];
-          }),
-        })).filter((section) => section.title && section.products.length)
-        : [];
+      const recommendations = (config.recommendations || []).slice(0, 4).flatMap((entry) => {
+        const product = products[entry.productId];
+        if (!entry.image || !product) return [];
+        return [{ image: entry.image, title: product.title || '', productId: String(product._id) }];
+      });
       this.setData({
         swiperSlides: slides.map((item) => item.image),
         swiperProductIds: slides.map((item) => item.productId),
-        featuredSections,
+        recommendations,
+        recommendationCurrent: 0,
         pageLoading: false,
         loadError: '',
       });
+      this.startRecommendationTimer();
     } catch (error) {
       if (this.loadVersion !== version) return;
       const loadError = getApiErrorMessage(error, '首页内容加载失败，请稍后重试');
@@ -96,6 +117,76 @@ Page({
     } finally {
       if (this.loadVersion === version) wx.stopPullDownRefresh();
     }
+  },
+
+  startRecommendationTimer() {
+    this.stopRecommendationTimer();
+    if (!this.visible || this.data.recommendations.length < 2) return;
+    this.recommendationTimer = setInterval(() => {
+      this.setData({ recommendationCurrent: (this.data.recommendationCurrent + 1) % this.data.recommendations.length });
+    }, 2500);
+  },
+
+  stopRecommendationTimer() {
+    if (this.recommendationTimer) clearInterval(this.recommendationTimer);
+    this.recommendationTimer = null;
+  },
+
+  onRecommendationChange({ detail }) {
+    this.setData({ recommendationCurrent: detail.current });
+    if (detail.source === 'touch') this.startRecommendationTimer();
+  },
+
+  async loadMoreFeed() {
+    if (!this.feedActivated || this.data.feedLoading || this.data.feedEmpty) return;
+    const requestId = this.feedRequestId = (this.feedRequestId || 0) + 1;
+    this.setData({ feedLoading: true, feedError: '' });
+    try {
+      const result = await fetchHomeFeed({ limit: 6, cursor: this.feedCursor || '' });
+      if (requestId !== this.feedRequestId) return;
+      this.feedCursor = result.nextCursor || '';
+      const update = { feedLoading: false, feedEmpty: !result.items.length };
+      const offset = this.data.feedItems.length;
+      result.items.forEach((item, index) => { update[`feedItems[${offset + index}]`] = item; });
+      this.setData(update);
+    } catch (error) {
+      if (requestId !== this.feedRequestId) return;
+      this.setData({ feedLoading: false, feedError: getApiErrorMessage(error, '商品加载失败，点击重试') });
+    }
+  },
+
+  activateFeed() {
+    if (this.feedActivated) return;
+    this.feedActivated = true;
+    this.loadMoreFeed();
+  },
+
+  onFeedScroll({ detail }) {
+    const top = Math.max(0, Number(detail.scrollTop) || 0);
+    if (top > (this.feedScrollTop || 0)) this.activateFeed();
+    this.feedScrollTop = top;
+  },
+
+  onFeedTouchStart(event) {
+    this.feedTouchStartY = event.touches?.[0]?.clientY ?? null;
+    this.feedTouchStartX = Number(event.touches?.[0]?.clientX) || 0;
+  },
+
+  onFeedTouchMove(event) {
+    const y = event.touches?.[0]?.clientY;
+    const distanceX = Math.abs((Number(event.touches?.[0]?.clientX) || 0) - this.feedTouchStartX);
+    // A swipe can start the feed even when the initial content is too short to scroll.
+    if (this.feedTouchStartY !== null && typeof y === 'number'
+      && this.feedTouchStartY - y > Math.max(8, distanceX)) this.activateFeed();
+  },
+
+  onFeedBottom() {
+    if (this.feedActivated && !this.data.feedError) this.loadMoreFeed();
+  },
+
+  addFeedProductToCart({ currentTarget }) {
+    const productId = currentTarget.dataset.productId;
+    if (productId) navigateToGoodsDetail(`/goods/details/index?spuId=${encodeURIComponent(productId)}&skuAction=addCart`);
   },
 
   showInviteComingSoon() { wx.showToast({ title: '敬请期待！', icon: 'none' }); },

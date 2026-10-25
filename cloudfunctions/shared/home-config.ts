@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-const { assert, string, array, object } = require('./validation');
+const { assert, array, object } = require('./validation');
 
 const HOME_CONFIG_SLOT = 'home.page-config';
 const DEFAULT_SEARCH_TEXT = '欢迎光临番薯鞋店！';
@@ -23,34 +23,21 @@ function optionalText(value, field, max) {
 function validateHomeConfig(value) {
   const input = object(value, 'payload');
   const banners = array(input.banners, 'banners');
-  const sections = array(input.sections, 'sections');
+  const recommendations = array(input.recommendations === undefined ? [] : input.recommendations, 'recommendations');
   assert(banners.length <= 4, { field: 'banners', max: 4 });
-  assert(sections.length <= 4, { field: 'sections', max: 4 });
-  const sectionIds = new Set();
-  const normalizedSections = sections.map((value, index) => {
-    const section = object(value, `sections.${index}`);
-    const id = string(section.id, `sections.${index}.id`, { max: 64 });
-    assert(!sectionIds.has(id), { field: `sections.${index}.id` });
-    sectionIds.add(id);
-    const title = optionalText(section.title, `sections.${index}.title`, 80);
-    const productIds = array(section.productIds, `sections.${index}.productIds`);
-    assert(productIds.length <= 6, { field: `sections.${index}.productIds`, max: 6 });
-    return { id, title, productIds: productIds.map((item, productIndex) => optionalText(item, `sections.${index}.productIds.${productIndex}`, 128)) };
-  });
+  assert(recommendations.length <= 4, { field: 'recommendations', max: 4 });
   return {
     searchText: optionalText(input.searchText, 'searchText', 120),
     banners: banners.map((item, index) => imageLink(item, `banners.${index}`)),
-    sections: normalizedSections,
+    recommendations: recommendations.map((item, index) => imageLink(item, `recommendations.${index}`)),
   };
 }
 
 function productIds(config) {
   if (!config || typeof config !== 'object') return [];
-  const links = Array.isArray(config.banners) ? config.banners : [];
+  const links = [...(Array.isArray(config.banners) ? config.banners : []),
+    ...(Array.isArray(config.recommendations) ? config.recommendations : [])];
   const ids = links.map((item) => item && item.productId);
-  for (const section of Array.isArray(config.sections) ? config.sections : []) {
-    if (Array.isArray(section.productIds)) ids.push(...section.productIds);
-  }
   return Array.from(new Set(ids.filter((id) => typeof id === 'string' && id)));
 }
 

@@ -4,6 +4,7 @@ import { fetchGoodsList } from '../../common/services/good/fetchGoodsList';
 import { getApiErrorMessage } from '../../common/services/utils/api';
 import Toast from '../../components/tdesign/toast/index';
 import { navigateToGoodsDetail } from '../../common/utils/goods-detail-navigation';
+import { catalogShareHandlers, enablePageSharing } from '../../common/share';
 
 const initFilters = {
   overall: 1,
@@ -13,6 +14,7 @@ const initFilters = {
 };
 
 Page({
+  ...catalogShareHandlers,
   data: {
     goodsList: [],
     layout: 0,
@@ -139,6 +141,7 @@ Page({
   },
 
   onLoad(options) {
+    enablePageSharing();
     const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const menuButtonInfo = wx.getMenuButtonBoundingClientRect();
     const windowWidth = windowInfo.windowWidth || 375;
@@ -151,7 +154,7 @@ Page({
       searchWidth: Math.max(menuButtonLeft - searchLeft - screenSideGap, 0),
     });
 
-    const { categoryName = '', categoryId = '' } = options || {};
+    const { categoryName = '', categoryId = '', searchValue = '' } = options || {};
     let title = '';
     try {
       title = categoryName ? decodeURIComponent(categoryName) : '';
@@ -159,6 +162,8 @@ Page({
       title = categoryName;
     }
     let decodedCategoryId = categoryId;
+    let keyword = searchValue;
+    try { keyword = decodeURIComponent(searchValue); } catch { /* Preserve malformed legacy search strings. */ }
     try {
       decodedCategoryId = categoryId ? decodeURIComponent(categoryId) : '';
     } catch (error) {
@@ -167,6 +172,7 @@ Page({
     this.setData({
       categoryName: title || '商品列表',
       categoryId: decodedCategoryId,
+      keywords: keyword,
     }, () => {
       this.init(true);
     });

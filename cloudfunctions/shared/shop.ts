@@ -7,6 +7,7 @@ const {
 const { errorFrom } = require('./errors');
 const { getDoc, setDoc, list, all, count, listData, affected, withTransaction } = require('./db');
 const { HOME_CONFIG_SLOT, productIds } = require('./home-config');
+const { readHomeFeed } = require('./home-feed');
 const { searchTerms, matchesProductSearch } = require('./product-search');
 const { skuBelongsToProduct } = require('./product-specs');
 const { requireUser } = require('./auth');
@@ -57,7 +58,7 @@ async function getActiveProduct(runtime, id, required) {
     if (required) throw errorFrom('NOT_FOUND');
     return null;
   }
-  if (product.status !== STATUS.active) {
+  if (product.status !== STATUS.active || product.deletedByAdmin) {
     if (required) throw errorFrom('NOT_FOUND');
     return null;
   }
@@ -196,7 +197,7 @@ async function readSkus(runtime, data) {
 async function readHome(runtime, data) {
   const record = await getDoc(collection(runtime, COLLECTIONS.homeContents), HOME_CONFIG_SLOT, false);
   const payload = record?.status === STATUS.active && record.type === 'pageConfig' ? record.payload : null;
-  const config = payload ? { searchText: payload.searchText, banners: payload.banners, sections: payload.sections } : null;
+  const config = payload ? { searchText: payload.searchText, banners: payload.banners, recommendations: payload.recommendations || [] } : null;
   const ids = productIds(config);
   const products = await Promise.all(ids.map((id) => getActiveProduct(runtime, id, false)));
   const productsById = Object.fromEntries(ids.flatMap((id, index) => products[index] ? [[id, publicProduct(products[index])]] : []));
@@ -1382,6 +1383,7 @@ async function executeShop(event, context, runtime, action, data) {
   if (action === 'products.detail') return readProductDetail(runtime, data);
   if (action === 'skus.list') return readSkus(runtime, data);
   if (action === 'home.get') return readHome(runtime, data);
+  if (action === 'home.feed') return readHomeFeed(runtime, data);
   if (action === 'storage.prepareUpload') {
     const identity = requireUser(event, context, runtime);
     if (!['comments', 'after-sales'].includes(data.folder)) throw errorFrom('FORBIDDEN');

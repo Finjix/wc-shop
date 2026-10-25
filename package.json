@@ -41,7 +41,10 @@
     "test:temp-file-urls": "node scripts/test-temp-file-urls.cjs",
     "test:admin-public": "node scripts/test-admin-public.cjs",
     "build:home-promos": "node scripts/build-home-promos.cjs",
-    "test:home-promos": "node scripts/test-home-promos.cjs"
+    "test:home-promos": "node scripts/test-home-promos.cjs",
+    "build:home-mascots": "node scripts/build-home-mascots.cjs",
+    "test:home-showcase": "node scripts/test-home-showcase.cjs",
+    "test:sharing": "node scripts/test-sharing.cjs"
   },
   "author": "",
   "license": "ISC",

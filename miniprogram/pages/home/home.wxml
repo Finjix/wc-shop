@@ -11,7 +11,7 @@
   bind:submit="handleSearchSubmit"
 />
 
-<scroll-view class="home-scroll" scroll-y show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
+<scroll-view class="home-scroll" scroll-y show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}" lower-threshold="200" bindscroll="onFeedScroll" bindtouchstart="onFeedTouchStart" bindtouchmove="onFeedTouchMove" bindscrolltolower="onFeedBottom">
   <view class="home-scroll-content">
     <view wx:if="{{loadError}}" class="home-load-error">
       <text>{{loadError}}</text>
@@ -44,19 +44,43 @@
       </view>
     </view>
 
-    <view wx:for="{{featuredSections}}" wx:for-item="section" wx:key="id">
-      <view class="home-featured-title"><text class="home-featured-title__zh">{{section.title}}</text></view>
-      <view class="home-recommendation-grid">
-        <view
-          wx:for="{{section.products}}"
-          wx:for-item="product"
-          wx:key="id"
-          class="home-recommendation-card"
-          data-product-id="{{product.productId}}"
-          bind:tap="navToConfiguredProduct"
-        >
-          <image class="home-recommendation-card__image" src="{{product.image}}" mode="aspectFill" lazy-load />
+    <view wx:if="{{recommendations.length}}" class="home-recommendations">
+      <view class="showcase-heading showcase-heading--heart" aria-label="倾心推荐">
+        <view class="showcase-heading__mascot"><static-image asset="recommend-heart" size="64px" /></view>
+        <view class="showcase-heading__words"><text wx:for="{{heartTitle}}" wx:key="index" class="showcase-heading__letter" style="animation-delay:{{index * 0.16}}s">{{item}}</text></view>
+        <text class="showcase-heading__sparkle" aria-hidden="true">✦</text>
+      </view>
+      <swiper class="home-recommendation-swiper" current="{{recommendationCurrent}}" autoplay="{{false}}" circular="{{recommendations.length > 1}}" duration="500" previous-margin="75rpx" next-margin="75rpx" bindchange="onRecommendationChange">
+        <swiper-item wx:for="{{recommendations}}" wx:key="index">
+          <view class="home-recommendation-card {{index === recommendationCurrent ? 'home-recommendation-card--current' : ''}}" data-product-id="{{item.productId}}" bind:tap="navToConfiguredProduct" aria-label="{{item.title}}">
+            <image class="home-recommendation-card__image" src="{{item.image}}" mode="aspectFill" lazy-load />
+          </view>
+        </swiper-item>
+      </swiper>
+    </view>
+
+    <view class="home-gifts">
+      <view class="showcase-heading showcase-heading--star" aria-label="更多献礼">
+        <text class="showcase-heading__sparkle" aria-hidden="true">✧</text>
+        <view class="showcase-heading__words"><text wx:for="{{giftTitle}}" wx:key="index" class="showcase-heading__letter" style="animation-delay:{{index * 0.2}}s">{{item}}</text></view>
+        <view class="showcase-heading__mascot"><static-image asset="gift-star" size="64px" /></view>
+      </view>
+      <view class="home-gift-grid">
+        <view wx:for="{{feedItems}}" wx:key="feedKey" class="home-gift-card" data-product-id="{{item.spuId}}" bind:tap="navToConfiguredProduct">
+          <image class="home-gift-card__cover" src="{{item.thumb}}" mode="aspectFill" lazy-load />
+          <view class="home-gift-card__body">
+            <text class="home-gift-card__title">{{item.title}}</text>
+            <view class="home-gift-card__footer">
+              <price class="home-gift-card__price" wr-class="home-gift-card__price" symbol-class="home-gift-card__symbol" price="{{item.price}}" />
+              <button class="home-gift-card__cart" data-product-id="{{item.spuId}}" catch:tap="addFeedProductToCart" aria-label="选择规格加入购物车"><t-icon prefix="wr" name="cartAdd" size="36rpx" color="#695941" /></button>
+            </view>
+          </view>
         </view>
+      </view>
+      <view class="home-feed-status">
+        <t-loading wx:if="{{feedLoading}}" theme="circular" size="32rpx" text="加载中" />
+        <button wx:elif="{{feedError}}" class="home-feed-retry" bind:tap="loadMoreFeed">{{feedError}} · 点击重试</button>
+        <text wx:elif="{{feedEmpty}}">好礼准备中，敬请期待</text>
       </view>
     </view>
 

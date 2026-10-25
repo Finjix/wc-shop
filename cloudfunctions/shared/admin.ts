@@ -26,18 +26,11 @@ async function clearHomeProductLinks(tx, product, id, timestamp) {
   const ids = new Set([id, product._id].filter(Boolean).map(String));
   const payload = clone(config.payload);
   let changed = false;
-  for (const item of (payload.banners || [])) {
+  for (const item of [...(payload.banners || []), ...(payload.recommendations || [])]) {
     if (ids.has(String(item.productId || ''))) {
       item.productId = '';
       changed = true;
     }
-  }
-  for (const section of payload.sections || []) {
-    section.productIds = (section.productIds || []).map((productId) => {
-      if (!ids.has(String(productId))) return productId;
-      changed = true;
-      return '';
-    });
   }
   if (changed) await home.doc(HOME_CONFIG_SLOT).update({ payload, updatedAt: timestamp });
 }

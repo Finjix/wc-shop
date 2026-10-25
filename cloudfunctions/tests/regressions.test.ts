@@ -614,14 +614,14 @@ async function testDeletingProductClearsHomeLinksWithoutRemovingSlots() {
     searchText: '欢迎', bannerText: '公告',
     banners: [{ image: 'banner.jpg', productId: 'product-1' }],
     promos: [{ image: 'promo.jpg', productId: 'product-1' }, { image: 'other.jpg', productId: 'other-product' }],
-    sections: [{ id: 'section-1', title: '推荐', productIds: ['product-1', 'other-product', 'product-1'] }],
+    recommendations: [{ image: 'one.jpg', productId: 'product-1' }, { image: 'two.jpg', productId: 'other-product' }, { image: 'three.jpg', productId: 'product-1' }],
   };
   runtime.records.homeContents = { 'home.page-config': { _id: 'home.page-config', payload } };
   await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.delete', { id: 'product-1' });
   const saved = runtime.records.homeContents['home.page-config'].payload;
   assert.deepStrictEqual(saved.banners, [{ image: 'banner.jpg', productId: '' }]);
   assert.deepStrictEqual(saved.promos, payload.promos, 'retired promo links are not managed');
-  assert.deepStrictEqual(saved.sections[0].productIds, ['', 'other-product', '']);
+  assert.deepStrictEqual(saved.recommendations.map((item) => item.productId), ['', 'other-product', '']);
   assert.strictEqual(saved.searchText, '欢迎');
   runtime.records.homeContents['home.page-config'].payload = payload;
   const repaired = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'home.clearUnavailableLinks', { id: 'home.page-config' });
@@ -638,7 +638,7 @@ async function testDeletingProductClearsHomeLinksWithoutRemovingSlots() {
   await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.update', { id: 'product-1', status: 'inactive' });
   assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.banners[0].productId, '');
   assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.promos[0].productId, 'product-1');
-  assert.deepStrictEqual(runtime.records.homeContents['home.page-config'].payload.sections[0].productIds, ['', 'other-product', '']);
+  assert.deepStrictEqual(runtime.records.homeContents['home.page-config'].payload.recommendations.map((item) => item.productId), ['', 'other-product', '']);
   await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.update', { id: 'product-1', status: 'active' });
   assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.banners[0].productId, '');
   assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.promos[0].productId, 'product-1');
@@ -651,7 +651,7 @@ async function testHomeCleanupPreservesActiveLegacyProductLinks() {
     searchText: '欢迎', bannerText: '公告',
     banners: [{ image: 'banner.jpg', productId: 'legacy-product-1' }],
     promos: [{ image: 'promo.jpg', productId: 'legacy-product-1' }, { image: '', productId: '' }],
-    sections: [{ id: 'section-1', title: '推荐', productIds: ['legacy-product-1', 'product-1', 'missing-product'] }],
+    recommendations: [{ image: 'one.jpg', productId: 'legacy-product-1' }, { image: 'two.jpg', productId: 'product-1' }, { image: 'three.jpg', productId: 'missing-product' }],
   };
   runtime.records.homeContents = { 'home.page-config': { _id: 'home.page-config', payload } };
   const call = (action, data) => adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, action, data);
@@ -662,7 +662,7 @@ async function testHomeCleanupPreservesActiveLegacyProductLinks() {
     const result = await call(action, { id: 'home.page-config' });
     assert.deepStrictEqual(result.payload.banners, [{ image: 'banner.jpg', productId: '' }]);
     assert.deepStrictEqual(result.payload.promos, payload.promos);
-    assert.deepStrictEqual(result.payload.sections[0].productIds, ['', 'product-1', '']);
+    assert.deepStrictEqual(result.payload.recommendations.map((item) => item.productId), ['', 'product-1', '']);
   }
   for (const patch of [{ status: 'inactive' }, { status: 'active', deletedByAdmin: true }]) {
     Object.assign(runtime.records.products['product-1'], patch);
@@ -670,7 +670,7 @@ async function testHomeCleanupPreservesActiveLegacyProductLinks() {
     const result = await call('home.clearUnavailableLinks', { id: 'home.page-config' });
     assert.strictEqual(result.payload.banners[0].productId, '');
     assert.strictEqual(result.payload.promos[0].productId, 'legacy-product-1');
-    assert.deepStrictEqual(result.payload.sections[0].productIds, ['', '', '']);
+    assert.deepStrictEqual(result.payload.recommendations.map((item) => item.productId), ['', '', '']);
     assert.strictEqual(result.payload.banners[0].image, 'banner.jpg');
   }
 }
@@ -959,89 +959,85 @@ async function testDashboardProductCountUsesCountQuery() {
 }
 
 async function testHomeConfigLimitsAndLegacyResponse() {
-  const blankLink = { image: '', productId: '' };
-  const config = {
-    searchText: DEFAULT_SEARCH_TEXT,
-    banners: [{ image: 'cloud://home/slide.jpg', productId: 'product-1' }, ...Array(3).fill(blankLink)],
-    sections: [{ id: 'featured', title: '精选', productIds: Array(6).fill('product-1') }],
-  };
-  assert.strictEqual(validateHomeConfig(config).sections[0].productIds.length, 6);
-  assert.deepStrictEqual(validateHomeConfig({ ...config, promos: 'retired' }), config, 'legacy promo field is ignored regardless of its value');
+  const blank = { image: '', productId: '' };
+  const config = { searchText: DEFAULT_SEARCH_TEXT,
+    banners: [{ image: 'cloud://home/slide.jpg', productId: 'product-1' }],
+    recommendations: [{ image: 'cloud://home/recommend.jpg', productId: 'product-1' }, blank, blank, blank] };
+  assert.deepStrictEqual(validateHomeConfig({ ...config, sections: 'retired', promos: 'retired', bannerText: {} }), config);
   for (const count of [0, 1, 2, 3, 4]) {
-    assert.strictEqual(validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: Array(count).fill('product-1') }] }).sections[0].productIds.length, count);
+    assert.strictEqual(validateHomeConfig({ ...config, recommendations: Array(count).fill(blank) }).recommendations.length, count);
+    assert.strictEqual(validateHomeConfig({ ...config, banners: Array(count).fill(blank) }).banners.length, count);
   }
-  assert.strictEqual(validateHomeConfig({ ...config, searchText: '' }).searchText, '');
-  assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [{ image: 'cloud://home/banner.webp', productId: '' }], promos: [{ image: 'cloud://home/promo.webp', productId: '' }, blankLink] }).banners[0], { image: 'cloud://home/banner.webp', productId: '' });
-  assert.deepStrictEqual(validateHomeConfig({ ...config, bannerText: { legacy: true } }), config, 'retired banner text is ignored');
-  assert.deepStrictEqual(validateHomeConfig({ ...config, sections: [{ ...config.sections[0], title: '', productIds: ['', 'product-1'] }] }).sections[0], { id: 'featured', title: '', productIds: ['', 'product-1'] });
-  assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [{ image: '', productId: 'product-1' }] }).banners[0], { image: '', productId: 'product-1' });
-  assert.throws(() => validateHomeConfig({ ...config, sections: [{ ...config.sections[0], productIds: Array(8).fill('product-1') }] }), appError('INVALID_ARGUMENT'));
-  assert.deepStrictEqual(validateHomeConfig({ ...config, sections: [] }).sections, []);
-  const sections = Array.from({ length: 4 }, (_, index) => ({ ...config.sections[0], id: `section-${index}` }));
-  assert.strictEqual(validateHomeConfig({ ...config, sections }).sections.length, 4);
-  assert.throws(() => validateHomeConfig({ ...config, sections: [...sections, { ...config.sections[0], id: 'section-4' }] }), appError('INVALID_ARGUMENT'));
-  assert.strictEqual(validateHomeConfig({ ...config, banners: Array(4).fill(blankLink) }).banners.length, 4);
-  assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [] }).banners, []);
-  assert.throws(() => validateHomeConfig({ ...config, banners: Array(5).fill(blankLink) }), appError('INVALID_ARGUMENT'));
-
+  assert.throws(() => validateHomeConfig({ ...config, recommendations: Array(5).fill(blank) }), appError('INVALID_ARGUMENT'));
+  assert.throws(() => validateHomeConfig({ ...config, banners: Array(5).fill(blank) }), appError('INVALID_ARGUMENT'));
+  assert.throws(() => validateHomeConfig({ ...config, recommendations: 'invalid' }), appError('INVALID_ARGUMENT'));
+  assert.throws(() => validateHomeConfig({ ...config, recommendations: [{ image: 'x'.repeat(1025) }] }), appError('INVALID_ARGUMENT'));
   const runtime = makeRuntime();
-  runtime.records.homeContents = {
-    'legacy-banner': { _id: 'legacy-banner', slot: 'home.banner.1', type: 'banner', image: 'legacy.jpg', status: 'active', sort: 0 },
-    'home.page-config': { _id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', payload: config, status: 'active', sort: -100 },
-  };
+  runtime.records.homeContents = { 'legacy-banner': { slot: 'home.banner.1', type: 'banner', image: 'old.jpg' },
+    'home.page-config': { type: 'pageConfig', status: 'active', payload: { ...config, sections: [{ productIds: ['retired-only'] }] } } };
   const result = await shopEndpoint({}, {}, runtime, 'home.get', {});
-  assert.strictEqual(result.items, undefined, 'old banner records are not returned');
   assert.deepStrictEqual(result.config, config);
+  assert.strictEqual(result.items, undefined);
+  assert.strictEqual(result.productsById['retired-only'], undefined);
   assert.strictEqual(result.productsById['product-1'].title, '测试商品');
-
-  const writable = makeRuntime();
-  const saved = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
-    id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: config,
+  const save = (payload) => adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'homeContent.save', {
+    id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload,
   });
-  assert.deepStrictEqual(saved.payload, config);
-  const loaded = await shopEndpoint({}, {}, writable, 'home.get', {});
-  assert.strictEqual(loaded.config.sections[0].productIds.length, 6);
-  assert.strictEqual(loaded.productsById['product-1'].title, '测试商品');
-  writable.records.homeContents['home.page-config'].payload.promos = [{ image: 'legacy.gif', productId: 'promo-only' }];
-  writable.records.homeContents['home.page-config'].payload.bannerText = '旧版手动文字';
-  const legacyHome = await shopEndpoint({}, {}, writable, 'home.get', {});
-  assert.strictEqual(legacyHome.config.promos, undefined);
-  assert.strictEqual(legacyHome.config.bannerText, undefined);
-  assert.strictEqual(legacyHome.productsById['promo-only'], undefined);
-  assert.deepStrictEqual(legacyHome.config, config);
-  for (const count of [0, 1, 2, 3, 4]) {
-    const smallerConfig = { ...config, sections: [{ ...config.sections[0], productIds: Array(count).fill('product-1') }] };
-    await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
-      id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: smallerConfig,
-    });
-    assert.deepStrictEqual((await shopEndpoint({}, {}, writable, 'home.get', {})).config.sections[0].productIds, smallerConfig.sections[0].productIds);
+  await save({ ...config, sections: [{ productIds: ['retired-only'] }] });
+  assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.sections, undefined);
+  for (const recommendations of [[], [blank], [{ image: '', productId: 'product-1' }], [{ image: 'cover.jpg', productId: '' }]]) {
+    const partial = { ...config, searchText: '', recommendations };
+    await save(partial);
+    assert.deepStrictEqual((await shopEndpoint({}, {}, runtime, 'home.get', {})).config, partial);
   }
-  const cleared = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
-    id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: { ...config, searchText: '' },
-  });
-  assert.strictEqual(cleared.payload.searchText, '');
-  assert.strictEqual((await shopEndpoint({}, {}, writable, 'home.get', {})).config.searchText, '');
-  writable.records.products['product-1'].status = 'inactive';
-  const afterRemoval = await shopEndpoint({}, {}, writable, 'home.get', {});
-  assert.strictEqual(afterRemoval.productsById['product-1'], undefined, 'unavailable products are omitted');
-  const unfinished = { ...config, banners: [{ image: '', productId: 'product-1' }], sections: [{ id: 'featured', title: '', productIds: ['', 'product-1'] }] };
-  const savedUnfinished = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
-    id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: unfinished,
-  });
-  assert.deepStrictEqual(savedUnfinished.payload, unfinished);
-  const unfinishedHome = await shopEndpoint({}, {}, writable, 'home.get', {});
-  assert.deepStrictEqual(unfinishedHome.config, unfinished);
-  assert.strictEqual(unfinishedHome.productsById['product-1'], undefined);
-  const entirelyBlank = {
-    searchText: '', banners: [blankLink],
-    sections: [{ id: 'empty', title: '', productIds: ['', ''] }],
-  };
-  await adminEndpoint({}, { auth: { uid: 'admin-1' } }, writable, 'homeContent.save', {
-    id: 'home.page-config', slot: 'home.page-config', type: 'pageConfig', status: 'active', payload: entirelyBlank,
-  });
-  const blankHome = await shopEndpoint({}, {}, writable, 'home.get', {});
-  assert.deepStrictEqual(blankHome.config, entirelyBlank);
-  assert.deepStrictEqual(blankHome.productsById, {});
+  await save(config);
+  runtime.records.products['product-1'].deletedByAdmin = true;
+  assert.deepStrictEqual((await shopEndpoint({}, {}, runtime, 'home.get', {})).productsById, {});
+  await save({ searchText: '', banners: [], recommendations: [] });
+  assert.deepStrictEqual((await shopEndpoint({}, {}, runtime, 'home.get', {})).productsById, {});
+  runtime.records.homeContents['home.page-config'].payload = { searchText: '', banners: [], sections: [] };
+  assert.deepStrictEqual((await shopEndpoint({}, {}, runtime, 'home.get', {})).config.recommendations, []);
+}
+
+async function testHomeFeedCyclesAndSeek() {
+  const runtime = makeRuntime();
+  runtime.records.products = Object.fromEntries(Array.from({ length: 125 }, (_, i) => [`p${i}`, {
+    _id: `p${i}`, title: `商品${i}`, status: 'active', primaryImage: `cover${i}.jpg`, minSalePrice: i * 100,
+  }]));
+  runtime.records.products.hidden = { _id: 'hidden', status: 'inactive' };
+  runtime.records.products.deleted = { _id: 'deleted', status: 'active', deletedByAdmin: true };
+  const call = (data) => shopEndpoint({}, {}, runtime, 'home.feed', data);
+  const first = await call({ limit: 6 });
+  assert.strictEqual(first.items.length, 6);
+  assert.strictEqual(first.total, 125);
+  let cursor = first.nextCursor;
+  const sequence = [...first.items];
+  for (let i = 0; i < 12; i++) {
+    const response = await call({ limit: 12, cursor });
+    assert.strictEqual(response.items.length, 12);
+    const retry = await call({ limit: 12, cursor });
+    assert.deepStrictEqual(retry, response, 'cursor retry is deterministic');
+    sequence.push(...response.items); cursor = response.nextCursor;
+  }
+  assert.strictEqual(new Set(sequence.slice(0, 125).map((p) => p._id)).size, 125, '6 then 12 never skips or duplicates within a round');
+  assert.strictEqual(new Set(sequence.map((p) => p.feedKey)).size, sequence.length);
+  assert.notDeepStrictEqual((await call({ limit: 6 })).items, first.items, 'new visits reshuffle');
+  const writes = runtime.writes.length;
+  await call({ limit: 12, cursor });
+  assert.strictEqual(runtime.writes.length, writes, 'feed does not write sessions or cursors to storage');
+  const catalog = Object.entries(runtime.records.products);
+  for (const count of [1, 2, 5]) {
+    runtime.records.products = Object.fromEntries(catalog.slice(0, count));
+    const small = await call({ limit: 12 });
+    assert.strictEqual(small.items.length, 12);
+    assert.strictEqual(new Set(small.items.map((p) => p.feedKey)).size, 12);
+    assert.strictEqual(new Set(small.items.map((p) => p._id)).size, count);
+  }
+  runtime.records.products = {};
+  assert.deepStrictEqual(await call({ limit: 12, cursor }), { items: [], nextCursor: '', total: 0 });
+  for (const data of [{ limit: 13 }, { limit: 0 }, { limit: 1.2 }, { cursor: 'bad' }, { cursor: Buffer.from('null').toString('base64url') }]) {
+    await assert.rejects(() => call(data), appError('INVALID_ARGUMENT'));
+  }
 }
 
 async function testTwoLevelCategoriesAndCascadeDeletion() {
@@ -2098,6 +2094,7 @@ const cases = [
   { name: 'paid orders reject direct cancellation and refund only through reviewed after-sales', run: testPaidOrdersCannotBeCancelled },
   { name: 'dashboard product count is not limited to the first page', run: testDashboardProductCountUsesCountQuery },
   { name: 'home configuration limits and current-only response', run: testHomeConfigLimitsAndLegacyResponse },
+  { name: 'home feed seeks across batch sizes and random cycles with safe cursors', run: testHomeFeedCyclesAndSeek },
   { name: 'deleting a product clears home links while preserving slots', run: testDeletingProductClearsHomeLinksWithoutRemovingSlots },
   { name: 'home cleanup rejects old product aliases and preserves current document IDs', run: testHomeCleanupPreservesActiveLegacyProductLinks },
   { name: 'inactive products are pinned before pagination', run: testInactiveProductsArePinnedBeforePagination },

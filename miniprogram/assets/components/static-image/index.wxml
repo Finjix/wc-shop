@@ -1,3 +1,5 @@
 <image wx:if="{{asset === 'invite-cashback'}}" style="display:block;width:{{size}};height:{{size}};" src="../../home/invite-cashback.gif" mode="aspectFill" />
 <image wx:elif="{{asset === 'customer-gift'}}" style="display:block;width:{{size}};height:{{size}};" src="../../home/customer-gift.gif" mode="aspectFill" />
+<image wx:elif="{{asset === 'recommend-heart'}}" style="display:block;width:{{size}};height:{{size}};" src="../../home/recommend-heart.png" mode="aspectFit" />
+<image wx:elif="{{asset === 'gift-star'}}" style="display:block;width:{{size}};height:{{size}};" src="../../home/gift-star.png" mode="aspectFit" />
 <image wx:elif="{{asset === 'default-avatar'}}" style="display:block;width:{{size}};height:{{size}};" src="../../user/default-avatar.jpg" mode="aspectFill" />

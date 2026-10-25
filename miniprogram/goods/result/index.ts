@@ -6,6 +6,7 @@ import { getSearchResult } from '../services/fetchSearchResult';
 import { getApiErrorMessage } from '../../common/services/utils/api';
 import Toast from '../../components/tdesign/toast/index';
 import { navigateToGoodsDetail } from '../../common/utils/goods-detail-navigation';
+import { catalogShareHandlers, enablePageSharing } from '../../common/share';
 
 const initFilters = {
   overall: 1,
@@ -15,6 +16,7 @@ const initFilters = {
 };
 
 Page({
+  ...catalogShareHandlers,
   data: {
     goodsList: [],
     layout: 0,
@@ -44,6 +46,7 @@ Page({
   pageSize: 30,
 
   onLoad(options) {
+    enablePageSharing();
     const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const menuButtonInfo = wx.getMenuButtonBoundingClientRect();
     const windowWidth = windowInfo.windowWidth || 375;

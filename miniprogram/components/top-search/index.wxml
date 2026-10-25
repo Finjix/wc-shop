@@ -19,13 +19,8 @@
         <t-icon prefix="wr" name="search" size="40rpx" color="#9d8f96" />
       </view>
     </t-search>
-    <view wx:if="{{!focus && !value && marqueeText}}" class="top-search__marquee">
-      <view class="top-search__marquee-track">
-        <text class="top-search__marquee-item">{{marqueeText}}</text>
-        <text class="top-search__marquee-item">{{marqueeText}}</text>
-        <text class="top-search__marquee-item">{{marqueeText}}</text>
-        <text class="top-search__marquee-item">{{marqueeText}}</text>
-      </view>
+    <view wx:if="{{!focus && !value && marqueeText}}" class="top-search__hint">
+      <text class="top-search__hint-text">{{marqueeText}}</text>
     </view>
   </view>
 </view>
