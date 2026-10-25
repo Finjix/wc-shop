@@ -1,0 +1,40 @@
+/* Generated from the original GIF frame delays. No JS timer or network request. */
+.promo-frame-sheet { position: absolute; left: 0; top: 0; display: block; width: 700%; height: 500%; max-width: none; animation: promo-frames 2500ms steps(1, end) infinite; }
+@keyframes promo-frames {
+  0% { transform: translate3d(0%, 0%, 0); }
+  2.8% { transform: translate3d(-14.285714%, 0%, 0); }
+  5.6% { transform: translate3d(-28.571429%, 0%, 0); }
+  8.4% { transform: translate3d(-42.857143%, 0%, 0); }
+  11.6% { transform: translate3d(-57.142857%, 0%, 0); }
+  14.4% { transform: translate3d(-71.428571%, 0%, 0); }
+  17.2% { transform: translate3d(-85.714286%, 0%, 0); }
+  20% { transform: translate3d(0%, -20%, 0); }
+  22.8% { transform: translate3d(-14.285714%, -20%, 0); }
+  25.6% { transform: translate3d(-28.571429%, -20%, 0); }
+  28.4% { transform: translate3d(-42.857143%, -20%, 0); }
+  31.6% { transform: translate3d(-57.142857%, -20%, 0); }
+  34.4% { transform: translate3d(-71.428571%, -20%, 0); }
+  37.2% { transform: translate3d(-85.714286%, -20%, 0); }
+  40% { transform: translate3d(0%, -40%, 0); }
+  42.8% { transform: translate3d(-14.285714%, -40%, 0); }
+  45.6% { transform: translate3d(-28.571429%, -40%, 0); }
+  48.4% { transform: translate3d(-42.857143%, -40%, 0); }
+  51.6% { transform: translate3d(-57.142857%, -40%, 0); }
+  54.4% { transform: translate3d(-71.428571%, -40%, 0); }
+  57.2% { transform: translate3d(-85.714286%, -40%, 0); }
+  60% { transform: translate3d(0%, -60%, 0); }
+  62.8% { transform: translate3d(-14.285714%, -60%, 0); }
+  65.6% { transform: translate3d(-28.571429%, -60%, 0); }
+  68.4% { transform: translate3d(-42.857143%, -60%, 0); }
+  71.6% { transform: translate3d(-57.142857%, -60%, 0); }
+  74.4% { transform: translate3d(-71.428571%, -60%, 0); }
+  77.2% { transform: translate3d(-85.714286%, -60%, 0); }
+  80% { transform: translate3d(0%, -80%, 0); }
+  82.8% { transform: translate3d(-14.285714%, -80%, 0); }
+  85.6% { transform: translate3d(-28.571429%, -80%, 0); }
+  88.4% { transform: translate3d(-42.857143%, -80%, 0); }
+  91.6% { transform: translate3d(-57.142857%, -80%, 0); }
+  94.4% { transform: translate3d(-71.428571%, -80%, 0); }
+  97.2% { transform: translate3d(-85.714286%, -80%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}

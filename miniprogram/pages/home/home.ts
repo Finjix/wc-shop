@@ -12,6 +12,7 @@ Page({
     swiperSlides: [],
     swiperProductIds: [],
     recommendations: [],
+    recommendationSlides: [],
     recommendationCurrent: 0,
     heartTitle: ['倾', '心', '推', '荐'],
     giftTitle: ['更', '多', '献', '礼'],
@@ -100,10 +101,15 @@ Page({
         if (!entry.image || !product) return [];
         return [{ image: entry.image, title: product.title || '', productId: String(product._id) }];
       });
+      // Preserve the old visual order and rightward autoplay without mirroring
+      // the native touch surface. Four physical slides disambiguate a two-card loop.
+      const orderedSlides = recommendations.length ? [recommendations[0], ...recommendations.slice(1).reverse()] : [];
+      const recommendationSlides = orderedSlides.length === 2 ? [...orderedSlides, ...orderedSlides] : orderedSlides;
       this.setData({
         swiperSlides: slides.map((item) => item.image),
         swiperProductIds: slides.map((item) => item.productId),
         recommendations,
+        recommendationSlides,
         recommendationCurrent: 0,
         pageLoading: false,
         loadError: '',
@@ -123,7 +129,8 @@ Page({
     this.stopRecommendationTimer();
     if (!this.visible || this.data.recommendations.length < 2) return;
     this.recommendationTimer = setInterval(() => {
-      this.setData({ recommendationCurrent: (this.data.recommendationCurrent + 1) % this.data.recommendations.length });
+      const count = this.data.recommendationSlides.length;
+      this.setData({ recommendationCurrent: (this.data.recommendationCurrent + count - 1) % count });
     }, 2500);
   },
 

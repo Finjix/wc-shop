@@ -51,7 +51,7 @@
         <text class="showcase-heading__sparkle" aria-hidden="true">✦</text>
       </view>
       <swiper class="home-recommendation-swiper" current="{{recommendationCurrent}}" autoplay="{{false}}" circular="{{recommendations.length > 1}}" duration="500" previous-margin="75rpx" next-margin="75rpx" bindchange="onRecommendationChange">
-        <swiper-item wx:for="{{recommendations}}" wx:key="index">
+        <swiper-item wx:for="{{recommendationSlides}}" wx:key="index">
           <view class="home-recommendation-card {{index === recommendationCurrent ? 'home-recommendation-card--current' : ''}}" data-product-id="{{item.productId}}" bind:tap="navToConfiguredProduct" aria-label="{{item.title}}">
             <image class="home-recommendation-card__image" src="{{item.image}}" mode="aspectFill" lazy-load />
           </view>

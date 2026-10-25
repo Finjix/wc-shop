@@ -6,7 +6,7 @@ const sharp = require('../cloudfunctions/node_modules/sharp');
 
 const root = path.resolve(__dirname, '..');
 const source = path.join(root, 'design/home-promos');
-const output = path.join(root, 'miniprogram/assets/home');
+const output = path.join(source, 'animations');
 const ffmpeg = process.env.FFMPEG || 'ffmpeg';
 const gifsicle = process.env.GIFSICLE || 'gifsicle';
 const FPS = 14;

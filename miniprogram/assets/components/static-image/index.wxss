@@ -1,1 +1,3 @@
+@import './promo-frames.wxss';
 /* The virtual-host image fills the positioned card/avatar supplied by its caller. */
+.promo-frame-window { position: relative; display: block; overflow: hidden; }

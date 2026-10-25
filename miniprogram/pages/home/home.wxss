@@ -30,10 +30,10 @@
 @keyframes heart-mascot { 0%, 60%, 100% { transform: translateY(0) scale(1) rotate(0); } 20% { transform: translateY(-6rpx) scale(1.08) rotate(-5deg); } 35% { transform: translateY(0) scale(1.02) rotate(4deg); } }
 @keyframes star-mascot { 0%, 100% { transform: translateY(0) rotate(-8deg) scale(1); opacity: .9; } 35% { transform: translateY(-7rpx) rotate(8deg) scale(1.06); opacity: 1; } 65% { transform: translateY(2rpx) rotate(0) scale(.98); opacity: .85; } }
 
-/* Mirror the native forward swipe, then unmirror cards so two-card loops also move right. */
-.home-recommendation-swiper { width: 100%; height: calc(100vw * 0.8 * 16 / 9 + 32rpx); transform: scaleX(-1); }
-.home-recommendation-card { width: 100%; height: calc(100vw * 0.8 * 16 / 9); overflow: hidden; border-radius: 48rpx; box-shadow: 0 10rpx 22rpx rgba(105, 89, 65, .12); opacity: .72; transform: scale(-.84, .84); transition: transform 500ms ease, opacity 500ms ease; }
-.home-recommendation-card--current { transform: scale(-1, 1); opacity: 1; }
+/* Keep native touch coordinates; automatic rightward rotation is driven by current. */
+.home-recommendation-swiper { width: 100%; height: calc(100vw * 0.8 * 16 / 9 + 32rpx); }
+.home-recommendation-card { width: 100%; height: calc(100vw * 0.8 * 16 / 9); overflow: hidden; border-radius: 48rpx; box-shadow: 0 10rpx 22rpx rgba(105, 89, 65, .12); opacity: .72; transform: scale(.84); transition: transform 500ms ease, opacity 500ms ease; }
+.home-recommendation-card--current { transform: scale(1); opacity: 1; }
 .home-recommendation-card__image { display: block; width: 100%; height: 100%; }
 
 .home-gift-grid { display: flex; flex-wrap: wrap; gap: 16rpx; padding: 0 24rpx; }

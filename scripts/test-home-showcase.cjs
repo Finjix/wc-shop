@@ -45,8 +45,11 @@ async function testHome() {
   home.onShow(); await tick();
   assert.equal(home.data.recommendations.length, 2, 'unconfigured and missing products are hidden');
   assert.equal(timers.size, 1);
-  timers.values().next().value(); assert.equal(home.data.recommendationCurrent, 1);
-  timers.values().next().value(); assert.equal(home.data.recommendationCurrent, 0);
+  assert.equal(home.data.recommendationSlides.length, 4, 'two cards use an unambiguous native circular track');
+  timers.values().next().value(); assert.equal(home.data.recommendationCurrent, 3);
+  assert.equal(home.data.recommendationSlides[3].productId, 'two');
+  timers.values().next().value(); assert.equal(home.data.recommendationCurrent, 2);
+  assert.equal(home.data.recommendationSlides[2].productId, 'one');
   assert.equal(requests.length, 0, 'entering home never requests the feed');
   home.onFeedBottom(); home.loadMoreFeed();
   home.onFeedScroll({ detail: { scrollTop: 0 } });
@@ -82,6 +85,13 @@ async function testHome() {
   assert.equal(requests[4].params.limit, 6, 'swiping loads even on a short non-scrollable page');
   requests[4].resolve({ items: [], nextCursor: '' }); await tick();
   home.onFeedBottom(); assert.equal(requests.length, 5, 'empty catalog stops repeated loading');
+  result = { config: { recommendations: ['one','two','three'].map(id=>({image:`${id}.jpg`,productId:id})) }, productsById: Object.fromEntries(['one','two','three'].map(id=>[id,{_id:id}])) };
+  await home.loadHomePage();
+  timers.values().next().value(); assert.equal(home.data.recommendationCurrent, 2);
+  assert.equal(home.data.recommendationSlides[2].productId, 'two', 'rightward autoplay keeps configured product order');
+  home.onRecommendationChange({detail:{current:1,source:'touch'}});
+  assert.equal(timers.size,1,'touch resets autoplay without creating a second timer');
+  timers.values().next().value(); assert.equal(home.data.recommendationCurrent,0,'autoplay continues from the touched card');
   result = { config: { recommendations: [{ image: 'one.jpg', productId: 'one' }] }, productsById: { one: { _id: 'one' } } };
   await home.loadHomePage(); assert.equal(timers.size, 0, 'one card is static');
   assert.equal(requests.length, 5, 'new load is also lazy');

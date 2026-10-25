@@ -28,7 +28,7 @@ function gifInfo(file) {
 async function run() {
   let bytes=0;
   for(const name of ['invite-cashback','customer-gift']) {
-    const file=path.join(mini,'assets/home',`${name}.gif`);
+    const file=path.join(root,'design/home-promos/animations',`${name}.gif`);
     const info=gifInfo(file);
     assert.deepEqual(info,{width:256,height:256,colors:128,frames:35,duration:250,loop:0,firstTransparent:false});
     const first=await sharp(file,{page:0}).ensureAlpha().raw().toBuffer();
@@ -47,13 +47,38 @@ async function run() {
         }
       }
     }
-    bytes+=fs.statSync(file).size;
-    console.log(`PASS ${name}: 256x256, 128 colors, 35 frames / 2.5 seconds (14 fps), opaque, looping`);
+    const atlasFile=path.join(mini,'assets/home',`${name}-frames-v261025.webp`);
+    const atlas=await sharp(atlasFile).metadata();
+    assert.equal(atlas.format,'webp');
+    assert.equal(atlas.width,256*7);
+    assert.equal(atlas.height,256*5);
+    const timing=(await sharp(file,{animated:true}).metadata()).delay;
+    const styles=fs.readFileSync(path.join(mini,'assets/components/static-image/promo-frames.wxss'),'utf8');
+    assert.match(styles,/animation: promo-frames 2500ms steps\(1, end\) infinite/);
+    let elapsed=0;
+    for(let frame=0;frame<35;frame++) {
+      const source=await sharp(file,{page:frame}).removeAlpha().raw().toBuffer();
+      const tile=await sharp(atlasFile).extract({left:frame%7*256,top:Math.floor(frame/7)*256,width:256,height:256}).removeAlpha().raw().toBuffer();
+      let error=0;
+      for(let p=0;p<source.length;p++) error+=Math.abs(source[p]-tile[p]);
+      assert(error/source.length<4,`${name}: sprite frame ${frame} differs from original (${error/source.length})`);
+      const percent=Number((elapsed/2500*100).toFixed(6));
+      const x=Number((-(frame%7)/7*100).toFixed(6));
+      const y=Number((-Math.floor(frame/7)/5*100).toFixed(6));
+      assert(styles.includes(`${percent}% { transform: translate3d(${x}%, ${y}%, 0); }`),`${name}: frame ${frame} keeps its original display time and position`);
+      elapsed+=timing[frame];
+    }
+    console.log(`PASS ${name}: all 35 original frames/timings preserved in a 7x5 WebP atlas, 2.5-second CSS loop`);
   }
+  bytes+=fs.readdirSync(path.join(mini,'assets/home')).reduce((sum,name)=>sum+fs.statSync(path.join(mini,'assets/home',name)).size,0);
   bytes+=fs.statSync(path.join(mini,'assets/user/default-avatar.jpg')).size;
-  for(const name of ['recommend-heart','gift-star']) bytes+=fs.statSync(path.join(mini,'assets/home',`${name}.png`)).size;
   bytes+=fs.readdirSync(path.join(mini,'assets/components/static-image')).reduce((sum,name)=>sum+fs.statSync(path.join(mini,'assets/components/static-image',name)).size,0);
   assert.ok(bytes<2*1024*1024,`resource package exceeds 2 MiB: ${bytes}`);
+  const component=fs.readFileSync(path.join(mini,'assets/components/static-image/index.wxml'),'utf8');
+  assert.doesNotMatch(component,/\.gif/, 'runtime animation must not depend on native GIF decoding');
+  assert.match(component,/promo-frame-window/);
+  assert.match(component,/class="promo-frame-sheet"/);
+  assert.doesNotMatch(fs.readFileSync(path.join(mini,'assets/components/static-image/index.ts'),'utf8'),/setInterval|setTimeout/);
   const markup=fs.readFileSync(path.join(mini,'pages/home/home.wxml'),'utf8');
   assert.match(markup,/<button[^>]+bind:tap="showInviteComingSoon"[^>]+aria-label="邀请返现"/);
   assert.match(markup,/<button[^>]+open-type="contact"[^>]+aria-label="加客服拿好礼"/);
