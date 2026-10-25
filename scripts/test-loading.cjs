@@ -312,11 +312,12 @@ async function run() {
   const sixBanners = Array.from({ length: 6 }, (_, index) => ({ image: `https://example.test/banner-${index + 1}.jpg`, productId: '' }));
   respond = async () => ({ config: { banners: sixBanners, promos: [], sections: [] } });
   await homepage.loadHomePage();
-  assert.deepEqual(Array.from(homepage.data.swiperSlides), sixBanners.map((entry) => entry.image));
-  assert.equal(homepage.data.swiperProductIds.length, 6);
+  assert.deepEqual(Array.from(homepage.data.swiperSlides), sixBanners.slice(0, 4).map((entry) => entry.image));
+  assert.equal(homepage.data.swiperProductIds.length, 4);
+  assert.equal(homepage.data.interval, 2500);
   respond = async () => ({ config: { banners: [...sixBanners, { image: 'https://example.test/extra.jpg' }], promos: [], sections: [] } });
   await homepage.loadHomePage();
-  assert.equal(homepage.data.swiperSlides.length, 6, 'home carousel displays at most six slides');
+  assert.equal(homepage.data.swiperSlides.length, 4, 'home carousel displays at most four slides');
   respond = async () => { throw new Error('订单不存在'); };
   const orderpage = instance(orderDetailDefinition); orderpage.orderNo = 'missing'; orderpage.getStoreDetail = () => {};
   await orderpage.init();

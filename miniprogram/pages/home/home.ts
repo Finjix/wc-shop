@@ -15,7 +15,7 @@ Page({
     current: 0,
     autoplay: true,
     duration: '500',
-    interval: 2000,
+    interval: 2500,
     swiperImageProps: { mode: 'aspectFill', showMenuByLongpress: true },
     searchTop: 0,
     searchLeft: 0,
@@ -57,7 +57,7 @@ Page({
       const config = home.config || {};
       const products = home.productsById || {};
       const banners = config.banners || [];
-      const slides = banners.slice(0, 6).flatMap((entry) => {
+      const slides = banners.slice(0, 4).flatMap((entry) => {
         const product = products[entry.productId];
         if (!entry.image || (entry.productId && !product)) return [];
         return [{

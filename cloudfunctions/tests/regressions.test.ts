@@ -962,7 +962,7 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   const blankLink = { image: '', productId: '' };
   const config = {
     searchText: DEFAULT_SEARCH_TEXT,
-    banners: [{ image: 'cloud://home/slide.jpg', productId: 'product-1' }, ...Array(5).fill(blankLink)],
+    banners: [{ image: 'cloud://home/slide.jpg', productId: 'product-1' }, ...Array(3).fill(blankLink)],
     sections: [{ id: 'featured', title: '精选', productIds: Array(6).fill('product-1') }],
   };
   assert.strictEqual(validateHomeConfig(config).sections[0].productIds.length, 6);
@@ -980,9 +980,9 @@ async function testHomeConfigLimitsAndLegacyResponse() {
   const sections = Array.from({ length: 4 }, (_, index) => ({ ...config.sections[0], id: `section-${index}` }));
   assert.strictEqual(validateHomeConfig({ ...config, sections }).sections.length, 4);
   assert.throws(() => validateHomeConfig({ ...config, sections: [...sections, { ...config.sections[0], id: 'section-4' }] }), appError('INVALID_ARGUMENT'));
-  assert.strictEqual(validateHomeConfig({ ...config, banners: Array(6).fill(blankLink) }).banners.length, 6);
+  assert.strictEqual(validateHomeConfig({ ...config, banners: Array(4).fill(blankLink) }).banners.length, 4);
   assert.deepStrictEqual(validateHomeConfig({ ...config, banners: [] }).banners, []);
-  assert.throws(() => validateHomeConfig({ ...config, banners: Array(7).fill(blankLink) }), appError('INVALID_ARGUMENT'));
+  assert.throws(() => validateHomeConfig({ ...config, banners: Array(5).fill(blankLink) }), appError('INVALID_ARGUMENT'));
 
   const runtime = makeRuntime();
   runtime.records.homeContents = {

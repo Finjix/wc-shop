@@ -24,7 +24,7 @@ function validateHomeConfig(value) {
   const input = object(value, 'payload');
   const banners = array(input.banners, 'banners');
   const sections = array(input.sections, 'sections');
-  assert(banners.length <= 6, { field: 'banners', max: 6 });
+  assert(banners.length <= 4, { field: 'banners', max: 4 });
   assert(sections.length <= 4, { field: 'sections', max: 4 });
   const sectionIds = new Set();
   const normalizedSections = sections.map((value, index) => {
