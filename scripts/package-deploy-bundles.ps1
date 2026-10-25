@@ -1,8 +1,14 @@
 param(
-  [string]$Version = 'v261019'
+  [string]$Version
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $versionSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\miniprogram\config\version.ts') -Raw
+  if ($versionSource -notmatch "APP_VERSION\s*=\s*'([^']+)'") { throw 'Cannot determine APP_VERSION.' }
+  $Version = $Matches[1]
+}
 
 if ([string]::IsNullOrWhiteSpace($Version) -or $Version -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
   throw "Invalid output folder name: $Version"

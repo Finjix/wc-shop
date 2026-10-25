@@ -152,13 +152,14 @@ export function HomeContentPage() {
 
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      adminApi.call<HomeRecord>('home.get', { id: SLOT }).catch(() => null),
-      adminApi.call<ListResult<HomeRecord>>('homeContent.list', { page: 1, pageSize: 100 }),
-    ])
-      .then(([record, result]) => {
+    void adminApi.call<HomeRecord>('home.get', { id: SLOT })
+      .catch((err: unknown) => {
+        if ((err as { code?: string }).code === 'NOT_FOUND') return null;
+        throw err;
+      })
+      .then((record) => {
         if (!active) return;
-        const loaded = readConfig(record ? [record, ...(result.items || [])] : result.items || []);
+        const loaded = readConfig(record ? [record] : []);
         setConfig(loaded);
         setSavedConfig(JSON.stringify(loaded));
       })
@@ -264,7 +265,7 @@ export function HomeContentPage() {
     </Panel>
 
 
-    <Panel><div className="panel-heading"><h3>动态卡片展区</h3><div className="home-config-panel-actions"><Button disabled={config.recommendations.length >= 4} onClick={() => setConfig((old) => ({ ...old, recommendations: [...old.recommendations, blankLink()] }))}>新增卡片</Button></div></div>
+    <Panel><div className="panel-heading"><h3>动态卡片展区（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.recommendations.length >= 4} onClick={() => setConfig((old) => ({ ...old, recommendations: [...old.recommendations, blankLink()] }))}>新增卡片</Button></div></div>
       {config.recommendations.map((entry, index) => <div className="home-config-entry" key={index}>
         <div className="home-config-entry-head"><strong>卡片 {index + 1}</strong><Button size="small" variant="text" disabled={config.recommendations.length <= 1} onClick={() => setConfig((old) => ({ ...old, recommendations: old.recommendations.filter((_, i) => i !== index) }))}>删除</Button></div>
         <div className="home-config-link-fields">

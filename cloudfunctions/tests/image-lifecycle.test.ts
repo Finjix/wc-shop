@@ -1,7 +1,7 @@
 // @ts-nocheck
 const assert = require('assert');
 const { makeRuntime, localAddress } = require('./regressions.test');
-const { imageLifecycleRuntime, cleanup, cleanupQueue, prepareUpload, replaceReference, matches, stateId } = require('../shared/image-lifecycle');
+const { imageLifecycleRuntime, cleanup, cleanupQueue, compactDeletedStates, prepareUpload, replaceReference, matches, uses, files, stateId } = require('../shared/image-lifecycle');
 const { shopEndpoint } = require('../shared/shop');
 const { adminEndpoint } = require('../shared/admin');
 const { toPublicError } = require('../shared/errors');
@@ -122,8 +122,33 @@ async function run() {
   const catalog = makeRuntime();
   catalog.records.skus['sku-new'].skuImage = next;
   await adminEndpoint({}, { auth: { uid: 'admin' } }, catalog, 'products.delete', { id: 'product-1' });
-  assert.strictEqual(catalog.records.skus['sku-new'].deletedByAdmin, true);
+  assert.strictEqual(catalog.records.skus['sku-new'], undefined);
   assert(catalog.records.settings[stateId(next)].imageCleanupPending, 'deleted product retires its SKU images too');
+  const id = 'cloud://cloud1-test.636c-cloud1-test-123/admin/products/embedded.webp';
+  const html = '<img src="https://636c-cloud1-test-123.tcb.qcloud.la/admin/products/embedded.webp?sign=abc">';
+  assert(files(html).includes(id));
+  assert(uses(html, id), 'embedded URLs must be protected by the same parser that discovers them');
+  const terminal = makeRuntime();
+  terminal.app = runtime.app;
+  terminal.records.payments = { expired: { _id: 'expired', status: 'closed', draftOrders: [{ items: [{ image: old }] }] } };
+  assert.deepStrictEqual((await cleanup(terminal, { fileList: [old] })).deleted, [old], 'closed unpaid drafts no longer pin images');
+  terminal.records.payments.expired.status = 'paid';
+  terminal.records.payments.expired.draftOrders[0].items[0].image = next;
+  assert.deepStrictEqual((await cleanup(terminal, { fileList: [next] })).deleted, [next], 'paid drafts do not pin an image after formal orders are deleted');
+  const readOnly = makeRuntime();
+  readOnly.records.homeContents = { 'home.page-config': { _id: 'home.page-config', payload: { banners: [{ image: old, productId: 'missing' }] } } };
+  const before = JSON.stringify(readOnly.records);
+  const home = await adminEndpoint({}, {}, readOnly, 'home.get', { id: 'home.page-config' });
+  assert.strictEqual(home.payload.banners[0].productId, '');
+  assert.strictEqual(JSON.stringify(readOnly.records), before, 'home.get must not write, create collections, or start a transaction');
+  const aliases = makeRuntime();
+  aliases.records.settings = { [stateId(old)]: { _id: stateId(old), fileID: old, status: 'deleted', newFileID: next }, [stateId(next)]: { _id: stateId(next), fileID: next, imageCleanupPending: false } };
+  await compactDeletedStates(aliases);
+  assert.strictEqual(aliases.records.settings[stateId(old)].newFileID, next, 'a live migration alias is preserved');
+  aliases.records.settings[stateId(next)].status = 'deleted';
+  await compactDeletedStates(aliases);
+  await compactDeletedStates(aliases);
+  assert.deepStrictEqual(aliases.records.settings[stateId(old)], { _id: stateId(old), status: 'deleted', imageCleanupPending: false });
   console.log('PASS image cleanup preserves history, fails closed, fences writes and migrates stale references');
   console.log('PASS upload leases, durable cleanup retry, owner guards, withdrawal and deleted-product SKU cleanup');
 }

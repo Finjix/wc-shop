@@ -5,7 +5,7 @@ function createRuntime(options) {
   // CloudBase cloud functions provide the runtime credentials; no SecretId or SecretKey is read here.
   // eslint-disable-next-line global-require
   const cloudbase = (options && options.cloudbase) || require('@cloudbase/node-sdk');
-  const app = (options && options.app) || cloudbase.init({});
+  const app = (options && options.app) || cloudbase.init({ env: cloudbase.SYMBOL_CURRENT_ENV });
   return {
     cloudbase,
     app,

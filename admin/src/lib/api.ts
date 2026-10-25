@@ -72,16 +72,24 @@ async function callAdminRaw<T>(action: string, payload: Record<string, unknown> 
   }
 }
 
-export async function callAdmin<T>(action: string, payload: Record<string, unknown> = {}) {
-  const result = await callAdminRaw<T>(action, payload);
-  const candidates = (result as { imageCleanup?: string[] } | null)?.imageCleanup;
-  if (candidates?.length || /^(products|categories|skus|homeContent|comments|orders|afterSales)\.(save|remove|delete)$/.test(action) || action === 'dashboard.summary') {
+const pendingReads = new Map<string, Promise<unknown>>();
+let cleanupRunning: Promise<void> | null = null;
+
+function cleanupInBackground(candidates: string[]) {
+  const key = 'wc-shop.image-cleanup';
+  try {
+    let pending: string[] = [];
+    try { pending = JSON.parse(localStorage.getItem(key) || '[]'); } catch { /* Recover a corrupt client queue. */ }
+    if (!Array.isArray(pending)) pending = [];
+    pending = [...new Set([...pending.filter((id) => typeof id === 'string'), ...candidates])];
+    if (!pending.length) return;
+    localStorage.setItem(key, JSON.stringify(pending));
+  } catch { return; /* The server timer still owns the durable queue. */ }
+  if (cleanupRunning) return;
+  cleanupRunning = (async () => {
     try {
       const key = 'wc-shop.image-cleanup';
-      let pending: string[] = [];
-      try { pending = JSON.parse(localStorage.getItem(key) || '[]'); } catch { /* Start a fresh queue. */ }
-      pending = [...new Set([...pending, ...(candidates || [])])];
-      localStorage.setItem(key, JSON.stringify(pending));
+      const pending: string[] = JSON.parse(localStorage.getItem(key) || '[]');
       for (const catalog of [true, false]) {
         const group = pending.filter((id) => /\/(?:admin\/products|admin\/categories)\//.test(id) === catalog);
         for (let offset = 0; offset < group.length; offset += 5) {
@@ -91,9 +99,20 @@ export async function callAdmin<T>(action: string, payload: Record<string, unkno
           localStorage.setItem(key, JSON.stringify(queue.filter((id) => !finished.has(id))));
         }
       }
-      await callAdminRaw('storage.cleanupQueue');
     } catch (error) { console.warn('未完成的图片清理将在下次访问时重试。', error); }
+  })().finally(() => { cleanupRunning = null; });
+}
+
+export async function callAdmin<T>(action: string, payload: Record<string, unknown> = {}) {
+  // Share only in-flight reads; never cache inventory or replay a mutation.
+  const key = /\.(get|list|preview|reasons|summary|tempUrls)$/.test(action) ? `${action}:${JSON.stringify(payload)}` : '';
+  let request = key ? pendingReads.get(key) as Promise<T> | undefined : undefined;
+  if (!request) {
+    request = callAdminRaw<T>(action, payload).finally(() => { if (key) pendingReads.delete(key); });
+    if (key) pendingReads.set(key, request);
   }
+  const result = await request;
+  cleanupInBackground((result as { imageCleanup?: string[] } | null)?.imageCleanup || []);
   return result;
 }
 

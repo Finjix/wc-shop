@@ -74,7 +74,7 @@ async function invoke(event: unknown, context: unknown): Promise<unknown> {
 export async function handleAdminHttp(event: FunctionEvent, invokeAdmin: (input: unknown) => Promise<unknown>): Promise<unknown> {
   const headers = { 'content-type': 'application/json; charset=utf-8',
     'access-control-allow-origin': '*', 'access-control-allow-methods': 'POST, OPTIONS',
-    'access-control-allow-headers': 'content-type', 'cache-control': 'no-store' };
+    'access-control-allow-headers': 'content-type', 'access-control-max-age': '600', 'cache-control': 'no-store' };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   const result = await runEndpoint(async () => {
     if (event.httpMethod !== 'POST') throw errorFrom('INVALID_ARGUMENT', { field: 'httpMethod' });
@@ -97,10 +97,13 @@ export async function handleAdminHttp(event: FunctionEvent, invokeAdmin: (input:
 
 export async function main(event: unknown, context: unknown): Promise<unknown> {
   const timer = event as { Type?: string; TriggerName?: string } | null;
+  if (timer?.Type === 'Timer' && timer.TriggerName === 'image-cleanup') {
+    return (require('../shared/catalog-lifecycle') as { sweep: (runtime: Runtime) => Promise<unknown> }).sweep(createRuntime());
+  }
   if (timer?.Type === 'Timer' && timer.TriggerName === 'payment-reconcile') {
     // This branch only queries signed provider state. It never accepts amounts, IDs or a refund command.
-    await (require('../shared/payments') as { reconcile: (runtime: Runtime) => Promise<void> }).reconcile(createRuntime());
-    return { reconciled: true };
+    const result = await (require('../shared/payments') as { reconcile: (runtime: Runtime) => Promise<{ processed: boolean }> }).reconcile(createRuntime());
+    return { reconciled: true, ...result };
   }
   if (event && typeof event === 'object' && typeof (event as FunctionEvent).httpMethod === 'string') {
     const http = event as FunctionEvent;

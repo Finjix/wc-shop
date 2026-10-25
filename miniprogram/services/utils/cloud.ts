@@ -119,8 +119,8 @@ async function requestRaw<T = unknown>(action: string, data: Record<string, unkn
 
 export async function request<T = unknown>(action: string, data: Record<string, unknown> = {}): Promise<T> {
   const result = await requestRaw<T>(action, data);
-  if ((result as { imageCleanup?: string[] } | null)?.imageCleanup?.length || action === 'user.me') {
-    await requestRaw('storage.cleanupQueue').catch((error) => console.warn('图片清理稍后重试', error));
+  if ((result as { imageCleanup?: string[] } | null)?.imageCleanup?.length) {
+    void requestRaw('storage.cleanupQueue').catch((error) => console.warn('图片清理稍后重试', error));
   }
   return result;
 }

@@ -27,6 +27,7 @@ const api = {
 function load(file) {
   const filename = require("./miniprogram-test-source.cjs").resolveSource(path.resolve(root, file));
   if (filename === path.join(root, 'miniprogram/services/utils/api.ts')) return api;
+  if (filename === path.join(root, 'miniprogram/order/utils/dialog.ts')) return { default: { alert: async () => {}, confirm: async () => {} } };
   if (cache.has(filename)) return cache.get(filename);
   const exports = {};
   cache.set(filename, exports);

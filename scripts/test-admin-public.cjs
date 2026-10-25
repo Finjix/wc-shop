@@ -49,7 +49,12 @@ async function run() {
   await api.callAdmin('products.list');
   await api.callAdmin('settings.upsert', { key: 'global', value: {} });
   await api.callAdmin('dashboard.summary');
-  assert(calls.some(({ action }) => action === 'storage.cleanupQueue'), 'startup retries durable image cleanup without a login event');
+  assert(!calls.some(({ action }) => action === 'storage.cleanupQueue'), 'read results are never blocked by a maintenance request');
+  const start = calls.length;
+  await Promise.all([api.callAdmin('products.list', { page: 2 }), api.callAdmin('products.list', { page: 2 })]);
+  assert.equal(calls.length - start, 1, 'simultaneous identical reads share one network request');
+  await api.callAdmin('products.list', { page: 2 });
+  assert.equal(calls.length - start, 2, 'completed reads are not cached across inventory changes');
   assert.equal(api.adminApi.localLogin, undefined);
   const file = new File(['image'], 'prepared.webp', { type: 'image/webp' });
   assert.equal(await api.uploadPreparedCloudFile(file), 'cloud://test/admin/products/leased.webp');
@@ -57,6 +62,6 @@ async function run() {
   await assert.rejects(api.uploadPreparedCloudFile(file), /HTTP 500/);
   assert.equal(calls.at(-1).action, 'storage.cleanup', 'failed upload retains the previous cleanup contract');
   assert.deepEqual(calls.at(-1).data.fileList, ['cloud://test/admin/products/leased.webp']);
-  console.log('PASS actual public admin HTTP transport, cookie omission, startup cleanup and failed upload cleanup');
+  console.log('PASS admin transport, nonblocking reads, request coalescing, fresh rereads and failed upload cleanup');
 }
 run().catch((error) => { console.error(error); process.exitCode = 1; });

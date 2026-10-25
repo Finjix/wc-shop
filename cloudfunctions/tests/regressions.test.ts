@@ -610,6 +610,7 @@ async function testProductSaveManagesSkuInventoryAndImagesWithoutSkuStatus() {
 async function testDeletingProductClearsHomeLinksWithoutRemovingSlots() {
   const runtime = makeRuntime();
   runtime.records.products['product-1'].spuId = 'legacy-product-1';
+  const originalProduct = { ...runtime.records.products['product-1'] };
   const payload = {
     searchText: '欢迎', bannerText: '公告',
     banners: [{ image: 'banner.jpg', productId: 'product-1' }],
@@ -630,10 +631,9 @@ async function testDeletingProductClearsHomeLinksWithoutRemovingSlots() {
   const reread = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'home.get', { id: 'home.page-config' });
   assert.deepStrictEqual(reread.payload, repaired.payload);
   assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.banners[0].productId, '');
-  assert.strictEqual(runtime.records.products['product-1'].deletedByAdmin, true);
+  assert.strictEqual(runtime.records.products['product-1'], undefined, 'unreferenced deleted product is physically removed');
 
-  runtime.records.products['product-1'].deletedByAdmin = false;
-  runtime.records.products['product-1'].status = 'active';
+  runtime.records.products['product-1'] = { ...originalProduct, deletedByAdmin: false, status: 'active' };
   runtime.records.homeContents['home.page-config'].payload = payload;
   await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'products.update', { id: 'product-1', status: 'inactive' });
   assert.strictEqual(runtime.records.homeContents['home.page-config'].payload.banners[0].productId, '');

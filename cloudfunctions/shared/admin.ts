@@ -306,7 +306,8 @@ async function categoryAction(runtime, data, action, collection) {
   }
   if (!action.endsWith('.delete')) throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
   const id = string(data.id, 'id', { max: 128 });
-  const existing = await getDoc(collection, id, true);
+  const existing = await getDoc(collection, id, !action.endsWith('.delete'));
+  if (!existing) return { _id: id, deleted: true };
   const descendants = !existing.parentId ? await allMatching(collection, { parentId: id }) : [];
   const ids = [id, ...descendants.map((item) => String(item._id || item.id))];
   const products = col(runtime, COLLECTIONS.products);
@@ -415,7 +416,8 @@ async function catalogAction(runtime, data, action) {
     return item;
   }
   const id = string(data[`${entity.slice(0, -1)}Id`] || data.id || data.spuId || data.skuId, 'id', { max: 128 });
-  const existing = await getDoc(collection, id, true);
+  const existing = await getDoc(collection, id, !action.endsWith('.delete'));
+  if (!existing) return { _id: id, deleted: true };
   if (action.endsWith('.delete')) {
     if (entity === 'products') {
       const timestamp = now();
@@ -500,7 +502,19 @@ async function homeAction(runtime, data, action) {
   const keySource = data.contentId || data.id || data.slot || (action !== 'home.get' ? `home_${Date.now()}` : undefined);
   const key = string(keySource, 'contentId', { max: 128 });
   const existing = await getDoc(home, key, false);
-  if (action === 'home.get' || action === 'home.clearUnavailableLinks') {
+  if (action === 'home.get') {
+    if (!existing) throw errorFrom('NOT_FOUND');
+    if (key !== HOME_CONFIG_SLOT || !existing.payload) return existing;
+    const payload = clone(existing.payload);
+    const ids = homeProductIds(payload);
+    const rows = await Promise.all(ids.map((id) => getDoc(col(runtime, COLLECTIONS.products), id, false)));
+    const unavailable = new Set(ids.filter((id, index) => !rows[index] || rows[index].deletedByAdmin || rows[index].status !== STATUS.active));
+    for (const item of [...(payload.banners || []), ...(payload.recommendations || [])]) {
+      if (unavailable.has(item.productId)) item.productId = '';
+    }
+    return { ...existing, payload };
+  }
+  if (action === 'home.clearUnavailableLinks') {
     if (!existing) throw errorFrom('NOT_FOUND');
     if (key !== HOME_CONFIG_SLOT) return existing;
     return withTransaction(runtime.db, async (tx) => {
@@ -1052,6 +1066,10 @@ function normalizeAdminAction(action, data) {
 async function adminEndpoint(event, context, runtime, action, data) {
   runtime = imageLifecycleRuntime(runtime);
   let result = await executeAdmin(event, context, runtime, action, data);
+  if (action === 'products.delete' || action === 'skus.delete') {
+    try { result = { ...result, catalogCleanup: await require('./catalog-lifecycle').purgeDeletedCatalog(runtime) }; }
+    catch (error) { console.warn('商品关联清理稍后由定时任务重试', error.code || error.message); result = { ...result, catalogCleanupPending: true }; }
+  }
   if (['orders.ship', 'orders.shipBatch', 'orders.logistics.save', 'orders.logistics.saveBatch'].includes(action)) {
     result = await require('./wechat-shipping').syncResult(runtime, result);
   }

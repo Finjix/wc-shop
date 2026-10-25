@@ -2,12 +2,17 @@
 
 const assert = require('assert');
 const { normalizeOrderItems, skuPrice, skuStock } = require('../shared/shop');
-const { getPayload } = require('../shared/runtime');
+const { getPayload, createRuntime } = require('../shared/runtime');
 const { withTransaction } = require('../shared/db');
 const { errorFrom } = require('../shared/errors');
 const { ok, fail } = require('../shared/response');
 
 async function run() {
+  const currentEnvironment = Symbol('current-env');
+  createRuntime({ cloudbase: { SYMBOL_CURRENT_ENV: currentEnvironment, init(config) {
+    assert.strictEqual(config.env, currentEnvironment, 'explicit current environment avoids an SDK warning on every database request');
+    return { database: () => ({}) };
+  } } });
   assert.deepStrictEqual(normalizeOrderItems([
     { skuId: 'sku-a', quantity: 2 },
     { skuId: 'sku-a', quantity: 3 },

@@ -51,6 +51,7 @@ async function ensureIntent(runtime, identity, checkout) {
   });
 }
 async function confirmPaid(runtime, transaction) {
+  runtime = require('./image-lifecycle').imageLifecycleRuntime(runtime);
   const c = pay.config(runtime);
   if (transaction.trade_state !== 'SUCCESS' || transaction.appid !== c.appid || transaction.mchid !== c.mchid
     || !transaction.transaction_id) throw errorFrom('PAYMENT_MISMATCH');
@@ -99,11 +100,13 @@ async function confirmPaid(runtime, transaction) {
       }
     }
     await tx.collection('payments').doc(id).update({ status: 'paid', transactionId: transaction.transaction_id, paidAt: stamp,
+      ...(intent.draftOrders ? { draftOrders: require('./image-lifecycle').retireDraftImages(intent.draftOrders) } : {}),
       shippingPending: true, shippingUpdatedAt: stamp });
     return { ...intent, status: 'paid' };
   });
 }
 async function releaseClosed(runtime, intent) {
+  runtime = require('./image-lifecycle').imageLifecycleRuntime(runtime);
   return withTransaction(runtime.db, async (tx) => {
     const current = await getDoc(tx.collection('payments'), intent._id, true);
     if (current.status === 'closed') return;
@@ -126,7 +129,8 @@ async function releaseClosed(runtime, intent) {
       if (!current.draftOrders) await tx.collection('orders').doc(key).update({ status: 'closed', paymentStatus: 'unpaid',
         inventoryReserved: false, payment: { ...order.payment, status: 'closed' }, updatedAt: stamp });
     }
-    await tx.collection('payments').doc(intent._id).update({ status: 'closed', closedAt: stamp });
+    await tx.collection('payments').doc(intent._id).update({ status: 'closed', closedAt: stamp,
+      ...(current.draftOrders ? { draftOrders: require('./image-lifecycle').retireDraftImages(current.draftOrders) } : {}) });
   });
 }
 async function sync(runtime, intent) {
@@ -245,14 +249,16 @@ async function checkConfiguration(runtime) {
   return { mode: pay.paymentMode(runtime), appid: c.appid, mchid: c.mchid, providerVerified, shippingReady,
     apiV3KeyLengthValid: Buffer.byteLength(c.apiV3Key) === 32 };
 }
-async function sweep(runtime, queue, deadline) {
+async function sweep(runtime, queue, deadline, firstPage) {
   const settings = runtime.db.collection('settings'), id = `__payment_reconcile_${queue.name}`;
-  const state = await getDoc(settings, id, false);
   const read = (cursor) => runtime.db.collection(queue.collection).where({ ...queue.where,
     ...(cursor ? { _id: runtime.db.command.gt(cursor) } : {}),
   }).orderBy('_id', 'asc').limit(10).get();
-  let items = require('./db').listData(await read(state?.cursor));
-  if (!items.length && state?.cursor) items = require('./db').listData(await read());
+  // Small/empty queues fit in the first page: no cursor read or write needed.
+  const paginated = firstPage.length === 10;
+  const state = paginated ? await getDoc(settings, id, false) : null;
+  let items = state?.cursor ? require('./db').listData(await read(state.cursor)) : firstPage;
+  if (!items.length) items = firstPage;
   let cursor;
   for (const item of items) {
     if (Date.now() >= deadline) break;
@@ -260,15 +266,10 @@ async function sweep(runtime, queue, deadline) {
     cursor = item._id;
   }
   // Advance even on provider failures so ten old records cannot starve later orders.
-  if (cursor) await setDoc(settings, id, { cursor });
+  if (paginated && cursor && cursor !== state?.cursor) await setDoc(settings, id, { cursor });
 }
 async function reconcile(runtime) {
   const deadline = Date.now() + 35000;
-  const settings = runtime.db.collection('settings'), key = '__payment_reconcile_schedule';
-  const state = await getDoc(settings, key, false);
-  const first = Number(state?.nextQueue || 0) % 3;
-  // Rotate priority too: a provider outage in one queue must not starve the others.
-  await setDoc(settings, key, { nextQueue: (first + 1) % 3 });
   const queues = [
     { name: 'pending', collection: 'payments', where: { status: 'pending' }, worker: item => sync(runtime, item) },
     { name: 'refunds', collection: 'afterSales', where: { refundMode: 'wechat', status: 'refunding' }, worker: item => syncRefund(runtime, item) },
@@ -277,8 +278,20 @@ async function reconcile(runtime) {
       finally { await runtime.db.collection('payments').doc(intent._id).update({ shippingUpdatedAt: now() }); }
     } },
   ];
+  const pages = await Promise.all(queues.map(async queue => require('./db').listData(await runtime.db
+    .collection(queue.collection).where(queue.where).orderBy('_id', 'asc').limit(10).get())));
+  // The idle path is exactly three bounded queries and zero writes, including
+  // when historical cursor documents still exist from an earlier deployment.
+  if (pages.every(items => !items.length)) return { processed: false };
+  const settings = runtime.db.collection('settings'), key = '__payment_reconcile_schedule';
+  const state = await getDoc(settings, key, false);
+  const first = Number(state?.nextQueue || 0) % 3;
+  // Only active queues need durable priority rotation after an outage.
+  await setDoc(settings, key, { nextQueue: (first + 1) % 3 });
   for (let offset = 0; offset < queues.length && Date.now() < deadline; offset += 1) {
-    await sweep(runtime, queues[(first + offset) % queues.length], deadline);
+    const index = (first + offset) % queues.length;
+    if (pages[index].length) await sweep(runtime, queues[index], deadline, pages[index]);
   }
+  return { processed: true };
 }
 module.exports = { prepare, queryCheckout, confirmPaid, notification, refund, applyRefund, syncRefund, reconcile, checkConfiguration, load, tradeId, ensureIntent, sync };

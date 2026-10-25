@@ -68,6 +68,23 @@ async function run() {
     await assert.rejects(invoke('products.list'), /FORBIDDEN/);
     assert.equal(attempts, 1, 'authorization failures are never retried');
   }
+  const maintenanceCalls = [];
+  let finishCleanup;
+  const maintenanceApi = load('miniprogram/services/utils/cloud.ts', {
+    require: (ref) => ref === './temp-file-urls' ? urls : ref === './cloud-read-retry' ? readRetry : { cloudEnvId: 'test', cloudFunctionName: 'wc-shop-function' },
+    wx: { cloud: { callFunction({ data }) {
+      maintenanceCalls.push(data.action);
+      if (data.action === 'storage.cleanupQueue') return new Promise(resolve => { finishCleanup = resolve; });
+      return Promise.resolve({ result: { ok: true, data: data.action === 'user.me' ? { name: 'user' } : { imageCleanup: ['cloud://test/home/old.webp'] } } });
+    } } },
+  });
+  await maintenanceApi.request('user.me');
+  assert.deepEqual(maintenanceCalls, ['user.me'], 'opening the profile does not run database maintenance');
+  const mutation = maintenanceApi.request('comments.delete');
+  const result = await Promise.race([mutation, new Promise((_, reject) => setTimeout(() => reject(new Error('cleanup blocked mutation')), 500))]);
+  assert.equal(result.imageCleanup.length, 1);
+  assert.deepEqual(maintenanceCalls, ['user.me', 'comments.delete', 'storage.cleanupQueue']);
+  finishCleanup({ result: { ok: true, data: {} } });
   let clock = 0, calls = 0, fail = true;
   const resolver = new urls.TempFileUrls(async (ids) => {
     calls++;

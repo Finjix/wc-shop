@@ -6,7 +6,7 @@
 .category-sidebar { flex: 0 0 180rpx; width: 180rpx; height: 100%; background: #fff; }
 .category-parent { box-sizing: border-box; padding: 28rpx 10rpx; color: #222427; font-size: 28rpx; text-align: center; word-break: break-word; }
 .category-parent.active { color: #695941; background: #fff; }
-.category-right { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; background: #FCF8EE; }
+.category-right { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; border-left: 1px solid #eee; background: #fff; }
 .category-products { flex: 1; min-height: 0; box-sizing: border-box; padding: 0 16rpx; }
 .category-products-content { padding: 20rpx 0; }
 .category-section { margin-bottom: 36rpx; }

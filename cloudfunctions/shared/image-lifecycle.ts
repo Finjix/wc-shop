@@ -80,10 +80,27 @@ function matches(value, id) {
   } catch { return false; }
 }
 function uses(value, id) {
-  let found = false; walk(value, (v) => { if (matches(v,id) || v.includes(id)) found = true; return v; }); return found;
+  // Use the same parser for discovery and protection, including HTML/Markdown.
+  return files(value).some((file) => matches(file, id)) || (() => {
+    let found = false; walk(value, (v) => { if (matches(v, id)) found = true; return v; }); return found;
+  })();
 }
 function internal(doc, source) { return source === 'settings' && String(doc._id).startsWith('__image_'); }
-function inactive(doc, source) { return internal(doc, source) || (['products', 'skus'].includes(source) && doc.deletedByAdmin === true); }
+function inactive(doc, source) { return internal(doc, source) || (['products', 'skus'].includes(source) && doc.deletedByAdmin === true) || (source === 'payments' && doc.status === 'closed'); }
+
+// Paid orders own their immutable image snapshots. A terminal payment draft
+// must not pin a second copy after those orders have been intentionally removed.
+function retireDraftImages(value) {
+  if (Array.isArray(value)) return value.map(retireDraftImages);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key,
+    ['image', 'primaryImage', 'secondaryImage', 'skuImage'].includes(key) ? ''
+      : ['images', 'detailImages'].includes(key) ? [] : retireDraftImages(entry)]));
+}
+function referenceValue(doc, source) {
+  return source === 'payments' && doc.status === 'paid'
+    ? { ...doc, draftOrders: retireDraftImages(doc.draftOrders), cartItems: retireDraftImages(doc.cartItems) } : doc;
+}
 
 // All image-bearing writes share a fence with deletion, and reject retired IDs.
 function imageLifecycleRuntime(runtime) {
@@ -99,7 +116,7 @@ function imageLifecycleRuntime(runtime) {
         if (!SOURCES.includes(source)) return collection;
         return new Proxy(collection, { get(ref, method) {
           if (method === 'add') return async (value) => {
-            if (!files(value).length) return ref.add(value);
+            if (!files(value).length && !['orders', 'payments'].includes(source)) return ref.add(value);
             const id = crypto.randomUUID(); await write(id, 'set', value); return { id };
           };
           if (method !== 'doc') return typeof ref[method] === 'function' ? ref[method].bind(ref) : ref[method];
@@ -110,15 +127,17 @@ function imageLifecycleRuntime(runtime) {
         } });
         async function write(id, method, value) {
           if (source === 'settings' && String(id).startsWith('__image_')) return target.collection(source).doc(id)[method](value);
+          const dependencyChange = ['orders', 'payments'].includes(source)
+            && (method === 'set' || method === 'remove' || ['items', 'draftOrders', 'orderIds'].some((field) => Object.prototype.hasOwnProperty.call(value || {}, field)));
           // Metadata changes cannot introduce or retire image references. Keep
           // them in the caller's transaction without starting a second fence.
-          if (method === 'update' && Object.keys(value || {}).every((key) => IMAGE_NEUTRAL_FIELDS.has(key)) && !files(value).length) {
+          if (!dependencyChange && method === 'update' && !(source === 'payments' && value?.status) && Object.keys(value || {}).every((key) => IMAGE_NEUTRAL_FIELDS.has(key)) && !files(value).length) {
             return target.collection(source).doc(id).update(value);
           }
           const apply = async (tx) => {
             const previous = await getDoc(tx.collection(source), id, false);
             if (method === 'remove') {
-              if (files(previous).length) {
+              if (files(previous).length || dependencyChange) {
                 const settings = tx.collection('settings');
                 const control = await getDoc(settings, CONTROL, false) || { version: 0 };
                 await setDoc(settings, CONTROL, { version: control.version + 1 });
@@ -131,7 +150,7 @@ function imageLifecycleRuntime(runtime) {
             const previousIds = files(previous);
             const next = method === 'set' ? value : { ...previous, ...value };
             const nextIds = files(next);
-            if (inactive(previous || {}, source) === inactive(next, source)
+            if (!dependencyChange && inactive(previous || {}, source) === inactive(next, source)
               && previousIds.length === nextIds.length && previousIds.every((file) => nextIds.includes(file))) {
               return tx.collection(source).doc(id)[method](value);
             }
@@ -173,7 +192,7 @@ async function referencePage(runtime, data) {
   const offset = Number(data.offset || 0);
   if (!Number.isInteger(offset) || offset < 0) throw errorFrom('INVALID_ARGUMENT');
   const result = await list(runtime.db.collection(data.source), { skip: offset, limit: 25, orderBy: { field: '_id', direction: 'asc' }, includeTotal: false });
-  const items = result.items.filter((doc) => !inactive(doc, data.source)).map((doc) => ({ id: doc._id, strings: (() => { const values = new Set(); walk(doc, (v) => { if (stored(v) || /https?:\/\/|cloud:\/\//.test(v)) values.add(v); return v; }); return [...values]; })() }));
+  const items = result.items.filter((doc) => !inactive(doc, data.source)).map((doc) => ({ id: doc._id, strings: files(referenceValue(doc, data.source)) }));
   return { items, nextOffset: offset + result.items.length, done: result.items.length < 25, sources: SOURCES };
 }
 async function references(runtime, ids) {
@@ -181,9 +200,12 @@ async function references(runtime, ids) {
   const referenced = new Set();
   await Promise.all(SOURCES.map(async (source) => {
     for (let offset = 0; ; offset += 100) {
-      if (Date.now() - started > 1300) throw errorFrom('CONFLICT', { reason: '盘点未完成，保留文件稍后重试' });
+      if (Date.now() - started > 20000) throw errorFrom('CONFLICT', { reason: '盘点未完成，保留文件稍后重试' });
       const result = await list(runtime.db.collection(source), { skip: offset, limit: 100, orderBy: { field: '_id', direction: 'asc' }, includeTotal: false });
-      for (const doc of result.items) if (!inactive(doc, source)) for (const id of ids) if (uses(doc, id)) referenced.add(id);
+      for (const doc of result.items) if (!inactive(doc, source)) {
+        const value = referenceValue(doc, source);
+        for (const id of ids) if (uses(value, id)) referenced.add(id);
+      }
       if (result.items.length < 100) break;
     }
   }));
@@ -211,14 +233,15 @@ async function cleanup(runtime, data) {
     }
     await setDoc(settings, CONTROL, { version: latest.version + 1 });
   });
-  if (!candidates.length) return { deleted: [], retained: ids };
+  if (!candidates.length) return { deleted: [], retained: ids, pending: [] };
   const result = await runtime.app.deleteFile({ fileList: candidates });
   const deleted = [];
   for (const fileID of candidates) {
     const status = result.fileList?.find((v) => (v.fileID || v.fileId) === fileID);
     if (!status || !['SUCCESS', 'STORAGE_FILE_NONEXIST'].includes(status.code)) continue;
-    const state = await getDoc(runtime.db.collection('settings'), stateId(fileID), false) || {};
-    await setDoc(runtime.db.collection('settings'), stateId(fileID), { ...state, status: 'deleted', imageCleanupPending: false });
+    // Keep only the tombstone needed to reject stale clients; do not retain
+    // expired upload leases and migration chains indefinitely.
+    await setDoc(runtime.db.collection('settings'), stateId(fileID), { status: 'deleted', imageCleanupPending: false });
     deleted.push(fileID);
   }
   return { deleted, retained: [...referenced], pending: candidates.filter((id) => !deleted.includes(id)) };
@@ -229,6 +252,35 @@ async function cleanupQueue(runtime, ownerId) {
   }, orderBy: { field: 'cleanupAfter', direction: 'asc' }, limit: 5, includeTotal: false });
   const ids = rows.items.filter((row) => row.cleanupAfter <= new Date().toISOString()).map((row) => row.fileID);
   return ids.length ? cleanup(runtime, { fileList: ids, ownerId }) : { deleted: [], retained: [], pending: [] };
+}
+async function compactDeletedStates(runtime) {
+  const settings = runtime.db.collection('settings'), key = '__image_compaction_cursor';
+  const cursor = (await getDoc(settings, key, false))?.cursor;
+  const read = (after) => list(settings, { where: { status: 'deleted',
+    ...(after && runtime.db.command?.gt ? { _id: runtime.db.command.gt(after) } : {}) },
+  limit: 25, orderBy: { field: '_id', direction: 'asc' }, includeTotal: false });
+  let rows = await read(cursor);
+  if (!rows.items.length && cursor) rows = await read();
+  let compacted = 0;
+  for (const row of rows.items) {
+    if (!String(row._id).startsWith('__image_file_') || Object.keys(row).every((field) => ['_id', 'status', 'imageCleanupPending'].includes(field))) continue;
+    const version = (await getDoc(settings, CONTROL, false))?.version || 0;
+    if (row.newFileID) {
+      const target = await getDoc(settings, stateId(row.newFileID), false);
+      // A live migration target still needs its old alias for stale clients.
+      if (target?.status !== 'deleted' || target.newFileID) continue;
+    }
+    compacted += await withTransaction(runtime.db, async (tx) => {
+      const ref = tx.collection('settings');
+      if (((await getDoc(ref, CONTROL, false))?.version || 0) !== version) return 0;
+      const current = await getDoc(ref, row._id, false);
+      if (current?.status !== 'deleted' || current.newFileID !== row.newFileID) return 0;
+      await setDoc(ref, row._id, { status: 'deleted', imageCleanupPending: false });
+      return 1;
+    });
+  }
+  if (rows.items.length && rows.items.at(-1)._id !== cursor) await setDoc(settings, key, { cursor: rows.items.at(-1)._id });
+  return compacted;
 }
 async function inspectFiles(runtime, data) {
   let ids = data.fileList;
@@ -263,4 +315,4 @@ async function replaceReference(runtime, data) {
     return { updated: true };
   });
 }
-module.exports = { imageLifecycleRuntime, referencePage, cleanup, cleanupQueue, prepareUpload, inspectFiles, queueFiles, stateId, replaceReference, files, matches, uses, SOURCES };
+module.exports = { imageLifecycleRuntime, referencePage, cleanup, cleanupQueue, compactDeletedStates, prepareUpload, inspectFiles, queueFiles, stateId, replaceReference, files, matches, uses, retireDraftImages, SOURCES };

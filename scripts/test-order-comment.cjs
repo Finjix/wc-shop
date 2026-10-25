@@ -27,6 +27,7 @@ const mocks = new Map([
 function load(file) {
   const filename = require("./miniprogram-test-source.cjs").resolveSource(path.resolve(root, file));
   if (mocks.has(filename)) return mocks.get(filename);
+  if (filename === path.join(root, 'miniprogram/order/utils/dialog.ts')) return { default: { alert: async () => {}, confirm: async () => {} } };
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readMiniProgramSource(filename, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
