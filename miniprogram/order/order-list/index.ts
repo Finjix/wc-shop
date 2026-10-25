@@ -84,6 +84,7 @@ Page({
   },
 
   getOrderList(statusCode = -1, reset = false) {
+    this.page = this.page || { size: 5, num: 1 };
     const requestStatus = this.data.pendingCommentOnly ? OrderStatus.COMPLETE : statusCode;
     const params = {
       parameter: {
@@ -195,7 +196,7 @@ Page({
   refreshList(status = -1) {
     this.skipNextShowRefresh = false;
     this.page = {
-      size: this.page.size,
+      size: this.page?.size || 5,
       num: 1,
     };
     this.setData({ curTab: status, orderList: [] });

@@ -36,6 +36,7 @@ export default {
       // TDesign 将空字符串也转换成按钮；必须用 null 才会移除取消按钮占位。
       dialog.setData(confirmOnLeft({ ...defaultOptions, ...dialog.properties, ...rest, cancelBtn: null, visible: true }, confirmText));
       dialog._onConfirm = resolve;
+      dialog._onAction = resolve;
     });
   },
   confirm(options) {

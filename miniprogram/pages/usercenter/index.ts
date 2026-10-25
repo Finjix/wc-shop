@@ -2,6 +2,7 @@
 
 import Toast from '../../components/tdesign/toast/index';
 import { request } from '../../common/services/utils/api';
+import { APP_VERSION } from '../../config/version';
 const COMPLETE_ORDER_STATUS = 50;
 
 function fetchOrderCounts() { return request('orders.count').then((data) => data.items); }
@@ -20,6 +21,11 @@ async function fetchAfterSalesCount() {
 }
 
 const toolData = [
+  {
+    title: '邀请返利',
+    icon: 'star',
+    type: 'invite-rebate',
+  },
   {
     title: '收货地址',
     icon: 'location',
@@ -59,6 +65,7 @@ const orderTagInfos = [
 ];
 
 const getDefaultData = () => ({
+  appVersion: APP_VERSION,
   statusBarHeight: 0,
   navBarHeight: 44,
   customNavHeight: 44,
@@ -119,6 +126,10 @@ Page({
     const { type } = currentTarget.dataset;
 
     switch (type) {
+      case 'invite-rebate': {
+        wx.showToast({ title: '敬请期待！', icon: 'none' });
+        break;
+      }
       case 'address': {
         wx.navigateTo({ url: '/user/address/list/index' });
         break;

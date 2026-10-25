@@ -109,5 +109,15 @@ async function run() {
   assert.equal(confirmCalls, 2, 'cancelled dialogs must not submit confirmation');
   assert.equal(events.length, eventCount);
   console.log('PASS receipt updates only the current card, preserves filters and evaluation navigation, and defers list synchronization');
+  const hotReloaded = {
+    ...pageDefinition, page: undefined, data: { ...pageDefinition.data },
+    setData(patch) { Object.assign(this.data, patch); },
+    getOrderList: async () => {}, getOrdersCount: async () => {},
+  };
+  await hotReloaded.refreshList(OrderStatus.PENDING_RECEIPT);
+  assert.equal(hotReloaded.page.size, 5);
+  assert.equal(hotReloaded.page.num, 1);
+  assert.equal(hotReloaded.data.curTab, OrderStatus.PENDING_RECEIPT);
+  console.log('PASS order list refresh restores missing pagination state after hot reload');
 }
 run().catch((error) => { console.error(error); process.exitCode = 1; });

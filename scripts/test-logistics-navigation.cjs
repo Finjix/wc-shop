@@ -52,8 +52,11 @@ jumps[0].fail({ errMsg: 'navigateToMiniProgram:fail unavailable' });
 assert.equal(routes.length, 0, 'failure must not open another local page');
 assert.equal(modals.length, 1);
 assert.equal(modals[0].title, '物流查询失败');
-assert.equal(Object.hasOwn(modals[0], 'content'), false, 'app error dialog shows only the title');
-assert.equal(modals[0].confirmBtn, '确认');
+assert.equal(modals[0].content, '可以手动粘贴到其他小程序查询');
+assert.equal(modals[0].confirmBtn, null, 'actions replace the default confirm button');
+assert.equal(modals[0].actions[0].content, '复制物流号');
+assert.equal(modals[0].actions[1].content, '确认');
+assert.equal(modals[0].actions[0].disabled, false);
 assert.equal(modals[0].context, pageContext, 'errors use the current page dialog, including component entry points');
 
 for (const key of ['trackingNo', 'trackingNumber']) {
@@ -64,6 +67,7 @@ const beforeMissing = jumps.length;
 openLogistics({ logisticsNo: '  ' });
 assert.equal(jumps.length, beforeMissing);
 assert.equal(modals.at(-1).title, '物流查询失败');
+assert.equal(modals.at(-1).actions[0].disabled, true, 'missing tracking cannot overwrite the clipboard');
 openLogistics({ nodes: [{ title: '已发货' }] });
 assert.equal(routes.length, 0, 'cached nodes must not reopen the removed local page');
 const navigate = wx.navigateToMiniProgram;
@@ -72,7 +76,7 @@ const beforeUnsupported = modals.length;
 openLogistics({ trackingNo: 'UNSUPPORTED' });
 assert.equal(modals.length, beforeUnsupported + 1);
 assert.equal(modals.at(-1).title, '物流查询失败');
-assert(modals.every((modal) => !Object.hasOwn(modal, 'content')), 'all failures omit explanatory text');
+assert(modals.every((modal) => modal.content === '可以手动粘贴到其他小程序查询'));
 wx.navigateToMiniProgram = navigate;
 
 load('miniprogram/order/order-detail/index.ts');
@@ -98,3 +102,18 @@ const app = JSON.parse(fs.readFileSync(path.join(root, 'miniprogram/app.json'), 
 assert(!app.subpackages.find((pack) => pack.root === 'order').pages.some((name) => /delivery-detail|logistics-webview/.test(name)));
 assert.equal(routes.length, 0, 'all order and return entry points use the external mini program');
 console.log('PASS logistics direct navigation, error modal, cancel, privacy, order/return entry points and tracking copy row');
+(async () => {
+  const beforeCopy = clipboard.length;
+  dialogApi.default.alert = () => Promise.resolve({ index: 0 });
+  openLogistics({ trackingNo: ' COPY-TRACKING ' });
+  jumps.at(-1).fail({ errMsg: 'unavailable' });
+  await Promise.resolve();
+  assert.equal(clipboard.length, beforeCopy + 1);
+  assert.equal(clipboard.at(-1).data, 'COPY-TRACKING');
+  dialogApi.default.alert = () => Promise.resolve({ index: 1 });
+  openLogistics({ trackingNo: 'DO-NOT-COPY' });
+  jumps.at(-1).fail({ errMsg: 'unavailable' });
+  await Promise.resolve();
+  assert.equal(clipboard.length, beforeCopy + 1, 'confirm only dismisses the dialog');
+  console.log('PASS copy action copies the current tracking number; confirm leaves the clipboard unchanged');
+})().catch((error) => { console.error(error); process.exitCode = 1; });

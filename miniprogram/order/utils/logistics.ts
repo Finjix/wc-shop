@@ -11,7 +11,14 @@ export function openLogistics(logistics: Record<string, any> = {}) {
   const showError = () => Dialog.alert({
     context,
     title: '物流查询失败',
-    confirmBtn: '确认',
+    content: '可以手动粘贴到其他小程序查询',
+    confirmBtn: null,
+    actions: [
+      { content: '复制物流号', variant: 'text', disabled: !logisticsNo },
+      { content: '确认', variant: 'text', theme: 'primary' },
+    ],
+  }).then((result: { index?: number }) => {
+    if (result?.index === 0 && logisticsNo) wx.setClipboardData({ data: logisticsNo });
   }).catch((error) => console.warn('物流错误弹窗打开失败', error));
   if (!logisticsNo) {
     showError();

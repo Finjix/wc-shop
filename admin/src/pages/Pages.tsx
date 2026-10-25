@@ -1,3 +1,4 @@
+import { APP_VERSION } from '../../../miniprogram/config/version';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Input, MessagePlugin, Tag } from 'tdesign-react';
@@ -191,7 +192,7 @@ export function OverviewPage() {
   };
   return <>
     <div className="overview-page">
-    <h1 className="overview-title">盛途优品后台管理系统 v261019</h1>
+    <h1 className="overview-title">盛途优品后台管理系统 {APP_VERSION}</h1>
     {loading && <LoadingState />}
     {error && <ErrorState message={error} onRetry={() => window.location.reload()} />}
     {!loading && !error && <>

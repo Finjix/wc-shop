@@ -102,4 +102,4 @@
   </view>
 </t-pull-down-refresh>
 <t-toast id="t-toast" />
-<t-dialog id="t-dialog" t-class-confirm="commerce-dialog-confirm" />
+<t-dialog id="t-dialog" t-class-confirm="commerce-dialog-confirm" t-class-action="commerce-dialog-confirm" />

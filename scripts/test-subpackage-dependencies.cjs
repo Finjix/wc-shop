@@ -163,6 +163,16 @@ async function dialogScenario(file) {
     assert.equal(component.data.content, '');
     component._onConfirm();
     await logisticsAlert;
+    const copyAlert = dialog.alert({
+      title: '物流查询失败', content: '可以手动粘贴到其他小程序查询', confirmBtn: null,
+      actions: [{ content: '复制物流号', variant: 'text' }, { content: '确认', variant: 'text' }],
+    });
+    assert.equal(component.data.confirmBtn, null);
+    assert.equal(component.data.cancelBtn, null);
+    assert.equal(component.data.actions[0].content, '复制物流号');
+    assert.equal(component.data.actions[1].content, '确认');
+    component._onAction({ index: 0 });
+    assert.equal((await copyAlert).index, 0);
   }
   await assert.rejects(dialog.confirm({ context: { selectComponent: () => null } }));
   return data;

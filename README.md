@@ -4,6 +4,8 @@
 
 ## 本地开发
 
+后台和小程序的显示版本号共用 `miniprogram/config/version.ts` 中的 `APP_VERSION`。只需修改这一处，再分别重新构建并发布后台和小程序。
+
 安装依赖：
 
 ```sh
@@ -14,7 +16,7 @@ npm --prefix cloudfunctions ci
 
 1. 在微信开发者工具中导入项目，执行「工具 → 构建 npm」，再运行 `npm run build:subpackage-ui`。
 2. 将 `miniprogram/config/runtime.ts` 中的 `useLocalBackend` 设为 `true`。
-3. 按 `admin/.env.example` 配置 `admin/.env.local`。
+3. 按 `admin/.env.example` 配置 `admin/.env.local`；本地调试时设置 `VITE_LOCAL_API_URL=http://127.0.0.1:8787`，留空则连接云端。
 4. Windows 下运行 `start-local.cmd`，启动本地后端（8787）和管理后台（5173）。
 
 也可分别启动：
