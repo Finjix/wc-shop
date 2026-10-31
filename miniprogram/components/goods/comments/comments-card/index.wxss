@@ -32,8 +32,6 @@
 .own-rating {
   display: inline-flex;
   align-items: center;
-  padding: 8rpx 22rpx;
-  border-radius: 999rpx;
   font-size: 26rpx;
   line-height: 36rpx;
   font-weight: 600;
@@ -41,12 +39,10 @@
 
 .own-rating-positive {
   color: #695941;
-  background-color: #f2f2f2;
 }
 
 .own-rating-negative {
   color: #666;
-  background-color: #f0f0f0;
 }
 
 .comments-card-own .comments-card-item-container-content {

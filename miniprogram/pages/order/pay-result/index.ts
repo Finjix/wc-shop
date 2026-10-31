@@ -38,7 +38,7 @@ Page({
         orderCount: orders.length,
         totalPaid: paid ? orders.reduce((sum, order) => sum + Number(order.paymentAmount ?? order.totalAmount ?? 0), 0) : 0,
         statusText: paid
-          ? (orders.length > 1 ? `模拟支付完成，已生成 ${orders.length} 笔订单` : awaitingShipment ? '模拟支付完成，等待商家发货' : '模拟支付完成，请到订单列表查看发货进度')
+          ? (orders.length > 1 ? `支付完成，已生成 ${orders.length} 笔订单` : awaitingShipment ? '支付完成，等待商家发货' : '支付完成，请到订单列表查看发货进度')
           : '订单尚未确认完成，请到订单列表查看最新状态',
         paymentConfirmed: paid,
         loading: false,

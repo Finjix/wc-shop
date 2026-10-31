@@ -82,7 +82,11 @@ Page({
   },
 
   // 页面刷新，展示下拉刷新
-  onRefresh() {
+  onRefresh(event) {
+    if (event?.detail?.action === 'deleteOrder') {
+      wx.navigateBack({ fail: () => wx.redirectTo({ url: '/pages/order/order-list/index' }) });
+      return;
+    }
     this.init();
     // 如果上一页为订单列表，通知其刷新数据
     const pages = getCurrentPages();
@@ -151,6 +155,8 @@ Page({
         storeName: order.storeName,
         status: order.orderStatus,
         statusDesc: order.orderStatusName,
+        hasActiveAfterSale: order.hasActiveAfterSale,
+        hasPendingRefund: order.hasPendingRefund,
         amount: order.paymentAmount,
         totalAmount: order.goodsAmountApp,
         logisticsNo: order.logisticsVO?.logisticsNo,

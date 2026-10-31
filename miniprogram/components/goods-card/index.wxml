@@ -5,7 +5,7 @@
   data-goods="{{ goods }}"
 >
 	<view class="goods-card__main">
-		<view class="goods-card__thumb" bind:tap="clickThumbHandle">
+		<view class="goods-card__thumb" catch:tap="clickThumbHandle">
 			<t-image
 			  wx:if="{{ !!goods.thumb }}"
 			  t-class="goods-card__img"

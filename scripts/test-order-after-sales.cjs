@@ -56,6 +56,18 @@ async function run() {
   });
   assert.equal(order.orderStatus, 60);
   assert.equal(order.orderStatusName, '已退款');
+  const cancelled = { _id: 'cancelled-order', status: 'refunded', closureScenario: 'cancel_order', items: [], addressSnapshot: {}, commentedProductIds: [], pendingRefundAmount: 0 };
+  assert.equal(normalizeOrder(cancelled).buttonVOs.some(button => button.type === 13), true);
+  assert.equal(normalizeOrder({ ...cancelled, activeAfterSaleCount: 1 }).buttonVOs.some(button => button.type === 13), false);
+  assert.equal(normalizeOrder({ ...cancelled, closureScenario: 'return_goods', fulfillmentStatus: 'shipped' }).buttonVOs.some(button => button.type === 13), true);
+  for (const hasPendingComments of [true, false]) {
+    const base = { _id: 'received-order', status: 'received', items: [], addressSnapshot: {}, commentedProductIds: [], pendingRefundAmount: 0, hasPendingComments };
+    const active = normalizeOrder({ ...base, activeAfterSaleCount: 1, afterSalesList: [{ _id: 'service-1', status: 'pending_review' }] });
+    assert.equal(active.buttonVOs.some(button => [6, 10].includes(button.type)), false);
+    assert.equal(active.buttonVOs.some(button => button.type === 12), true, 'withdrawal remains available');
+    const normal = normalizeOrder({ ...base, activeAfterSaleCount: 0 });
+    assert.equal(normal.buttonVOs.some(button => button.type === (hasPendingComments ? 6 : 10)), true);
+  }
 
   const { normalizeRecord, getRightsList } = load('miniprogram/services/order/after-service-list/api.ts');
   const rejected = normalizeRecord({

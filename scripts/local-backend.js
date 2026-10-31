@@ -232,6 +232,16 @@ function tempFileUrl(fileID) {
 
 const runtime = {
   paymentMode: 'simulated',
+  // Development catalog only; production obtains supported carriers from WeChat.
+  shippingCompanies: [
+    { value: 'SF', label: '顺丰速运' },
+    { value: 'ZTO', label: '中通快递' },
+    { value: 'YTO', label: '圆通速递' },
+    { value: 'YUNDA', label: '韵达快递' },
+    { value: 'STO', label: '申通快递' },
+    { value: 'EMS', label: '中国邮政 EMS' },
+    { value: 'JD', label: '京东物流' },
+  ],
   db: database,
   localStorage: true,
   app: {

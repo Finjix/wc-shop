@@ -5,7 +5,7 @@ import Toast from '../../../common/ui/toast';
 import Dialog from '../../_shared/frontend/order/utils/dialog';
 import { OrderButtonTypes } from '../../_shared/frontend/order/config';
 import { payCheckout } from '../../../common/services/order/orderConfirm';
-import { confirmOrderReceived } from '../../_shared/frontend/order/services/orderDetail';
+import { confirmOrderReceived, deleteCancelledOrder } from '../../_shared/frontend/order/services/orderDetail';
 import { cancelRights } from '../../_shared/frontend/order/after-service-detail/api';
 import { addGoodsToCart } from '../../../common/services/cart/cart';
 import { getApiErrorMessage } from '../../../common/services/utils/api';
@@ -19,6 +19,8 @@ Component({
       type: Object,
       observer(order) {
         const normalizedButtonsRight = (order.buttons || [])
+          .filter((button) => !(order.hasActiveAfterSale || order.hasPendingRefund)
+            || ![OrderButtonTypes.COMMENT, OrderButtonTypes.VIEW_COMMENT].includes(Number(button.type)))
           .map((button) => {
             //邀请好友拼团按钮
             if (button.type === OrderButtonTypes.INVITE_GROUPON && order.groupInfoVo) {
@@ -46,6 +48,7 @@ Component({
           })
           .map((button) => ({
             ...button,
+            primary: [OrderButtonTypes.CONFIRM, OrderButtonTypes.COMMENT].includes(Number(button.type)),
             openType: button.openType || '',
           }));
         this.setData({
@@ -74,10 +77,30 @@ Component({
   },
 
   methods: {
+    async onDeleteOrder(order) {
+      if (this.deletingOrder) return;
+      this.deletingOrder = true;
+      try {
+        try {
+          await Dialog.confirm({ context: this, title: '删除订单？', content: '删除后无法恢复，是否继续？', confirmBtn: '确定', cancelBtn: '取消' });
+        } catch { return; }
+        await deleteCancelledOrder({ orderId: order.id || order.orderNo });
+        const pages = getCurrentPages();
+        pages.forEach((page, index) => {
+          if (page.route === 'tabs/usercenter/index') page.refreshOrderCounts?.();
+          else if (index < pages.length - 1 && page.route === 'pages/order/order-list/index') page.onRefresh?.({ detail: { action: 'deleteOrder', orderNo: order.orderNo } });
+        });
+        this.finishAction('订单已删除', { action: 'deleteOrder', orderNo: order.orderNo });
+      } catch (error) { this.showActionError(error); }
+      finally { this.deletingOrder = false; }
+    },
     // 点击【订单操作】按钮，根据按钮类型分发
     onOrderBtnTap(e) {
       const type = Number(e.currentTarget.dataset.type);
       switch (type) {
+        case OrderButtonTypes.DELETE:
+          void this.onDeleteOrder(this.data.currentOrder);
+          break;
         case OrderButtonTypes.PAY:
           this.onPay(this.data.currentOrder);
           break;
@@ -141,9 +164,18 @@ Component({
       })
         .then(() => {
           return confirmOrderReceived({ orderNo: order.orderNo })
-            .then((confirmedOrder) => this.finishAction('已确认收货', {
-              action: 'confirmReceived', orderNo: order.orderNo, order: confirmedOrder,
-            }))
+            .then((confirmedOrder) => {
+              this.finishAction('已确认收货', {
+                action: 'confirmReceived', orderNo: order.orderNo, order: confirmedOrder,
+              });
+              const goodsList = (order.goodsList || []).map(goods => {
+                const item = confirmedOrder.items?.find(value => value.skuId === goods.skuId);
+                return { ...goods, fulfillableQuantity: item
+                  ? Number(item.quantity) - Number(confirmedOrder.refundedQuantities?.[goods.skuId] || 0)
+                  : goods.fulfillableQuantity };
+              }).filter(goods => !(confirmedOrder.commentedProductIds || []).includes(goods.spuId));
+              this.onAddComment({ ...order, goodsList });
+            })
             .catch((error) => this.showActionError(error));
         }, () => {
           // 取消弹窗会 reject 携带事件对象，不属于订单操作失败。

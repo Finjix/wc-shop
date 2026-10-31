@@ -66,6 +66,7 @@
 .stepper { display: flex; align-items: center; gap: 8rpx; }
 .stepper-button { display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: 58rpx; height: 56rpx; min-height: 56rpx; margin: 0; padding: 0; background: #f4f4f4; font-size: 30rpx; line-height: 1; }
 .stepper-button::after { border: 0; }
+.stepper-sign { display: block; line-height: 1; text-align: center; }
 .quantity-input { display: block; width: 70rpx; height: 56rpx; font-size: 28rpx; text-align: center; }
 
 .overlay { position: fixed; inset: 0; z-index: 1100; }
@@ -79,6 +80,7 @@
 .dialog { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: 640rpx; max-width: 90vw; max-height: 85vh; overflow: auto; background: #fff; border-radius: 24rpx; }
 .dialog-title { display: block; padding: 32rpx 24rpx 0; font-size: 34rpx; font-weight: 600; line-height: 48rpx; text-align: center; }
 .dialog-body { padding: 32rpx; font-size: 28rpx; line-height: 1.6; word-break: break-word; }
+.dialog-message { display: block; text-align: center; }
 .dialog-actions { display: flex; border-top: 1rpx solid #eee; }
 .dialog-action { display: flex; align-items: center; justify-content: center; flex: 1; box-sizing: border-box; min-width: 0; min-height: 96rpx; margin: 0; padding: 20rpx 16rpx; border-radius: 0; background: #fff; color: #695941; font-size: 30rpx; line-height: 42rpx; }
 .dialog-action::after { border: 0; }

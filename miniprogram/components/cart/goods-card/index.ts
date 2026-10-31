@@ -137,9 +137,8 @@ Component({
     clickThumbHandle() {
       this.triggerEvent('thumb', { goods: this.data.goods });
     },
-    clickTitleHandle() {
-      this.triggerEvent('title', { goods: this.data.goods });
-    },
+    // Consume title taps without forwarding a navigation event.
+    clickTitleHandle() {},
     clickSpecsHandle() {
       this.triggerEvent('specs', { goods: this.data.goods });
     },

@@ -27,7 +27,7 @@ function buttonsForStatus(status, order, items, hasActiveAfterSale) {
   if (status === 5) return [{ type: 1, name: '继续付款', primary: true }];
   if (status === 10 && !hasActiveAfterSale && items.some((item) => item.fulfillableQuantity > 0)) return [{ type: 4, name: '取消订单', primary: false }];
   if (status === 40 && !hasActiveAfterSale) return [{ type: 3, name: '确认收货', primary: true }];
-  if (status === 50) return order.hasPendingComments
+  if (status === 50 && !hasActiveAfterSale) return order.hasPendingComments
     ? [{ type: 6, name: '评价', primary: true }]
     : [{ type: 10, name: '查看评价', primary: true }];
   return [];
@@ -55,6 +55,7 @@ export function normalizeOrder(order) {
     createTime: order.createdAt,
     orderItemVOs: items,
     buttonVOs: [
+      ...(orderStatus === 60 && !hasActiveAfterSale ? [{ type: 13, name: '删除订单', primary: false }] : []),
       ...buttonsForStatus(orderStatus, order, items, hasActiveAfterSale),
       ...(order.afterSalesList || []).filter((record) => record.actions?.withdraw ?? record.status === 'pending_review').map((record) => ({
         type: 12, name: '撤销售后', primary: false, rightsNo: record._id || record.rightsNo,

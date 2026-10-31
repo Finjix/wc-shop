@@ -50,6 +50,7 @@
         {{order.orderNo}}
       </view>
       <specs-goods-card
+        bind:thumb="onGoodsThumb"
         wx:for="{{order.goodsList}}"
         wx:key="id"
         wx:for-item="goods"
@@ -69,9 +70,9 @@
     </order-card>
     <view wx:if="{{oIndex < orderList.length - 1}}" class="order-list-divider" />
     </block>
-    <!-- 列表加载中/已全部加载 -->
+    <!-- 保留加载、重试和空态，列表结束时不显示提示 -->
     <load-more
-      wx:if="{{!pullDownRefreshing}}"
+      wx:if="{{!pullDownRefreshing && (listLoading !== 2 || !orderList.length)}}"
       list-is-empty="{{!orderList.length}}"
       status="{{listLoading}}"
       bindretry="onReTryLoad"

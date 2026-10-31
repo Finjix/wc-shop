@@ -108,7 +108,6 @@ Page({
         decidedTypeDesc: rights.decidedType ? ServiceTypeDesc[rights.decidedType] : rights.reviewedAt && ['approved', 'refunding', 'refunded'].includes(rights.status) ? ServiceTypeDesc[serviceType] : '待商家审核决定',
         typeDesc: serviceRaw.presentation?.typeLabel || ServiceTypeDesc[serviceType] || rights.typeDesc || '',
         status: serviceStatus,
-        statusIcon: this.genStatusIcon(rights),
         statusName: Number(serviceType) === 10 && serviceStatus === ServiceStatus.VERIFIED ? '待用户退货' : rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rawStatus, serviceType),
         statusDesc: rights.userRightsStatusDesc || rights.statusDesc || rights.description || serviceStatusLabel(rawStatus, serviceType),
         amount: rights.refundRequestAmount ?? rights.refundAmount,
@@ -208,30 +207,6 @@ Page({
   },
 
   /** 获取状态ICON */
-  genStatusIcon(item) {
-    const { userRightsStatus, afterSaleRequireType } = item;
-    switch (userRightsStatus) {
-      // 退款成功
-      case ServiceStatus.REFUNDED: {
-        return 'succeed';
-      }
-      // 已撤销、已关闭
-      case ServiceStatus.CLOSED: {
-        return 'indent_close';
-      }
-      default: {
-        switch (afterSaleRequireType) {
-          case 'REFUND_MONEY': {
-            return 'goods_refund';
-          }
-          case 'REFUND_GOODS_MONEY':
-            return 'goods_return';
-          default: {
-            return 'goods_return';
-          }
-        }
-      }
-    }
-  },
+
 });
 // @ts-nocheck

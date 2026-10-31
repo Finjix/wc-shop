@@ -253,7 +253,7 @@ export function CategoriesPage() {
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} onRetry={() => { setLoading(true); void readCategories().then((items) => { setRows(items); setSavedRows(items); setError(''); }).catch((err: unknown) => setError(err instanceof Error ? err.message : '分类读取失败')).finally(() => setLoading(false)); }} />;
   return <>
-    <div className="floating-save-actions"><Button theme="primary" loading={busy} disabled={!dirty || locked} onClick={() => void save()}>保存</Button></div>
+    <div className="floating-save-actions"><Button theme="primary" loading={busy} disabled={!dirty || locked} onClick={() => void save()}>保存更改</Button></div>
     <div className="category-manager-columns">
       {groups.map((items, index) => {
         const ancestor = index === 1 ? parent : child;

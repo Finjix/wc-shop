@@ -33,7 +33,12 @@
 }
 .cart-group .goods-item-info .check-wrap {
   margin-top: 56rpx;
-  padding: 20rpx 28rpx 20rpx 36rpx;
+  flex: 0 0 64rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx 12rpx;
 }
 
 .cart-group .goods-item-info .check-wrap .unCheck-icon {
@@ -48,6 +53,7 @@
 .cart-group .goods-item-info .goods-sku-info {
   padding: 0rpx 20rpx 28rpx 0;
   flex-grow: 1;
+  min-width: 0;
 }
 
 .cart-group .goods-item-info .goods-sku-info .stock-mask {

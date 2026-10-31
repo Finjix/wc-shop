@@ -9,6 +9,9 @@ let pageDefinition, componentDefinition;
 let confirmCalls = 0;
 let confirmError;
 let dialogCancelled = false;
+let deleteCalls = 0;
+let deleteError;
+let currentPages = [];
 const navigations = [];
 const confirmedOrder = {
   _id: 'order-1', orderNo: 'order-1', status: 'received', commentedProductIds: [],
@@ -17,7 +20,11 @@ const confirmedOrder = {
 const mocks = new Map([
   ['miniprogram/config/navigation.ts', { isPageNavigationEnabled: () => true }],
   ['miniprogram/components/_shared/frontend/order/utils/dialog.ts', { default: { confirm: async () => { if (dialogCancelled) throw new Error('cancel'); } } }],
-  ['miniprogram/services/order/services/orderDetail.ts', { confirmOrderReceived: async () => {
+  ['miniprogram/services/order/services/orderDetail.ts', { deleteCancelledOrder: async (params) => {
+    deleteCalls++;
+    assert.equal(params.orderId, 'order-1');
+    if (deleteError) throw deleteError;
+  }, confirmOrderReceived: async () => {
     confirmCalls++;
     if (confirmError) throw confirmError;
     return confirmedOrder;
@@ -44,6 +51,7 @@ function load(file) {
     },
     Page: (value) => { pageDefinition = value; },
     Component: (value) => { componentDefinition = value; },
+    getCurrentPages: () => currentPages,
     wx: { navigateTo: ({ url }) => navigations.push(url) },
   }, { filename });
   return exports;
@@ -72,6 +80,8 @@ async function run() {
   };
   await bar.onConfirm(original);
   assert.equal(confirmCalls, 1);
+  assert.equal(navigations.length, 1, 'successful receipt automatically opens evaluation');
+  assert(navigations[0].includes('/comments/create/index?'));
   assert.equal(events[0].detail.action, 'confirmReceived');
   assert.equal(listRefreshes, 0, 'receipt must not reload the filtered list');
   assert.equal(page.data.orderList.length, 2);
@@ -119,5 +129,28 @@ async function run() {
   assert.equal(hotReloaded.page.num, 1);
   assert.equal(hotReloaded.data.curTab, OrderStatus.PENDING_RECEIPT);
   console.log('PASS order list refresh restores missing pagination state after hot reload');
+  page.getOrdersCount = async () => {};
+  page.route = 'pages/order/order-list/index';
+  currentPages = [page];
+  const beforeDelete = events.length;
+  const selectedTab = page.data.curTab;
+  await bar.onDeleteOrder(original);
+  assert.equal(deleteCalls, 0, 'cancelling deletion never calls the API');
+  dialogCancelled = false;
+  deleteError = new Error('delete failed');
+  await bar.onDeleteOrder(original);
+  assert.equal(events.length, beforeDelete, 'failed deletion preserves the local order');
+  assert.equal(page.data.orderList.length, 2);
+  deleteError = undefined;
+  const deleting = bar.onDeleteOrder(original);
+  await bar.onDeleteOrder(original);
+  await deleting;
+  assert.equal(deleteCalls, 2, 'repeated taps do not duplicate a pending deletion');
+  assert.equal(events.length, beforeDelete + 1);
+  assert.equal(page.data.orderList.length, 1);
+  assert.equal(page.data.orderList[0].orderNo, 'order-2');
+  assert.equal(page.data.curTab, selectedTab, 'deletion preserves the selected filter');
+  assert.equal(bar.deletingOrder, false);
+  console.log('PASS order deletion confirms, prevents duplicate submits, preserves failed orders and removes only the deleted card');
 }
 run().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -42,17 +42,22 @@ page {
 
 .comments-header {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  padding: 32rpx 32rpx 0rpx;
+  gap: 24rpx;
+  padding: 32rpx 32rpx 0;
   background-color: #fff;
-  margin-top: -24rpx;
-  margin-left: -24rpx;
 }
 
 .comments-header-tag {
-  margin-top: 24rpx;
-  margin-left: 24rpx;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 24rpx !important;
   height: 56rpx !important;
+  min-height: 56rpx;
+  line-height: 32rpx;
   font-size: 24rpx !important;
   justify-content: center;
   background-color: #F5F5F5 !important;

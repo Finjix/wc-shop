@@ -53,6 +53,16 @@
 html { scrollbar-gutter: stable; }
 body { margin: 0; min-width: 320px; background: #f6f6f6; }
 button, input, textarea, select { font: inherit; }
+.native-select--searchable { display: block; position: relative; width: 100%; }
+.native-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 34px; padding: 8px 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); text-align: left; }
+.native-select-trigger:disabled { opacity: .5; cursor: not-allowed; }
+.native-select-menu { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; padding: 8px; border: 1px solid var(--line-strong); background: var(--surface); box-shadow: 0 4px 14px rgb(0 0 0 / 10%); }
+.native-select-menu .native-input { box-sizing: border-box; width: 100%; margin-bottom: 6px; border-radius: 0; }
+.native-select-options { max-height: min(220px, 25vh); overflow-y: auto; }
+.native-select-options button { display: block; width: 100%; padding: 8px 10px; border: 0; background: transparent; color: var(--text); text-align: left; }
+.native-select-options button.active, .native-select-options button[aria-selected="true"] { background: var(--surface-muted); }
+.native-select-empty { padding: 12px 10px; color: var(--muted); }
+input:focus, textarea:focus, select:focus { outline: none; box-shadow: none; }
 button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 a { color: var(--text); text-decoration: none; }
 
@@ -69,7 +79,6 @@ a { color: var(--text); text-decoration: none; }
 .page-content { width: 100%; min-width: 0; padding: var(--page-padding-top) var(--page-padding-x) var(--page-padding-bottom); }
 .page-content:has(.floating-save-actions) { padding-right: calc(var(--save-button-width) + 2 * var(--save-button-gap)); }
 .floating-save-actions { position: fixed; top: 16px; right: var(--save-button-gap); width: var(--save-button-width); z-index: 100; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0; margin: 0; }
-.floating-save-actions .t-button { width: var(--save-button-width); min-width: var(--save-button-width); min-height: 44px; font-size: 15px; }
 .overview-title { margin: 0 0 20px; color: var(--ink); font-size: 22px; font-weight: 650; }
 .overview-page { display: flex; flex-direction: column; min-height: calc(100dvh - var(--page-padding-top) - var(--page-padding-bottom)); gap: 20px; }
 .overview-page .overview-title { margin-bottom: 0; }
@@ -161,7 +170,7 @@ tbody tr.product-list-inactive, tbody tr.product-list-inactive:hover { backgroun
 .order-list-actions button.text-button:disabled { color: var(--subtle); cursor: not-allowed; text-decoration: none; }
 .shipping-dialog .t-dialog { padding: 32px; max-height: calc(100dvh - 96px); display: flex; flex-direction: column; }
 .shipping-dialog .t-dialog__header, .shipping-dialog .t-dialog__footer { flex-shrink: 0; }
-.shipping-dialog-tracking { margin-top: 32px; }
+.shipping-dialog-tracking { margin-top: 32px; display: flex; flex-direction: column; gap: 20px; }
 .shipping-dialog-info .detail-list { row-gap: 16px; margin-bottom: 28px; }
 .shipping-dialog-info th, .shipping-dialog-info td { padding-top: 18px; padding-bottom: 18px; }
 .shipping-dialog .t-dialog__body { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; }
@@ -172,7 +181,7 @@ tbody tr.product-list-inactive, tbody tr.product-list-inactive:hover { backgroun
 .toolbar > :first-child { width: 320px; max-width: 320px; flex: 0 0 320px; }
 .toolbar select { min-width: 140px; width: auto; flex: 1 1 auto; }
 select, textarea, .json-editor { width: 100%; border: 1px solid var(--line-strong); border-radius: 0; background: var(--surface); color: var(--text); padding: 8px 10px; outline: none; }
-select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+select:focus, textarea:focus, .json-editor:focus { border-color: var(--line-strong); box-shadow: none; }
 .quick-form { display: flex; gap: 12px; align-items: flex-end; }
 .quick-form .field { flex: 1; max-width: 300px; }
 .category-manager-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
@@ -264,12 +273,6 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .editor-panel { border-color: var(--line-strong); background: var(--surface); }
 .product-editor-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 18px; }
 .product-editor-actions.floating-save-actions { flex-direction: column; margin-bottom: 0; }
-.product-editor-actions.floating-save-actions .t-button {
-  width: 100%;
-  height: 32px;
-  min-height: 32px;
-  font-size: 14px;
-}
 .form-actions { display: flex; gap: 8px; margin-top: 18px; }
 .file-list { display: flex; flex-direction: column; gap: 4px; margin-top: 7px; }
 .file-list code { word-break: break-all; font-size: 10px; color: #555; background: var(--surface-muted); border: 1px solid #ededed; border-radius: 0; padding: 5px; }
@@ -289,7 +292,7 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .home-product-picker-trigger:hover, .home-product-picker-trigger:focus-visible { border-color: var(--ink); }
 .home-product-picker-menu { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; width: max(100%, 280px); max-width: min(400px, 90vw); padding: 8px; border: 1px solid var(--line-strong); border-radius: 0; background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 12%); }
 .home-product-picker-menu input { width: 100%; height: 34px; padding: 6px 9px; border: 1px solid var(--line-strong); border-radius: 0; background: var(--surface); color: var(--text); font-size: 12px; outline: none; }
-.home-product-picker-menu input:focus { border-color: var(--ink); }
+.home-product-picker-menu input:focus { border-color: var(--line-strong); }
 .home-product-picker-list { max-height: 240px; overflow-y: auto; margin: 8px 0; }
 .home-product-picker-list button { display: block; width: 100%; padding: 8px; border: 0; border-radius: 0; background: transparent; color: var(--text); font-size: 12px; text-align: left; }
 .home-product-picker-list button:hover, .home-product-picker-list button:focus-visible { background: var(--surface-muted); }
@@ -336,8 +339,8 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
   font: inherit;
 }
 .approval-dialog .field input:focus, .approval-dialog .field select:focus {
-  outline: 1px solid var(--ink);
-  outline-offset: -1px;
+  outline: none;
+  box-shadow: none;
 }
 .approval-dialog .field > small { font-size: 12px; line-height: 1.5; }
 .approval-cancellation-summary { display: grid; gap: 20px; font-size: 12px; }
@@ -388,7 +391,7 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box
 .t-input, .t-input__wrap { border-radius: 0; }
 .t-input { border-color: var(--line-strong); color: var(--text); }
 .t-input:hover { border-color: #999; }
-.t-input--focused { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.t-input:focus, .t-input--focused { border-color: var(--line-strong); box-shadow: none; }
 .t-input__inner { color: var(--text); font-size: 12px; }
 .t-tag { border-radius: 0; }
 .t-tag--default, .t-tag--primary, .t-tag--success, .t-tag--warning, .t-tag--danger { color: #444; }

@@ -8,6 +8,12 @@ const pay = require('../shared/wechat-pay');
 const payments = require('../shared/payments');
 
 async function run() {
+  const shippingModule = require('../shared/wechat-shipping');
+  const localCompanies = [{ value: 'SF', label: '顺丰速运' }];
+  assert.deepStrictEqual(await shippingModule.companies({ paymentMode: 'simulated', shippingCompanies: localCompanies }), { items: localCompanies });
+  assert.deepStrictEqual(shippingModule.carrier({ payment: { mode: 'simulated' } }, 'SF'), { expressCompany: 'SF' });
+  assert.deepStrictEqual(shippingModule.carrier({ payment: { mode: 'simulated' } }, ''), {});
+  assert.throws(() => shippingModule.carrier({ payment: { mode: 'simulated' } }, 'bad carrier'), e => e.code === 'INVALID_ARGUMENT');
   const merchant = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
   const platform = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
   const config = { appid: 'wx-test', mchid: 'merchant-test', serial: 'merchant-serial',

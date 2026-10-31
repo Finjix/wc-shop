@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
 import './native-ui.css';
 
@@ -15,9 +15,76 @@ export function Textarea({ onChange, autosize, ...props }: TextareaProps) { retu
 export function Tag({ children, theme, variant, style, className = '' }: { children?: ReactNode; theme?: string; variant?: string; className?: string; style?: React.CSSProperties }) { return <span style={style} className={`t-tag native-tag ${theme || ''} ${className}`}>{children}</span>; }
 export function Select({ value, options, placeholder, onChange, disabled, filterable }: { value?: string | number; options: { value: string | number; label: ReactNode }[]; placeholder?: string; disabled?: boolean; filterable?: boolean; onChange: (value: string) => void }) {
   const [query, setQuery] = useState('');
-  const filtered = options.filter(item => !query || String(item.label).toLowerCase().includes(query.toLowerCase()) || item.value === value);
-  return <div className="native-select">{filterable && <input aria-label="筛选选项" placeholder="输入名称筛选" disabled={disabled} value={query} onChange={e => setQuery(e.target.value)} />}<select disabled={disabled} value={value ?? ''} onChange={e => onChange(e.target.value)}><option value="">{placeholder || '请选择'}</option>{filtered.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>;
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const root = useRef<HTMLDivElement>(null);
+  const search = useRef<HTMLInputElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const listId = useId();
+  const anchor = open ? trigger.current?.getBoundingClientRect() : undefined;
+  const openAbove = !!anchor && window.innerHeight - anchor.bottom < 280 && anchor.top > 280;
+  const filtered = options.filter(item => String(item.label).toLowerCase().includes(query.trim().toLowerCase()));
+  const selected = options.find(item => String(item.value) === String(value));
+  const close = () => { setOpen(false); setQuery(''); setActive(0); };
+  const choose = (next: string | number) => { onChange(String(next)); close(); trigger.current?.focus(); };
+  useEffect(() => {
+    if (!open) return;
+    search.current?.focus({ preventScroll: true });
+    const reposition = () => close();
+    const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) close(); };
+    document.addEventListener('pointerdown', outside);
+    window.addEventListener('resize', reposition);
+    const scroller = root.current?.closest('.t-dialog__body');
+    scroller?.addEventListener('scroll', reposition);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      window.removeEventListener('resize', reposition);
+      scroller?.removeEventListener('scroll', reposition);
+    };
+  }, [open]);
+  useEffect(() => { if (disabled) close(); }, [disabled]);
+  useEffect(() => {
+    if (open) {
+      const option = document.getElementById(`${listId}-${active}`);
+      const list = option?.parentElement;
+      if (option && list) {
+        if (option.offsetTop < list.scrollTop) list.scrollTop = option.offsetTop;
+        else if (option.offsetTop + option.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = option.offsetTop + option.offsetHeight - list.clientHeight;
+      }
+    }
+  }, [active, open, listId]);
+  if (!filterable) return <div className="native-select"><select disabled={disabled} value={value ?? ''} onChange={e => onChange(e.target.value)}><option value="">{placeholder || '请选择'}</option>{options.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>;
+  return <div className="native-select native-select--searchable" ref={root}
+    onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) close(); }}
+    onKeyDown={event => {
+      if (event.key === 'Escape' && open) { event.preventDefault(); event.stopPropagation(); close(); trigger.current?.focus(); }
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (!open) { setActive(0); setOpen(true); }
+        else setActive(old => Math.max(0, Math.min(filtered.length - 1, old + (event.key === 'ArrowDown' ? 1 : -1))));
+      }
+      if (event.key === 'Enter' && open) { event.preventDefault(); if (filtered[active]) choose(filtered[active].value); }
+    }}>
+    <button ref={trigger} type="button" role="combobox" className="native-select-trigger" disabled={disabled}
+      aria-expanded={open} aria-controls={listId} aria-haspopup="listbox"
+      onClick={() => { if (open) close(); else { setActive(0); setOpen(true); } }}>
+      <span>{selected?.label ?? placeholder ?? '请选择'}</span><span aria-hidden="true">⌄</span>
+    </button>
+    {open && <div className="native-select-menu" style={anchor ? { position: 'fixed', left: anchor.left, right: 'auto', width: anchor.width, boxSizing: 'border-box', top: openAbove ? 'auto' : anchor.bottom + 4, bottom: openAbove ? window.innerHeight - anchor.top + 4 : 'auto' } : undefined}>
+      <input ref={search} className="native-input" aria-label="筛选选项" placeholder="输入名称筛选"
+        role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls={listId}
+        aria-activedescendant={filtered[active] ? `${listId}-${active}` : undefined}
+        value={query} onChange={event => { setQuery(event.target.value); setActive(0); }} />
+      <div id={listId} role="listbox" className="native-select-options">
+        {filtered.map((item, index) => <button key={item.value} id={`${listId}-${index}`} type="button" role="option"
+          aria-selected={String(item.value) === String(value)} className={index === active ? 'active' : ''}
+          onMouseDown={event => event.preventDefault()} onMouseEnter={() => setActive(index)} onClick={() => choose(item.value)}>{item.label}</button>)}
+        {!filtered.length && <div className="native-select-empty" role="status">暂无匹配的快递公司</div>}
+      </div>
+    </div>}
+  </div>;
 }
+
 type Action = string | null | { content?: ReactNode; disabled?: boolean; loading?: boolean };
 type DialogProps = { visible?: boolean; header?: ReactNode; children?: ReactNode; className?: string; closeBtn?: boolean; closeOnOverlayClick?: boolean; confirmBtn?: Action; cancelBtn?: Action; width?: string | number; placement?: string; onClose?: () => void; onConfirm?: () => void };
 export function Dialog({ visible, header, children, className = '', closeBtn = true, closeOnOverlayClick = true, confirmBtn = '确定', cancelBtn = '取消', width, onClose, onConfirm }: DialogProps) {

@@ -576,7 +576,7 @@ function adminAfterSaleSummary(record) {
   return { ...presentAfterSale(record), canDeleteAdmin: afterSaleCanDelete(record) };
 }
 
-async function deleteCommerceRecord(runtime, name, id) {
+async function deleteCommerceRecord(runtime, name, id, cancelledOrderOwner) {
   // 旧订单可能缺少索引，查询在事务外补齐；事务内合并最新索引并重新校验状态。
   const legacyClaims = name === COLLECTIONS.orders
     ? await allMatching(col(runtime, COLLECTIONS.afterSales), { orderId: id }) : [];
@@ -584,6 +584,10 @@ async function deleteCommerceRecord(runtime, name, id) {
     const collection = tx.collection(name);
     const current = await getDoc(collection, id, false);
     if (!current) return { _id: id, deleted: true };
+    if (cancelledOrderOwner) {
+      if (name !== COLLECTIONS.orders || current.userId !== cancelledOrderOwner) throw errorFrom('FORBIDDEN');
+      if (!['cancelled', 'refunded'].includes(orderDisplayStatus(current))) throw errorFrom('ORDER_STATE_INVALID');
+    }
     const allowed = name === COLLECTIONS.orders ? orderCanDelete(current) : afterSaleCanDelete(current);
     if (!allowed) throw errorFrom('ORDER_STATE_INVALID');
     if (name === COLLECTIONS.orders) {
@@ -668,7 +672,10 @@ async function listAdminOrders(runtime, data) {
     if (!groups.has(key)) groups.set(key, { key, addressKey, address: shippingAddressOf(order), canCombine, orders: [] });
     groups.get(key).orders.push(order);
   }
-  const selected = [...groups.values()].slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize);
+  // 待发货组优先，分页前排序；同一优先级保留原有时间倒序。
+  const selected = [...groups.values()]
+    .sort((a, b) => Number(b.orders.some(order => order.status === STATUS.paid)) - Number(a.orders.some(order => order.status === STATUS.paid)))
+    .slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize);
   const items = await Promise.all(selected.map(async (group) => ({
     ...group, orderCount: group.orders.length,
     orders: await Promise.all(group.orders.map((order) => adminOrderSummary(runtime, order))),
@@ -1092,4 +1099,4 @@ async function executeAdmin(event, context, runtime, action, data) {
   throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
 }
 
-module.exports = { adminEndpoint };
+module.exports = { adminEndpoint, deleteCommerceRecord };

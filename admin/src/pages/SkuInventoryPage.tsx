@@ -217,7 +217,7 @@ export function SkuInventoryPage() {
         <Input value={queryInput} disabled={saving} onChange={setQueryInput} onEnter={(_value, { e }) => { e.preventDefault(); search(); }} placeholder="搜索商品名称" aria-label="搜索商品名称" />
       </div>
       <div className="floating-save-actions">
-        <Button theme="primary" loading={saving} disabled={!dirty || saving || loading} onClick={() => void save()}>保存</Button>
+        <Button theme="primary" loading={saving} disabled={!dirty || saving || loading} onClick={() => void save()}>保存更改</Button>
       </div>
     </div>
     {loading && <LoadingState />}

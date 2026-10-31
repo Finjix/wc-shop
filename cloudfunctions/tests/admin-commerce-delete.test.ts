@@ -31,6 +31,24 @@ async function run() {
   const next = await shopEndpoint({}, user, runtime, 'afterSales.create', { ...payload, orderId: order._id });
   await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: next._id, status: 'approved' });
   const orderSnapshot = { ...runtime.records.orders[order._id] };
+  const customerRuntime = makeRuntime();
+  const customerOrder = { ...orderSnapshot, _id: 'customer-cancelled', userId: 'user-1', status: 'refunded', closureScenario: 'cancel_order', pendingRefundAmount: 0, pendingRefundQuantities: {}, afterSaleIds: [] };
+  customerRuntime.records.orders[customerOrder._id] = customerOrder;
+  const deletePayload = { orderId: customerOrder._id };
+  await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'other-user' } }, customerRuntime, 'orders.deleteCancelled', deletePayload), errorCode('FORBIDDEN'));
+  customerRuntime.records.orders[customerOrder._id].status = 'paid';
+  await assert.rejects(() => shopEndpoint({}, user, customerRuntime, 'orders.deleteCancelled', deletePayload), errorCode('ORDER_STATE_INVALID'));
+  customerRuntime.records.orders[customerOrder._id].status = 'refunded';
+  customerRuntime.records.orders[customerOrder._id].pendingRefundAmount = 1;
+  await assert.rejects(() => shopEndpoint({}, user, customerRuntime, 'orders.deleteCancelled', deletePayload), errorCode('ORDER_STATE_INVALID'));
+  customerRuntime.records.orders[customerOrder._id].pendingRefundAmount = 0;
+  await shopEndpoint({}, user, customerRuntime, 'orders.deleteCancelled', deletePayload);
+  assert.strictEqual(customerRuntime.records.orders[customerOrder._id], undefined, 'customer deletion physically removes the persisted order');
+  await shopEndpoint({}, user, customerRuntime, 'orders.deleteCancelled', deletePayload);
+  await assert.rejects(() => shopEndpoint({}, user, customerRuntime, 'orders.detail', deletePayload), errorCode('NOT_FOUND'));
+  customerRuntime.records.orders['customer-refunded'] = { ...customerOrder, _id: 'customer-refunded', closureScenario: 'return_goods', fulfillmentStatus: 'shipped' };
+  await shopEndpoint({}, user, customerRuntime, 'orders.deleteCancelled', { orderId: 'customer-refunded' });
+  assert.strictEqual(customerRuntime.records.orders['customer-refunded'], undefined, 'fully refunded orders can also be permanently deleted by their owner');
   const stockBefore = runtime.records.skus['sku-new'].stockQuantity;
   // A historical related claim absent from the order's index must also be removed.
   runtime.records.afterSales.history = { ...claim, _id: 'history', status: 'rejected', deletedByAdmin: true };

@@ -8,6 +8,10 @@ Component({
     pullDownRefreshing: Boolean,
   },
   methods: {
+    onGoodsThumb(event) {
+      const spuId = event.detail?.goods?.spuId;
+      if (spuId) wx.navigateTo({ url: `/pages/goods/details/index?spuId=${encodeURIComponent(spuId)}` });
+    },
     onTabChange(event) { this.triggerEvent('tabchange', event.detail); },
     onReachBottom() { this.triggerEvent('reachbottom'); },
     onRefresh(event) { this.triggerEvent('refresh', event.detail); },

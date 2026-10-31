@@ -119,10 +119,17 @@
   max-width: 400rpx;
 }
 .order-detail .pay-detail .pay-item--remark {
+  flex-direction: column;
   align-items: flex-start;
+  justify-content: flex-start;
+  gap: 16rpx;
 }
 .pay-item--logistics > text {
   flex-shrink: 0;
+}
+.order-detail .pay-detail .pay-item--logistics .pay-item__right {
+  flex: 1;
+  max-width: none;
 }
 .logistics-tracking-no {
   min-width: 0;
@@ -134,9 +141,14 @@
   flex-shrink: 0;
 }
 .order-remark-content {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  color: #333333;
+  line-height: 40rpx;
   white-space: pre-wrap;
   word-break: break-all;
-  text-align: right;
+  text-align: left;
 }
 .order-detail .pay-detail .pay-item .pay-item__right .pay-remark {
   display: -webkit-box;

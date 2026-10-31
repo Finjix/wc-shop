@@ -53,6 +53,7 @@
 }
 
 .btn-bar .right .normal {
+  --ui-button-background: #fff;
   --ui-button-color: #333333;
   --ui-button-border: #dddddd;
 }

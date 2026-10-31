@@ -18,7 +18,6 @@
       <!-- 状态及描述 -->
       <view class="service-detail__header {{service.type === 10 && service.status === 110 ? 'service-detail__header--return-approved' : ''}}">
         <view class="title">
-          <t-icon wx:if="{{!service.isRefunded}}" prefix="wr" name="{{service.statusIcon}}" size="30px" />
           {{service.statusName}}
         </view>
         <view class="refund-summary" wx:if="{{service.isRefunded}}">

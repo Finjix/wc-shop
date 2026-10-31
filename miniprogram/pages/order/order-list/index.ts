@@ -113,6 +113,8 @@ Page({
               storeName: order.storeName,
               status: order.orderStatus,
               statusDesc: order.orderStatusName,
+              hasActiveAfterSale: order.hasActiveAfterSale,
+              hasPendingRefund: order.hasPendingRefund,
               amount: order.paymentAmount,
               totalAmount: order.totalAmount,
               logisticsNo: order.logisticsVO?.logisticsNo,
@@ -207,6 +209,11 @@ Page({
   },
 
   onRefresh(e) {
+    if (e?.detail?.action === 'deleteOrder') {
+      this.setData({ orderList: this.data.orderList.filter(order => order.orderNo !== e.detail.orderNo) });
+      void this.getOrdersCount();
+      return;
+    }
     if (e?.detail?.action === 'confirmReceived') {
       const { orderNo, order: confirmedOrder = {} } = e.detail;
       const commentedProductIds = confirmedOrder.commentedProductIds || [];

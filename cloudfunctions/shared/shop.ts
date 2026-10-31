@@ -828,6 +828,7 @@ async function updateOrderState(runtime, event, context, data, action) {
   const identity = requireUser(event, context, runtime);
   const input = orderInput(data);
   const id = string(input.orderId || input.orderNo, 'orderId', { max: 128 });
+  if (action === 'orders.deleteCancelled') return require('./admin').deleteCommerceRecord(runtime, COLLECTIONS.orders, id, identity.uid);
   const orders = collection(runtime, COLLECTIONS.orders);
   const order = await getDoc(orders, id, true);
   if (order.userId !== identity.uid) throw errorFrom('FORBIDDEN');
@@ -1436,7 +1437,7 @@ async function executeShop(event, context, runtime, action, data) {
   if (action === 'orders.count') return orderCount(runtime, event, context);
   if (action === 'orders.businessTime') return { telephone: '' };
   if (action === 'orders.detail') return orderDetail(runtime, event, context, data);
-  if (action === 'orders.confirmReceived' || action === 'orders.delete' || action === 'orders.updateAddress') return updateOrderState(runtime, event, context, data, action);
+  if (action === 'orders.confirmReceived' || action === 'orders.deleteCancelled' || action === 'orders.delete' || action === 'orders.updateAddress') return updateOrderState(runtime, event, context, data, action);
   if (action.startsWith('comments.')) return commentsAction(runtime, event, context, data, action);
   if (action.startsWith('afterSales.')) return afterSalesAction(runtime, event, context, data, action);
   throw errorFrom('INVALID_ARGUMENT', { field: 'action' });

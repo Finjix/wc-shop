@@ -62,6 +62,9 @@ async function openApi(runtime, name, data) {
   return result;
 }
 async function companies(runtime) {
+  if (runtime.paymentMode === 'simulated' && Array.isArray(runtime.shippingCompanies)) {
+    return { items: runtime.shippingCompanies };
+  }
   const result = await openApi(runtime, 'express.delivery.openMsg.getDeliveryList', {});
   return { items: (result.delivery_list || []).map((item) => ({ value: item.delivery_id, label: item.delivery_name })) };
 }
@@ -71,8 +74,8 @@ async function dirty(tx, order) {
   await tx.collection('payments').doc(id).update({ shippingPending: true, shippingRevision: crypto.randomUUID(), shippingUpdatedAt: new Date().toISOString() });
 }
 function carrier(order, input) {
-  if (order.payment?.mode !== 'wechat') return {};
   const value = String(input || order.logistics?.expressCompany || '').trim();
+  if (!value && order.payment?.mode !== 'wechat') return {};
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(value)) throw errorFrom('INVALID_ARGUMENT', { field: 'expressCompany' });
   return { expressCompany: value };
 }

@@ -87,9 +87,7 @@
       </view>
       <view class="pay-item pay-item--remark" wx:if="{{order.remark}}">
         <text>备注</text>
-        <view class="pay-item__right">
-          <text class="order-remark-content">{{order.remark}}</text>
-        </view>
+        <text class="order-remark-content">{{order.remark}}</text>
       </view>
       <button class="pay-service" wx:if="{{storeDetail && storeDetail.storeTel}}" open-type="contact">
         <t-icon name="service" size="40rpx" />

@@ -49,6 +49,7 @@ export const ServiceTypeDesc = {
 // 订单按钮类型
 export const OrderButtonTypes = {
   PAY: 1,
+  DELETE: 13, // 删除已取消订单
   CANCEL_AFTER_SALE: 12, // 撤销售后
   CONFIRM: 3, // 确认收货
   APPLY_REFUND: 4, // 申请售后

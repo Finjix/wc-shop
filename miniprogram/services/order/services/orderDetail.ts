@@ -27,3 +27,5 @@ export function fetchBusinessTime(params = {}) {
 
 export function confirmOrderReceived(params = {}) { return request('orders.confirmReceived', params); }
 // @ts-nocheck
+
+export function deleteCancelledOrder(params = {}) { return request('orders.deleteCancelled', params); }
