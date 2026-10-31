@@ -1,25 +1,20 @@
 // @ts-nocheck
 
 import { getCategoryList } from '../../common/services/good/fetchCategoryList';
-import { fetchGoodsList } from '../../common/services/good/fetchGoodsList';
 import { addSearchHistory } from '../../common/services/good/fetchSearchHistory';
 import { getApiErrorMessage } from '../../common/services/utils/api';
-import { navigateToGoodsDetail } from '../../common/utils/goods-detail-navigation';
 import { shopShareHandlers, enablePageSharing } from '../../common/share';
 
 Page({
   ...shopShareHandlers,
   data: {
     list: [], activeParentIndex: 0,
-    goodsSections: [], goodsLoading: false, goodsError: '',
+    categorySections: [], categoryScrollTop: 0,
     categoryLoading: false, categoryError: '',
     statusBarHeight: 0, navBarHeight: 44, customNavHeight: 44, categoryHeight: 0,
     searchTop: 0, searchLeft: 0, searchWidth: 375, searchValue: '', searchFocus: false,
   },
   categoryRequestId: 0,
-  goodsRequestId: 0,
-  goodsPage: 1,
-  goodsChildIndex: 0,
   async loadCategories() {
     const requestId = ++this.categoryRequestId;
     this.setData({ categoryLoading: true, categoryError: '' });
@@ -28,66 +23,25 @@ Page({
       if (requestId !== this.categoryRequestId) return;
       const selectedParent = this.data.list[this.data.activeParentIndex];
       const parentIndex = Math.max(0, list.findIndex((item) => String(item._id || item.id) === String(selectedParent?._id || selectedParent?.id)));
-      ++this.goodsRequestId;
-      this.setData({ list, activeParentIndex: parentIndex, categoryLoading: false, categoryError: '' }, () => this.loadGoods(true));
+      this.setData({ list, activeParentIndex: parentIndex, categorySections: list[parentIndex]?.children || [], categoryLoading: false, categoryError: '' });
     } catch (error) {
       if (requestId !== this.categoryRequestId) return;
-      this.setData({ list: [], categoryLoading: false, categoryError: getApiErrorMessage(error, '分类加载失败，请稍后重试') });
+      this.setData({ list: [], categorySections: [], categoryLoading: false, categoryError: getApiErrorMessage(error, '分类加载失败，请稍后重试') });
     }
   },
+  handleCategoryScroll(event) { this.setData({ categoryScrollTop: event.detail.scrollTop }); },
   selectParent(event) {
     const index = Number(event.currentTarget.dataset.index);
     if (index === this.data.activeParentIndex) return;
-    ++this.goodsRequestId;
-    this.setData({ activeParentIndex: index, goodsSections: [], goodsError: '' }, () => this.loadGoods(true));
+    if (!this.data.list[index]) return;
+    this.setData({ activeParentIndex: index, categorySections: this.data.list[index].children || [], categoryScrollTop: 0 });
   },
-  async loadGoods(reset = false) {
-    if (reset) {
-      ++this.goodsRequestId;
-      this.goodsChildIndex = 0;
-      this.goodsPage = 1;
-      this.setData({ goodsSections: [], goodsLoading: false, goodsError: '' }, () => void this.loadGoods(false));
-      return;
-    }
-    if (this.data.goodsLoading) return;
-    const parent = this.data.list[this.data.activeParentIndex];
-    const children = parent ? [parent, ...(parent.children || [])] : [];
-    if (!children.length || this.goodsChildIndex >= children.length) return;
-    const requestId = this.goodsRequestId;
-    let sections = [...this.data.goodsSections];
-    this.setData({ goodsLoading: true, goodsError: '' });
-    try {
-      while (this.goodsChildIndex < children.length) {
-        const childIndex = this.goodsChildIndex;
-        const child = children[childIndex];
-        if (!sections[childIndex]) {
-          sections = [...sections, { id: String(child._id || child.id), name: child.name, image: child.image || '', isParent: childIndex === 0, goodsList: [], loaded: false }];
-          this.setData({ goodsSections: sections });
-        }
-        const result = await fetchGoodsList({ categoryId: String(child._id || child.id), pageNum: this.goodsPage, pageSize: 100 }, { preferSecondary: true });
-        if (requestId !== this.goodsRequestId) return;
-        const goodsList = [...sections[childIndex].goodsList, ...result.spuList];
-        const loaded = goodsList.length >= result.totalCount || result.spuList.length === 0;
-        sections = sections.map((section, index) => index === childIndex ? { ...section, goodsList, loaded } : section);
-        this.setData({ goodsSections: sections });
-        if (loaded) { this.goodsChildIndex += 1; this.goodsPage = 1; }
-        else this.goodsPage += 1;
-      }
-      this.setData({ goodsLoading: false });
-    } catch (error) {
-      if (requestId !== this.goodsRequestId) return;
-      this.setData({ goodsLoading: false, goodsError: getApiErrorMessage(error, '商品加载失败，请重试') });
-    }
-  },
-  retryGoods() { void this.loadGoods(false); },
+  retryCategories() { void this.loadCategories(); },
+  onUnload() { ++this.categoryRequestId; },
   openCategoryResults(event) {
-    const { categoryId, categoryName, isParent } = event.currentTarget.dataset;
-    if (!categoryId || isParent) return;
+    const { categoryId, categoryName } = event.currentTarget.dataset;
+    if (!categoryId) return;
     wx.navigateTo({ url: `/goods/result/index?categoryId=${encodeURIComponent(String(categoryId))}&categoryName=${encodeURIComponent(categoryName || '')}` });
-  },
-  openGoods(event) {
-    const id = event.currentTarget.dataset.id;
-    if (id) navigateToGoodsDetail(`/goods/details/index?spuId=${encodeURIComponent(String(id))}`);
   },
   onShow() {
     enablePageSharing();

@@ -1,7 +1,7 @@
 /* 主题定制 */
 page {
   --app-theme-color: #695941;
-  --app-theme-color-soft: #F0ECE4;
+  --app-theme-color-soft: #f2f2f2;
   --app-theme-text-color: #695941;
 }
 

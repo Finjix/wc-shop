@@ -14,6 +14,7 @@ const { shippingAddressOf, shippingGroupKey } = require('./order-shipping');
 const { presentAfterSale } = require('./after-sale-policy');
 const { orderDisplayStatus } = require('./order-display-status');
 const { skuBelongsToProduct } = require('./product-specs');
+const { categoryId, categoryLevel, descendantIds } = require('./category-tree');
 
 async function findProduct(collection, id) {
   return getDoc(collection, id, false);
@@ -134,7 +135,7 @@ async function saveProductWithVariants(runtime, data) {
     specValueList: [],
   }));
   const patch = {
-    ...allowedFields(data, ['title', 'name', 'subtitle', 'primaryImage', 'secondaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'tags', 'description']),
+    ...allowedFields(data, ['title', 'subtitle', 'primaryImage', 'secondaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'tags', 'description']),
     specList,
     minSalePrice: Math.min(...prices),
     maxSalePrice: Math.max(...prices),
@@ -142,7 +143,6 @@ async function saveProductWithVariants(runtime, data) {
   };
   if (patch.categoryIds !== undefined) patch.categoryIds = await validProductCategoryIds(runtime, patch.categoryIds);
   patch.title = string(patch.title, 'title', { max: 200 });
-  patch.name = string(patch.name, 'name', { max: 10 });
   patch.primaryImage = string(patch.primaryImage, 'primaryImage', { max: 1024 });
   patch.secondaryImage = patch.secondaryImage === undefined ? current?.secondaryImage || '' : optionalString(patch.secondaryImage, 'secondaryImage', { max: 1024 }) || '';
   assert(Array.isArray(patch.detailImages) && patch.detailImages.length >= 1 && patch.detailImages.length <= 6, { field: 'detailImages', min: 1, max: 6 });
@@ -231,39 +231,13 @@ async function removeSkuFromProductSpec(runtime, sku) {
   await products.doc(String(product._id || reference)).update({ specList, updatedAt: now() });
 }
 
-async function firstActiveChildId(runtime, parentId) {
-  const children = await allMatching(col(runtime, COLLECTIONS.categories), { parentId, status: STATUS.active });
-  children.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || ''))
-    || String(a._id || a.id).localeCompare(String(b._id || b.id)));
-  return children.length ? String(children[0]._id || children[0].id) : '';
-}
-
-async function moveParentProductsToFirstChild(runtime, parentId) {
-  const firstChildId = await firstActiveChildId(runtime, parentId);
-  if (!firstChildId) return;
-  const products = col(runtime, COLLECTIONS.products);
-  const matches = await allMatching(products, { categoryIds: parentId });
-  for (const product of matches) {
-    const currentId = product.categoryIds?.[0];
-    if (String(currentId) !== parentId) continue;
-    await products.doc(product._id).update({ categoryIds: [firstChildId], updatedAt: now() });
-  }
-}
-
 async function validProductCategoryIds(runtime, value) {
   assert(Array.isArray(value) && value.length <= 1, { field: 'categoryIds', max: 1 });
   if (!value.length) return [];
   const id = string(value[0], 'categoryIds.0', { max: 128 });
-  const categories = col(runtime, COLLECTIONS.categories);
-  const category = await getDoc(categories, id, false);
-  assert(category?.status === STATUS.active, { field: 'categoryIds.0' });
-  if (category.parentId) {
-    const parent = await getDoc(categories, String(category.parentId), false);
-    assert(parent?.status === STATUS.active && !parent.parentId, { field: 'categoryIds.0' });
-  } else {
-    const firstChildId = await firstActiveChildId(runtime, id);
-    if (firstChildId) return [firstChildId];
-  }
+  const categories = await all(col(runtime, COLLECTIONS.categories));
+  const byId = new Map(categories.map((item) => [categoryId(item), item]));
+  assert(categoryLevel(byId.get(id), byId) === 3 && Boolean(byId.get(id).image), { field: 'categoryIds.0' });
   return [id];
 }
 
@@ -284,32 +258,36 @@ async function categoryAction(runtime, data, action, collection) {
       ? await getDoc(collection, string(data.id, 'id', { max: 128 }), true)
       : null;
     const parentId = data.parentId === undefined ? existing?.parentId || null : data.parentId ? string(data.parentId, 'parentId', { max: 128 }) : null;
-    const parent = parentId ? await getDoc(collection, parentId, false) : null;
-    if (parentId) assert(parent?.status === STATUS.active && !parent.parentId && String(parent._id || parent.id) !== String(existing?._id || existing?.id), { field: 'parentId' });
-    if (existing) assert(Boolean(existing.parentId) === Boolean(parentId), { field: 'parentId' });
-    const name = string(data.name === undefined ? existing?.name : data.name, 'name', { max: 80 });
+    const categories = await all(collection);
+    const byId = new Map(categories.map((item) => [categoryId(item), item]));
+    const parentLevel = parentId ? categoryLevel(byId.get(parentId), byId) : 0;
+    if (parentId) assert(parentLevel > 0 && parentLevel < 3 && parentId !== categoryId(existing), { field: 'parentId' });
+    const level = parentLevel + 1;
+    if (existing) {
+      assert(existing.status === STATUS.active, { field: 'id' });
+      const previousLevel = categoryLevel(existing, byId) || Number(existing.level) || (existing.parentId ? 2 : 1);
+      assert(previousLevel === level, { field: 'parentId' });
+    }
+    const name = string(data.name === undefined ? existing?.name : data.name, 'name', { max: 5 });
     const siblings = await allMatching(collection, { parentId, status: STATUS.active });
     assert(!siblings.some((item) => String(item._id || item.id) !== String(existing?._id || '') && item.name === name), { field: 'name' });
     const sort = existing?.sort ?? (siblings.length ? Math.max(...siblings.map((item) => Number(item.sort) || 0)) + 1 : 0);
     const image = data.image === undefined ? existing?.image || '' : data.image ? string(data.image, 'image', { max: 512 }) : '';
-    assert(!image || Boolean(parentId), { field: 'image' });
-    const patch = { name, parentId, level: parentId ? 2 : 1, sort, image, updatedAt: now() };
+    assert((!image || level > 1) && (level !== 3 || Boolean(image)), { field: 'image' });
+    const patch = { name, parentId, level, sort, image, updatedAt: now() };
     if (existing) {
       await collection.doc(String(existing._id || existing.id)).update(patch);
-      if (parentId) await moveParentProductsToFirstChild(runtime, parentId);
       return { ...existing, ...patch };
     }
     const item = { ...patch, status: STATUS.active, createdAt: patch.updatedAt };
     const result = await collection.add(item);
-    if (parentId) await moveParentProductsToFirstChild(runtime, parentId);
     return { ...item, _id: result.id || result._id };
   }
   if (!action.endsWith('.delete')) throw errorFrom('INVALID_ARGUMENT', { field: 'action' });
   const id = string(data.id, 'id', { max: 128 });
   const existing = await getDoc(collection, id, !action.endsWith('.delete'));
   if (!existing) return { _id: id, deleted: true };
-  const descendants = !existing.parentId ? await allMatching(collection, { parentId: id }) : [];
-  const ids = [id, ...descendants.map((item) => String(item._id || item.id))];
+  const ids = descendantIds(await all(collection), id);
   const products = col(runtime, COLLECTIONS.products);
   const affectedProducts = new Map();
   for (const categoryId of ids) {
@@ -401,11 +379,10 @@ async function catalogAction(runtime, data, action) {
     const timestamp = now();
     let item;
     if (entity === 'categories') item = { ...allowedFields(data, ['name', 'parentId', 'level', 'sort', 'icon', 'description']), status: statusValue(data.status, STATUS.active) };
-    else if (entity === 'products') item = { ...allowedFields(data, ['spuId', 'title', 'name', 'subtitle', 'primaryImage', 'secondaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList']), status: statusValue(data.status, STATUS.active) };
+    else if (entity === 'products') item = { ...allowedFields(data, ['spuId', 'title', 'subtitle', 'primaryImage', 'secondaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList']), status: statusValue(data.status, STATUS.active) };
     else item = { ...allowedFields(data, ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity']), stockQuantity: integer(data.stockQuantity === undefined ? 999 : data.stockQuantity, 'stockQuantity', { min: 0 }), soldQuantity: integer(data.soldQuantity === undefined ? 0 : data.soldQuantity, 'soldQuantity', { min: 0 }) };
     item.createdAt = timestamp;
     item.updatedAt = timestamp;
-    if (entity === 'products') item.name = string(item.name, 'name', { max: 10 });
     if (entity === 'products' && item.secondaryImage !== undefined) item.secondaryImage = optionalString(item.secondaryImage, 'secondaryImage', { max: 1024 }) || '';
     if (entity === 'products' && item.categoryIds !== undefined) {
       item.categoryIds = await validProductCategoryIds(runtime, item.categoryIds);
@@ -449,10 +426,9 @@ async function catalogAction(runtime, data, action) {
   const fields = entity === 'categories'
     ? ['name', 'parentId', 'level', 'sort', 'icon', 'description', 'status']
     : entity === 'products'
-      ? ['spuId', 'title', 'name', 'subtitle', 'primaryImage', 'secondaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList', 'status']
+      ? ['spuId', 'title', 'subtitle', 'primaryImage', 'secondaryImage', 'images', 'detailImages', 'categoryIds', 'sort', 'minSalePrice', 'maxSalePrice', 'minLinePrice', 'maxLinePrice', 'tags', 'description', 'specList', 'status']
       : ['skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice', 'stockQuantity', 'weight', 'volume', 'soldQuantity'];
   const patch = allowedFields(data, fields);
-  if (entity === 'products' && patch.name !== undefined) patch.name = string(patch.name, 'name', { max: 10 });
   if (entity === 'products' && patch.secondaryImage !== undefined) patch.secondaryImage = optionalString(patch.secondaryImage, 'secondaryImage', { max: 1024 }) || '';
   if (entity === 'products' && patch.categoryIds !== undefined) patch.categoryIds = await validProductCategoryIds(runtime, patch.categoryIds);
   if (patch.status) patch.status = statusValue(patch.status);

@@ -13,7 +13,7 @@ export function ProductCoverPicker({ images, disabled, onSelect, onChange, rende
   const replaceInput = useRef<HTMLInputElement>(null);
   const replaceIndex = useRef(0);
   return <div className="product-cover-field" role="group" aria-label="封面图片">
-    <div className="product-cover-heading"><strong>封面图片（1:1）</strong><small>副封面用于分类页显示，未设置则使用主封面</small></div>
+    <div className="product-cover-heading"><strong>封面图片（1:1）</strong></div>
     <div className="image-file-picker">
       <button type="button" disabled={disabled || images.length >= 2} onClick={() => addInput.current?.click()}>选择文件</button>
       <span>{images.length ? `已上传 ${images.length}/2 张` : '未选择文件'}</span>

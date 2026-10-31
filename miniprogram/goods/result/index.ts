@@ -71,7 +71,7 @@ Page({
       {
         keywords: keyword,
         categoryId: decode(categoryId),
-        searchInput: keyword,
+        searchInput: keyword || decode(categoryName),
         searchTitle: keyword || decode(categoryName) || '搜索',
       },
       () => {
@@ -199,10 +199,14 @@ Page({
     this.init(false);
   },
 
-  gotoGoodsDetail(e) {
-    const { index } = e.detail;
-    const { spuId } = this.data.goodsList[index];
-    navigateToGoodsDetail(`/goods/details/index?spuId=${spuId}`);
+  navToConfiguredProduct({ currentTarget }) {
+    const productId = currentTarget.dataset.productId;
+    if (productId) navigateToGoodsDetail(`/goods/details/index?spuId=${encodeURIComponent(productId)}`);
+  },
+
+  addFeedProductToCart({ currentTarget }) {
+    const productId = currentTarget.dataset.productId;
+    if (productId) navigateToGoodsDetail(`/goods/details/index?spuId=${encodeURIComponent(productId)}&skuAction=addCart`);
   },
 
   handleFilterChange(e) {

@@ -1,3 +1,5 @@
+<import src="../../components/gift-card/index.wxml" />
+
 <view class="goods-list-page">
   <view class="goods-list-header">
       <t-navbar
@@ -82,14 +84,11 @@
   >
     <view class="goods-list-container">
     <view class="category-goods-list" wx:if="{{goodsList.length}}">
-      <goods-list
-        wr-class="wr-goods-list goods-list-white"
-        layout="horizontal"
-        goodsList="{{goodsList}}"
-        showAddCart="{{false}}"
-        card-style="white"
-        bind:click="gotoGoodsDetail"
-      />
+      <view class="home-gift-grid">
+        <block wx:for="{{goodsList}}" wx:key="spuId">
+          <template is="gift-card" data="{{product: item}}" />
+        </block>
+      </view>
     </view>
     <view class="goods-list-empty" wx:if="{{hasLoaded && !loading && goodsList.length === 0 && loadMoreStatus !== 3}}">暂无</view>
     <load-more

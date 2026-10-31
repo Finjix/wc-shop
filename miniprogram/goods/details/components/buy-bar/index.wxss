@@ -98,7 +98,7 @@
 }
 
 .bar-separately {
-  background: #F0ECE4;
+  background: #f2f2f2;
   color: #695941;
   border-radius: 40rpx 0 0 40rpx;
 }

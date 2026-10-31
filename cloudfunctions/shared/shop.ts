@@ -10,6 +10,7 @@ const { HOME_CONFIG_SLOT, productIds } = require('./home-config');
 const { readHomeFeed } = require('./home-feed');
 const { searchTerms, matchesProductSearch } = require('./product-search');
 const { skuBelongsToProduct } = require('./product-specs');
+const { categoryId, categoryLevel, descendantIds } = require('./category-tree');
 const { requireUser } = require('./auth');
 const { getTempFileURLs } = require('./storage');
 const { processStagedImage } = require('./image-upload');
@@ -68,7 +69,7 @@ async function getActiveProduct(runtime, id, required) {
 function publicProduct(product) {
   if (!product) return product;
   return pick(product, [
-    '_id', 'spuId', 'title', 'name', 'subtitle', 'description', 'primaryImage', 'secondaryImage', 'images', 'detailImages',
+    '_id', 'spuId', 'title', 'subtitle', 'description', 'primaryImage', 'secondaryImage', 'images', 'detailImages',
     'categoryIds', 'tags', 'brand', 'storeId', 'storeName', 'sort', 'minSalePrice', 'maxSalePrice',
     'minLinePrice', 'maxLinePrice', 'soldQuantity', 'status', 'createdAt',
     'updatedAt', 'specList', 'video',
@@ -104,7 +105,17 @@ async function readCategories(runtime, data) {
 async function readProducts(runtime, data) {
   const paging = page(data);
   const where = { status: STATUS.active };
-  if (data.categoryId) where.categoryIds = string(data.categoryId, 'categoryId', { max: 128 });
+  let categoryFilter;
+  if (data.categoryId) {
+    const id = string(data.categoryId, 'categoryId', { max: 128 });
+    const categories = await all(collection(runtime, COLLECTIONS.categories), { status: STATUS.active });
+    const byId = new Map(categories.map((item) => [categoryId(item), item]));
+    if (!categoryLevel(byId.get(id), byId)) return { items: [], page: paging.page, pageSize: paging.pageSize, total: 0 };
+    const ids = descendantIds(categories, id);
+    if (ids.length === 1) where.categoryIds = id;
+    else if (runtime.db.command?.in && ids.length <= 100) where.categoryIds = runtime.db.command.in(ids);
+    else categoryFilter = new Set(ids);
+  }
   const minPrice = data.minPrice === undefined || data.minPrice === '' ? undefined : Number(data.minPrice);
   const maxPrice = data.maxPrice === undefined || data.maxPrice === '' ? undefined : Number(data.maxPrice);
   const command = runtime.db.command;
@@ -115,10 +126,11 @@ async function readProducts(runtime, data) {
   const keyword = typeof data.keyword === 'string' && !data.keyword.trim()
     ? '' : data.keyword ? string(data.keyword, 'keyword', { max: 80 }) : '';
   const sort = Number(data.sort);
-  if (keyword || sort === 3) {
+  if (keyword || sort === 3 || categoryFilter) {
     // Cross-field search and SKU ordering must run before pagination.
     let products = await all(collection(runtime, COLLECTIONS.products), where);
-    products = products.filter((item) => (!Number.isFinite(minPrice) || Number(item.minSalePrice) >= minPrice)
+    products = products.filter((item) => (!categoryFilter || (item.categoryIds || []).some((id) => categoryFilter.has(String(id))))
+      && (!Number.isFinite(minPrice) || Number(item.minSalePrice) >= minPrice)
       && (!Number.isFinite(maxPrice) || Number(item.minSalePrice) <= maxPrice));
     const byRef = new Map();
     products.forEach((product) => {

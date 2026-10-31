@@ -225,7 +225,7 @@ export function OverviewPage() {
 }
 
 const emptyProduct: ProductDraft = {
-  title: '', name: '', categoryId: '', primaryImage: '', secondaryImage: '', detailImages: [],
+  title: '', categoryId: '', primaryImage: '', secondaryImage: '', detailImages: [],
 };
 
 const PRODUCT_LIST_PAGE_SIZE = 7;
@@ -394,9 +394,9 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const categorySort = (a: Category, b: Category) => Number(a.sort || 0) - Number(b.sort || 0) || categoryIdOf(a).localeCompare(categoryIdOf(b));
   const categoryOptions = categoryRows.filter((category) => !category.parentId).sort(categorySort).flatMap((parent) => {
     const children = categoryRows.filter((category) => String(category.parentId || '') === categoryIdOf(parent)).sort(categorySort);
-    return children.length
-      ? children.map((child) => ({ id: categoryIdOf(child), label: `${parent.name}-${child.name}` }))
-      : [{ id: categoryIdOf(parent), label: parent.name }];
+    return children.flatMap((child) => categoryRows
+      .filter((category) => String(category.parentId || '') === categoryIdOf(child)).sort(categorySort)
+      .map((leaf) => ({ id: categoryIdOf(leaf), label: `${parent.name}-${child.name}-${leaf.name}` })));
   });
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -436,7 +436,6 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     setDraft(product ? {
       ...emptyProduct,
       title: product.title || '',
-      name: product.name || '',
       categoryId: String(product.categoryIds?.[0] || ''),
       primaryImage: product.primaryImage || product.images?.[0] || '',
       secondaryImage: product.secondaryImage || '',
@@ -571,7 +570,6 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     const fail = async (message: string) => { await MessagePlugin.warning(message); };
     if (variants.some((variant) => variant.isSecondary && !variant.secondName.trim())) { await fail('请填写具体二级规格，或删除空的二级规格'); return; }
     if (!draft.title.trim()) { await fail('请填写商品标题'); return; }
-    if (!draft.name.trim() || draft.name.trim().length > 10) { await fail('请填写商品名称（最多 10 个字）'); return; }
     const groupImages = new Map(variantGroups.map(({ id, items }) => [id, items.find((item) => item.skuImage)?.skuImage || '']));
     const cleaned = variants.map((variant) => ({ ...variant, name: variant.name.trim(), secondName: variant.secondName.trim(), price: variant.price.trim(), skuImage: groupImages.get(variant.groupId) || '' }));
     const hasSecondSpec = cleaned.some((variant) => variant.secondName);
@@ -683,7 +681,6 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     </>}{editorMode && routeEditLoading && <LoadingState />}
     {editorOpen ? <Panel className="editor-panel"><div className="product-editor-actions floating-save-actions"><Button theme="primary" loading={busy || variantsLoading || Boolean(uploading)} disabled={!editorDirty || busy || variantsLoading || Boolean(uploading)} onClick={() => void save()}>保存</Button><Button variant="outline" disabled={busy || Boolean(uploading)} onClick={cancelEditor}>取消</Button></div><div className="form-grid">
        <div className="product-basic-fields"><Field label="商品标题"><Input value={draft.title} onChange={(value) => setValue('title', value)} placeholder="请输入商品标题" /></Field>
-       <Field label="商品名称" labelHint="用于分类页显示"><Input value={draft.name} onChange={(value) => setValue('name', value)} placeholder="请输入商品名称" maxlength={10} showLimitNumber /></Field>
        <Field label="分类" fileUpload hint={categoriesError || undefined}><CategoryPicker value={draft.categoryId} onChange={(id) => setValue('categoryId', id)} options={categoryOptions} disabled={categoriesLoading || Boolean(categoriesError)} /></Field></div>
        <div className="variant-field"><strong>商品规格</strong>
          {variantGroups.map(({ id, items, first }) => {

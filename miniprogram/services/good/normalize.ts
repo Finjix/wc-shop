@@ -19,7 +19,10 @@ export function normalizeCategoryList(result) {
     || String(left.createdAt || left._id).localeCompare(String(right.createdAt || right._id));
   return active.filter((item) => !item.parentId).sort(sort).map((parent) => ({
     ...parent,
-    children: active.filter((item) => String(item.parentId) === String(parent._id)).sort(sort),
+    children: active.filter((item) => String(item.parentId) === String(parent._id)).sort(sort).map((child) => ({
+      ...child,
+      children: active.filter((item) => String(item.parentId) === String(child._id)).sort(sort),
+    })),
   }));
 }
 

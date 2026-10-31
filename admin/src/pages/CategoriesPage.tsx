@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBlocker } from 'react-router-dom';
 import { Button, Input, MessagePlugin } from 'tdesign-react';
 import { ChevronDownIcon, ChevronUpIcon, DeleteIcon, EditIcon, ImageIcon } from 'tdesign-icons-react';
@@ -8,13 +8,29 @@ import { useDraftImages } from '../lib/useDraftImages';
 import { useBrowserLeaveWarning } from '../lib/useBrowserLeaveWarning';
 import { useConfirm } from '../components/ConfirmProvider';
 import type { Category, ListResult } from '../types';
-import { ErrorState, LoadingState, Panel, Table } from '../components/Ui';
+import { ErrorState, LoadingState, Panel } from '../components/Ui';
 
-const idOf = (row: Category) => String(row._id || row.id || '');
+const idOf = (row?: Category) => String(row?._id || row?.id || '');
 const sortCategories = (a: Category, b: Category) => Number(a.sort || 0) - Number(b.sort || 0)
   || String(a.createdAt || idOf(a)).localeCompare(String(b.createdAt || idOf(b)));
 const isDraftId = (id: string) => id.startsWith('draft-category-');
 const categorySnapshot = (items: Category[]) => JSON.stringify(items.map((item) => [idOf(item), item.name, item.parentId || null, item.sort ?? null, item.image || '']));
+const levelNames = ['一级类别', '二级类别', '三级类别'];
+const CATEGORY_NAME_LIMIT = 5;
+
+function levelOf(item: Category, byId: Map<string, Category>) {
+  const visited = new Set<string>();
+  let current: Category | undefined = item;
+  let level = 0;
+  while (current) {
+    const id = idOf(current);
+    if (visited.has(id) || ++level > 3) return 0;
+    visited.add(id);
+    if (!current.parentId) return level;
+    current = byId.get(String(current.parentId));
+  }
+  return 0;
+}
 
 function CategoryImagePreview({ image, name }: { image: string; name: string }) {
   const [source, setSource] = useState('');
@@ -47,12 +63,10 @@ export function CategoriesPage() {
   const [busy, setBusy] = useState(false);
   const [uploadingId, setUploadingId] = useState('');
   const [selectedParentId, setSelectedParentId] = useState('');
-  const [newParentName, setNewParentName] = useState('');
-  const [newChildName, setNewChildName] = useState('');
+  const [selectedChildId, setSelectedChildId] = useState('');
+  const [newNames, setNewNames] = useState(['', '', '']);
   const [editingId, setEditingId] = useState('');
   const [editingName, setEditingName] = useState('');
-  const [reparentingId, setReparentingId] = useState('');
-  const [newParentId, setNewParentId] = useState('');
   const operationRef = useRef(false);
   const editingToggleRef = useRef('');
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -61,12 +75,16 @@ export function CategoriesPage() {
   const dirty = !loading && (Boolean(uploadingId) || categorySnapshot(rows) !== categorySnapshot(savedRows)
     || Boolean(editingId && editingName.trim() !== rows.find((item) => idOf(item) === editingId)?.name));
   const blocker = useBlocker(dirty);
-  useBrowserLeaveWarning(dirty || busy || draftImages.processing || Boolean(newParentName.trim() || newChildName.trim()));
-
-  const parents = useMemo(() => rows.filter((row) => !row.parentId), [rows]);
+  useBrowserLeaveWarning(dirty || busy || draftImages.processing || newNames.some((name) => Boolean(name.trim())));
+  const locked = busy || Boolean(uploadingId);
+  const parents = rows.filter((row) => !row.parentId).sort(sortCategories);
   const parent = parents.find((row) => idOf(row) === selectedParentId) || parents[0];
-  const children = rows.filter((row) => parent && String(row.parentId || '') === idOf(parent));
-  const orphans = rows.filter((row) => row.parentId && !parents.some((item) => idOf(item) === String(row.parentId)));
+  const children = rows.filter((row) => parent && String(row.parentId || '') === idOf(parent)).sort(sortCategories);
+  const child = children.find((row) => idOf(row) === selectedChildId) || children[0];
+  const leaves = rows.filter((row) => child && String(row.parentId || '') === idOf(child)).sort(sortCategories);
+  const byId = new Map(rows.map((row) => [idOf(row), row]));
+  const orphans = rows.filter((row) => !levelOf(row, byId));
+  const groups = [parents, children, leaves];
 
   useEffect(() => {
     let active = true;
@@ -76,40 +94,44 @@ export function CategoriesPage() {
     return () => { active = false; };
   }, []);
 
-  const create = (level: 'parent' | 'child') => {
-    const name = (level === 'parent' ? newParentName : newChildName).trim();
+  const create = (index: number) => {
+    const name = newNames[index].trim();
     if (!name) { void MessagePlugin.warning('请输入分类名称'); return; }
-    if (level === 'child' && !parent) { void MessagePlugin.warning('请先新增一级类别'); return; }
-    const parentId = level === 'parent' ? null : idOf(parent);
+    if (name.length > CATEGORY_NAME_LIMIT) { void MessagePlugin.warning(`${levelNames[index]}名称最多 ${CATEGORY_NAME_LIMIT} 个字`); return; }
+    const ancestor = index === 1 ? parent : child;
+    if (index > 0 && !ancestor) { void MessagePlugin.warning(`请先新增${levelNames[index - 1]}`); return; }
+    const parentId = index === 0 ? null : idOf(ancestor);
     if (rows.some((item) => (item.parentId || null) === parentId && item.name === name)) { void MessagePlugin.warning('同级分类名称不能重复'); return; }
     const id = `draft-category-${Date.now()}-${++draftIdRef.current}`;
-    const siblings = rows.filter((item) => (item.parentId || null) === parentId);
+    const siblings = groups[index];
     const sort = siblings.length ? Math.max(...siblings.map((item) => Number(item.sort) || 0)) + 1 : 0;
-    setRows((old) => [...old, { _id: id, name, parentId, sort, createdAt: new Date().toISOString() }].sort(sortCategories));
-    if (level === 'parent') { setSelectedParentId(id); setNewParentName(''); }
-    else setNewChildName('');
+    setRows((old) => [...old, { _id: id, name, parentId, level: index + 1, sort, createdAt: new Date().toISOString() }].sort(sortCategories));
+    if (index === 0) { setSelectedParentId(id); setSelectedChildId(''); }
+    if (index === 1) setSelectedChildId(id);
+    setNewNames((old) => old.map((value, position) => position === index ? '' : value));
   };
   const finishRename = (target: Category) => {
     const name = editingName.trim();
     setEditingId('');
     setEditingName('');
     if (!name) { void MessagePlugin.warning('分类名称不能为空，已保留原名称'); return; }
+    const max = CATEGORY_NAME_LIMIT;
+    if (name.length > max) { void MessagePlugin.warning(`分类名称最多 ${max} 个字，已保留原名称`); return; }
     if (rows.some((item) => idOf(item) !== idOf(target) && (item.parentId || null) === (target.parentId || null) && item.name === name)) { void MessagePlugin.warning('同级分类名称不能重复，已保留原名称'); return; }
     setRows((old) => old.map((row) => idOf(row) === idOf(target) ? { ...row, name } : row));
   };
   const remove = async (target: Category) => {
-    if (busy || !await confirm(`确定删除分类“${target.name}”吗？`, { closeBtn: false })) return;
-    setRows((old) => old.filter((row) => idOf(row) !== idOf(target) && String(row.parentId || '') !== idOf(target)));
-    if (selectedParentId === idOf(target)) setSelectedParentId('');
+    if (locked || !await confirm(`确定删除分类“${target.name}”${levelOf(target, byId) === 3 ? '' : '及其全部下级类别'}吗？`, { closeBtn: false })) return;
+    setRows((old) => {
+      const removed = new Set([idOf(target)]);
+      let count;
+      do {
+        count = removed.size;
+        old.forEach((row) => { if (removed.has(String(row.parentId || ''))) removed.add(idOf(row)); });
+      } while (removed.size !== count);
+      return old.filter((row) => !removed.has(idOf(row)));
+    });
     setEditingId('');
-    setReparentingId('');
-  };
-  const reparent = (target: Category) => {
-    if (!newParentId) { void MessagePlugin.warning('请选择一级类别'); return; }
-    if (rows.some((item) => idOf(item) !== idOf(target) && item.parentId === newParentId && item.name === target.name)) { void MessagePlugin.warning('同级分类名称不能重复'); return; }
-    setRows((old) => old.map((row) => idOf(row) === idOf(target) ? { ...row, parentId: newParentId } : row));
-    setSelectedParentId(newParentId);
-    setReparentingId('');
   };
   const move = (items: Category[], index: number, direction: -1 | 1) => {
     const next = [...items];
@@ -137,12 +159,29 @@ export function CategoriesPage() {
     setEditingId('');
     setEditingName('');
     if (editingId && !editedName) { void MessagePlugin.warning('分类名称不能为空，已保留原名称'); return false; }
+    const draftById = new Map(draft.map((row) => [idOf(row), row]));
     const names = new Set<string>();
     for (const item of draft) {
-      if (!item.name.trim()) { void MessagePlugin.warning('请输入分类名称'); return false; }
+      const level = levelOf(item, draftById);
+      if (!level) { void MessagePlugin.warning('请先删除父类别已失效的分类'); return false; }
+      const max = CATEGORY_NAME_LIMIT;
+      if (!item.name.trim() || item.name.trim().length > max) { void MessagePlugin.warning(`${levelNames[level - 1]}“${item.name}”的名称需为 1～${max} 个字`); return false; }
+      if (level === 3 && !item.image) { void MessagePlugin.warning(`请设置三级类别“${item.name}”的类别图片`); return false; }
       const key = `${item.parentId || ''}\0${item.name}`;
       if (names.has(key)) { void MessagePlugin.warning('同级分类名称不能重复'); return false; }
       names.add(key);
+    }
+    const ancestorsWithLeaves = new Set<string>();
+    for (const item of draft.filter((row) => levelOf(row, draftById) === 3)) {
+      const parentId = String(item.parentId);
+      ancestorsWithLeaves.add(parentId);
+      const parent = draftById.get(parentId);
+      if (parent?.parentId) ancestorsWithLeaves.add(String(parent.parentId));
+    }
+    const emptyCategory = draft.find((item) => levelOf(item, draftById) < 3 && !ancestorsWithLeaves.has(idOf(item)));
+    if (emptyCategory) {
+      void MessagePlugin.warning(`类别“${emptyCategory.name}”下必须至少包含一个三级类别`);
+      return false;
     }
     operationRef.current = true;
     setBusy(true);
@@ -150,27 +189,28 @@ export function CategoriesPage() {
       draft = await draftImages.images.upload(draft);
       const remaining = new Set(draft.map(idOf));
       const removed = savedRows.filter((item) => !remaining.has(idOf(item)));
-      const removedParents = new Set(removed.filter((item) => !item.parentId).map(idOf));
-      for (const item of removed.filter((item) => !item.parentId || !removedParents.has(String(item.parentId)))) {
+      const removedIds = new Set(removed.map(idOf));
+      for (const item of removed.filter((item) => !removedIds.has(String(item.parentId || '')))) {
         await adminApi.call('categories.delete', { id: idOf(item) });
       }
       const idMap = new Map<string, string>();
-      for (const item of draft.filter((row) => isDraftId(idOf(row)) && !row.parentId)) {
-        const created = await adminApi.call<Category>('categories.save', { name: item.name, parentId: null });
-        idMap.set(idOf(item), idOf(created));
-      }
       const original = new Map(savedRows.map((item) => [idOf(item), item]));
-      for (const item of draft.filter((row) => !isDraftId(idOf(row)))) {
-        const before = original.get(idOf(item));
-        if (before && (before.name !== item.name || (before.parentId || null) !== (item.parentId || null) || (before.image || '') !== (item.image || ''))) {
-          await adminApi.call('categories.save', { id: idOf(item), name: item.name, parentId: item.parentId ? idMap.get(String(item.parentId)) || item.parentId : null, image: item.image || '' });
+      // Save ancestors first so new second/third-level rows use real parent IDs.
+      for (const level of [1, 2, 3]) {
+        for (const item of draft.filter((row) => levelOf(row, draftById) === level)) {
+          const payload = { name: item.name.trim(), parentId: item.parentId ? idMap.get(String(item.parentId)) || item.parentId : null, image: item.image || '' };
+          if (isDraftId(idOf(item))) {
+            const created = await adminApi.call<Category>('categories.save', payload);
+            idMap.set(idOf(item), idOf(created));
+          } else {
+            const before = original.get(idOf(item));
+            if (before && (before.name !== item.name || (before.parentId || null) !== (item.parentId || null) || (before.image || '') !== (item.image || ''))) {
+              await adminApi.call('categories.save', { id: idOf(item), ...payload });
+            }
+          }
         }
       }
-      for (const item of draft.filter((row) => isDraftId(idOf(row)) && row.parentId)) {
-        const created = await adminApi.call<Category>('categories.save', { name: item.name, parentId: idMap.get(String(item.parentId)) || item.parentId, image: item.image || '' });
-        idMap.set(idOf(item), idOf(created));
-      }
-      for (const parentId of [null, ...draft.filter((item) => !item.parentId).map(idOf)]) {
+      for (const parentId of [null, ...draft.map(idOf)]) {
         const ids = draft.filter((item) => (item.parentId || null) === parentId)
           .sort(sortCategories).map((item) => idMap.get(idOf(item)) || idOf(item));
         if (ids.length) await adminApi.call('categories.reorder', { parentId: parentId ? idMap.get(parentId) || parentId : null, ids });
@@ -179,8 +219,7 @@ export function CategoriesPage() {
       setRows(fresh);
       setSavedRows(fresh);
       setSelectedParentId((old) => idMap.get(old) || old);
-      setEditingId('');
-      setEditingName('');
+      setSelectedChildId((old) => idMap.get(old) || old);
       setError('');
       draftImages.images.commit(fresh);
       void MessagePlugin.success('分类设置已保存');
@@ -192,12 +231,11 @@ export function CategoriesPage() {
         const fresh = await readCategories();
         setRows(fresh);
         setSavedRows(fresh);
-        setEditingId('');
       } catch { void MessagePlugin.error('分类列表刷新失败，请重新打开页面查看已保存的内容'); }
       return false;
     } finally { operationRef.current = false; setBusy(false); }
   };
-  const editActions = (target: Category) => <div className="category-manager-actions"><Button size="small" variant="text" icon={<EditIcon />} title="改名" aria-label={`改名 ${target.name}`} disabled={busy} onPointerDown={() => { editingToggleRef.current = editingId === idOf(target) ? idOf(target) : ''; }} onPointerCancel={() => { editingToggleRef.current = ''; }} onClick={() => {
+  const editActions = (target: Category) => <div className="category-manager-actions"><Button size="small" variant="text" icon={<EditIcon />} title="改名" aria-label={`改名 ${target.name}`} disabled={locked} onPointerDown={() => { editingToggleRef.current = editingId === idOf(target) ? idOf(target) : ''; }} onPointerCancel={() => { editingToggleRef.current = ''; }} onClick={() => {
     const wasEditing = editingToggleRef.current === idOf(target);
     editingToggleRef.current = '';
     if (wasEditing || editingId === idOf(target)) {
@@ -206,58 +244,50 @@ export function CategoriesPage() {
     }
     setEditingId(idOf(target));
     setEditingName(target.name);
-  }} /><Button size="small" variant="text" icon={<DeleteIcon />} title="删除" aria-label={`删除 ${target.name}`} disabled={busy} onClick={() => void remove(target)} /></div>;
-  const moveActions = (items: Category[], index: number) => <div className="category-manager-move"><Button size="small" variant="text" icon={<ChevronUpIcon />} title="上移" aria-label={`上移 ${items[index].name}`} disabled={busy || index === 0} onClick={() => void move(items, index, -1)} /><Button size="small" variant="text" icon={<ChevronDownIcon />} title="下移" aria-label={`下移 ${items[index].name}`} disabled={busy || index === items.length - 1} onClick={() => void move(items, index, 1)} /></div>;
+  }} /><Button size="small" variant="text" icon={<DeleteIcon />} title="删除" aria-label={`删除 ${target.name}`} disabled={locked} onClick={() => void remove(target)} /></div>;
+  const moveActions = (items: Category[], index: number) => <div className="category-manager-move"><Button size="small" variant="text" icon={<ChevronUpIcon />} title="上移" aria-label={`上移 ${items[index].name}`} disabled={locked || index === 0} onClick={() => move(items, index, -1)} /><Button size="small" variant="text" icon={<ChevronDownIcon />} title="下移" aria-label={`下移 ${items[index].name}`} disabled={locked || index === items.length - 1} onClick={() => move(items, index, 1)} /></div>;
   const nameCell = (target: Category) => editingId === idOf(target)
-    ? <Input className="category-manager-name-edit" value={editingName} onChange={setEditingName} onBlur={() => finishRename(target)} autofocus aria-label={`分类名称 ${target.name}`} />
+    ? <Input className="category-manager-name-edit" value={editingName} onChange={setEditingName} onBlur={() => finishRename(target)} autofocus maxlength={CATEGORY_NAME_LIMIT} showLimitNumber disabled={locked} aria-label={`分类名称 ${target.name}`} />
     : <strong>{target.name}</strong>;
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} onRetry={() => { setLoading(true); void readCategories().then((items) => { setRows(items); setSavedRows(items); setError(''); }).catch((err: unknown) => setError(err instanceof Error ? err.message : '分类读取失败')).finally(() => setLoading(false)); }} />;
   return <>
-    <div className="floating-save-actions"><Button theme="primary" loading={busy} disabled={!dirty || busy || Boolean(uploadingId)} onClick={() => void save()}>保存</Button></div>
+    <div className="floating-save-actions"><Button theme="primary" loading={busy} disabled={!dirty || locked} onClick={() => void save()}>保存</Button></div>
     <div className="category-manager-columns">
-      <Panel>
-        <div className="panel-heading"><h3>一级类别</h3></div>
-        <div className="category-manager-add category-manager-add-primary"><div className="category-manager-name-input"><Input value={newParentName} onChange={setNewParentName} placeholder="例如：鞋靴" aria-label="一级类别名称" /></div><Button theme="primary" loading={busy} onClick={() => void create('parent')}>新增一级类别</Button></div>
-        <div className="category-manager-parent-list">
-          {parents.map((item, index) => <div key={idOf(item)} className={`category-manager-parent ${idOf(parent) === idOf(item) ? 'category-manager-selected' : ''}`}>
-            {editingId === idOf(item) ? nameCell(item) : <button type="button" className="category-manager-parent-select" aria-pressed={idOf(parent) === idOf(item)} onClick={() => { setSelectedParentId(idOf(item)); setEditingId(''); }}><strong>{item.name}</strong></button>}
-            {moveActions(parents, index)}
-            {editActions(item)}
-          </div>)}
-        </div>
-      </Panel>
-      <Panel>
-        <div className="panel-heading"><h3>二级类别</h3></div>
-        <div className="category-manager-add category-manager-add-primary"><div className="category-manager-name-input"><Input value={newChildName} onChange={setNewChildName} placeholder={parent ? `添加到${parent.name}` : '请先新增一级类别'} disabled={!parent} aria-label="二级类别名称" /></div><Button theme="primary" loading={busy} disabled={!parent} onClick={() => void create('child')}>新增二级类别</Button></div>
-        <div className="category-manager-parent-list">
-          {children.map((item, index) => <div key={idOf(item)} className="category-manager-parent category-manager-child-item">
-            <div className="category-manager-child-name">{nameCell(item)}</div>
-            {moveActions(children, index)}
-            <Button size="small" variant="text" className={item.image ? 'category-manager-has-image' : ''} icon={<ImageIcon />} title="上传分类封面（可选）" aria-label={`上传 ${item.name} 的分类封面（可选）`} disabled={busy || Boolean(uploadingId)} onClick={() => chooseImage(item)} />
-
-            {editActions(item)}
-            {item.image && <div className="category-manager-image-preview-row"><div className="category-manager-image-preview-wrap">
-              <button type="button" className="category-manager-image-preview-button" title="点击更换图片" aria-label={`更换 ${item.name} 的图片`} disabled={busy || Boolean(uploadingId)} onClick={() => chooseImage(item)}><CategoryImagePreview image={item.image} name={item.name} /></button>
-            </div>
-            <Button size="small" variant="text" className="category-manager-remove-image" title="移除图片" aria-label={`移除 ${item.name} 的图片`} disabled={busy || Boolean(uploadingId)} onClick={() => setRows((old) => old.map((row) => idOf(row) === idOf(item) ? { ...row, image: '' } : row))}>移除图片</Button>
-            </div>}
-          </div>)}
-        </div>
-        <input ref={imageInputRef} className="image-file-picker-input" type="file" accept={IMAGE_ACCEPT} aria-label="选择二级类别图片" onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = '';
-          if (file && imageTargetRef.current) void uploadImage(imageTargetRef.current, file);
-          imageTargetRef.current = null;
-        }} />
-      </Panel>
+      {groups.map((items, index) => {
+        const ancestor = index === 1 ? parent : child;
+        const enabled = index === 0 || Boolean(ancestor);
+        return <Panel key={index}>
+          <div className="panel-heading"><h3>{levelNames[index]}</h3></div>
+          <div className="category-manager-add category-manager-add-primary"><div className="category-manager-name-input"><Input value={newNames[index]} onChange={(value) => setNewNames((old) => old.map((name, position) => position === index ? value : name))} placeholder={index === 0 ? '例如：鞋靴' : ancestor ? `添加到${ancestor.name}` : `请先新增${levelNames[index - 1]}`} disabled={!enabled || locked} maxlength={CATEGORY_NAME_LIMIT} showLimitNumber aria-label={`${levelNames[index]}名称`} /></div><Button theme="primary" loading={busy} disabled={!enabled || locked} onClick={() => create(index)}>新增{levelNames[index]}</Button></div>
+          <div className="category-manager-parent-list">
+            {items.map((item, position) => {
+              const selected = index === 0 ? idOf(parent) === idOf(item) : index === 1 && idOf(child) === idOf(item);
+              return <div key={idOf(item)} className={`category-manager-parent category-manager-child-item ${selected ? 'category-manager-selected' : ''}`}>
+                <div className="category-manager-child-name">{index < 2 && editingId !== idOf(item)
+                  ? <button type="button" className="category-manager-parent-select" disabled={locked} aria-pressed={selected} onClick={() => { if (index === 0) { setSelectedParentId(idOf(item)); setSelectedChildId(''); } else setSelectedChildId(idOf(item)); setEditingId(''); }}><strong>{item.name}</strong></button>
+                  : nameCell(item)}
+                </div>
+                {moveActions(items, position)}
+                {index > 0 && <Button size="small" variant="text" className={item.image ? 'category-manager-has-image' : ''} icon={<ImageIcon />} title={index === 2 ? '上传类别图片（必填）' : '上传分类封面（可选）'} aria-label={`上传 ${item.name} 的类别图片`} disabled={locked} onClick={() => chooseImage(item)} />}
+                {editActions(item)}
+                {index > 0 && item.image && <div className="category-manager-image-preview-row"><div className="category-manager-image-preview-wrap">
+                  <button type="button" className="category-manager-image-preview-button" title="点击更换图片" aria-label={`更换 ${item.name} 的图片`} disabled={locked} onClick={() => chooseImage(item)}><CategoryImagePreview image={item.image} name={item.name} /></button>
+                </div></div>}
+              </div>;
+            })}
+          </div>
+        </Panel>;
+      })}
     </div>
-    {orphans.length > 0 && <Panel><div className="panel-heading"><h3>待整理分类</h3></div><p className="category-manager-note">这些分类的父分类已不存在。请选择新的一级类别，或删除。</p>
-      <Table minWidth={640}><thead><tr><th>分类名称</th><th>原父分类 ID</th><th>操作</th></tr></thead><tbody>
-        {orphans.map((item) => <tr key={idOf(item)}><td>{item.name}</td><td>{String(item.parentId)}</td><td><div className="category-manager-actions">{reparentingId === idOf(item) ? <><select value={newParentId} onChange={(event) => setNewParentId(event.target.value)}>{parents.map((parentItem) => <option key={idOf(parentItem)} value={idOf(parentItem)}>{parentItem.name}</option>)}</select><Button size="small" theme="primary" disabled={busy} onClick={() => reparent(item)}>确定归属</Button><Button size="small" variant="text" onClick={() => setReparentingId('')}>取消</Button></> : <Button size="small" variant="text" disabled={busy || !parents.length} onClick={() => { setReparentingId(idOf(item)); setNewParentId(idOf(parent || parents[0])); }}>重新归属</Button>}<Button size="small" variant="text" disabled={busy} onClick={() => remove(item)}>删除</Button></div></td></tr>)}
-      </tbody></Table>
-    </Panel>}
-    {blocker.state === 'blocked' && <div className="home-config-dialog-backdrop" role="presentation"><div className="home-config-dialog" role="alertdialog" aria-modal="true" aria-labelledby="category-unsaved-title"><h3 id="category-unsaved-title">分类设置尚未保存</h3><div className="home-config-dialog-actions"><Button variant="outline" disabled={busy} onClick={() => blocker.reset()}>继续编辑</Button><Button variant="outline" disabled={busy} onClick={() => blocker.proceed()}>放弃修改</Button><Button theme="primary" loading={busy} onClick={() => void save().then((saved) => { if (saved) blocker.proceed(); })}>保存并离开</Button></div></div></div>}
+    <input ref={imageInputRef} className="image-file-picker-input" type="file" accept={IMAGE_ACCEPT} disabled={locked} aria-label="选择类别图片" onChange={(event) => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (file && imageTargetRef.current) void uploadImage(imageTargetRef.current, file);
+      imageTargetRef.current = null;
+    }} />
+    {orphans.length > 0 && <Panel><div className="panel-heading"><h3>待整理分类</h3></div><p className="category-manager-note">这些分类的父类别已失效，请删除后按三级结构重新创建。</p>{orphans.map((item) => <div className="category-manager-parent" key={idOf(item)}><strong>{item.name}</strong>{editActions(item)}</div>)}</Panel>}
+    {blocker.state === 'blocked' && <div className="home-config-dialog-backdrop" role="presentation"><div className="home-config-dialog" role="alertdialog" aria-modal="true" aria-labelledby="category-unsaved-title"><h3 id="category-unsaved-title">分类设置尚未保存</h3><div className="home-config-dialog-actions"><Button variant="outline" disabled={locked} onClick={() => blocker.reset()}>继续编辑</Button><Button variant="outline" disabled={locked} onClick={() => blocker.proceed()}>放弃修改</Button><Button theme="primary" loading={busy} disabled={locked} onClick={() => void save().then((saved) => { if (saved) blocker.proceed(); })}>保存并离开</Button></div></div></div>}
   </>;
 }

@@ -175,7 +175,7 @@ select, textarea, .json-editor { width: 100%; border: 1px solid var(--line-stron
 select:focus, textarea:focus, .json-editor:focus { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
 .quick-form { display: flex; gap: 12px; align-items: flex-end; }
 .quick-form .field { flex: 1; max-width: 300px; }
-.category-manager-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.category-manager-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
 .category-manager-columns .panel { min-width: 0; }
 .category-manager-add { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin: 16px 0 22px; }
 .category-manager-name-input { width: min(300px, 100%); }

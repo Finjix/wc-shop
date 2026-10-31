@@ -4,8 +4,8 @@ import { request } from '../utils/api';
 import { normalizeSearchResult, toProductListPayload } from './normalize';
 import { resolveGoodsListImages } from './resolveImages';
 
-export async function fetchGoodsList(params = {}, imageOptions = {}) {
+export async function fetchGoodsList(params = {}) {
   const result = normalizeSearchResult(await request('products.list', toProductListPayload(params)));
-  return { ...result, spuList: await resolveGoodsListImages(result.spuList, imageOptions) };
+  return { ...result, spuList: await resolveGoodsListImages(result.spuList) };
 }
 // @ts-nocheck

@@ -52,7 +52,7 @@ page {
 .rating-option--selected {
   color: #695941;
   border-color: #695941;
-  background-color: #f5f1eb;
+  background-color: #f2f2f2;
 }
 
 .comment-card .textarea-container {

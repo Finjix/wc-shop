@@ -102,7 +102,7 @@
   .popup-sku-row__item.popup-sku-row__item--active {
   border: 2rpx solid #695941;
   color: #695941;
-  background: rgba(105, 89, 65, 0.18);
+  background: #f2f2f2;
 }
 
 .popup-sku-body
@@ -266,7 +266,7 @@
 }
 
 .popup-sku-actions .sku-operate .sku-operate-addCart {
-  background-color: #F0ECE4;
+  background-color: #f2f2f2;
   color: #695941;
   border-radius: 48rpx 0 0 48rpx;
 }

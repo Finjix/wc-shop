@@ -7,7 +7,7 @@
     "t-search": "../../components/tdesign/search/search",
     "t-input": "/goods/components/tdesign/input/input",
     "t-toast": "../../components/tdesign/toast/toast",
-    "goods-list": "/components/goods-list/index",
+    "price": "/components/price/index",
     "filter": "/goods/components/filter/index",
     "filter-popup": "/goods/components/filter-popup/index",
     "load-more": "/components/load-more/index",

@@ -41,7 +41,7 @@
 
 .own-rating-positive {
   color: #695941;
-  background-color: #f0ece4;
+  background-color: #f2f2f2;
 }
 
 .own-rating-negative {

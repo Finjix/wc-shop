@@ -2,10 +2,10 @@
 
 import { resolveImage } from '../utils/images';
 
-export function resolveGoodsListImages(items = [], { preferSecondary = false } = {}) {
+export function resolveGoodsListImages(items = []) {
   return Promise.all((Array.isArray(items) ? items : []).map(async (item) => {
     const [thumb, primaryImage] = await Promise.all([
-      resolveImage(preferSecondary ? item.secondaryImage || item.thumb : item.thumb),
+      resolveImage(item.thumb),
       resolveImage(item.primaryImage),
     ]);
     return {
@@ -17,13 +17,10 @@ export function resolveGoodsListImages(items = [], { preferSecondary = false } =
 }
 
 export function resolveCategoryListImages(list = []) {
-  return Promise.all(list.map(async (parent) => ({
-    ...parent,
-    image: await resolveImage(parent.image),
-    children: await Promise.all((parent.children || []).map(async (child) => ({
-      ...child,
-      image: await resolveImage(child.image),
-    }))),
+  return Promise.all(list.map(async (category) => ({
+    ...category,
+    image: await resolveImage(category.image),
+    children: await resolveCategoryListImages(category.children || []),
   })));
 }
 

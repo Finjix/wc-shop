@@ -49,6 +49,21 @@ async function main() {
     assert.equal((await fetch(`${url}/auth/login`, { method: 'POST', body: '{}' })).status, 404);
     await admin('admin.me', {}, 'INVALID_ARGUMENT');
     assert.equal(JSON.parse(fs.readFileSync(path.join(folder, '.local-backend.json'), 'utf8')).collections.adminMembers, undefined);
+    const root = await admin('categories.save', { name: '礼物' });
+    const second = await admin('categories.save', { name: '纪念品', parentId: root._id, image: 'banner.jpg' });
+    const leaf = await admin('categories.save', { name: '杯子', parentId: second._id, image: 'cup.jpg' });
+    const otherLeaf = await admin('categories.save', { name: '礼盒', parentId: second._id, image: 'box.jpg' });
+    await admin('categories.save', { name: '缺少图片', parentId: second._id }, 'INVALID_ARGUMENT');
+    await admin('products.update', { id: 'p1', categoryIds: [leaf._id] });
+    await admin('products.update', { id: 'p2', categoryIds: [otherLeaf._id] });
+    assert.equal((await shop('products.list', { categoryId: second._id, pageSize: 1 })).total, 2);
+    assert.equal((await shop('products.list', { categoryId: root._id })).items.length, 2);
+    assert.deepEqual((await shop('products.list', { categoryId: leaf._id })).items.map((item) => item._id), ['p1']);
+    assert.equal((await shop('products.list', { categoryId: 'missing' })).total, 0);
+    await admin('categories.delete', { id: root._id });
+    assert.equal((await shop('categories.list')).items.length, 0);
+    assert.deepEqual((await admin('products.get', { id: 'p1' })).categoryIds, []);
+    assert.equal((await admin('skus.get', { id: 's1' })).stockQuantity, 10);
     const input = { requestKey: 'http-partial', addressId: 'a1', address, items: [{ skuId: 's1', quantity: 3 }], useCart: false };
     const order = await shop('orders.create', input);
     assert.equal(order.status, 'paid'); assert.equal(order.payment.mode, 'simulated'); assert.equal(order.totalAmount, 300);
@@ -103,7 +118,7 @@ async function main() {
     assert.equal((await admin('orders.shipBatch', shipmentInput)).shipmentBatchId, shipment.shipmentBatchId);
     await shop('orders.confirmReceived', { orderId: batch.orderIds[0] });
     assert.equal((await shop('orders.detail', { orderId: batch.orderIds[1] })).status, 'shipped');
-  console.log('HTTP commerce acceptance passed: simulated payment, idempotency, owner checks, locked checkout address, partial refund, shipment, receipt, comment, return, repeat-safe stock restoration, per-SKU checkout and grouped batch shipping.');
+  console.log('HTTP commerce acceptance passed: three-level categories, required images, aggregate/leaf searches, safe cascade, simulated payment, idempotency, owner checks, locked checkout address, partial refund, shipment, receipt, comment, return, repeat-safe stock restoration, per-SKU checkout and grouped batch shipping.');
   } finally {
     server.kill();
     await new Promise(resolve => server.exitCode !== null ? resolve() : server.once('exit', resolve));

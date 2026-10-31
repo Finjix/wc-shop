@@ -90,7 +90,7 @@
 
 .specs-popup__option--active {
   border-color: var(--app-theme-color, #695941);
-  background: var(--app-theme-color-soft, #F0ECE4);
+  background: var(--app-theme-color-soft, #f2f2f2);
   color: var(--app-theme-text-color, #695941);
 }
 
