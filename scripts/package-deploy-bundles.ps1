@@ -195,6 +195,18 @@ try {
 
   $functionZip = Copy-FunctionPackage -Name 'wc-shop-function' -Entrypoint 'wc-shop-function-deploy-index.js'
 
+  # The IDE uploads one directory per function. Include the shared modules and
+  # package metadata beside index.js instead of uploading the source-only folder.
+  $ideFunctionRoot = [IO.Path]::GetFullPath((Join-Path $distRoot 'cloudfunctions\wc-shop-function'))
+  if (-not $ideFunctionRoot.StartsWith($resolvedDistRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "IDE function target escapes dist: $ideFunctionRoot"
+  }
+  if (Test-Path -LiteralPath $ideFunctionRoot) {
+    Remove-Item -LiteralPath $ideFunctionRoot -Recurse -Force
+  }
+  New-Item -ItemType Directory -Path (Split-Path -Parent $ideFunctionRoot) -Force | Out-Null
+  Copy-Item -LiteralPath (Join-Path $stageRoot 'wc-shop-function') -Destination $ideFunctionRoot -Recurse
+
   $staticStage = Join-Path $stageRoot 'wc-shop-admin-static'
   New-Item -ItemType Directory -Path $staticStage | Out-Null
   if (-not (Test-Path -LiteralPath (Join-Path $adminRoot 'dist\index.html'))) {
@@ -237,3 +249,4 @@ $releaseFiles = @('wc-shop-function.zip', 'wc-shop-admin-static.zip') | ForEach-
   ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $finalReleaseRoot 'release-manifest.json') -Encoding utf8
 Write-Output "function: $(Join-Path $finalReleaseRoot 'wc-shop-function.zip')  (Handler: index.main)"
 Write-Output "web:      $(Join-Path $finalReleaseRoot 'wc-shop-admin-static.zip')"
+Write-Output "IDE:      $ideFunctionRoot"

@@ -71,6 +71,10 @@ npm --prefix admin run dev -- --host 127.0.0.1 --port 5173
 
 本次审阅修正了类别保存按钮及售后状态展示的过期回归断言。`npm run check` 和全部 `test:*` 脚本通过；微信开发者工具云端模拟器验证了首页、分类、购物车、个人中心和订单列表，未复现红色业务异常，仍有开发者工具运行库预加载和性能提示。
 
+开发者工具的 `cloudfunctionRoot` 指向 `dist/cloudfunctions/`。先执行打包命令，再右键该目录下的 `wc-shop-function`，选择「上传并部署：云端安装依赖」。此目录含编译入口、共享模块、依赖清单和触发器配置；不要直接上传 `cloudfunctions/wc-shop-function/` 源码子目录。
+
+依赖补丁更新修复了云函数 `follow-redirects`、`qs` 及后台 Vite 的已知漏洞，也更新了本地检查工具的 `brace-expansion` 和 `js-yaml`。云函数与后台依赖审计通过；根目录的 ESLint 开发依赖仍有 `minimatch` 中危审计项，当前依赖链没有兼容修复，不包含在发布产物中。
+
 ```sh
 npm run check                         # lint、类型检查、后台构建
 npm run test:cloud                    # 服务端回归

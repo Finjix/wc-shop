@@ -1,4 +1,5 @@
 node_modules/
+dist/
 miniprogram_npm/
 miniprogram/**/components/tdesign/
 miniprogram/utils/image-processor/codec/
