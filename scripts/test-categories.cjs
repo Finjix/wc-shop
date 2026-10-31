@@ -170,30 +170,30 @@ async function testAdmin() {
   assert(warnings.some((message) => /一级类别名称最多 5 个字/.test(message)));
   assert(!nodes(tree).some((node) => node.props['aria-label'] === `删除 ${'名'.repeat(6)}`));
   await create('一', '鞋靴');
-  button('保存').props.onClick(); await tick(); render();
+  button('保存更改').props.onClick(); await tick(); render();
   assert(warnings.some((message) => /鞋靴.*至少包含一个三级类别/.test(message)), 'a root without third-level descendants cannot be saved');
   await create('二', '名'.repeat(6));
   assert(warnings.some((message) => /二级类别名称最多 5 个字/.test(message)));
   await create('二', '皮鞋');
   const warningCount = warnings.length;
-  button('保存').props.onClick(); await tick(); render();
+  button('保存更改').props.onClick(); await tick(); render();
   assert.equal(warnings.length, warningCount + 1, 'a two-level-only branch cannot be saved');
   await create('三', '名'.repeat(6));
   assert(warnings.some((message) => /三级类别名称最多 5 个字/.test(message)));
   await create('三', '男鞋');
   assert.equal(calls.filter((item) => item.action === 'categories.save').length, 0, 'draft edits must not save immediately');
-  await button('保存').props.onClick(); await tick(); render();
+  await button('保存更改').props.onClick(); await tick(); render();
   assert(warnings.some((message) => /男鞋.*图片/.test(message)), 'saving a leaf without an image must be blocked');
   const upload = find((node) => node.type === 'Button' && node.props['aria-label'] === '上传 男鞋 的类别图片');
   upload.props.onClick();
   find((node) => node.type === 'input' && node.props['aria-label'] === '选择类别图片').props.onChange({ target: { files: [{}], value: 'file' } });
   await tick(); render();
-  button('保存').props.onClick(); await tick(); await tick(); render();
+  button('保存更改').props.onClick(); await tick(); await tick(); render();
   assert.deepEqual(saved.map((row) => [row.level, row.name, row.parentId || null, row.image]), [
     [1, '鞋靴', null, ''], [2, '皮鞋', 'real-1', ''], [3, '男鞋', 'real-2', 'category.webp'],
   ]);
   assert.equal(messages.length, 0, messages.join('\n'));
-  assert.equal(button('保存').props.disabled, true);
+  assert.equal(button('保存更改').props.disabled, true);
   for (const [name, max] of [['鞋靴', 5], ['皮鞋', 5], ['男鞋', 5]]) {
     find((node) => node.type === 'Button' && node.props['aria-label'] === `改名 ${name}`).props.onClick(); render();
     assert.equal(input(`分类名称 ${name}`).props.maxlength, max);
@@ -201,10 +201,10 @@ async function testAdmin() {
     input(`分类名称 ${name}`).props.onChange('名'.repeat(max + 1)); render();
     input(`分类名称 ${name}`).props.onBlur(); render();
     assert(warnings.some((message) => message === `分类名称最多 ${max} 个字，已保留原名称`));
-    assert.equal(button('保存').props.disabled, true, 'invalid rename preserves the saved name');
+    assert.equal(button('保存更改').props.disabled, true, 'invalid rename preserves the saved name');
   }
   await create('二', '运动鞋');
-  button('保存').props.onClick(); await tick(); render();
+  button('保存更改').props.onClick(); await tick(); render();
   assert(warnings.some((message) => /运动鞋.*至少包含一个三级类别/.test(message)), 'every second-level group requires a leaf, even when a sibling group has one');
   assert.equal(saved.length, 3, 'invalid branches must not trigger partial saves');
   await find((node) => node.type === 'Button' && node.props['aria-label'] === '删除 运动鞋').props.onClick();
@@ -212,13 +212,13 @@ async function testAdmin() {
   await find((node) => node.type === 'Button' && node.props['aria-label'] === '删除 男鞋').props.onClick();
   await tick(); render();
   const deletesBefore = calls.filter((entry) => entry.action === 'categories.delete').length;
-  button('保存').props.onClick(); await tick(); render();
+  button('保存更改').props.onClick(); await tick(); render();
   assert.equal(calls.filter((entry) => entry.action === 'categories.delete').length, deletesBefore, 'deleting the final leaf cannot leave empty ancestors saved');
   assert.equal(saved.length, 3);
   await find((node) => node.type === 'Button' && node.props['aria-label'] === '删除 鞋靴').props.onClick();
   await tick(); render();
   assert.equal(saved.length, 3, 'deletions stay in draft until save');
-  button('保存').props.onClick(); await tick(); await tick(); render();
+  button('保存更改').props.onClick(); await tick(); await tick(); render();
   assert.equal(saved.length, 0);
   assert.deepEqual(calls.filter((entry) => entry.action === 'categories.delete').map((entry) => entry.data.id), ['real-1'], 'delete root once and cascade all descendants');
 }

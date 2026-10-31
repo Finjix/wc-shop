@@ -83,7 +83,8 @@ async function run() {
   const afterServiceMarkup = readMiniProgramSource(path.join(root, 'miniprogram/pages/order/after-service-detail/index.wxml'), 'utf8');
   const afterServiceStyles = readMiniProgramSource(path.join(root, 'miniprogram/pages/order/after-service-detail/index.wxss'), 'utf8');
   assert.doesNotMatch(afterServiceMarkup, /该订单使用模拟支付|class="service-section__pay pay-result"/);
-  assert.match(afterServiceMarkup, /<t-icon wx:if="\{\{!service\.isRefunded\}\}"/);
+  assert.match(afterServiceMarkup, /<view class="title">\s*\{\{service\.statusName\}\}/);
+  assert.match(afterServiceMarkup, /class="service-section return-instructions" wx:if="\{\{service\.showReturnInstructions\}\}"/);
   assert.match(afterServiceMarkup, /class="refund-summary" wx:if="\{\{service\.isRefunded\}\}"[\s\S]*?<text>退款金额<\/text>[\s\S]*?<wr-price price="\{\{service\.refundRequestAmount\}\}"/);
   assert.match(afterServiceStyles, /\.refund-summary__price-part\s*\{[^}]*font-size:\s*26rpx;/);
   assert.doesNotMatch(afterServiceMarkup, /微信退款后|微信支付账单|银行处理时间/);
