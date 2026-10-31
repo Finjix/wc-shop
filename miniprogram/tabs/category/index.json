@@ -4,8 +4,5 @@
   "disableScroll": true,
   "usingComponents": {
     "top-search": "/components/top-search/index"
-  },
-  "componentPlaceholder": {
-    "top-search": "view"
   }
 }

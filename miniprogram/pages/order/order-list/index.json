@@ -5,9 +5,5 @@
   "usingComponents": {
     "order-list-view": "/components/order/order-list-view/index",
     "t-dialog": "/components/ui/dialog/index"
-  },
-  "componentPlaceholder": {
-    "order-list-view": "view",
-    "t-dialog": "view"
   }
 }

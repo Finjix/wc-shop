@@ -1,5 +1,5 @@
 <wxs module="order" src="./order.wxs" />
-<wxs module="specFormat" src="../../_shared/utils/specs.wxs" />
+<wxs module="specFormat" src="../../../components/_shared/utils/specs.wxs" />
 <scroll-view class="app-page-scroll" scroll-y="{{scrollEnabled}}" enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
 <t-navbar
   t-class-title="app-page-navbar-title"

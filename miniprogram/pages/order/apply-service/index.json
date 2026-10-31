@@ -19,19 +19,6 @@
     "single-image-preview": "/components/single-image-preview/index"
   },
   "componentPlaceholder": {
-    "image-processor": "view",
-    "t-navbar": "view",
-    "wr-reason-sheet": "view",
-    "t-cell": "view",
-    "t-icon": "view",
-    "t-dialog": "view",
-    "t-button": "view",
-    "t-cell-group": "view",
-    "t-stepper": "view",
-    "t-popup": "view",
-    "t-textarea": "view",
-    "t-input": "view",
-    "t-upload": "view",
-    "single-image-preview": "view"
+    "image-processor": "view"
   }
 }

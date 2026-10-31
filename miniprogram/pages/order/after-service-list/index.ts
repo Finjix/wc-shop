@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import { getRightsList } from './api';
-import { AfterServiceStatus, ServiceType, ServiceTypeDesc, ServiceStatus } from '../../_shared/frontend/order/config';
+import { AfterServiceStatus, ServiceType, ServiceTypeDesc, ServiceStatus } from '../../../components/_shared/frontend/order/config';
 import Toast from '../../../common/ui/toast';
 import { getApiErrorMessage } from '../../../common/services/utils/api';
 import { normalizeLogistics, normalizeServiceType, normalizeServiceStatus, serviceStatusLabel } from '../common/after-service-contract';

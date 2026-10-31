@@ -1,11 +1,11 @@
 // @ts-nocheck
 
 import Toast from '../../../common/ui/toast';
-import { ServiceTypeDesc, ServiceStatus, ServiceButtonTypes } from '../../_shared/frontend/order/config';
-import { formatTime, getRightsDetail } from '../../_shared/frontend/order/after-service-detail/api';
+import { ServiceTypeDesc, ServiceStatus, ServiceButtonTypes } from '../../../components/_shared/frontend/order/config';
+import { formatTime, getRightsDetail } from '../../../components/_shared/frontend/order/after-service-detail/api';
 import { navigateToGoodsDetail } from '../../../common/utils/goods-detail-navigation';
 import { getApiErrorMessage } from '../../../common/services/utils/api';
-import { openLogistics } from '../../_shared/frontend/order/utils/logistics';
+import { openLogistics } from '../../../components/_shared/frontend/order/utils/logistics';
 import {
   normalizeServiceStatus,
   normalizeServiceButtons,

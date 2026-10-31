@@ -8,12 +8,5 @@
     "comments-card": "../../../components/goods/comments/comments-card/index",
     "t-load-more": "/components/load-more/index",
     "single-image-preview": "/components/single-image-preview/index"
-  },
-  "componentPlaceholder": {
-    "t-navbar": "view",
-    "t-tag": "view",
-    "comments-card": "view",
-    "t-load-more": "view",
-    "single-image-preview": "view"
   }
 }

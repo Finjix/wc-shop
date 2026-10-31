@@ -11,15 +11,5 @@
     "filter": "/components/goods/filter/index",
     "filter-popup": "/components/goods/filter-popup/index",
     "load-more": "/components/load-more/index"
-  },
-  "componentPlaceholder": {
-    "t-navbar": "view",
-    "t-search": "view",
-    "t-icon": "view",
-    "t-input": "view",
-    "goods-list": "view",
-    "filter": "view",
-    "filter-popup": "view",
-    "load-more": "view"
   }
 }

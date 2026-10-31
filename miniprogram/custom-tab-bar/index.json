@@ -2,8 +2,5 @@
   "component": true,
   "usingComponents": {
     "t-icon": "/components/ui/icon/index"
-  },
-  "componentPlaceholder": {
-    "t-icon": "view"
   }
 }

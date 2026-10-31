@@ -10,14 +10,5 @@
     "t-navbar": "/components/ui/navbar/index",
     "t-icon": "/components/ui/icon/index",
     "t-dialog": "/components/ui/dialog/index"
-  },
-  "componentPlaceholder": {
-    "cart-group": "view",
-    "cart-empty": "view",
-    "cart-bar": "view",
-    "specs-popup": "view",
-    "t-navbar": "view",
-    "t-icon": "view",
-    "t-dialog": "view"
   }
 }

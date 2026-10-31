@@ -7,7 +7,7 @@ const read = (file) => fs.readFileSync(file, 'utf8');
 const tick = () => new Promise(setImmediate);
 
 async function main() {
-  const template = read('miniprogram/pages/_shared/templates/gift-card.wxml');
+  const template = read('miniprogram/components/_shared/templates/gift-card.wxml');
   const styles = read('miniprogram/style/gift-card.wxss');
   for (const page of ['tabs/home/home', 'pages/goods/result/index']) {
     const markup = page === 'tabs/home/home'

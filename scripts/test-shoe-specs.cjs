@@ -102,7 +102,7 @@ assert.equal(events.at(-1).value.sku.specInfo.length, 1);
 console.log('PASS omitted optional size stays absent and single-level SKUs remain purchasable alongside two-level SKUs');
 
 const specsWxs = { module: { exports: {} } };
-vm.runInNewContext(fs.readFileSync('miniprogram/pages/_shared/utils/specs.wxs', 'utf8'), specsWxs);
+vm.runInNewContext(fs.readFileSync('miniprogram/components/_shared/utils/specs.wxs', 'utf8'), specsWxs);
 const formatSpecs = specsWxs.module.exports.format;
 assert.equal(formatSpecs(['黑色', '38']), '黑色 / 38');
 assert.equal(formatSpecs(['200g', '']), '200g');

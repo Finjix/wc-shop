@@ -7,11 +7,6 @@
   ],
   "subpackages": [
     {
-      "root": "components",
-      "name": "components",
-      "pages": []
-    },
-    {
       "root": "pages",
       "name": "pages",
       "pages": [

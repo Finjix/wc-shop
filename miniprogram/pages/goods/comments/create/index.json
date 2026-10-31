@@ -12,12 +12,6 @@
     "single-image-preview": "/components/single-image-preview/index"
   },
   "componentPlaceholder": {
-    "image-processor": "view",
-    "t-navbar": "view",
-    "t-image": "view",
-    "t-textarea": "view",
-    "t-button": "view",
-    "t-upload": "view",
-    "single-image-preview": "view"
+    "image-processor": "view"
   }
 }

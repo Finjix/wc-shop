@@ -7,11 +7,5 @@
     "t-cell-group": "/components/ui/cell-group/index",
     "t-cell": "/components/ui/cell/index",
     "t-input": "/components/ui/input/index"
-  },
-  "componentPlaceholder": {
-    "t-navbar": "view",
-    "t-cell-group": "view",
-    "t-cell": "view",
-    "t-input": "view"
   }
 }

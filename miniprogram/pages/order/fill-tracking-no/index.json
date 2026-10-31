@@ -9,13 +9,5 @@
     "t-input": "/components/ui/input/index",
     "t-dialog": "/components/ui/dialog/index",
     "t-button": "/components/ui/button/index"
-  },
-  "componentPlaceholder": {
-    "t-navbar": "view",
-    "t-cell": "view",
-    "t-cell-group": "view",
-    "t-input": "view",
-    "t-dialog": "view",
-    "t-button": "view"
   }
 }

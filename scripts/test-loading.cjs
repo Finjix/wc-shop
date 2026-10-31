@@ -27,7 +27,7 @@ const api = {
 function load(file) {
   const filename = require("./miniprogram-test-source.cjs").resolveSource(path.resolve(root, file));
   if (filename === path.join(root, 'miniprogram/services/utils/api.ts')) return api;
-  if (filename === path.join(root, 'miniprogram/pages/_shared/frontend/order/utils/dialog.ts')) return { default: { alert: async () => {}, confirm: async () => {} } };
+  if (filename === path.join(root, 'miniprogram/components/_shared/frontend/order/utils/dialog.ts')) return { default: { alert: async () => {}, confirm: async () => {} } };
   if (cache.has(filename)) return cache.get(filename);
   const exports = {};
   cache.set(filename, exports);
@@ -342,7 +342,7 @@ async function run() {
   productPage.previewProductImage({ currentTarget: { dataset: { src: '' } } });
   assert.equal(imagePreviews.length, 3);
   imagePreviews.at(-1).fail();
-  const uploads = load('miniprogram/pages/_shared/frontend/goods/utils/preview-image.ts');
+  const uploads = load('miniprogram/components/_shared/frontend/goods/utils/preview-image.ts');
   uploads.previewUploadImage({ detail: { file: { url: 'http://tmp/proof.webp' } } });
   assert.deepEqual(Array.from(imagePreviews.at(-1).urls), ['http://tmp/proof.webp']);
   uploads.previewUploadImage({ detail: {} });

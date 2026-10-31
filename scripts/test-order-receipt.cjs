@@ -16,7 +16,7 @@ const confirmedOrder = {
 };
 const mocks = new Map([
   ['miniprogram/config/navigation.ts', { isPageNavigationEnabled: () => true }],
-  ['miniprogram/pages/_shared/frontend/order/utils/dialog.ts', { default: { confirm: async () => { if (dialogCancelled) throw new Error('cancel'); } } }],
+  ['miniprogram/components/_shared/frontend/order/utils/dialog.ts', { default: { confirm: async () => { if (dialogCancelled) throw new Error('cancel'); } } }],
   ['miniprogram/services/order/services/orderDetail.ts', { confirmOrderReceived: async () => {
     confirmCalls++;
     if (confirmError) throw confirmError;
@@ -49,7 +49,7 @@ function load(file) {
   return exports;
 }
 async function run() {
-  const { OrderStatus, OrderButtonTypes } = load('miniprogram/pages/_shared/frontend/order/config.ts');
+  const { OrderStatus, OrderButtonTypes } = load('miniprogram/components/_shared/frontend/order/config.ts');
   load('miniprogram/pages/order/order-list/index.ts');
   load('miniprogram/components/order/order-button-bar/index.ts');
   const original = {

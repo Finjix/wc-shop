@@ -7,12 +7,11 @@ const root = path.join(repoRoot, 'miniprogram');
 const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
 function check() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
-  assert.deepEqual(app.subpackages.map(p => p.root), ['components', 'pages', 'services', 'utils']);
+  assert.deepEqual(app.subpackages.map(p => p.root), ['pages', 'services', 'utils']);
   assert.equal(JSON.parse(fs.readFileSync(path.join(repoRoot, 'project.config.json'), 'utf8')).miniprogramRoot, 'miniprogram/');
   assert.deepEqual(app.pages, ['tabs/home/home', 'tabs/category/index', 'tabs/cart/index', 'tabs/usercenter/index']);
   assert.deepEqual(app.tabBar.list.map(p => p.pagePath), app.pages);
   for (const oldRoot of ['goods', 'order', 'user']) assert.ok(!fs.existsSync(path.join(root, oldRoot)), `${oldRoot}: retired package directory`);
-  assert.deepEqual(app.subpackages.find(p => p.root === 'components').pages, []);
   assert.equal(app.subpackages.find(p => p.root === 'pages').pages.length, 19);
   assert.ok(!fs.existsSync(path.join(root, 'common/ui/control.ts')), 'component-only controller must not ship in main');
   assert.ok(!fs.existsSync(path.join(root, 'style/native-ui.wxss')), 'component-only stylesheet must not ship in main');
@@ -66,7 +65,11 @@ function check() {
       for (const alias of Object.keys(json.componentPlaceholder || {})) assert.ok(json.usingComponents?.[alias], `${file}: placeholder without a component: ${alias}`);
       for (const [alias, ref] of Object.entries(json.usingComponents || {})) {
         const target = resolve(file, ref);
-        if (packOf(target) === 'main') dependencies.push(target, target.replace(/\.json$/, '.ts'));
+        if (packOf(target) === 'main') {
+          const base = target.replace(/\.(ts|js|json)$/, '');
+          dependencies.push(base + '.json', base + '.ts');
+          assert.ok(!json.componentPlaceholder?.[alias], `${file}: main-package component must load synchronously: ${alias}`);
+        }
         if (packOf(target) !== 'main' && packOf(target) !== packOf(file)) {
           assert.ok(json.componentPlaceholder?.[alias], `${file}: missing async placeholder for ${alias}`);
           asyncReferences++;
@@ -84,7 +87,8 @@ function check() {
     }
   }
   const reachable = new Set();
-  const pending = ['app.ts', 'custom-tab-bar/index.ts', 'custom-tab-bar/index.json', ...app.pages.flatMap(p => [p + '.ts', p + '.json'])].map(p => path.join(root, p));
+  const routes = [...app.pages, ...app.subpackages.flatMap(pack => pack.pages.map(p => `${pack.root}/${p}`))];
+  const pending = ['app.ts', 'custom-tab-bar/index.ts', 'custom-tab-bar/index.json', ...routes.flatMap(p => [p + '.ts', p + '.json'])].map(p => path.join(root, p));
   while (pending.length) {
     const file = pending.pop();
     if (reachable.has(file)) continue;
@@ -92,7 +96,7 @@ function check() {
     pending.push(...(mainDependencies.get(file) || []));
   }
   for (const file of mainDependencies.keys()) {
-    if (packOf(file) === 'main' && /\.(ts|js)$/.test(file) && !file.endsWith('.d.ts')) assert.ok(reachable.has(file), `${path.relative(root, file)}: unused by main; move into its consuming package`);
+    if (packOf(file) === 'main' && /\.(ts|js)$/.test(file) && !file.endsWith('.d.ts')) assert.ok(reachable.has(file), `${path.relative(root, file)}: unreachable from application, pages and components`);
   }
   for (const p of [...app.pages, ...app.subpackages.flatMap(pack => pack.pages.map(p => `${pack.root}/${p}`))]) {
     for (const ext of ['.ts','.json','.wxml']) assert.ok(fs.existsSync(path.join(root, p + ext)), `${p}: missing ${ext}`);
@@ -107,19 +111,16 @@ function check() {
   assert.ok(include.some(p => p.value === 'utils/image-processor/codec/webp_enc.wasm'));
   assert.ok(fs.existsSync(path.join(root, 'utils/image-processor/codec/webp_enc.wasm')));
   assert.equal(asyncReferences, asyncComponents + 1, 'all cross-package components plus the shared services entry load asynchronously');
-  assert.ok(asyncComponents > 0);
-  // Small synchronous helpers need a local copy across package boundaries, but
-  // those copies must not drift. Service implementations and state stay unique.
+  assert.equal(asyncComponents, 2, 'only the two upload image processors remain asynchronous');
+  // Page subpackages reuse main-package synchronous helpers without copies.
   const componentShared = path.join(root, 'components/_shared');
   for (const file of walk(componentShared)) {
     const counterpart = path.join(root, 'pages/_shared', path.relative(componentShared, file));
-    if (!fs.existsSync(counterpart)) continue;
-    const normalize = filename => fs.readFileSync(filename, 'utf8').replace(/\r\n/g, '\n').trim();
-    assert.equal(normalize(file), normalize(counterpart), `${path.relative(root, file)}: shared package copies diverged`);
+    assert.ok(!fs.existsSync(counterpart), `${path.relative(root, counterpart)}: duplicate of a main-package helper`);
   }
   const orderView = JSON.parse(fs.readFileSync(path.join(root, 'components/order/order-list-view/index.json'), 'utf8'));
   for (const ref of Object.values(orderView.usingComponents)) assert.ok(ref.startsWith('/components/'), 'slotted order view must compose synchronously within components');
-  console.log(`PASS main + components/pages/services/utils graph: ${modules} module dependencies, ${asyncReferences} async references and all page/template/style paths`);
+  console.log(`PASS main (including components) + pages/services/utils graph: ${modules} module dependencies, ${asyncReferences} async references and all page/template/style paths`);
 }
 if (require.main === module) check();
 module.exports = { check };

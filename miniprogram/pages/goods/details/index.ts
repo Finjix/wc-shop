@@ -2,12 +2,12 @@
 import { isPageNavigationEnabled } from '../../../config/navigation';
 
 import Toast from '../../../common/ui/toast';
-import { fetchGood } from '../../_shared/services/good/fetchGood';
+import { fetchGood } from '../../../components/_shared/services/good/fetchGood';
 import { addGoodsToCart } from '../../../common/services/cart/cart';
 import { setPendingGoodsRequestList } from '../../../common/services/order/orderConfirm';
 import { getGoodsDetailsCommentsCount } from '../services/fetchGoodsDetailsComments';
 import { getApiErrorMessage } from '../../../common/services/utils/api';
-import { previewSingleImage } from '../../_shared/frontend/goods/utils/preview-image';
+import { previewSingleImage } from '../../../components/_shared/frontend/goods/utils/preview-image';
 
 import { productShareHandlers, enablePageSharing } from '../../../common/share';
 

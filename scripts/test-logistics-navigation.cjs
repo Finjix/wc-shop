@@ -29,7 +29,7 @@ function load(relative) {
   }, { filename });
   return exports;
 }
-const logisticsApi = load('miniprogram/pages/_shared/frontend/order/utils/logistics.ts');
+const logisticsApi = load('miniprogram/components/_shared/frontend/order/utils/logistics.ts');
 const { openLogistics } = logisticsApi;
 
 const shipment = {

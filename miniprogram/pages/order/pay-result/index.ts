@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { fetchOrderDetail } from '../../_shared/frontend/order/services/orderDetail';
+import { fetchOrderDetail } from '../../../components/_shared/frontend/order/services/orderDetail';
 import { fetchCheckoutResult } from '../../../common/services/order/orderConfirm';
 
 Page({

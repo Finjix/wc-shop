@@ -131,7 +131,7 @@ async function dialogScenario(file) {
   assert.equal(component.data.confirmBtn.content, options.confirmBtn.content);
   assert.equal(component.data.confirmBtn.rootClass, options.confirmBtn.rootClass);
   const data = JSON.parse(JSON.stringify(component.data));
-  if (file === 'miniprogram/pages/_shared/frontend/order/utils/dialog.ts') {
+  if (file === 'miniprogram/components/_shared/frontend/order/utils/dialog.ts') {
 
   }
   component._onConfirm('confirm');
@@ -141,7 +141,7 @@ async function dialogScenario(file) {
   component._onCancel('cancel');
   assert.equal(await caught, 'cancel');
   assert.equal(state.selector, '#custom-dialog');
-  if (file === 'miniprogram/pages/_shared/frontend/order/utils/dialog.ts') {
+  if (file === 'miniprogram/components/_shared/frontend/order/utils/dialog.ts') {
     const custom = dialog.confirm({ confirmBtn: { content: '删除', disabled: true }, cancelBtn: '暂不删除' });
     assert.equal(component.data.confirmBtn.content, '确定');
     assert.equal(component.data.confirmBtn.disabled, true);
@@ -150,13 +150,13 @@ async function dialogScenario(file) {
     await custom;
   }
   const alert = dialog.alert({ content: '请选择订单' });
-  if (file === 'miniprogram/pages/_shared/frontend/order/utils/dialog.ts') {
+  if (file === 'miniprogram/components/_shared/frontend/order/utils/dialog.ts') {
     assert.equal(component.data.confirmBtn.content, '确定');
     assert.equal(component.data.cancelBtn, null, 'single-button alerts must not render an empty cancel button');
   }
   component._onConfirm();
   await alert;
-  if (file === 'miniprogram/pages/_shared/frontend/order/utils/dialog.ts') {
+  if (file === 'miniprogram/components/_shared/frontend/order/utils/dialog.ts') {
     const logisticsAlert = dialog.alert({ title: '物流查询失败', confirmBtn: '确认' });
     assert.equal(component.data.confirmBtn.content, '确认');
     assert.equal(component.data.cancelBtn, null, 'the confirm button occupies the full footer');
@@ -182,7 +182,7 @@ async function run() {
   testAsyncComponents();
   await testAddressSelection();
   await testAddressEditDefaultSwitch();
-  await dialogScenario('miniprogram/pages/_shared/frontend/order/utils/dialog.ts');
+  await dialogScenario('miniprogram/components/_shared/frontend/order/utils/dialog.ts');
   console.log('PASS subpackage Dialog native confirm/cancel/alert actions preserve promises and button state');
   const order = load('miniprogram/services/order/utils/format.ts');
   const goods = load('miniprogram/services/goods/utils/formatTime.ts');

@@ -8,12 +8,5 @@
     "t-cell-group": "/components/ui/cell-group/index",
     "t-cell": "/components/ui/cell/index",
     "t-switch": "/components/ui/switch/index"
-  },
-  "componentPlaceholder": {
-    "t-navbar": "view",
-    "t-button": "view",
-    "t-cell-group": "view",
-    "t-cell": "view",
-    "t-switch": "view"
   }
 }

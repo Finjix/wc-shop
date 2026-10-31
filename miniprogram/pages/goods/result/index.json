@@ -12,15 +12,5 @@
     "load-more": "/components/load-more/index",
     "t-icon": "/components/ui/icon/index"
   },
-  "onReachBottomDistance": 50,
-  "componentPlaceholder": {
-    "t-navbar": "view",
-    "t-search": "view",
-    "t-input": "view",
-    "price": "view",
-    "filter": "view",
-    "filter-popup": "view",
-    "load-more": "view",
-    "t-icon": "view"
-  }
+  "onReachBottomDistance": 50
 }

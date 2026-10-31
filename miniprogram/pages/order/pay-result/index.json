@@ -5,9 +5,5 @@
   "usingComponents": {
     "t-navbar": "/components/ui/navbar/index",
     "price": "/components/price/index"
-  },
-  "componentPlaceholder": {
-    "t-navbar": "view",
-    "price": "view"
   }
 }

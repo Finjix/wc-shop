@@ -12,16 +12,5 @@
     "t-icon": "/components/ui/icon/index",
     "t-dialog": "/components/ui/dialog/index",
     "t-pull-down-refresh": "/components/ui/pull-down-refresh/index"
-  },
-  "componentPlaceholder": {
-    "t-navbar": "view",
-    "wr-load-more": "view",
-    "wr-after-service-button-bar": "view",
-    "wr-price": "view",
-    "wr-order-card": "view",
-    "specs-goods-card": "view",
-    "t-icon": "view",
-    "t-dialog": "view",
-    "t-pull-down-refresh": "view"
   }
 }

@@ -13,7 +13,7 @@ const mocks = new Map();
 const mock = (file, value) => mocks.set(path.resolve(root, file), value);
 mock('miniprogram/services/utils/api.ts', { request: async (action, payload) => { calls.push({ action, payload }); return response; }, cleanupCloudFiles: async () => {}, getApiErrorMessage: (error) => error.message });
 mock('miniprogram/services/utils/images.ts', { resolveImage: async (url) => url, resolveRightsImages: async (record) => record });
-mock('miniprogram/pages/_shared/frontend/order/utils/dialog.ts', {});
+mock('miniprogram/components/_shared/frontend/order/utils/dialog.ts', {});
 mock('miniprogram/common/utils/goods-detail-navigation.ts', { navigateToGoodsDetail: () => {} });
 mock('miniprogram/components/order/reason-sheet/reasonSheet.ts', () => Promise.resolve([0]));
 mock('miniprogram/services/order/utils/format.ts', { formatTime: (time) => time, priceFormat: (amount) => (amount / 100).toFixed(2) });

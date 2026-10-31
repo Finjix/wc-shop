@@ -3,8 +3,8 @@
 import Toast from '../../../../common/ui/toast';
 import { createComment } from '../../services/comments/createComment';
 import { getApiErrorMessage } from '../../../../common/services/utils/api';
-import { resolveImage } from '../../../_shared/services/utils/images';
-import { previewUploadImage } from '../../../_shared/frontend/goods/utils/preview-image';
+import { resolveImage } from '../../../../components/_shared/services/utils/images';
+import { previewUploadImage } from '../../../../components/_shared/frontend/goods/utils/preview-image';
 
 function decodeQueryValue(value) {
   const text = value == null ? '' : String(value);

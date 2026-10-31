@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { OrderButtonTypes } from '../../_shared/frontend/order/config';
+import { OrderButtonTypes } from '../../../components/_shared/frontend/order/config';
 
 /** Apply a successful review without removing the card from its current filter. */
 export function applyCommentToOrder(order, productId) {

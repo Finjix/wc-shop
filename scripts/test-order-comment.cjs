@@ -27,7 +27,7 @@ const mocks = new Map([
 function load(file) {
   const filename = require("./miniprogram-test-source.cjs").resolveSource(path.resolve(root, file));
   if (mocks.has(filename)) return mocks.get(filename);
-  if (filename === path.join(root, 'miniprogram/pages/_shared/frontend/order/utils/dialog.ts')) return { default: { alert: async () => {}, confirm: async () => {} } };
+  if (filename === path.join(root, 'miniprogram/components/_shared/frontend/order/utils/dialog.ts')) return { default: { alert: async () => {}, confirm: async () => {} } };
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readMiniProgramSource(filename, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
@@ -52,7 +52,7 @@ function instance(file) {
   return { ...definition, data: { ...definition.data }, setData(patch, callback) { Object.assign(this.data, patch); callback?.(); } };
 }
 async function run() {
-  const { OrderStatus, OrderButtonTypes } = load('miniprogram/pages/_shared/frontend/order/config.ts');
+  const { OrderStatus, OrderButtonTypes } = load('miniprogram/components/_shared/frontend/order/config.ts');
   const original = {
     id: 'order-1', orderNo: 'order-1', status: OrderStatus.COMPLETE, statusDesc: '已完成', amount: 200,
     commentedProductIds: [], commentableProductId: 'product-1',

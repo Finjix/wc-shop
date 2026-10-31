@@ -1,8 +1,8 @@
 // @ts-nocheck
 
-import { OrderButtonTypes, OrderStatus } from '../../_shared/frontend/order/config';
+import { OrderButtonTypes, OrderStatus } from '../../../components/_shared/frontend/order/config';
 import { fetchOrders, fetchOrdersCount } from '../services/orderList';
-import { cosThumb } from '../../_shared/frontend/order/utils/format';
+import { cosThumb } from '../../../components/_shared/frontend/order/utils/format';
 import { applyCommentToOrder } from '../utils/comment-state';
 
 Page({

@@ -12,12 +12,5 @@
     "top-search": "/components/top-search/index",
     "home-feed-batch": "/components/home-feed-batch/index",
     "section-symbol": "/components/section-symbol/index"
-  },
-  "componentPlaceholder": {
-    "t-loading": "view",
-    "t-swiper": "view",
-    "top-search": "view",
-    "home-feed-batch": "view",
-    "section-symbol": "view"
   }
 }

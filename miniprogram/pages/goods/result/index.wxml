@@ -1,4 +1,4 @@
-<import src="../../_shared/templates/gift-card.wxml" />
+<import src="../../../components/_shared/templates/gift-card.wxml" />
 
 <view class="goods-list-page">
   <view class="goods-list-header">

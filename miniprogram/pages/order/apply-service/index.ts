@@ -1,9 +1,9 @@
 // @ts-nocheck
 
-import Dialog from '../../_shared/frontend/order/utils/dialog';
+import Dialog from '../../../components/_shared/frontend/order/utils/dialog';
 import Toast from '../../../common/ui/toast';
-import { priceFormat } from '../../_shared/frontend/order/utils/format';
-import { OrderStatus, ServiceType, ServiceReceiptStatus } from '../../_shared/frontend/order/config';
+import { priceFormat } from '../../../components/_shared/frontend/order/utils/format';
+import { OrderStatus, ServiceType, ServiceReceiptStatus } from '../../../components/_shared/frontend/order/config';
 import reasonSheet from '../utils/reason-sheet';
 import {
   fetchRightsPreview,
@@ -11,7 +11,7 @@ import {
   dispatchApplyService,
 } from './api';
 import { getApiErrorMessage } from '../../../common/services/utils/api';
-import { previewUploadImage } from '../../_shared/frontend/goods/utils/preview-image';
+import { previewUploadImage } from '../../../components/_shared/frontend/goods/utils/preview-image';
 import { normalizeServiceType } from '../common/after-service-contract';
 
 Page({

@@ -1,12 +1,12 @@
 // @ts-nocheck
 
-import { formatTime } from '../../_shared/frontend/order/utils/format';
+import { formatTime } from '../../../components/_shared/frontend/order/utils/format';
 import { getApiErrorMessage } from '../../../common/services/utils/api';
-import { OrderButtonTypes, OrderStatus } from '../../_shared/frontend/order/config';
-import { fetchBusinessTime, fetchOrderDetail } from '../../_shared/frontend/order/services/orderDetail';
+import { OrderButtonTypes, OrderStatus } from '../../../components/_shared/frontend/order/config';
+import { fetchBusinessTime, fetchOrderDetail } from '../../../components/_shared/frontend/order/services/orderDetail';
 import { navigateToGoodsDetail } from '../../../common/utils/goods-detail-navigation';
 import { applyCommentToOrder } from '../utils/comment-state';
-import { openLogistics } from '../../_shared/frontend/order/utils/logistics';
+import { openLogistics } from '../../../components/_shared/frontend/order/utils/logistics';
 
 function refundableQuantityOf(goods = {}) {
   return Math.max(0, Number(

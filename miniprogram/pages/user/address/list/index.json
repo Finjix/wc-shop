@@ -6,10 +6,5 @@
     "t-navbar": "/components/ui/navbar/index",
     "t-image": "/components/webp-image/index",
     "t-address-item": "/components/user/ui-address-item/index"
-  },
-  "componentPlaceholder": {
-    "t-navbar": "view",
-    "t-image": "view",
-    "t-address-item": "view"
   }
 }

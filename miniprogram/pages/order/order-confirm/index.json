@@ -10,14 +10,5 @@
     "no-goods": "../../../components/order/noGoods/noGoods",
     "t-image": "/components/webp-image/index",
     "address-card": "../../../components/order/order-confirm/address-card/index"
-  },
-  "componentPlaceholder": {
-    "t-navbar": "view",
-    "t-popup": "view",
-    "t-dialog": "view",
-    "price": "view",
-    "no-goods": "view",
-    "t-image": "view",
-    "address-card": "view"
   }
 }
