@@ -1,7 +1,8 @@
 .specs-popup {
   width: 100vw;
   box-sizing: border-box;
-  padding: 32rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  /* The shared popup supplies the bottom safe area. */
+  padding: 32rpx 32rpx 24rpx;
   max-height: 82vh;
   overflow: hidden;
   background: #fff;

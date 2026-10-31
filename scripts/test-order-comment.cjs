@@ -34,8 +34,8 @@ function load(file) {
   }).outputText, {
     exports,
     require(name) {
-      name = name.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
-      if (name === 'tdesign-miniprogram/toast/index') return { default() {} };
+      if (name.endsWith('/common/ui/toast')) name = 'native-toast';
+      if (name === 'native-toast') return { default() {} };
       if (name.startsWith('.')) return load(`${path.resolve(path.dirname(filename), name)}.ts`);
       throw new Error(`Unexpected dependency ${name}`);
     },

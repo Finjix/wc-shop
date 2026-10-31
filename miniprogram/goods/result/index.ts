@@ -4,7 +4,7 @@ import { isPageNavigationEnabled } from '../../config/navigation';
 /* eslint-disable no-param-reassign */
 import { getSearchResult } from '../services/fetchSearchResult';
 import { getApiErrorMessage } from '../../common/services/utils/api';
-import Toast from '../../components/tdesign/toast/index';
+import Toast from '../../common/ui/toast';
 import { navigateToGoodsDetail } from '../../common/utils/goods-detail-navigation';
 import { catalogShareHandlers, enablePageSharing } from '../../common/share';
 

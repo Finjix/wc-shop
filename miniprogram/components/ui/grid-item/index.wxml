@@ -1,0 +1,1 @@
+<view class="grid-item" bindtap="tapCell"><image wx:if="{{image}}" class="grid-image t-class-image" src="{{image}}" mode="aspectFit" /><slot /></view>

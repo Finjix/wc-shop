@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import Toast from '../../components/tdesign/toast/index';
+import Toast from '../../common/ui/toast';
 import { ServiceTypeDesc, ServiceStatus, ServiceButtonTypes } from '../config';
 import { formatTime, getRightsDetail } from './api';
 import { navigateToGoodsDetail } from '../../common/utils/goods-detail-navigation';

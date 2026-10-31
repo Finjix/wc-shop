@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Textarea } from 'tdesign-react';
+import { Button, Textarea } from '../components/NativeUi';
 import { Link } from 'react-router-dom';
 import { adminApi } from '../lib/api';
 import { useConfirm } from '../components/ConfirmProvider';

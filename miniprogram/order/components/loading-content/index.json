@@ -1,6 +1,6 @@
 {
   "component": true,
   "usingComponents": {
-    "t-loading": "../../../components/tdesign/loading/loading"
+    "t-loading": "/components/ui/loading/index"
   }
 }

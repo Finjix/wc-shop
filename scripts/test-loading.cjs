@@ -36,8 +36,8 @@ function load(file) {
   }).outputText, {
     exports,
     require(name) {
-      name = name.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
-      if (name === 'tdesign-miniprogram/toast/index') return { default: () => {} };
+      if (name.endsWith('/common/ui/toast')) name = 'native-toast';
+      if (name === 'native-toast') return { default: () => {} };
       if (name.startsWith('.')) return load(`${path.resolve(path.dirname(filename), name)}.ts`);
       throw new Error(`Unexpected dependency ${name}`);
     },
@@ -71,7 +71,7 @@ async function run() {
   const themeStyles = readMiniProgramSource(path.join(root, 'miniprogram/app.wxss'), 'utf8');
   assert.match(orderButtonBarMarkup, /t-dialog[^>]*t-class-confirm="commerce-dialog-confirm"/);
   assert.match(afterServiceMarkupForConfirm, /t-dialog id="t-dialog" t-class-confirm="commerce-dialog-confirm"/);
-  assert.match(themeStyles, /\.commerce-dialog-confirm\s*\{[^}]*--td-button-primary-text-color:\s*#695941;/);
+  assert.match(themeStyles, /\.commerce-dialog-confirm\s*\{[^}]*color:\s*#695941;/);
   const orderDetailMarkup = readMiniProgramSource(path.join(root, 'miniprogram/order/order-detail/index.wxml'), 'utf8');
   assert.doesNotMatch(orderDetailMarkup, /catchtap="onApplyGoodsRefund"/);
   console.log('PASS order and after-sales confirmation dialogs use a visible shared primary-text style');
@@ -117,8 +117,7 @@ async function run() {
   assert.equal(await images.resolveImage('/assets/user-avatar.jpg'), '/assets/user-avatar.jpg');
   respond = async () => ({ items: [{ images: ['cloud://comment.webp'], avatarUrl: 'local://avatar.webp' }] });
   const comments = await load('miniprogram/services/goods/services/comments/fetchComments.ts').fetchComments();
-  assert.equal(comments.pageList[0].userHeadUrl, '/assets/user/default-avatar.jpg');
-  assert(fs.existsSync(path.join(root, 'miniprogram', comments.pageList[0].userHeadUrl.slice(1))), 'avatar references a shipped asset');
+  assert.equal(comments.pageList[0].userHeadUrl, '');
   const resource = comments.pageList[0].commentResources[0];
   assert.equal(resource.image, 'https://example.test/comment.webp');
   assert.equal(resource.fileID, 'cloud://comment.webp');

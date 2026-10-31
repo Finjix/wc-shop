@@ -1,0 +1,1 @@
+<view style="{{customStyle}}" class="search t-class t-class-input-container"><slot name="left-icon" /><input class="search-input t-class-input" value="{{value}}" placeholder="{{placeholder}}" focus="{{focus}}" confirm-type="search" bindinput="input" bindfocus="focusInput" bindblur="blurInput" bindconfirm="submitInput" /></view>

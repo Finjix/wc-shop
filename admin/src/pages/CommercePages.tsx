@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Button, Dialog, Input, Select, Tag } from 'tdesign-react';
+import { Button, Dialog, Input, Select, Tag } from '../components/NativeUi';
 import { adminApi } from '../lib/api';
 import { parseRefundAmount } from '../lib/refund-amount';
 import { afterSalePolicy, afterSaleRequestLabel, afterSaleReceiptLabel } from '../lib/after-sale-policy';

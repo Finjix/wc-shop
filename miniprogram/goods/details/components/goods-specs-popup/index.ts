@@ -2,7 +2,7 @@
 
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-nested-ternary */
-import Toast from '../../../../components/tdesign/toast/index';
+import Toast from '../../../../common/ui/toast';
 
 Component({
   options: {

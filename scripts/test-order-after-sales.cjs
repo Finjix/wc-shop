@@ -30,8 +30,8 @@ function load(file) {
   vm.runInNewContext(source, {
     exports,
     require(name) {
-      name = name.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
-      if (name === 'tdesign-miniprogram/toast/index') return () => {};
+      if (name.endsWith('/common/ui/toast')) name = 'native-toast';
+      if (name === 'native-toast') return () => {};
       if (name.startsWith('.')) return load(`${path.resolve(path.dirname(filename), name)}.ts`);
       throw new Error(`Unexpected dependency: ${name}`);
     },

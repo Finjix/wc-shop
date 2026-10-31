@@ -1,8 +1,8 @@
 // @ts-nocheck
 
-import { fetchGoodsList } from '../../common/services/good/fetchGoodsList';
+import { fetchGoodsList } from '../services/fetchGoodsList';
 import { getApiErrorMessage } from '../../common/services/utils/api';
-import Toast from '../../components/tdesign/toast/index';
+import Toast from '../../common/ui/toast';
 import { navigateToGoodsDetail } from '../../common/utils/goods-detail-navigation';
 import { catalogShareHandlers, enablePageSharing } from '../../common/share';
 

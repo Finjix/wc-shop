@@ -15,8 +15,6 @@ Create a production cartoon mascot sprite sheet for a WeChat mini-program boutiq
 
 Create a transparent-background cartoon sprite sheet for a WeChat boutique gift shop section icon. Exactly 4 columns and 3 rows of equal square cells, total 12 cells on a 1024x1024 square sheet, NO gridlines. The same cute chubby five-point golden-yellow star character in every cell, pale butter yellow face, golden rounded edge, two tiny navy dot eyes, small smile, pink cheeks, tiny short arms. Polished kawaii sticker illustration with soft simple shading, mist-blue accent sparkles around the star. SAME size and SAME centered placement in every cell with generous transparent margins; each subject occupies 70 percent of its cell. Twelve successive frames left to right top to bottom describe one seamless loop: gentle alternating left-right wobble, eye blink in frames 5 and 6, 2 or 3 blue and yellow sparkles around the character twinkling. No letters, no words, no numbers, no border, no watermark, no ground shadow, no background. Simple thick silhouette and large facial features that remain legible at 64x64 px. Palette #FFD66D #E8AC40 #FFF4BF #89AFC9 #425B76, clearly differentiated from a peach-pink heart mascot.
 
-## 导出
+## 当前实现
 
-`npm run build:home-mascots` 使用 Sharp 从各原画中裁出第一张图并缩放，导出透明 64×64 静态 PNG，以 64px 显示。动效在首页 WXSS 中定义：爱心轻跳、心跳缩放及摇摆；星星上下浮动、摇摆及明暗变化。
-
-输出：`miniprogram/assets/home/recommend-heart.png`、`miniprogram/assets/home/gift-star.png`。旧的两张标题 GIF 已移除。`npm run test:home-showcase` 检查静态图片格式、尺寸及透明像素。
+以上原画仅保留为历史设计参考，不参与小程序打包。首页爱心、星星现在由 `miniprogram/components/section-symbol/` 使用原生 view 和 WXSS 绘制；图片导出脚本及对应 PNG 已移除。

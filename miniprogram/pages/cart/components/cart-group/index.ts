@@ -1,9 +1,9 @@
 // @ts-nocheck
 
-import Toast from '../../../../components/tdesign/toast/index';
+import Toast from '../../../../common/ui/toast';
 import { fetchGood } from '../../../../common/services/good/fetchGood';
 
-const shortageImg = 'https://tdesign.gtimg.com/template/retail/cart/shortage.png';
+const shortageImg = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMTIwIDEyMCI+PHBhdGggZD0iTTI1IDMwaDcwdjYwSDI1ek0yNSAzMGwxNS0xNWg0MGwxNSAxNU02MCAzMHY2ME00NSA1OGwzMCAyME03NSA1OEw0NSA3OCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYjZiMGE1IiBzdHJva2Utd2lkdGg9IjMiLz48L3N2Zz4=';
 
 function skuStock(sku = {}) {
   const value = sku.stockQuantity;

@@ -1,0 +1,1 @@
+<view wx:if="{{loading}}" class="loading t-class" role="status"><view class="spinner" /><text>{{text}}</text><slot /></view>

@@ -14,7 +14,7 @@ const navigation = [];
 let pageDefinition;
 const address = { _id: 'address-1', receiver: '测试收货人', phone: '13800000000', detail: '测试地址' };
 const mocks = {
-  'tdesign-miniprogram/toast/index': (options) => toasts.push(options),
+  'native-toast': (options) => toasts.push(options),
   [path.join(root, 'miniprogram/services/utils/api.ts')]: {
     getApiErrorMessage: (error, fallback) => error.message || fallback,
     getTempFileUrl: async (fileID) => `https://images.example/${fileID.split('://')[1]}`,
@@ -56,7 +56,7 @@ function load(file) {
   vm.runInNewContext(source, {
     exports,
     require(name) {
-      name = name.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
+      if (name.endsWith('/common/ui/toast')) name = 'native-toast';
       if (mocks[name]) return mocks[name];
       if (name.startsWith('.')) return load(`${path.resolve(path.dirname(filename), name)}.ts`);
       throw new Error(`Unexpected dependency: ${name}`);

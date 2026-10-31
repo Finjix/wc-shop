@@ -221,7 +221,7 @@ async function getOrCreateUser(runtime, identity, data) {
   return {
     uid: identity.uid,
     ...(data && data.nickname !== undefined ? { nickname: optionalString(data.nickname, 'nickname', { max: 40 }) } : {}),
-    avatarUrl: '/assets/user/default-avatar.jpg',
+    avatarUrl: '',
   };
 }
 

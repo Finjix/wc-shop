@@ -1,4 +1,3 @@
-@import '../../style/iconfont.wxss';
 page {
   width: 100vw;
   min-height: 100vh;
@@ -17,8 +16,7 @@ page {
 }
 
 .goods-detail-navbar-content {
-  --td-navbar-bg-color: #fff;
-  --td-navbar-color: #222427;
+
   background-color: #fff !important;
   color: #222427 !important;
 }
@@ -136,14 +134,6 @@ page {
   background-color: #fff;
   border-top: 1rpx solid #f0f0f0;
   padding-bottom: env(safe-area-inset-bottom);
-}
-
-.goods-detail-page .goods-head {
-  --td-swiper-radius: 0;
-}
-
-.t-toast__content {
-  z-index: 12000 !important;
 }
 
 .comments-wrap {

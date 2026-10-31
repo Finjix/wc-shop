@@ -3,9 +3,8 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
-    "t-navbar": "../../../components/tdesign/navbar/navbar",
+    "t-navbar": "/components/ui/navbar/index",
     "t-image": "/components/webp-image/index",
-    "t-toast": "../../../components/tdesign/toast/toast",
     "t-address-item": "/user/components/ui-address-item/index"
   }
 }

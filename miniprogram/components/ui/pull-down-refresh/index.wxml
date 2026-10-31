@@ -1,0 +1,1 @@
+<scroll-view class="refresh t-class" style="height:{{scrollHeight}}px" lower-threshold="160" bindscrolltolower="reachBottom" scroll-y refresher-enabled refresher-triggered="{{value}}" bindrefresherrefresh="refresh"><view class="refresh-content"><slot name="loading" /><slot /></view></scroll-view>

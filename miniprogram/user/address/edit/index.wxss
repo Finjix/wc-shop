@@ -1,4 +1,3 @@
-@import '../../../style/iconfont.wxss';
 page {
   background-color: #fff;
 }
@@ -11,36 +10,54 @@ page .divider-line {
   font-size: 30rpx;
 }
 
-.form-cell .t-cell__title {
+.address-field-row {
+  display: flex;
+  align-items: center;
+  gap: 32rpx;
+  box-sizing: border-box;
+  padding: 28rpx 32rpx;
+  border-bottom: 1rpx solid #eee;
+}
+.address-field-row--address {
+  align-items: flex-start;
+  border-bottom: 0;
+}
+.address-field-label {
+  flex: none;
   width: 144rpx;
-  padding-right: 32rpx;
-  flex: none !important;
+  color: #111;
+  font-size: 28rpx;
+  line-height: 44rpx;
 }
-
-.textarea__wrapper {
+.address-field-control {
+  display: block;
+  flex: 1;
+  min-width: 0;
   width: 100%;
+  height: 44rpx;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  color: #333;
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 44rpx;
+  text-align: right;
 }
-
-.textarea__wrapper .t-textarea {
-  padding: 0 !important;
-}
+.address-field-textarea { min-height: 44rpx; }
+.address-field-placeholder { color: #c4c4c4; font-size: 28rpx; font-weight: 400; line-height: 44rpx; }
 
 .submit {
   box-sizing: border-box;
   padding: 64rpx 30rpx 88rpx 30rpx;
 }
 .submit .btn-submit-address {
-  --td-button-font-weight: 700;
-  --td-button-default-color: #fff;
-  --td-button-default-bg-color: #695941;
-  --td-button-default-border-color: #695941;
-  --td-button-default-active-bg-color: #695941;
-  --td-button-default-active-border-color: #695941;
+  --ui-button-weight: 700;
+  --ui-button-color: #fff;
+  --ui-button-background: #695941;
+  --ui-button-border: #695941;
+
   background: #695941 !important;
   color: #fff !important;
   font-weight: 700;
-}
-
-.form-address .form-content {
-  --td-input-vertical-padding: 0;
 }

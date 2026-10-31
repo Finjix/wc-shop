@@ -1,6 +1,6 @@
 {
   "component": true,
   "usingComponents": {
-    "t-image": "../tdesign/image/image"
+    "t-image": "/components/ui/image/index"
   }
 }

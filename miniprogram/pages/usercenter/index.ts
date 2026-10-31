@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import Toast from '../../components/tdesign/toast/index';
+import Toast from '../../common/ui/toast';
 import { request } from '../../common/services/utils/api';
 import { APP_VERSION } from '../../config/version';
 const COMPLETE_ORDER_STATUS = 50;

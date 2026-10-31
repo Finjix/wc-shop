@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBlocker } from 'react-router-dom';
-import { Button, Input, MessagePlugin } from 'tdesign-react';
+import { Button, Input, MessagePlugin } from '../components/NativeUi';
 import { adminApi } from '../lib/api';
 import { useDraftImages } from '../lib/useDraftImages';
 import { useBrowserLeaveWarning } from '../lib/useBrowserLeaveWarning';

@@ -4,12 +4,11 @@
   "disableScroll": true,
   "usingComponents": {
     "image-processor": "/utils/image-processor/index",
-    "t-navbar": "../../../components/tdesign/navbar/navbar",
+    "t-navbar": "/components/ui/navbar/index",
     "t-image": "/components/webp-image/index",
-    "t-textarea": "/goods/components/tdesign/textarea/textarea",
-    "t-button": "../../../components/tdesign/button/button",
-    "t-upload": "/goods/components/tdesign/upload/upload",
-    "t-toast": "../../../components/tdesign/toast/toast",
+    "t-textarea": "/components/ui/textarea/index",
+    "t-button": "/components/ui/button/index",
+    "t-upload": "/components/ui/upload/index",
     "single-image-preview": "/components/single-image-preview/index"
   },
   "componentPlaceholder": {

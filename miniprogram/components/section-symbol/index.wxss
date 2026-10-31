@@ -1,0 +1,6 @@
+.symbol { position: relative; display: block; }
+.heart-shape { position: absolute; left: 25%; top: 29%; width: 50%; height: 50%; background: #f19baa; transform: rotate(-45deg); border-radius: 10%; }
+.heart-shape::before, .heart-shape::after { content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%; background: #f19baa; }
+.heart-shape::before { top: -50%; left: 0; }
+.heart-shape::after { top: 0; left: 50%; }
+.star-shape { position: absolute; inset: 5%; background: #ffd568; clip-path: polygon(50% 0, 64% 33%, 100% 38%, 73% 62%, 80% 98%, 50% 80%, 20% 98%, 27% 62%, 0 38%, 36% 33%); }

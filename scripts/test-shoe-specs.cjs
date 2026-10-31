@@ -60,7 +60,7 @@ assert(events.some((event) => event.name === 'changeNum' && event.value.buyNum =
 const cartComponent = loadComponent('miniprogram/pages/cart/components/specs-popup/index.ts');
 const cartComponentConfig = JSON.parse(fs.readFileSync('miniprogram/pages/cart/components/specs-popup/index.json', 'utf8'));
 assert.equal(cartComponentConfig.usingComponents.price, '/components/price/index');
-assert.equal(cartComponentConfig.usingComponents['t-toast'], '../../../../components/tdesign/toast/toast');
+assert.equal(cartComponentConfig.usingComponents['t-toast'], undefined);
 const cart = { ...cartComponent.methods, properties: { specList, skuList, selectedSkuId: 'black38' }, data: {},
   setData(value) { Object.assign(this.data, value); }, triggerEvent(name, value) { events.push({ name, value }); },
 };

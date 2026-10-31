@@ -11,61 +11,18 @@
   <view class="form-address">
     <form class="form-content">
       <t-cell-group>
-        <t-cell class="form-cell" t-class-title="t-cell-title" title="收货人" t-class-note="t-cell-note">
-          <t-input
-            class="t-input"
-            slot="note"
-            t-class="field-text"
-            borderless
-            data-item="name"
-            maxlength="20"
-            type="text"
-            value="{{locationState.name}}"
-            placeholder="您的姓名"
-            bind:change="onInputValue"
-          />
-        </t-cell>
-        <t-cell class="form-cell" t-class-title="t-cell-title" title="手机号">
-          <t-input
-            slot="note"
-            class="t-input"
-            t-class="field-text"
-            borderless
-            type="number"
-            value="{{locationState.phone}}"
-            maxlength="11"
-            placeholder="联系您的手机号"
-            bind:change="onInputValue"
-            data-item="phone"
-          />
-        </t-cell>
-        <t-cell class="form-cell" t-class-title="t-cell-title" title="地区">
-          <t-input
-            slot="note"
-            class="t-input"
-            t-class="field-text"
-            borderless
-            placeholder="省/市/区"
-            style="--td-input-disabled-text-color: {{locationState.provinceName ? '#333333' : '#bbbbbb'}};"
-            data-item="address"
-            value="{{locationState.provinceName ? locationState.provinceName+'/':'' }}{{locationState.cityName ? locationState.cityName+'/':''}}{{locationState.districtName}}"
-            catch:tap="onPickArea"
-            disabled
-          />
-        </t-cell>
-        <t-cell class="form-cell" t-class-title="t-cell-title" title="详细地址" bordered="{{false}}">
-          <view slot="note" class="textarea__wrapper">
-            <t-textarea
-              slot="note"
-              type="text"
-              value="{{locationState.detailAddress}}"
-              placeholder="门牌号等(例如:10栋1001号)"
-              autosize
-              bind:change="onInputValue"
-              data-item="detailAddress"
-            />
-          </view>
-        </t-cell>
+        <view class="address-field-row">
+          <label class="address-field-label" for="address-name">收货人</label>
+          <input id="address-name" class="address-field-control" value="{{locationState.name}}" placeholder="您的姓名" placeholder-class="address-field-placeholder" maxlength="20" data-item="name" bindinput="onInputValue" />
+        </view>
+        <view class="address-field-row">
+          <label class="address-field-label" for="address-phone">手机号</label>
+          <input id="address-phone" class="address-field-control" value="{{locationState.phone}}" placeholder="联系您的手机号" placeholder-class="address-field-placeholder" type="number" maxlength="11" data-item="phone" bindinput="onInputValue" />
+        </view>
+        <view class="address-field-row address-field-row--address">
+          <label class="address-field-label" for="address-full">地址</label>
+          <textarea id="address-full" class="address-field-control address-field-textarea" value="{{locationState.detailAddress}}" placeholder="精确到门牌号" placeholder-class="address-field-placeholder" maxlength="240" auto-height data-item="detailAddress" bindinput="onInputValue" />
+        </view>
         <view class="divider-line" />
         <t-cell title="设置为默认收货地址" bordered="{{false}}">
           <t-switch
@@ -88,16 +45,5 @@
       </view>
     </form>
   </view>
-  <t-cascader
-    data-item="address"
-    data-type="1"
-    visible="{{areaPickerVisible}}"
-    theme="tab"
-    options="{{areaData}}"
-    value="{{locationState.districtCode}}"
-    title="选择地区"
-    bind:change="onInputValue"
-  ></t-cascader>
 </view>
 </scroll-view>
-<t-toast id="t-toast" />

@@ -23,14 +23,18 @@
 }
 .address-card .order-address .address-content {
   flex: 1;
+  min-width: 0;
+  word-break: break-word;
 }
 .order-address .address__right {
   align-self: center;
+  flex-shrink: 0;
+  margin-left: 16rpx;
 }
 .address-card .order-address .title {
   display: flex;
   align-items: center;
-  height: 40rpx;
+  min-height: 40rpx;
   font-size: 28rpx;
   font-weight: normal;
   color: #999999;
@@ -49,7 +53,7 @@
   margin: 8rpx 0;
 }
 .address-card .order-address .info {
-  height: 40rpx;
+  min-height: 40rpx;
   font-size: 28rpx;
   font-weight: normal;
   color: #333333;

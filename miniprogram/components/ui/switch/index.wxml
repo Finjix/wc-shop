@@ -1,0 +1,1 @@
+<switch checked="{{value}}" disabled="{{disabled}}" color="#695941" bindchange="input" />

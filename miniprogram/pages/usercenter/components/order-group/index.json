@@ -1,9 +1,9 @@
 {
   "component": true,
   "usingComponents": {
-    "t-cell": "../../../../components/tdesign/cell/cell",
-    "t-cell-group": "../../../../components/tdesign/cell-group/cell-group",
-    "t-badge": "../../../../components/tdesign/badge/badge",
-    "t-icon": "../../../../components/tdesign/icon/icon"
+    "t-cell": "/components/ui/cell/index",
+    "t-cell-group": "/components/ui/cell-group/index",
+    "t-badge": "/components/ui/badge/index",
+    "t-icon": "/components/ui/icon/index"
   }
 }

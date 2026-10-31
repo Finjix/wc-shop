@@ -1,0 +1,11 @@
+.wechat-logo { position: relative; display: block; background: #695941; }
+.bubble { position: absolute; border-radius: 50%; background: #fff; }
+.bubble-back { left: 12%; top: 21%; width: 54%; height: 43%; }
+.bubble-front { right: 10%; top: 42%; width: 46%; height: 36%; border: 2rpx solid #695941; }
+.bubble::after { content: ''; position: absolute; bottom: -8%; width: 22%; height: 28%; background: #fff; }
+.bubble-back::after { left: 14%; clip-path: polygon(0 100%, 15% 0, 100% 0); }
+.bubble-front::after { right: 14%; clip-path: polygon(100% 100%, 0 0, 85% 0); }
+.dot { position: absolute; top: 33%; width: 9%; height: 12%; border-radius: 50%; background: #695941; }
+.dot-left { left: 26%; }.dot-right { right: 26%; }
+
+.bubble-group { position: absolute; inset: 0; transform: scale(.88); transform-origin: center; }

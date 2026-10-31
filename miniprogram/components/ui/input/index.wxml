@@ -1,0 +1,1 @@
+<input class="input t-class {{disabled ? 'disabled' : ''}}" value="{{value}}" type="{{type}}" placeholder="{{placeholder}}" maxlength="{{maxlength}}" disabled="{{disabled}}" focus="{{focus}}" style="text-align:{{align}}" bindinput="input" bindfocus="focusInput" bindblur="blurInput" bindconfirm="submitInput" />

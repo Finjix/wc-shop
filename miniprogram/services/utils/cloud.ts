@@ -1,5 +1,6 @@
 import { cloudEnvId, cloudFunctionName, localBackendUrl, localUserId, useLocalBackend } from '../../config/runtime';
 import { TempFileUrls } from './temp-file-urls';
+import { LocalImageFiles } from './local-image-files';
 import { cloudReadRetry } from './cloud-read-retry';
 
 export interface ApiErrorShape {
@@ -174,12 +175,13 @@ export async function uploadCloudFile(localPath: string, folder: 'comments' | 'a
   }
 }
 
+const localImageFiles = new LocalImageFiles();
 const tempFileUrls = new TempFileUrls((fileList) => request('storage.tempUrls', { fileList }));
 
 export async function getTempFileUrl(fileID: string) {
   if (!fileID || /^(https?:|data:|wxfile:)/i.test(fileID)) return fileID;
   if (useLocalBackend && fileID.startsWith('local://')) {
-    return `${localApiUrl('/files')}?fileID=${encodeURIComponent(fileID)}`;
+    return localImageFiles.get(`${localApiUrl('/files')}?fileID=${encodeURIComponent(fileID)}`);
   }
   const cloud = getCloud();
   if (!cloud?.getTempFileURL) return fileID;

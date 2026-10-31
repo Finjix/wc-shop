@@ -7,7 +7,7 @@
 </view>
 <view class="content-wrapper">
   <view class="user-profile">
-    <view class="user-profile__avatar"><static-image class="user-profile__avatar-image" asset="default-avatar" size="112rpx" /></view>
+    <view class="user-profile__avatar"><default-avatar class="user-profile__avatar-image" size="112rpx" /></view>
     <view class="user-profile__name">微信用户</view>
   </view>
   <view class="order-group-wrapper">
@@ -42,4 +42,3 @@
   <view class="footer__version">{{appVersion}}</view>
 </view>
 </scroll-view>
-<t-toast id="t-toast" />

@@ -1,6 +1,6 @@
 {
   "component": true,
   "usingComponents": {
-    "t-icon": "../../../../components/tdesign/icon/icon"
+    "t-icon": "/components/ui/icon/index"
   }
 }

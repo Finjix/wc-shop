@@ -10,7 +10,6 @@
   display: flex;
   justify-content: center;
 
-  --td-loading-color: #695941;
 }
 
 .load-more .t-class-loading-text {

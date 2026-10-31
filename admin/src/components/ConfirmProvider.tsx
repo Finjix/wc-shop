@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Dialog } from 'tdesign-react';
+import { Dialog } from './NativeUi';
 
 type ConfirmOptions = { closeBtn?: boolean };
 type Request = { message: string; closeBtn: boolean; resolve: (confirmed: boolean) => void };

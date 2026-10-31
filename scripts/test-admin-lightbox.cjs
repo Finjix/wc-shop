@@ -131,5 +131,6 @@ assert.equal(render(), null, 'unresolved filename links must not open an empty p
 const styles = fs.readFileSync(path.join(root, 'admin/src/styles.css'), 'utf8');
 assert.match(styles, /\*, \*::before, \*::after\s*\{[^}]*animation: none !important;[^}]*transition: none !important;[^}]*scroll-behavior: auto !important;/);
 const main = fs.readFileSync(path.join(root, 'admin/src/main.tsx'), 'utf8');
-assert.match(main, /exclude: \['ripple', 'expand', 'fade'\]/);
+assert.doesNotMatch(main, /ConfigProvider|tdesign/);
+assert.match(main, /MessageHost/);
 console.log('PASS image and filename previews; no admin animations; centered wheel zoom, bounds, drag/click separation, reset, Escape and listener/focus/scroll cleanup');

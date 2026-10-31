@@ -1,6 +1,3 @@
-@import '../../style/iconfont.wxss';
-
-
 page {
   display: block;
   height: 100vh;
@@ -26,8 +23,7 @@ page {
 }
 
 .cart-navbar-content {
-  --td-navbar-bg-color: #fff;
-  --td-navbar-color: #111;
+
   background-color: #fff !important;
   color: #111 !important;
 }
@@ -37,11 +33,11 @@ page {
 }
 
 .t-button {
-  --td-button-default-color: #000;
-  --td-button-primary-text-color: #fff;
+  --ui-button-color: #000;
+  color: #fff;
 }
 
 .cart-delete-dialog-confirm {
   color: var(--app-theme-text-color, #695941) !important;
-  --td-button-primary-text-color: var(--app-theme-text-color, #695941);
+  color: var(--app-theme-text-color, #695941);
 }

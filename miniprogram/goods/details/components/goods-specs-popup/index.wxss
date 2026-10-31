@@ -4,7 +4,8 @@
   z-index: 100;
   overflow: hidden;
   border-radius: 24rpx 24rpx 0 0;
-  padding-bottom: calc(env(safe-area-inset-bottom) + 20rpx);
+  /* The shared popup supplies the bottom safe area. */
+  padding-bottom: 20rpx;
 }
 
 .popup-container .popup-close {

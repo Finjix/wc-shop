@@ -1,0 +1,1 @@
+<view class="tag t-class"><slot /></view>

@@ -1,0 +1,2 @@
+@import '../../../style/native-ui.wxss';
+:host { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; vertical-align: middle; line-height: 0; }

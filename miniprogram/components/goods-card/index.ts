@@ -124,6 +124,7 @@ Component({
       }
       this.intersectionObserverContext = this.createIntersectionObserver({
         thresholds: this.properties.thresholds,
+          nativeMode: true,
       }).relativeToViewport();
 
       this.intersectionObserverContext.observe(

@@ -1,4 +1,3 @@
-@import '../../style/iconfont.wxss';
 page {
   height: 100%;
   overflow: hidden;
@@ -114,9 +113,6 @@ page {
   justify-content: space-around;
   margin-top: 24rpx;
 
-  --td-input-bg-color: rgba(245, 245, 245, 1);
-  --td-input-vertical-padding: 4rpx;
-  --td-input-border-color: transparent;
 }
 
 .goods-list-container .price-ipts-wrap .price-divided {

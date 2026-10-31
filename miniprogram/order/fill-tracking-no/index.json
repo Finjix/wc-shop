@@ -3,12 +3,11 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
-    "t-navbar": "../../components/tdesign/navbar/navbar",
-    "t-cell": "../../components/tdesign/cell/cell",
-    "t-cell-group": "../../components/tdesign/cell-group/cell-group",
-    "t-input": "/order/components/tdesign/input/input",
-    "t-toast": "../../components/tdesign/toast/toast",
-    "t-dialog": "../../components/tdesign/dialog/dialog",
-    "t-button": "../../components/tdesign/button/button"
+    "t-navbar": "/components/ui/navbar/index",
+    "t-cell": "/components/ui/cell/index",
+    "t-cell-group": "/components/ui/cell-group/index",
+    "t-input": "/components/ui/input/index",
+    "t-dialog": "/components/ui/dialog/index",
+    "t-button": "/components/ui/button/index"
   }
 }

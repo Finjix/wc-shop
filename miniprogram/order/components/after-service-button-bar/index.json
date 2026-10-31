@@ -1,6 +1,6 @@
 {
   "component": true,
   "usingComponents": {
-    "t-button": "../../../components/tdesign/button/button"
+    "t-button": "/components/ui/button/index"
   }
 }

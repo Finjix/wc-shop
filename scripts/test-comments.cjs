@@ -43,8 +43,8 @@ function load(file) {
     exports, wx, Page: (definition) => { page = definition; }, Component: (definition) => { component = definition; },
     getCurrentPages: () => [{ selectComponent: () => ({ open(src) { previews.push({ current: src, urls: [src] }); } }) }],
     require(name) {
-      name = name.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
-      if (name === 'tdesign-miniprogram/toast/index') return { default() {} };
+      if (name.endsWith('/common/ui/toast')) name = 'native-toast';
+      if (name === 'native-toast') return { default() {} };
       if (name.startsWith('.')) return load(`${path.resolve(path.dirname(filename), name)}.ts`);
       throw new Error(`Unexpected dependency ${name}`);
     },

@@ -1,0 +1,2 @@
+@import '../../style/gift-card.wxss';
+.feed-batch { margin-bottom: 16rpx; }

@@ -1,0 +1,6 @@
+<view class="wechat-logo" style="width:{{size}};height:{{size}}" aria-label="微信头像">
+  <view class="bubble-group">
+    <view class="bubble bubble-back"><view class="dot dot-left" /><view class="dot dot-right" /></view>
+    <view class="bubble bubble-front"><view class="dot dot-left" /><view class="dot dot-right" /></view>
+  </view>
+</view>

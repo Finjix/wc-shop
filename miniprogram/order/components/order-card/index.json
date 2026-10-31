@@ -2,6 +2,6 @@
   "component": true,
   "usingComponents": {
     "t-image": "/components/webp-image/index",
-    "t-icon": "../../../components/tdesign/icon/icon"
+    "t-icon": "/components/ui/icon/index"
   }
 }

@@ -1,7 +1,7 @@
 {
   "component": true,
   "usingComponents": {
-    "t-search": "../tdesign/search/search",
-    "t-icon": "../tdesign/icon/icon"
+    "t-search": "/components/ui/search/index",
+    "t-icon": "/components/ui/icon/index"
   }
 }

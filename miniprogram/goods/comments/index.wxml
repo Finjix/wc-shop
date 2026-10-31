@@ -79,6 +79,4 @@
 </view>
 </scroll-view>
 </view>
-<t-toast id="t-toast" />
-
 <single-image-preview id="image-preview" />

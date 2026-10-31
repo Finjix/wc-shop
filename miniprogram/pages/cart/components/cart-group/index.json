@@ -1,9 +1,8 @@
 {
   "component": true,
   "usingComponents": {
-    "t-toast": "../../../../components/tdesign/toast/toast",
-    "t-icon": "../../../../components/tdesign/icon/icon",
-    "t-stepper": "../../../../components/tdesign/stepper/stepper",
+    "t-icon": "/components/ui/icon/index",
+    "t-stepper": "/components/ui/stepper/index",
     "goods-card": "../goods-card/index",
     "specs-popup": "../specs-popup/index"
   }

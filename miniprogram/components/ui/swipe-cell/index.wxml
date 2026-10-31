@@ -1,0 +1,1 @@
+<view class="swipe" bindtouchstart="swipeStart" bindtouchend="swipeEnd"><view class="swipe-content {{swiped ? 'swiped' : ''}}"><slot /></view><view wx:if="{{swiped}}" class="swipe-delete"><slot name="right" /></view></view>

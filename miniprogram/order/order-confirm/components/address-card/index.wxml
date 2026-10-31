@@ -2,7 +2,7 @@
 	<t-cell wx:if="{{addressData && addressData.detailAddress}}" bindtap="onAddressTap" bordered="{{false}}" hover>
 		<view class="order-address" slot="title">
 			<view class="address-content">
-				<view class="title">
+				<view class="title" wx:if="{{addressData.provinceName || addressData.cityName || addressData.districtName}}">
 					{{addressData.provinceName}} {{addressData.cityName}} {{addressData.districtName}}
 				</view>
 				<view class="detail">{{addressData.detailAddress}}</view>

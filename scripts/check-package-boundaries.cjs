@@ -7,7 +7,7 @@ const root = path.join(repoRoot, 'miniprogram');
 const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
 function check() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
-  assert.deepEqual(app.subpackages.map(p => p.root), ['goods', 'order', 'user', 'services', 'utils', 'assets']);
+  assert.deepEqual(app.subpackages.map(p => p.root), ['goods', 'order', 'user', 'services', 'utils']);
   assert.equal(JSON.parse(fs.readFileSync(path.join(repoRoot, 'project.config.json'), 'utf8')).miniprogramRoot, 'miniprogram/');
   assert.equal(app.pages.length, 4);
   assert.deepEqual(app.tabBar.list.map(p => p.pagePath), app.pages);
@@ -78,8 +78,8 @@ function check() {
   const include = JSON.parse(fs.readFileSync(path.join(repoRoot, 'project.config.json'), 'utf8')).packOptions.include;
   assert.ok(include.some(p => p.value === 'utils/image-processor/codec/webp_enc.wasm'));
   assert.ok(fs.existsSync(path.join(root, 'utils/image-processor/codec/webp_enc.wasm')));
-  assert.equal(asyncReferences, 5, 'service entry, two image processors and two static image consumers load asynchronously');
-  console.log(`PASS main + goods/order/user/services/utils/assets graph: ${modules} module dependencies, ${asyncReferences} async references and all page/template/style paths`);
+  assert.equal(asyncReferences, 4, 'service entry, two image processors and the user avatar load asynchronously');
+  console.log(`PASS main + goods/order/user/services/utils graph: ${modules} module dependencies, ${asyncReferences} async references and all page/template/style paths`);
 }
 if (require.main === module) check();
 module.exports = { check };

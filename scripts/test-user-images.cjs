@@ -99,7 +99,7 @@ async function testPageAndUpload() {
     vm.runInNewContext(compiled, { exports, Page(value) { page = value; },
       wx: { showLoading() {}, hideLoading() {} },
       require(ref) {
-      ref = ref.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
+
         if (ref.includes('toast')) return { default() {} };
         if (ref === '../config') return {
           OrderStatus: {}, ServiceType: { RETURN_GOODS: 10, ONLY_REFUND: 20 },
@@ -145,8 +145,12 @@ async function testPageAndUpload() {
   vm.runInNewContext(ts.transpileModule(readMiniProgramSource(path.join(root, 'miniprogram/services/utils/cloud-read-retry.ts'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports: readRetry });
+  const localFiles = {};
+  vm.runInNewContext(ts.transpileModule(readMiniProgramSource(path.join(root, 'miniprogram/services/utils/local-image-files.ts'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports: localFiles });
   vm.runInNewContext(source, { exports, require(ref) {
-      ref = ref.replace(/^.*\/tdesign\//, "tdesign-miniprogram/"); return ref === './temp-file-urls' ? urlExports : ref === './cloud-read-retry' ? readRetry : { useLocalBackend: true, localBackendUrl: 'http://localhost' }; },
+       return ref === './local-image-files' ? localFiles : ref === './temp-file-urls' ? urlExports : ref === './cloud-read-retry' ? readRetry : { useLocalBackend: true, localBackendUrl: 'http://localhost' }; },
     wx: {
       request({ data, success }) { assert.equal(data.action, 'storage.prepareUpload'); success({ data: { ok: true, data: { cloudPath: 'user/comments/out.webp', fileID: 'local://user/comments/out.webp' } } }); },
       getFileInfo({ success }) { success({ size: 15 * 1024 * 1024 }); },

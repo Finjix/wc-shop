@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { Button } from 'tdesign-react';
+import { Button } from './NativeUi';
 import { IMAGE_ACCEPT } from '../lib/image-upload';
 
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {

@@ -25,14 +25,14 @@ async function run() {
       return { result: { ok: true, data: data.data.fileList.map((fileID) => ({ fileID, tempFileURL: `https://images.test/${fileID.split('/').pop()}` })) } };
     } };
     const api = client === 'shop' ? load('miniprogram/services/utils/cloud.ts', {
-      require: (ref) => ref === './temp-file-urls' ? urls : ref === './cloud-read-retry' ? readRetry : { cloudEnvId: 'test', cloudFunctionName: 'wc-shop-function' },
+      require: (ref) => ref === './local-image-files' ? load('miniprogram/services/utils/local-image-files.ts') : ref === './temp-file-urls' ? urls : ref === './cloud-read-retry' ? readRetry : { cloudEnvId: 'test', cloudFunctionName: 'wc-shop-function' },
       wx: { cloud: app }, console: { ...console, error() {} },
     }) : load('admin/src/lib/api.ts', { fetch: async (_url, options) => {
       assert.equal(options.credentials, 'omit');
       const response = await app.callFunction({ data: JSON.parse(options.body) });
       return { status: 200, json: async () => response.result };
     }, console: { ...console, error() {} }, require(ref) {
-      ref = ref.replace(/^.*\/tdesign\//, "tdesign-miniprogram/");
+
       if (ref.includes('temp-file-urls')) return urls;
       if (ref.includes('cloud-read-retry')) return readRetry;
       return {};
@@ -71,7 +71,7 @@ async function run() {
   const maintenanceCalls = [];
   let finishCleanup;
   const maintenanceApi = load('miniprogram/services/utils/cloud.ts', {
-    require: (ref) => ref === './temp-file-urls' ? urls : ref === './cloud-read-retry' ? readRetry : { cloudEnvId: 'test', cloudFunctionName: 'wc-shop-function' },
+    require: (ref) => ref === './local-image-files' ? load('miniprogram/services/utils/local-image-files.ts') : ref === './temp-file-urls' ? urls : ref === './cloud-read-retry' ? readRetry : { cloudEnvId: 'test', cloudFunctionName: 'wc-shop-function' },
     wx: { cloud: { callFunction({ data }) {
       maintenanceCalls.push(data.action);
       if (data.action === 'storage.cleanupQueue') return new Promise(resolve => { finishCleanup = resolve; });
@@ -103,6 +103,32 @@ async function run() {
   await assert.rejects(malformed.get('first'), /响应无效/);
   const invalidEntries = new urls.TempFileUrls(async () => [null]);
   await assert.rejects(invalidEntries.get('first'), /获取失败/);
+  let downloads = 0, finishDownload;
+  const localFiles = load('miniprogram/services/utils/local-image-files.ts', { wx: { downloadFile(options) { downloads++; finishDownload = options; } } });
+  const local = new localFiles.LocalImageFiles();
+  const firstLocal = local.get('http://localhost/image');
+  assert.equal(local.get('http://localhost/image'), firstLocal, 'simultaneous local downloads are coalesced');
+  finishDownload.success({ statusCode: 200, tempFilePath: 'wxfile://cached.webp' });
+  assert.equal(await firstLocal, 'wxfile://cached.webp');
+  assert.equal(await local.get('http://localhost/image'), 'wxfile://cached.webp');
+  assert.equal(downloads, 1);
+  const missingLocal = local.get('http://localhost/missing');
+  finishDownload.success({ statusCode: 404 });
+  await assert.rejects(missingLocal, /下载失败/);
+  const retriedLocal = local.get('http://localhost/missing');
+  finishDownload.success({ statusCode: 200, tempFilePath: 'wxfile://retried.webp' });
+  assert.equal(await retriedLocal, 'wxfile://retried.webp');
+  const waitingDownloads = [];
+  const boundedFiles = load('miniprogram/services/utils/local-image-files.ts', { wx: { downloadFile(options) { waitingDownloads.push(options); } } });
+  const bounded = new boundedFiles.LocalImageFiles();
+  const downloadsAll = Array.from({ length: 12 }, (_, index) => bounded.get(`http://localhost/${index}`));
+  assert.equal(waitingDownloads.length, 4, 'at most four local image downloads start together');
+  for (let index = 0; index < 12; index++) {
+    waitingDownloads[index].success({ statusCode: 200, tempFilePath: `wxfile://${index}` });
+    waitingDownloads[index].complete();
+  }
+  assert.equal((await Promise.all(downloadsAll)).length, 12);
+  console.log('PASS local image file cache: coalescing, file paths, reuse, failed status and retry');
   console.log('PASS actual shop/admin URL batching, cache expiry, malformed responses and one timeout retry for reads only');
 }
 run().catch((error) => { console.error(error); process.exitCode = 1; });

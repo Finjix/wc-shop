@@ -9,10 +9,9 @@ function files(directory) {
     return entry.isDirectory()?files(file):[file];
   });
 }
-const assets=files(path.join(mini,'assets'));
-assert.ok(!assets.some(file=>/\.gif$/i.test(file)),'no GIF files in the resource package');
-const bytes=assets.reduce((sum,file)=>sum+fs.statSync(file).size,0);
-assert.ok(bytes<2*1024*1024,`resource package exceeds 2 MiB: ${bytes}`);
+const assets=files(mini).filter(file => /\.(?:png|jpe?g|webp|gif|svg)$/i.test(file));
+assert.deepEqual(assets, [], 'mini-program contains no static image icon files');
+const bytes=0;
 const markup=fs.readFileSync(path.join(mini,'pages/home/home.wxml'),'utf8');
 assert.match(markup,/<button[^>]+bind:tap="showInviteComingSoon"[^>]+aria-label="邀请返现"/);
 assert.match(markup,/<button[^>]+open-type="contact"[^>]+aria-label="加客服拿好礼"/);
@@ -25,7 +24,7 @@ assert.equal((cards.match(/mode="aspectFill"/g) || []).length, 2);
 const styles = fs.readFileSync(path.join(mini, 'pages/home/home.wxss'), 'utf8');
 assert.match(styles, /width: calc\(\(100% - 8rpx\) \/ 2\); height: calc\(\(100vw - 8rpx\) \/ 2\)/);
 for(const name of ['invite-cashback','customer-gift']) {
-  assert.ok(fs.existsSync(path.join(mini,'assets/home',`${name}-frames-v261025.jpg`)));
-  assert.ok(fs.existsSync(path.join(mini,'assets/home',`${name}-poster-v261025.jpg`)));
+  assert.ok(!fs.existsSync(path.join(mini,'assets/home',`${name}-frames-v261025.jpg`)));
+  assert.ok(!fs.existsSync(path.join(mini,'assets/home',`${name}-poster-v261025.jpg`)));
 }
-console.log(`PASS two configurable square images, native actions, no GIFs and resource package ${bytes} bytes`);
+console.log(`PASS two configurable square images, native actions, no GIFs and main-package static assets ${bytes} bytes`);

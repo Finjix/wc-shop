@@ -1,0 +1,1 @@
+<image class="image t-class" src="{{src}}" mode="{{mode}}" lazy-load="{{lazy || lazyLoad}}" show-menu-by-longpress="{{showMenuByLongpress}}" bindload="imageLoad" binderror="imageError" />

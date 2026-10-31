@@ -1,0 +1,4 @@
+<view class="symbol {{kind}}" style="width:{{size}};height:{{size}}" aria-hidden="true">
+  <view wx:if="{{kind === 'heart'}}" class="heart-shape" />
+  <view wx:else class="star-shape" />
+</view>

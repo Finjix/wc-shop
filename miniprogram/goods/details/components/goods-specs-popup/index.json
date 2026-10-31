@@ -2,10 +2,9 @@
   "component": true,
   "usingComponents": {
     "price": "/components/price/index",
-    "t-popup": "../../../../components/tdesign/popup/popup",
-    "t-icon": "../../../../components/tdesign/icon/icon",
+    "t-popup": "/components/ui/popup/index",
+    "t-icon": "/components/ui/icon/index",
     "t-image": "/components/webp-image/index",
-    "t-stepper": "../../../../components/tdesign/stepper/stepper",
-    "t-toast": "../../../../components/tdesign/toast/toast"
+    "t-stepper": "/components/ui/stepper/index"
   }
 }

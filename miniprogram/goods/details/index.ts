@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { isPageNavigationEnabled } from '../../config/navigation';
 
-import Toast from '../../components/tdesign/toast/index';
+import Toast from '../../common/ui/toast';
 import { fetchGood } from '../../common/services/good/fetchGood';
 import { addGoodsToCart } from '../../common/services/cart/cart';
 import { setPendingGoodsRequestList } from '../../common/services/order/orderConfirm';
@@ -9,10 +9,8 @@ import { getGoodsDetailsCommentsCount } from '../services/fetchGoodsDetailsComme
 import { getApiErrorMessage } from '../../common/services/utils/api';
 import { previewSingleImage } from '../utils/preview-image';
 
-import { cdnBase } from '../../config/runtime';
 import { productShareHandlers, enablePageSharing } from '../../common/share';
 
-const imgPrefix = `${cdnBase}/`;
 
 Page({
   ...productShareHandlers,
@@ -38,7 +36,6 @@ Page({
         value: 'goods-page',
       },
     ],
-    storeLogo: `${imgPrefix}common/store-logo.png`,
     storeName: '云mall标准版旗舰店',
     jumpArray: [
       {

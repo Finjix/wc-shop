@@ -30,7 +30,7 @@ function load(relative) {
   }).outputText, {
     exports,
     require(ref) {
-      if (ref.includes('/tdesign/toast/')) return { default() {} };
+      if (ref.endsWith('/common/ui/toast')) return { default() {} };
       if (ref.startsWith('.')) return load(`${path.resolve(path.dirname(file), ref)}.ts`);
       throw new Error(`Unexpected dependency: ${ref}`);
     },

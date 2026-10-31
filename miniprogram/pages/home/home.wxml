@@ -1,6 +1,4 @@
-<import src="../../components/gift-card/index.wxml" />
-
-<top-search
+<top-search managed="{{true}}" marquee-text="{{homeSearchText}}"
   top="{{searchTop}}"
   left="{{searchLeft}}"
   width="{{searchWidth}}"
@@ -13,8 +11,8 @@
   bind:submit="handleSearchSubmit"
 />
 
-<scroll-view class="home-scroll" scroll-y show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}" lower-threshold="200" bindscroll="onFeedScroll" bindtouchstart="onFeedTouchStart" bindtouchmove="onFeedTouchMove" bindscrolltolower="onFeedBottom">
-  <view class="home-scroll-content">
+<scroll-view scroll-into-view="{{scrollAnchor}}" class="home-scroll" scroll-y show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}" lower-threshold="200" bindscroll="onFeedScroll" bindtouchstart="onFeedTouchStart" bindtouchmove="onFeedTouchMove" bindscrolltolower="onFeedBottom">
+  <view id="home-top" class="home-scroll-content">
     <view wx:if="{{loadError}}" class="home-load-error">
       <text>{{loadError}}</text>
       <button class="home-load-error__retry" size="mini" bind:tap="loadHomePage">重新加载</button>
@@ -38,18 +36,18 @@
 
     <view class="home-promo-cards">
       <view class="home-promo-card">
-        <image wx:if="{{promoImages[0]}}" class="home-promo-card__image" src="{{promoImages[0]}}" mode="aspectFill" />
+        <image wx:if="{{promoImages[0]}}" class="home-promo-card__image" src="{{promoImages[0]}}" mode="aspectFill" lazy-load />
         <button wx:if="{{promoImages[0]}}" class="home-promo-card__action" bind:tap="showInviteComingSoon" aria-label="邀请返现"></button>
       </view>
       <view class="home-promo-card">
-        <image wx:if="{{promoImages[1]}}" class="home-promo-card__image" src="{{promoImages[1]}}" mode="aspectFill" />
+        <image wx:if="{{promoImages[1]}}" class="home-promo-card__image" src="{{promoImages[1]}}" mode="aspectFill" lazy-load />
         <button wx:if="{{promoImages[1]}}" class="home-promo-card__action" open-type="contact" aria-label="加客服拿好礼"></button>
       </view>
     </view>
 
     <view wx:if="{{recommendations.length}}" class="home-recommendations">
       <view class="showcase-heading showcase-heading--heart" aria-label="倾心推荐">
-        <view class="showcase-heading__mascot"><static-image asset="recommend-heart" size="64px" /></view>
+        <view class="showcase-heading__mascot"><section-symbol kind="heart" size="48px" /></view>
         <view class="showcase-heading__words"><text wx:for="{{heartTitle}}" wx:key="index" class="showcase-heading__letter" style="animation-delay:{{index * 0.16}}s">{{item}}</text></view>
         <text class="showcase-heading__sparkle" aria-hidden="true">✦</text>
       </view>
@@ -62,17 +60,13 @@
       </swiper>
     </view>
 
-    <view class="home-gifts">
+    <view wx:if="{{feedActivated}}" class="home-gifts">
       <view class="showcase-heading showcase-heading--star" aria-label="更多献礼">
         <text class="showcase-heading__sparkle" aria-hidden="true">✧</text>
         <view class="showcase-heading__words"><text wx:for="{{giftTitle}}" wx:key="index" class="showcase-heading__letter" style="animation-delay:{{index * 0.2}}s">{{item}}</text></view>
-        <view class="showcase-heading__mascot"><static-image asset="gift-star" size="64px" /></view>
+        <view class="showcase-heading__mascot"><section-symbol kind="star" size="48px" /></view>
       </view>
-      <view class="home-gift-grid">
-        <block wx:for="{{feedItems}}" wx:key="feedKey">
-          <template is="gift-card" data="{{product: item}}" />
-        </block>
-      </view>
+      <home-feed-batch wx:for="{{feedBatches}}" wx:key="key" items="{{item.items}}" bind:product="onFeedProduct" bind:cart="onFeedCart" />
       <view class="home-feed-status">
         <t-loading wx:if="{{feedLoading}}" theme="circular" size="32rpx" text="加载中" />
         <button wx:elif="{{feedError}}" class="home-feed-retry" bind:tap="loadMoreFeed">{{feedError}} · 点击重试</button>
@@ -85,3 +79,5 @@
     </view>
   </view>
 </scroll-view>
+
+<button wx:if="{{showBackToTop}}" class="home-back-top" bind:tap="backToTop">返回顶部 ↑</button>

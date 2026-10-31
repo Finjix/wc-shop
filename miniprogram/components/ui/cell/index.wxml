@@ -1,0 +1,7 @@
+<view class="cell t-class {{bordered ? '' : 'borderless'}}" bindtap="tapCell">
+  <slot name="left-icon" />
+  <view class="cell-title t-class-title {{title ? '' : 'cell-title-slot'}}">{{title}}<slot name="title" /><text wx:if="{{description}}" class="description">{{description}}</text></view>
+  <view class="cell-note t-class-note {{title || note ? '' : 'cell-note-slot'}}"><text wx:if="{{note}}" class="cell-note-text">{{note}}</text><slot name="note" /><slot /></view>
+  <slot name="right-icon" />
+  <view wx:if="{{arrow}}" class="cell-arrow" />
+</view>

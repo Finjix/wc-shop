@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import Dialog from '../utils/dialog';
-import Toast from '../../components/tdesign/toast/index';
+import Toast from '../../common/ui/toast';
 import { priceFormat } from '../utils/format';
 import { OrderStatus, ServiceType, ServiceReceiptStatus } from '../config';
 import reasonSheet from '../components/reason-sheet/reasonSheet';

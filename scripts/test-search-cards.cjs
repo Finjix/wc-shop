@@ -9,13 +9,15 @@ async function main() {
   const template = read('miniprogram/components/gift-card/index.wxml');
   const styles = read('miniprogram/style/gift-card.wxss');
   for (const page of ['pages/home/home', 'goods/result/index']) {
-    const markup = read(`miniprogram/${page}.wxml`);
+    const markup = page === 'pages/home/home'
+      ? read('miniprogram/components/home-feed-batch/index.wxml').replace('../gift-card/index.wxml', '../../components/gift-card/index.wxml')
+      : read(`miniprogram/${page}.wxml`);
     const css = read(`miniprogram/${page}.wxss`);
     assert.match(markup, /<import src="\.\.\/\.\.\/components\/gift-card\/index.wxml"/);
     assert.match(markup, /<template is="gift-card" data="\{\{product: item\}\}"/);
     assert.match(css, /@import '\.\.\/\.\.\/style\/gift-card.wxss'/);
     assert.doesNotMatch(css, /\.home-gift-card\s*\{/, 'card appearance has one shared source');
-    const components = JSON.parse(read(`miniprogram/${page}.json`)).usingComponents;
+    const components = JSON.parse(read(page === 'pages/home/home' ? 'miniprogram/components/home-feed-batch/index.json' : `miniprogram/${page}.json`)).usingComponents;
     assert.equal(components.price, '/components/price/index');
     assert(components['t-icon']);
   }
@@ -44,7 +46,7 @@ async function main() {
       return { spuList: params.pageNum === 1 ? products.slice(0, 30) : products.slice(30), totalCount: 31 };
     } },
     '../../common/services/utils/api': { getApiErrorMessage: (error) => error.message },
-    '../../components/tdesign/toast/index': { default() {} },
+    '../../common/ui/toast': { default() {} },
     '../../common/utils/goods-detail-navigation': { navigateToGoodsDetail: (url) => navigation.push(url) },
     '../../common/share': { catalogShareHandlers: {}, enablePageSharing() {} },
   };

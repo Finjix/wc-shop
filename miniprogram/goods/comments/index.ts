@@ -4,7 +4,7 @@ import { fetchComments } from '../services/comments/fetchComments';
 import { fetchCommentsCount } from '../services/comments/fetchCommentsCount';
 import { fetchOrderComment } from '../services/comments/fetchOrderComment';
 import { getApiErrorMessage } from '../../common/services/utils/api';
-import Toast from '../../components/tdesign/toast/index';
+import Toast from '../../common/ui/toast';
 
 const layoutMap = { 0: 'vertical' };
 

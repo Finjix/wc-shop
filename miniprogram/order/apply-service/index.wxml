@@ -79,7 +79,6 @@
     <view class="service-from-group__textarea">
       <text class="textarea--label">退款原因</text>
       <t-textarea
-        autosize
         value="{{serviceFrom.remark}}"
         t-class="textarea--content"
         t-class-textarea="refund-reason-input"
@@ -147,7 +146,6 @@
 <!-- 理由选择 -->
 <wr-reason-sheet id="wr-reason-sheet" />
 <t-dialog id="t-dialog" />
-<t-toast id="t-toast" />
 <image-processor id="image-processor" />
 
 <single-image-preview id="image-preview" />

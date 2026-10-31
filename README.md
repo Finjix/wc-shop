@@ -14,7 +14,7 @@ npm --prefix admin ci
 npm --prefix cloudfunctions ci
 ```
 
-1. 在微信开发者工具中导入项目，执行「工具 → 构建 npm」，再运行 `npm run build:subpackage-ui`。
+1. 在微信开发者工具中导入项目并普通编译；界面使用自有原生控件，无需构建 npm。
 2. 将 `miniprogram/config/runtime.ts` 中的 `useLocalBackend` 设为 `true`。
 3. 按 `admin/.env.example` 配置 `admin/.env.local`；本地调试时设置 `VITE_LOCAL_API_URL=http://127.0.0.1:8787`，留空则连接云端。
 4. Windows 下运行 `start-local.cmd`，启动本地后端（8787）和管理后台（5173）。
@@ -25,6 +25,8 @@ npm --prefix cloudfunctions ci
 npm run dev:local-backend
 npm --prefix admin run dev -- --host 127.0.0.1 --port 5173
 ```
+
+开发者工具关闭「文件保存后自动热重载」（`compileHotReLoad: false`），修改后使用普通编译，避免旧页面实例与新脚本混用。小程序本地图片通过 `wx.downloadFile` 缓存为临时文件，同一图片复用下载结果；不将 HTTP 开发服务器地址直接传给图片节点。
 
 本地数据库、上传图片和缓存统一保存在项目同级的 `../.wc-shop-local/`，本机路径为 `D:\project\.wc-shop-local`。其中 `migrations/` 存放旧数据迁移备份，请勿随意删除。不要提交真实数据或密钥。
 
@@ -46,7 +48,7 @@ npm --prefix admin run dev -- --host 127.0.0.1 --port 5173
 | `miniprogram/user/` | 用户分包：资料、地址、帮助和关于 |
 | `miniprogram/services/` | 接口服务分包：请求、数据转换和共享业务状态 |
 | `miniprogram/utils/` | 工具分包：图片处理和 WebP 编码 |
-| `miniprogram/assets/` | 资源分包：首页固定活动 JPG 图集、默认头像和异步图片组件 |
+| `miniprogram/assets/` | 主包静态资源：首页标题图标和共享图片组件 |
 | `design/home-promos/` | 活动图原始插画、背景、花字和生成提示词，不参与小程序上传 |
 | `miniprogram/components/` | 主包公共组件 |
 | `miniprogram/common/`、`miniprogram/config/` | 公共逻辑、异步服务入口、类型声明和运行配置 |
@@ -56,7 +58,7 @@ npm --prefix admin run dev -- --host 127.0.0.1 --port 5173
 
 `project.config.json` 的小程序根目录为 `miniprogram/`。四个 Tab 直接运行在主包；商品、订单和用户页面按业务分包。`services` 保存接口实现和共享业务状态，通过主包异步入口统一加载并支持失败重试；`utils` 的图片编码组件由上传页面按需加载。售后转换逻辑分别放在订单、服务分包，主包不保留副本。
 
-全局主题位于 `miniprogram/app.wxss`。各包的 `components/tdesign/` 为生成的 UI 依赖，修改组件引用后运行 `npm run build:subpackage-ui`。构建脚本将主包使用的组件留在公共目录，其余组件随业务分包放置，并裁剪未使用文件。分包可同步引用主包，分包之间使用页面跳转或声明的异步入口。
+全局主题位于 `miniprogram/app.wxss`。自有控件共用 `miniprogram/components/ui/`，业务服务和编码工具仍按分包异步加载。
 
 ## 检查与发布
 
@@ -66,7 +68,7 @@ npm run test:cloud                    # 服务端回归
 npm run test:commerce-http            # 本地 HTTP 验收
 npm run test:subpackage-dependencies  # 分包依赖检查
 npm run test:package-loading          # 分包加载回归
-npm run test:home-promos               # 固定入口、JPG 图集和资源分包验收
+npm run test:home-promos               # 固定入口、过期图片清理和主包静态资源验收
 npm run test:home-showcase             # 推荐轮播、下滑后每批 6 个、加购跳转和标题图片
 npm run test:sharing                   # 好友/朋友圈分享回调、商品和分类链接
 ```
@@ -85,11 +87,11 @@ npm run test:sharing                   # 好友/朋友圈分享回调、商品�
 
 搜索结果（含分类商品结果）改为每行两张卡片，与首页「更多献礼」共用 `miniprogram/components/gift-card/index.wxml` 模板和 `miniprogram/style/gift-card.wxss` 样式，封面、两行标题、价格、圆角及购物车按钮一致。点击卡片进入详情，点击购物车进入详情并打开加购规格选择；排序、筛选和分页逻辑保留。米色背景仅限首页，搜索结果为白底，其他页面及选中态的浅色底统一使用中性灰；共享卡片的封面占位色仅在首页局部覆盖为米色，棕色文字、边框和操作按钮保留。运行 `npm run test:backgrounds` 检查背景范围。运行 `npm run test:search-cards` 检查共享模板/样式、跳转、分类参数、排序、分页及空/错误状态。
 
-首页「邀请返现 / 加客服拿好礼」均使用普通图片节点和离散 CSS 动画播放 35 帧 JPG 图集，保持原始帧间隔和 2.5 秒循环，进入可见区域播放、滚出屏幕或离开页面暂停。图集质量分别按原 GIF 字节数自动选择，体积差异控制在 5% 内；加载失败显示静态 JPG 首帧。包内无 GIF、Canvas、逐帧 JS 定时器或额外网络/数据库请求。无损动画源文件仅保留在包外的 `design/home-promos/animations/*-source.webp`，运行 `npm run build:promo-frames` 生成两张图集、静态首帧、样式和体积清单；`npm run test:promo-frames` 检查全部帧的画面误差、时序、暂停恢复和回退。
+首页「邀请返现 / 加客服拿好礼」使用后台配置的两张方形图片，未配置时不加载图片。旧版活动图集、首帧、播放代码和生成图集命令已移除；设计原画与无损动画源保留在包外的 `design/home-promos/`，不参与小程序上传。
 
-首页原商品区已替换为固定的「倾心推荐」和「更多献礼」。后台提供四个推荐位，每位选择在售商品并上传独立的 9:16 封面；未完成的位置不展示，旧 `sections` 不自动迁入，新版保存时移除。顶部轮播图每 2.5 秒向右切换，推荐卡片每 2.5 秒向左切换；两者保留原生触摸方向，单张静态显示。更多献礼进入首页时不加载，首次向下浏览才加载 6 个，此后触底每批加载 6 个，每轮随机且轮内不重复，展示完后重新打乱循环。购物车图标进入详情后自动打开规格选择，返回首页保留浏览位置。
+首页原商品区已替换为固定的「倾心推荐」和「更多献礼」。后台提供四个推荐位，每位选择在售商品并上传独立的 9:16 封面；未完成的位置不展示，旧 `sections` 不自动迁入，新版保存时移除。顶部轮播图每 2.5 秒向右切换，推荐卡片每 2.5 秒向左切换；两者保留原生触摸方向，单张静态显示。更多献礼进入首页时不创建标题、动画、图标及商品节点，也不请求商品；首次向下浏览才创建板块并加载 6 个，此后触底每批加载 6 个，每轮随机且轮内不重复，展示完后重新打乱循环。购物车图标进入详情后自动打开规格选择，返回首页保留浏览位置。
 
-标题卡通图标位于资源分包 `miniprogram/assets/home/`，为透明的单张 PNG（64×64，以 64px 显示）；爱心、星星与花字使用 WXSS 动画。顶部搜索栏提示文字静态显示，后台输入和服务端保存均限制 16 个字，旧的超长文案读取时仅展示前 16 个字。运行 `npm run build:home-mascots` 可从 `design/home-showcase/` 的原画重新导出两张静态图标，原画和提示词不参与小程序打包。
+首页爱心、星星由 `miniprogram/components/section-symbol/` 使用原生 view 和 WXSS 绘制，不依赖图片文件；原有标题动画保留。顶部搜索提示仍由后台配置，限制 16 个字。
 
 首页、分类、商品搜索、列表、搜索结果和商品详情均注册好友与朋友圈分享回调，并显式开启右上角分享菜单。好友商品链接进入对应商品详情，朋友圈使用当前页面和商品查询参数；列表分享保留分类、搜索词。分享商品不携带 `skuAction` 等临时操作参数。本地存储图片地址不会作为分享封面发送。回归测试不实际发送微信消息，最终发送及接收需在真机预览或发布版本验证。
 
@@ -144,3 +146,7 @@ npm run test:sharing                   # 好友/朋友圈分享回调、商品�
 支付补偿原先每分钟读取三类队列及历史游标，并无条件写入轮转状态；空闲时也会持续消耗数据库请求。现在空队列每次仅 3 次限定查询、0 次写入，只有有任务时才轮转优先级，队列达到一页才读取和推进游标。支付成功通知仍实时处理，用户主动查单不受定时频率影响；丢失通知、过期关单、退款和发货补偿的定时重试间隔为 5 分钟。实际支付或退款的完成时间取决于微信侧状态与故障恢复。
 
 删除商品及失效图片仍立即尝试清理，失败由 30 分钟的兜底任务重试；未保存上传的 24 小时租约不变。空商品清理队列不读取游标，已压缩的元数据不重复写入相同游标。个人中心 `user.me` 不再附带图片维护请求，确有图片清理任务时才异步触发。`npm run test:cloud` 的维护预算回归覆盖历史游标仍存在时的空闲查询上限和零写入，并保留超过一页的失败任务公平轮转测试。
+
+默认用户头像由 `miniprogram/user/components/default-avatar/` 使用原生 view 和 WXSS 绘制绿色微信双气泡标志，不依赖图片资源；组件仍保留在 user 分包。
+
+界面不依赖 TDesign：小程序原生控件位于 `miniprogram/components/ui/`，共用轻量事件适配与样式；后台使用 `admin/src/components/NativeUi.tsx` 的原生 HTML 表单和 dialog。模板中的 `t-` 别名、样式钩子仅保留为调用约定，不包含第三方组件实现。

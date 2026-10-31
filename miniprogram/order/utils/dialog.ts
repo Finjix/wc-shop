@@ -1,52 +1,13 @@
 // @ts-nocheck
-import props from '../../components/tdesign/dialog/props';
-import { getInstance } from '../../components/tdesign/common/utils';
-
-// 与锁定的 TDesign 1.9.5 Dialog API 保持一致；调用封装归订单分包，组件仍由 npm 提供。
-const defaultOptions = {
-  actions: [],
-  buttonLayout: props.buttonLayout.value,
-  cancelBtn: '取消',
-  closeOnOverlayClick: props.closeOnOverlayClick.value,
-  confirmBtn: '确定',
-  content: '',
-  preventScrollThrough: props.preventScrollThrough.value,
-  showOverlay: props.showOverlay.value,
-  title: '',
-  visible: props.visible.value,
-};
-
-// TDesign's virtual-host button accepts a style on its flex item.
-function confirmOnLeft(options, confirmText = '确定') {
-  const button = options.confirmBtn;
-  const confirmBtn = button ? { ...(typeof button === 'object' ? button : {}), content: confirmText } : button;
-  if (confirmBtn) confirmBtn.style = `${confirmBtn.style || ''}; order: -1; margin-left: 0;`;
-  const cancel = options.cancelBtn;
-  const cancelBtn = cancel ? (typeof cancel === 'object' ? { ...cancel, content: '取消' } : '取消') : cancel;
-  return { ...options, confirmBtn, cancelBtn };
+function open(options, alert) {
+  const { context, selector, ...rest } = options;
+  const page = context || getCurrentPages().slice(-1)[0];
+  const dialog = page?.selectComponent(selector || '#t-dialog');
+  if (!dialog) return Promise.reject(new Error('弹窗尚未准备好'));
+  return new Promise((resolve, reject) => {
+    const confirmBtn = options.confirmBtn === null ? null : { ...(typeof options.confirmBtn === 'object' ? options.confirmBtn : {}), content: alert ? (typeof options.confirmBtn === 'string' ? options.confirmBtn : options.confirmBtn?.content || '确定') : '确定' };
+    dialog.setData({ title: '', content: '', actions: [], ...rest, confirmBtn, cancelBtn: alert ? null : '取消', visible: true });
+    dialog._onConfirm = resolve; dialog._onAction = resolve; dialog._onCancel = alert ? resolve : reject;
+  });
 }
-
-export default {
-  alert(options) {
-    const { context, selector = '#t-dialog', ...rest } = { ...options };
-    const dialog = getInstance(context, selector);
-    if (!dialog) return Promise.reject();
-    return new Promise((resolve) => {
-      const confirmText = typeof rest.confirmBtn === 'string' ? rest.confirmBtn : rest.confirmBtn?.content;
-      // TDesign 将空字符串也转换成按钮；必须用 null 才会移除取消按钮占位。
-      dialog.setData(confirmOnLeft({ ...defaultOptions, ...dialog.properties, ...rest, cancelBtn: null, visible: true }, confirmText));
-      dialog._onConfirm = resolve;
-      dialog._onAction = resolve;
-    });
-  },
-  confirm(options) {
-    const { context, selector = '#t-dialog', ...rest } = { ...options };
-    const dialog = getInstance(context, selector);
-    if (!dialog) return Promise.reject();
-    return new Promise((resolve, reject) => {
-      dialog.setData(confirmOnLeft({ ...defaultOptions, ...dialog.properties, ...rest, visible: true }));
-      dialog._onConfirm = resolve;
-      dialog._onCancel = reject;
-    });
-  },
-};
+export default { alert(options) { return open(options, true); }, confirm(options) { return open(options, false); } };

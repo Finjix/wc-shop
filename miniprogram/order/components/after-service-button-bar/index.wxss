@@ -1,5 +1,7 @@
 :host {
+  display: block;
   width: 100%;
+  min-width: 0;
 }
 .btn-bar {
   display: flex;
@@ -38,13 +40,13 @@
 }
 
 .btn-bar .right .normal {
-  --td-button-default-color: #333333;
-  --td-button-default-border-color: #dddddd;
+  --ui-button-color: #333333;
+  --ui-button-border: #dddddd;
 }
 
 .btn-bar .right .primary {
-  --td-button-default-color: #fff;
-  --td-button-default-bg-color: #695941;
-  --td-button-default-border-color: #695941;
-  --td-button-default-active-bg-color: rgba(105, 89, 65, 0.6);
+  --ui-button-color: #fff;
+  --ui-button-background: #695941;
+  --ui-button-border: #695941;
+
 }

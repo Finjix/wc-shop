@@ -2,8 +2,8 @@
   "component": true,
   "usingComponents": {
     "price": "/components/price/index",
-    "t-tag": "../../../../components/tdesign/tag/tag",
+    "t-tag": "/components/ui/tag/index",
     "t-image": "/components/webp-image/index",
-    "t-icon": "../../../../components/tdesign/icon/icon"
+    "t-icon": "/components/ui/icon/index"
   }
 }

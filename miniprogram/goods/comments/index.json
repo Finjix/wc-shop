@@ -3,9 +3,8 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
-    "t-navbar": "../../components/tdesign/navbar/navbar",
-    "t-tag": "../../components/tdesign/tag/tag",
-    "t-toast": "../../components/tdesign/toast/toast",
+    "t-navbar": "/components/ui/navbar/index",
+    "t-tag": "/components/ui/tag/index",
     "comments-card": "./components/comments-card/index",
     "t-load-more": "/components/load-more/index",
     "single-image-preview": "/components/single-image-preview/index"

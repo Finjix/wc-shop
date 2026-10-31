@@ -2,7 +2,7 @@
 
 import { getRightsList } from './api';
 import { AfterServiceStatus, ServiceType, ServiceTypeDesc, ServiceStatus } from '../config';
-import Toast from '../../components/tdesign/toast/index';
+import Toast from '../../common/ui/toast';
 import { getApiErrorMessage } from '../../common/services/utils/api';
 import { normalizeLogistics, normalizeServiceType, normalizeServiceStatus, serviceStatusLabel } from '../common/after-service-contract';
 

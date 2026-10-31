@@ -4,6 +4,7 @@ import { request } from '../../common/services/utils/api';
 
 Component({
   properties: {
+    managed: { type: Boolean, value: false },
     top: {
       type: Number,
       value: 0,
@@ -43,11 +44,13 @@ Component({
 
   methods: {
     async refreshMarquee() {
+      if (this.data.managed || this.marqueePending) return;
+      this.marqueePending = true;
       try {
         const result = await request('home.get', {});
         const text = result?.config?.searchText;
         this.setData({ marqueeText: typeof text === 'string' && text.trim() !== '欢迎光临番薯鞋店！' ? Array.from(text.trim()).slice(0, 16).join('') : '' });
-      } catch { /* 离线时保留当前显示状态 */ }
+      } catch { /* 离线时保留当前显示状态 */ } finally { this.marqueePending = false; }
     },
     focusSearch() {
       this.triggerEvent('focus');
@@ -70,4 +73,3 @@ Component({
     },
   },
 });
-// @ts-nocheck

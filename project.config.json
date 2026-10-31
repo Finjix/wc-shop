@@ -14,14 +14,6 @@
       {
         "value": "utils/image-processor/codec/webp_enc.wasm",
         "type": "file"
-      },
-      {
-        "value": "assets/home",
-        "type": "folder"
-      },
-      {
-        "value": "assets/user",
-        "type": "folder"
       }
     ]
   },
@@ -56,13 +48,7 @@
     "enableEngineNative": false,
     "useIsolateContext": true,
     "userConfirmedBundleSwitch": false,
-    "packNpmManually": true,
-    "packNpmRelationList": [
-      {
-        "packageJsonPath": "./package.json",
-        "miniprogramNpmDistDir": "./miniprogram/"
-      }
-    ],
+    "packNpmManually": false,
     "minifyWXSS": true,
     "disableUseStrict": false,
     "minifyWXML": true,
@@ -82,7 +68,7 @@
   "compileType": "miniprogram",
   "libVersion": "3.13.0",
   "appid": "wx6dfb386a4191819d",
-  "projectname": "tdesign-miniprogram-starter-retail",
+  "projectname": "wc-shop",
   "simulatorType": "wechat",
   "simulatorPluginLibVersion": {},
   "condition": {

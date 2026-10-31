@@ -12,7 +12,7 @@ function runtime(wx, asyncLoad, registrations = {}) {
     if (!path.extname(absolute)) absolute += '.ts';
     if (cache.has(absolute)) return cache.get(absolute);
     const exports = {}; cache.set(absolute, exports);
-    const localRequire = ref => ref.includes('/tdesign/toast/index') ? { default() {} } : load(path.resolve(path.dirname(absolute), ref));
+    const localRequire = ref => ref.endsWith('/common/ui/toast') ? { default() {} } : load(path.resolve(path.dirname(absolute), ref));
     localRequire.async = ref => asyncLoad ? asyncLoad(ref, absolute, load) : Promise.resolve(load(path.resolve(path.dirname(absolute), ref)));
     const source = ts.transpileModule(fs.readFileSync(absolute, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
     vm.runInNewContext(source, { exports, require: localRequire, console, wx, Promise, setTimeout, clearTimeout, ...registrations }, { filename: absolute });
@@ -60,6 +60,20 @@ async function testNativeTabs() {
   assert.deepEqual(navigation, ['/order/order-list/index', '/user/address/list/index']);
   console.log('PASS all four native Tab pages load data, initialize navigation and share only the services package');
 }
+async function testProductListBridge() {
+  assert.equal(fs.existsSync(path.join(root, 'common/services/good/fetchGoodsList.ts')), false, 'subpackage-only bridge must not ship in main');
+  const requests = [];
+  const response = { ok: true, data: { items: [], total: 0 } };
+  const load = runtime({
+    request({ data, success }) { requests.push(data); success({ statusCode: 200, data: response }); },
+    cloud: { async callFunction({ data }) { requests.push(data); return { result: response }; } },
+  });
+  const list = await load('goods/services/fetchGoodsList.ts').fetchGoodsList({ categoryId: 'test-category' });
+  assert.equal(list.spuList.length, 0);
+  assert.equal(requests[0].action, 'products.list');
+  console.log('PASS goods-only list bridge loads services and fetches products outside main');
+}
+
 async function testServiceRetryAndCheckout() {
   let fail = true;
   const downloads = [];
@@ -89,4 +103,4 @@ async function testServiceRetryAndCheckout() {
   assert.equal((await cartLoad('common/services/order/orderConfirm.ts').getPendingGoodsRequestList())[0].quantity, 3);
   console.log('PASS services download retry, immutable shared checkout state and cart navigation after state is saved');
 }
-(async () => { await testNativeTabs(); await testServiceRetryAndCheckout(); })().catch(error => { console.error(error); process.exitCode = 1; });
+(async () => { await testNativeTabs(); await testProductListBridge(); await testServiceRetryAndCheckout(); })().catch(error => { console.error(error); process.exitCode = 1; });

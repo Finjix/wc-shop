@@ -41,10 +41,6 @@ Component({
   },
 
   methods: {
-    attached() {
-      this.toast = this.selectComponent('#t-toast');
-    },
-
     init() {
       const checkedIndexes = [];
       const _options = this.properties.options.map((opt, i) => {
@@ -104,9 +100,9 @@ Component({
 
     onConfirm() {
       if (this.data.checkedIndexes.length === 0) {
-        this.toast.show({
-          icon: '',
-          text: this.properties.emptyTip,
+        wx.showToast({
+          icon: 'none',
+          title: this.properties.emptyTip,
         });
         return;
       }

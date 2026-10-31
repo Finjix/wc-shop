@@ -6,7 +6,7 @@
   background="#fff"
 />
 <view class="page-container">
-  <t-pull-down-refresh
+  <t-pull-down-refresh top-inset="{{0}}" bind:reachbottom="onReachBottom"
     id="t-pull-down-refresh"
     value="{{pullDownRefreshing}}"
     bindrefresh="onPullDownRefresh_"
@@ -56,5 +56,4 @@
     </wr-load-more>
   </t-pull-down-refresh>
 </view>
-<t-toast id="t-toast" />
 <t-dialog id="t-dialog" t-class-confirm="commerce-dialog-confirm" t-class-action="commerce-dialog-confirm" />

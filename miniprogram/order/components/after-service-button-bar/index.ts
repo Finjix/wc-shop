@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import Dialog from '../../utils/dialog';
-import Toast from '../../../components/tdesign/toast/index';
+import Toast from '../../../common/ui/toast';
 
 import { cancelRights } from '../../after-service-detail/api';
 import { fetchOrderDetail } from '../../services/orderDetail';

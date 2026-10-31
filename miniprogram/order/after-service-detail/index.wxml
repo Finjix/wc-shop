@@ -128,7 +128,6 @@
 <view class="service-detail__bottom-bar" wx:if="{{service.bottomActions}}">
   <wr-after-service-button-bar service="{{service}}" bindrefresh="onRefresh" />
 </view>
-<t-toast id="t-toast" />
 <!-- 退款说明填写 -->
 <t-dialog id="input-dialog" visible="{{inputDialogVisible}}">
   <view class="input-dialog__content" slot="content">

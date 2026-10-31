@@ -197,6 +197,7 @@ Component({
       this.intersectionObserverContext = wx
         .createIntersectionObserver(this, {
           thresholds: this.properties.thresholds,
+          nativeMode: true,
         })
         .relativeToViewport();
 

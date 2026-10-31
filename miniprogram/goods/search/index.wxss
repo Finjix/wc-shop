@@ -1,4 +1,3 @@
-@import '../../style/iconfont.wxss';
 .search-page {
   box-sizing: border-box;
   width: 100vw;

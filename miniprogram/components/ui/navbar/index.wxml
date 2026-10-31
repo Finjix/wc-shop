@@ -1,0 +1,8 @@
+<view wx:if="{{fixed}}" style="height:{{statusHeight + navHeight}}px" />
+<view class="navbar t-class {{fixed ? 'fixed' : ''}}" style="padding-top:{{statusHeight}}px;background:{{background}}">
+  <view class="nav-content t-class-content" style="height:{{navHeight}}px">
+    <view wx:if="{{leftArrow}}" class="nav-back t-class-left" bindtap="back" aria-label="返回"><view class="nav-back-icon" /></view>
+    <view class="nav-title t-class-title" style="max-width:{{titleWidth}}px">{{title}}</view>
+    <slot />
+  </view>
+</view>

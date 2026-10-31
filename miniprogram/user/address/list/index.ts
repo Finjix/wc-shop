@@ -6,7 +6,7 @@ import {
   fetchDeliveryAddressList,
   deleteDeliveryAddress,
 } from '../../services/address/fetchAddress';
-import Toast from '../../../components/tdesign/toast/index';
+import Toast from '../../../common/ui/toast';
 import { getApiErrorMessage } from '../../../common/services/utils/api';
 
 const isTrueQueryValue = (value) => value === true || value === 1 || value === '1' || value === 'true';

@@ -1,10 +1,9 @@
 {
   "component": true,
   "usingComponents": {
-    "t-icon": "../../../components/tdesign/icon/icon",
-    "t-popup": "../../../components/tdesign/popup/popup",
-    "t-cell": "../../../components/tdesign/cell/cell",
-    "t-toast": "../../../components/tdesign/toast/toast",
-    "t-button": "../../../components/tdesign/button/button"
+    "t-icon": "/components/ui/icon/index",
+    "t-popup": "/components/ui/popup/index",
+    "t-cell": "/components/ui/cell/index",
+    "t-button": "/components/ui/button/index"
   }
 }

@@ -1,0 +1,1 @@
+<image class="t-class icon" style="width:{{size}};height:{{size}}" src="{{iconSource}}" mode="aspectFit" />

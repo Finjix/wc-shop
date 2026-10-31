@@ -1,5 +1,5 @@
 {
-  "name": "@tencent/tdesign-miniprogram-starter-retail",
+  "name": "wc-shop",
   "version": "0.2.0",
   "description": "",
   "main": "miniprogram/app.ts",
@@ -39,32 +39,25 @@
     "test:comments": "node scripts/test-comments.cjs",
     "test:subpackage-dependencies": "node scripts/test-subpackage-dependencies.cjs",
     "test:package-loading": "node scripts/test-package-loading.cjs",
-    "build:subpackage-ui": "node scripts/build-subpackage-ui.cjs",
     "build:image-codec": "node scripts/build-image-codec.cjs",
     "test:user-images": "node scripts/test-user-images.cjs",
     "test:cloud-dependencies": "tsc -p cloudfunctions/tsconfig.json && node scripts/test-cloud-dependencies.cjs",
     "test:temp-file-urls": "node scripts/test-temp-file-urls.cjs",
     "test:admin-public": "node scripts/test-admin-public.cjs",
-    "build:home-promos": "node scripts/build-home-promos.cjs && node scripts/build-promo-frames.cjs",
-    "build:promo-frames": "node scripts/build-promo-frames.cjs",
-    "test:promo-frames": "node scripts/test-promo-frames.cjs",
+    "build:home-promos": "node scripts/build-home-promos.cjs",
     "test:home-promos": "node scripts/test-home-promos.cjs",
-    "build:home-mascots": "node scripts/build-home-mascots.cjs",
     "test:home-showcase": "node scripts/test-home-showcase.cjs",
+    "test:native-ui": "node scripts/test-native-ui.cjs",
     "test:sharing": "node scripts/test-sharing.cjs"
   },
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "tdesign-miniprogram": "1.9.5",
-    "tslib": "^1.11.1"
-  },
   "devDependencies": {
     "@types/node": "^24.5.2",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^8.57.1",
-    "miniprogram-api-typings": "^3.12.0",
+    "miniprogram-api-typings": "^5.2.3",
     "typescript": "^5.9.3"
   }
 }

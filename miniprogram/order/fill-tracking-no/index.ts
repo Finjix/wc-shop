@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import Toast from '../../components/tdesign/toast/index';
+import Toast from '../../common/ui/toast';
 import { create, update } from './api';
 import { getApiErrorMessage } from '../../common/services/utils/api';
 

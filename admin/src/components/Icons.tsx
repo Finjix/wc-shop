@@ -1,0 +1,6 @@
+import type { SVGProps } from 'react';
+export function ChevronDownIcon(props: SVGProps<SVGSVGElement>) { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true" {...props}><path d="M5 9l7 7 7-7" /></svg>; }
+export function ChevronUpIcon(props: SVGProps<SVGSVGElement>) { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true" {...props}><path d="M5 15l7-7 7 7" /></svg>; }
+export function DeleteIcon(props: SVGProps<SVGSVGElement>) { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true" {...props}><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7" /></svg>; }
+export function EditIcon(props: SVGProps<SVGSVGElement>) { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true" {...props}><path d="M4 16l12-12 4 4L8 20H4z" /></svg>; }
+export function ImageIcon(props: SVGProps<SVGSVGElement>) { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true" {...props}><path d="M3 3h18v18H3zM3 17l6-6 4 4 3-3 5 5M8 7h.01" /></svg>; }

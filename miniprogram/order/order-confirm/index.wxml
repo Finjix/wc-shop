@@ -65,5 +65,4 @@
   </t-popup>
 </view>
 </scroll-view>
-<t-toast id="t-toast" />
 <t-dialog id="t-dialog" />

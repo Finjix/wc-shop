@@ -1,7 +1,7 @@
 import { APP_VERSION } from '../../../miniprogram/config/version';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Button, Input, MessagePlugin, Tag } from 'tdesign-react';
+import { Button, Input, MessagePlugin, Tag } from '../components/NativeUi';
 import { adminApi } from '../lib/api';
 import { IMAGE_ACCEPT } from '../lib/image-upload';
 import { ProductCoverPicker } from '../components/ProductCoverPicker';

@@ -1,8 +1,8 @@
 {
   "component": true,
   "usingComponents": {
-    "t-icon": "../../../components/tdesign/icon/icon",
-    "t-tag": "../../../components/tdesign/tag/tag",
-    "t-swipe-cell": "/user/components/tdesign/swipe-cell/swipe-cell"
+    "t-icon": "/components/ui/icon/index",
+    "t-tag": "/components/ui/tag/index",
+    "t-swipe-cell": "/components/ui/swipe-cell/index"
   }
 }

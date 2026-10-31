@@ -1,7 +1,7 @@
 {
   "component": true,
   "usingComponents": {
-    "t-cell": "../../../../components/tdesign/cell/cell",
-    "t-icon": "../../../../components/tdesign/icon/icon"
+    "t-cell": "/components/ui/cell/index",
+    "t-icon": "/components/ui/icon/index"
   }
 }

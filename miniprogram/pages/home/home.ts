@@ -6,6 +6,9 @@ import { getApiErrorMessage } from '../../common/services/utils/api';
 import { navigateToGoodsDetail } from '../../common/utils/goods-detail-navigation';
 import { shopShareHandlers, enablePageSharing } from '../../common/share';
 
+// Fixed boundary for the current home layout; adjust if the header sections change height.
+const BACK_TO_TOP_DISTANCE_RPX = 3200;
+
 Page({
   ...shopShareHandlers,
   data: {
@@ -17,7 +20,10 @@ Page({
     recommendationCurrent: 0,
     heartTitle: ['倾', '心', '推', '荐'],
     giftTitle: ['更', '多', '献', '礼'],
-    feedItems: [],
+    feedBatches: [],
+    showBackToTop: false,
+    scrollAnchor: '',
+    feedActivated: false,
     feedLoading: false,
     feedEmpty: false,
     feedError: '',
@@ -33,6 +39,7 @@ Page({
     searchWidth: 375,
     searchHeight: 32,
     searchRadius: 16,
+    homeSearchText: '',
     searchValue: '',
     searchFocus: false,
   },
@@ -57,6 +64,7 @@ Page({
     const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const menuButtonInfo = wx.getMenuButtonBoundingClientRect();
     const windowWidth = windowInfo.windowWidth || 375;
+    this.backToTopDistance = BACK_TO_TOP_DISTANCE_RPX * windowWidth / 750;
     const searchHeight = menuButtonInfo.height || (64 * windowWidth / 750);
     const screenSideGap = Math.max(windowWidth - (menuButtonInfo.right || windowWidth), 0);
     const menuButtonLeft = menuButtonInfo.left || windowWidth;
@@ -78,10 +86,12 @@ Page({
     this.stopRecommendationTimer();
     this.feedRequestId = (this.feedRequestId || 0) + 1;
     this.feedCursor = '';
-    this.feedActivated = false;
-    this.feedScrollTop = 0;
+    this.feedItems = [];
+    this.feedBatchCount = 0;
+    this.returningToTop = false;
+    this.feedScrollTop = null;
     this.feedTouchStartY = null;
-    this.setData({ pageLoading: true, loadError: '', feedItems: [],
+    this.setData({ pageLoading: true, loadError: '', feedBatches: [], showBackToTop: false, feedActivated: false,
       feedEmpty: false, feedLoading: false, feedError: '' });
     try {
       const home = await fetchHomeContent();
@@ -108,6 +118,7 @@ Page({
       const bannerSlides = orderedBanners.length === 2 ? [...orderedBanners, ...orderedBanners] : orderedBanners;
       const recommendationSlides = recommendations.length === 2 ? [...recommendations, ...recommendations] : recommendations;
       this.setData({
+        homeSearchText: typeof config.searchText === 'string' && config.searchText.trim() !== '欢迎光临番薯鞋店！' ? Array.from(config.searchText.trim()).slice(0, 16).join('') : '',
         promoImages: [0, 1].map((index) => config.promoImages?.[index] || ''),
         swiperSlides: bannerSlides.map((item) => item.image),
         swiperProductIds: bannerSlides.map((item) => item.productId),
@@ -131,7 +142,7 @@ Page({
 
   startRecommendationTimer() {
     this.stopRecommendationTimer();
-    if (!this.visible || (this.data.recommendations.length < 2 && this.data.swiperSlides.length < 2)) return;
+    if (!this.visible || this.headerPaused || (this.data.recommendations.length < 2 && this.data.swiperSlides.length < 2)) return;
     this.recommendationTimer = setInterval(() => {
       const count = this.data.recommendationSlides.length;
       const banners = this.data.swiperSlides.length;
@@ -158,7 +169,7 @@ Page({
   },
 
   async loadMoreFeed() {
-    if (!this.feedActivated || this.data.feedLoading || this.data.feedEmpty) return;
+    if (!this.visible || !this.data.feedActivated || this.data.feedLoading || this.data.feedEmpty) return;
     const requestId = this.feedRequestId = (this.feedRequestId || 0) + 1;
     this.setData({ feedLoading: true, feedError: '' });
     try {
@@ -166,8 +177,12 @@ Page({
       if (requestId !== this.feedRequestId) return;
       this.feedCursor = result.nextCursor || '';
       const update = { feedLoading: false, feedEmpty: !result.items.length };
-      const offset = this.data.feedItems.length;
-      result.items.forEach((item, index) => { update[`feedItems[${offset + index}]`] = item; });
+      if (result.items.length) {
+        // Send only the new batch across the bridge; offscreen batches release their card nodes.
+        const batchIndex = this.feedBatchCount++;
+        this.feedItems.push(...result.items);
+        update[`feedBatches[${batchIndex}]`] = { items: result.items, key: requestId };
+      }
       this.setData(update);
     } catch (error) {
       if (requestId !== this.feedRequestId) return;
@@ -176,18 +191,37 @@ Page({
   },
 
   activateFeed() {
-    if (this.feedActivated) return;
-    this.feedActivated = true;
+    if (!this.visible || this.data.feedActivated) return;
+    this.setData({ feedActivated: true });
     this.loadMoreFeed();
   },
 
   onFeedScroll({ detail }) {
     const top = Math.max(0, Number(detail.scrollTop) || 0);
-    if (top > (this.feedScrollTop || 0)) this.activateFeed();
+    // The first event may restore an offset after layout rather than indicate a user scroll.
+    if (!this.data.pageLoading && this.feedScrollTop !== null && top > this.feedScrollTop) this.activateFeed();
     this.feedScrollTop = top;
+    const boundary = this.backToTopDistance || BACK_TO_TOP_DISTANCE_RPX / 2;
+    if (top <= boundary) this.returningToTop = false;
+    const showBackToTop = this.data.feedActivated && top > boundary && !this.returningToTop;
+    if (showBackToTop !== this.data.showBackToTop) this.setData({ showBackToTop });
+    const paused = top > 1600;
+    if (paused !== !!this.headerPaused) {
+      this.headerPaused = paused;
+      this.startRecommendationTimer();
+    }
+  },
+
+  backToTop() {
+    this.returningToTop = true;
+    // A distinct anchor update makes every tap effective, even after a manual scroll down.
+    this.setData({ showBackToTop: false, scrollAnchor: '' }, () => {
+      wx.nextTick(() => this.setData({ scrollAnchor: 'home-top' }));
+    });
   },
 
   onFeedTouchStart(event) {
+    this.returningToTop = false;
     this.feedTouchStartY = event.touches?.[0]?.clientY ?? null;
     this.feedTouchStartX = Number(event.touches?.[0]?.clientX) || 0;
   },
@@ -201,8 +235,11 @@ Page({
   },
 
   onFeedBottom() {
-    if (this.feedActivated && !this.data.feedError) this.loadMoreFeed();
+    if (this.data.feedActivated && !this.data.feedError) this.loadMoreFeed();
   },
+
+  onFeedProduct({ detail }) { this.openProduct(detail.productId); },
+  onFeedCart({ detail }) { this.addFeedProductToCart({ currentTarget: { dataset: detail } }); },
 
   addFeedProductToCart({ currentTarget }) {
     const productId = currentTarget.dataset.productId;

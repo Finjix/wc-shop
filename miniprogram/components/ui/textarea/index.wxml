@@ -1,0 +1,4 @@
+<view class="textarea t-class {{autosize ? 'autosize' : ''}}">
+  <textarea class="textarea-field t-class-textarea" value="{{value}}" placeholder="{{placeholder}}" maxlength="{{maxlength}}" disabled="{{disabled}}" auto-height="{{autosize}}" bindinput="input" bindblur="blurInput" />
+  <view wx:if="{{indicator && maxlength > 0}}" class="textarea-count">{{value.length || 0}}/{{maxlength}}</view>
+</view>

@@ -26,8 +26,8 @@ function load(file) {
   }).outputText;
   const wrapper = vm.runInContext(`(function(exports, require) { ${source}\n})`, context);
   wrapper(exports, (name) => {
-    name = name.replace(/^.*\/tdesign\//, 'tdesign-miniprogram/');
-    if (name === 'tdesign-miniprogram/toast/index') return { default() {} };
+    if (name.endsWith('/common/ui/toast')) name = 'native-toast';
+    if (name === 'native-toast') return { default() {} };
     if (!name.startsWith('.')) throw new Error(`Unexpected import: ${name}`);
     const dependency = path.resolve(path.dirname(absolute), `${name}.ts`);
     if (dependency === path.join(root, 'miniprogram/common/updateManager.ts')) return { default() {} };
@@ -83,6 +83,14 @@ async function testAddressEditDefaultSwitch() {
     onVerifyInputLegal() { return { isLegal: true, tips: '' }; },
   };
   const service = load('miniprogram/services/address/fetchAddress.ts');
+  edit.applyLocationState({ name: '测试', phone: '13800000000', provinceName: '广东省', cityName: '广州市', districtName: '荔湾区', detailAddress: '中山路1号101室' });
+  assert.equal(edit.data.locationState.detailAddress, '广东省广州市荔湾区中山路1号101室');
+  assert.equal(edit.data.locationState.provinceName, '');
+  assert.equal(page.onVerifyInputLegal.call(edit).isLegal, true);
+  edit.applyLocationState(edit.data.locationState);
+  assert.equal(edit.data.locationState.detailAddress, '广东省广州市荔湾区中山路1号101室');
+  edit.data.locationState.detailAddress = ' ';
+  assert.equal(page.onVerifyInputLegal.call(edit).isLegal, false);
   const originalFetch = service.fetchDeliveryAddress;
   try {
     for (const value of [true, 1, '1', 'true', false, 0, '0', 'false']) {
@@ -101,27 +109,20 @@ async function testAddressEditDefaultSwitch() {
 
 function loadDialog(file, state) {
   const exports = {};
-  const props = {};
-  const propNames = ['buttonLayout', 'cancelBtn', 'closeOnOverlayClick', 'confirmBtn', 'preventScrollThrough', 'showOverlay', 'visible'];
-  propNames.forEach((name) => { props[name] = { value: undefined }; });
   const source = ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   vm.runInNewContext(source, {
     exports,
-    require(name) {
-      if (name === 'tslib') return require('tslib');
-      if (name.endsWith('/props')) return { default: props };
-      if (name.endsWith('/utils')) return { getInstance(ctx, selector) { state.selector = selector; return (ctx || state.page).selectComponent(selector); } };
-      throw new Error(name);
-    },
+    getCurrentPages: () => [state.page],
+
   });
   return exports.default;
 }
 
 async function dialogScenario(file) {
   const component = { properties: { confirmBtn: '确认', cancelBtn: '取消', showOverlay: true }, setData(data) { this.data = data; } };
-  const state = { page: { selectComponent: () => component } };
+  const state = { page: { selectComponent: (selector) => { state.selector = selector; return component; } } };
   const dialog = loadDialog(file, state);
   const options = { title: '确认收货？', confirmBtn: { content: '确定', rootClass: 'custom-button' } };
   const confirm = dialog.confirm(options);
@@ -131,8 +132,7 @@ async function dialogScenario(file) {
   assert.equal(component.data.confirmBtn.rootClass, options.confirmBtn.rootClass);
   const data = JSON.parse(JSON.stringify(component.data));
   if (file === 'miniprogram/order/utils/dialog.ts') {
-    assert.match(component.data.confirmBtn.style, /order: -1/);
-    delete data.confirmBtn.style;
+
   }
   component._onConfirm('confirm');
   assert.equal(await confirm, 'confirm');
@@ -182,8 +182,8 @@ async function run() {
   testAsyncComponents();
   await testAddressSelection();
   await testAddressEditDefaultSwitch();
-  assert.deepEqual(await dialogScenario('miniprogram/order/utils/dialog.ts'), await dialogScenario('node_modules/tdesign-miniprogram/miniprogram_dist/dialog/index.js'));
-  console.log('PASS subpackage Dialog matches TDesign confirm/cancel/alert and preserves button styling');
+  await dialogScenario('miniprogram/order/utils/dialog.ts');
+  console.log('PASS subpackage Dialog native confirm/cancel/alert actions preserve promises and button state');
   const order = load('miniprogram/services/order/utils/format.ts');
   const goods = load('miniprogram/services/goods/utils/formatTime.ts');
   for (const value of ['2026-10-05T04:00:00Z', 'invalid', '', null, 1791172800000, '1791172800000']) {

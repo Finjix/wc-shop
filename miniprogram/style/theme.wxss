@@ -5,43 +5,13 @@ page {
   --app-theme-text-color: #695941;
 }
 
-.t-input {
-  --td-input-placeholder-text-color: #bbbbbb;
-  --td-input-text-color: #333333;
-}
-
-.t-tab-bar {
-  --td-tab-bar-color: #bbb;
-  --td-tab-bar-active-color: #695941;
-}
-
-.t-cascader {
-  --td-cascader-active-color: var(--app-theme-color, #695941);
-}
-
-.t-switch {
-  --td-switch-checked-color: var(--app-theme-color, #695941);
-}
-
 .t-button {
-  --td-button-font-weight: 500;
-  --td-button-medium-font-size: 32rpx;
-  --td-button-default-color: #fff;
-  --td-button-default-bg-color: #695941;
-  --td-button-default-border-color: #695941;
-  --td-button-default-disabled-color: #fff;
-  --td-button-default-disabled-bg: #cccccc;
-  --td-button-default-disabled-border-color: #cccccc;
-  --td-button-default-active-bg-color: #695941;
-  --td-button-default-active-border-color: #695941;
-}
+  --ui-button-weight: 500;
 
-.t-textarea {
-  --td-textarea-placeholder-color: #bbb;
-}
+  --ui-button-color: #fff;
+  --ui-button-background: #695941;
+  --ui-button-border: #695941;
 
-.t-checkbox {
-  --td-checkbox-icon-checked-color: #695941;
 }
 
 .dialog__button-confirm {
@@ -53,5 +23,5 @@ page {
 }
 
 .commerce-dialog-confirm {
-  --td-button-primary-text-color: #695941;
+  color: #695941;
 }

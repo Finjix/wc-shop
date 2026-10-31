@@ -131,8 +131,8 @@ async function testAdmin() {
   const dependencies = {
     react, 'react/jsx-runtime': { jsx: element, jsxs: element, Fragment: 'fragment' },
     'react-router-dom': { useBlocker: () => ({ state: 'unblocked' }) },
-    'tdesign-react': { Button: 'Button', Input: 'Input', MessagePlugin: { warning: (value) => warnings.push(value), error: (value) => messages.push(value), success() {} } },
-    'tdesign-icons-react': {}, '../lib/api': { adminApi: api }, '../lib/image-upload': { IMAGE_ACCEPT: 'image/*' },
+    '../components/NativeUi': { Button: 'Button', Input: 'Input', MessagePlugin: { warning: (value) => warnings.push(value), error: (value) => messages.push(value), success() {} } },
+    '../components/Icons': {}, '../lib/api': { adminApi: api }, '../lib/image-upload': { IMAGE_ACCEPT: 'image/*' },
     '../lib/useDraftImages': { useDraftImages: () => draftImages }, '../lib/useBrowserLeaveWarning': { useBrowserLeaveWarning() {} },
     '../components/ConfirmProvider': { useConfirm: () => async () => true },
     '../components/Ui': { ErrorState: 'ErrorState', LoadingState: 'LoadingState', Panel: 'Panel' },

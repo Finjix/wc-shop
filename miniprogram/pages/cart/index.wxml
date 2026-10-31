@@ -70,7 +70,6 @@
   bindhandleSelectAll="onSelectAll"
   bindhandleToSettle="onToSettle"
 />
-<t-toast id="t-toast" />
 <t-dialog
   id="t-dialog"
   t-class-confirm="cart-delete-dialog-confirm"

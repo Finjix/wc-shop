@@ -5,7 +5,7 @@
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
 }
 .order-group .order-group__top {
-  --td-cell-right-icon-color: #695941;
+
   padding: 28rpx 24rpx 24rpx 32rpx;
   border-radius: 20rpx 20rpx 0 0;
 }

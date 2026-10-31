@@ -1,0 +1,1 @@
+<view class="badge"><slot /><text wx:if="{{count > 0}}" class="badge-count" style="background:{{color}}">{{count > maxCount ? maxCount + "+" : count}}</text></view>

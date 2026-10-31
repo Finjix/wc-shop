@@ -1,4 +1,3 @@
-@import '../../style/iconfont.wxss';
 .order-sure {
   box-sizing: border-box;
   background: #fff;
@@ -112,6 +111,8 @@
 }
 .goods-wrapper .goods-content {
   flex: 1;
+  min-width: 0;
+  word-break: break-word;
 }
 
 .goods-wrapper .goods-content .goods-title {
@@ -128,6 +129,7 @@
 }
 
 .goods-wrapper .goods-right {
+  flex-shrink: 0;
   min-width: 128rpx;
   display: flex;
   flex-direction: column;

@@ -1,0 +1,1 @@
+<button class="button t-class size-{{size}} {{variant}} {{shape}} {{block ? 'block' : ''}} {{disabled ? 'disabled' : ''}}" disabled="{{disabled || loading}}" loading="{{loading}}" open-type="{{openType}}" catchtap="tapButton"><view class="button-content">{{content}}<slot /></view></button>

@@ -1,0 +1,1 @@
+<view wx:if="{{visible}}" class="overlay" style="z-index:{{zIndex}}" catchtouchmove="noop"><view class="mask" bindtap="close" /><view class="popup {{placement}}"><view wx:if="{{closeBtn}}" class="close" bindtap="close">×</view><slot name="content" /><slot /></view></view>

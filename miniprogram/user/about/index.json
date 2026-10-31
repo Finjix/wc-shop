@@ -3,6 +3,6 @@
   "navigationStyle": "custom",
   "disableScroll": true,
   "usingComponents": {
-    "t-navbar": "../../components/tdesign/navbar/navbar"
+    "t-navbar": "/components/ui/navbar/index"
   }
 }

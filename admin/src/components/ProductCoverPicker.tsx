@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from 'react';
-import { Button } from 'tdesign-react';
+import { Button } from './NativeUi';
 import { IMAGE_ACCEPT } from '../lib/image-upload';
 
 export function ProductCoverPicker({ images, disabled, onSelect, onChange, renderImage }: {

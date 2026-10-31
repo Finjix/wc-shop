@@ -1,4 +1,3 @@
-@import '../../style/iconfont.wxss';
 :host {
   background-color: #fff;
 }
@@ -75,8 +74,8 @@ wr-order-goods-card:not(:first-child) .wr-goods-card {
 }
 
 .t-button {
-  --td-button-default-color: #000;
-  --td-button-primary-text-color: #695941;
+  --ui-button-color: #000;
+  color: #695941;
 }
 
 .commerce-empty { padding: 160rpx 32rpx; text-align: center; color: #999; font-size: 28rpx; }

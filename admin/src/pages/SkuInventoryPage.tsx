@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Input, MessagePlugin } from 'tdesign-react';
+import { Button, Input, MessagePlugin } from '../components/NativeUi';
 import { EmptyState, ErrorState, LoadingState, Panel, Table } from '../components/Ui';
 import { adminApi, ApiError } from '../lib/api';
 import { useBrowserLeaveWarning } from '../lib/useBrowserLeaveWarning';

@@ -7,9 +7,8 @@
     "cart-empty": "./components/cart-empty/index",
     "cart-bar": "./components/cart-bar/index",
     "specs-popup": "./components/specs-popup/index",
-    "t-navbar": "../../components/tdesign/navbar/navbar",
-    "t-icon": "../../components/tdesign/icon/icon",
-    "t-toast": "../../components/tdesign/toast/toast",
-    "t-dialog": "../../components/tdesign/dialog/dialog"
+    "t-navbar": "/components/ui/navbar/index",
+    "t-icon": "/components/ui/icon/index",
+    "t-dialog": "/components/ui/dialog/index"
   }
 }

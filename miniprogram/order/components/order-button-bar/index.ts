@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { isPageNavigationEnabled } from '../../../config/navigation';
 
-import Toast from '../../../components/tdesign/toast/index';
+import Toast from '../../../common/ui/toast';
 import Dialog from '../../utils/dialog';
 import { OrderButtonTypes } from '../../config';
 import { payCheckout } from '../../../common/services/order/orderConfirm';

@@ -1,4 +1,3 @@
-@import '../../../style/iconfont.wxss';
 page {
   background-color: #fff;
 }
@@ -20,10 +19,14 @@ page {
 }
 
 .comment-card .goods-info-container .goods-title-container {
+  flex: 1;
+  min-width: 0;
   padding-left: 24rpx;
 }
 
 .comment-card .goods-info-container .goods-title {
+  word-break: break-word;
+  line-height: 40rpx;
   font-size: 28rpx;
   font-weight: normal;
 }
@@ -81,17 +84,17 @@ page {
 }
 
 .submit-button-container .submit-button {
-  --td-button-default-color: #fff;
-  --td-button-default-bg-color: #695941;
-  --td-button-default-border-color: #695941;
-  --td-button-default-active-bg-color: rgba(105, 89, 65, 0.6);
+  --ui-button-color: #fff;
+  --ui-button-background: #695941;
+  --ui-button-border: #695941;
+
 }
 
 .submit-button-container .submit-button-disabled {
-  --td-button-default-color: #fff;
-  --td-button-default-bg-color: #ccc;
-  --td-button-default-border-color: #ccc;
-  --td-button-default-active-bg-color: rgba(204, 204, 204, 0.789);
+  --ui-button-color: #fff;
+  --ui-button-background: #ccc;
+  --ui-button-border: #ccc;
+
 }
 
 .page-container .upload-container {
@@ -130,8 +133,8 @@ page {
 }
 
 .upload-container .upload-addcontent-slot {
-  width: 210rpx;
-  height: 210rpx;
+  width: 100%;
+  height: 100%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;

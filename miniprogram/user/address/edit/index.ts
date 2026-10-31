@@ -1,15 +1,10 @@
 // @ts-nocheck
 
-import Toast from '../../../components/tdesign/toast/index';
+import Toast from '../../../common/ui/toast';
 import { fetchDeliveryAddress, persistAddress } from '../../services/address/fetchAddress';
-import { areaData } from '../../utils/areaData';
 
 const innerPhoneReg = '^1(?:3\\d|4[4-9]|5[0-35-9]|6[67]|7[0-8]|8\\d|9\\d)\\d{8}$';
 const innerNameReg = '^[a-zA-Z\\d\\u4e00-\\u9fa5]+$';
-const areaDataWithGuangdongFirst = [
-  ...areaData.filter((item) => item.value === '440000'),
-  ...areaData.filter((item) => item.value !== '440000'),
-];
 
 Page({
   options: {
@@ -36,10 +31,7 @@ Page({
       isOrderDetail: false,
       isOrderSure: false,
     },
-    areaData: areaDataWithGuangdongFirst,
-    areaPickerVisible: false,
     submitActive: false,
-    columns: 3,
   },
   privateData: {
     verifyTips: '',
@@ -78,9 +70,14 @@ Page({
     });
   },
   applyLocationState(params = {}) {
+    const fullAddress = [params.provinceName || params.province, params.cityName || params.city,
+      params.districtName || params.district, params.detailAddress || params.detail].filter(Boolean).join('');
     const locationState = {
       ...this.data.locationState,
       ...params,
+      detailAddress: fullAddress,
+      provinceName: '', provinceCode: '', cityName: '', cityCode: '', districtName: '', districtCode: '',
+
       addressId: params.addressId || params.id || params._id || '',
       isDefault: params.isDefault === true || params.isDefault === 'true' || Number(params.isDefault) === 1,
       isEdit: Boolean(params.addressId || params.id || params._id),
@@ -93,44 +90,12 @@ Page({
   },
   onInputValue(e) {
     const { item } = e.currentTarget.dataset;
-    if (item === 'address') {
-      const { selectedOptions = [] } = e.detail;
-      this.setData(
-        {
-          'locationState.provinceCode': selectedOptions[0].value,
-          'locationState.provinceName': selectedOptions[0].label,
-          'locationState.cityName': selectedOptions[1].label,
-          'locationState.cityCode': selectedOptions[1].value,
-          'locationState.districtCode': selectedOptions[2].value,
-          'locationState.districtName': selectedOptions[2].label,
-          areaPickerVisible: false,
-        },
-        () => {
-          const { isLegal, tips } = this.onVerifyInputLegal();
-          this.setData({
-            submitActive: isLegal,
-          });
-          this.privateData.verifyTips = tips;
-        },
-      );
-    } else {
-      const { value = '' } = e.detail;
-      this.setData(
-        {
-          [`locationState.${item}`]: value,
-        },
-        () => {
-          const { isLegal, tips } = this.onVerifyInputLegal();
-          this.setData({
-            submitActive: isLegal,
-          });
-          this.privateData.verifyTips = tips;
-        },
-      );
-    }
-  },
-  onPickArea() {
-    this.setData({ areaPickerVisible: true });
+    const { value = '' } = e.detail;
+    this.setData({ [`locationState.${item}`]: value }, () => {
+      const { isLegal, tips } = this.onVerifyInputLegal();
+      this.setData({ submitActive: isLegal });
+      this.privateData.verifyTips = tips;
+    });
   },
   onCheckDefaultAddress({ detail }) {
     const { value } = detail;
@@ -140,9 +105,9 @@ Page({
   },
 
   onVerifyInputLegal() {
-    const { name, phone, detailAddress, districtName } = this.data.locationState;
-    const prefixPhoneReg = String(this.properties.phoneReg || innerPhoneReg);
-    const prefixNameReg = String(this.properties.nameReg || innerNameReg);
+    const { name, phone, detailAddress } = this.data.locationState;
+    const prefixPhoneReg = String(this.properties?.phoneReg || innerPhoneReg);
+    const prefixNameReg = String(this.properties?.nameReg || innerNameReg);
     const nameRegExp = new RegExp(prefixNameReg);
     const phoneRegExp = new RegExp(prefixPhoneReg);
 
@@ -170,22 +135,16 @@ Page({
         tips: '请填写正确的手机号',
       };
     }
-    if (!districtName || !districtName.trim()) {
-      return {
-        isLegal: false,
-        tips: '请选择省市区信息',
-      };
-    }
     if (!detailAddress || !detailAddress.trim()) {
       return {
         isLegal: false,
-        tips: '请完善详细地址',
+        tips: '请填写完整地址',
       };
     }
-    if (detailAddress && detailAddress.trim().length > 50) {
+    if (detailAddress && detailAddress.trim().length > 240) {
       return {
         isLegal: false,
-        tips: '详细地址不能超过50个字符',
+        tips: '地址不能超过240个字符',
       };
     }
     return {
@@ -223,7 +182,7 @@ Page({
       cityCode: locationState.cityCode,
       districtName: locationState.districtName,
       districtCode: locationState.districtCode,
-      detailAddress: locationState.detailAddress,
+      detailAddress: locationState.detailAddress.trim(),
       isDefault: locationState.isDefault ? 1 : 0,
       addressTag: locationState.addressTag,
       postalCode: locationState.postalCode,

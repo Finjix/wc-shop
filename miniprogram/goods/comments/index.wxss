@@ -1,4 +1,3 @@
-@import '../../style/iconfont.wxss';
 /* 层级定义
 @z-index-0: 1;
 @z-index-1: 100;

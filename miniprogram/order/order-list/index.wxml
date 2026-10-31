@@ -25,7 +25,7 @@
       />
     </t-tabs>
   </view>
-  <t-pull-down-refresh
+  <t-pull-down-refresh top-inset="{{88}}" bind:reachbottom="onReachBottom"
     id="pull-down-refresh"
     normal-bar-height="{{200}}"
     max-bar-height="{{272}}"
@@ -80,5 +80,4 @@
     </load-more>
   </t-pull-down-refresh>
 </view>
-<t-toast id="t-toast" />
 <t-dialog id="t-dialog" />

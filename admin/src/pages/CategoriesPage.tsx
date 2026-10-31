@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBlocker } from 'react-router-dom';
-import { Button, Input, MessagePlugin } from 'tdesign-react';
-import { ChevronDownIcon, ChevronUpIcon, DeleteIcon, EditIcon, ImageIcon } from 'tdesign-icons-react';
+import { Button, Input, MessagePlugin } from '../components/NativeUi';
+import { ChevronDownIcon, ChevronUpIcon, DeleteIcon, EditIcon, ImageIcon } from '../components/Icons';
 import { adminApi } from '../lib/api';
 import { IMAGE_ACCEPT } from '../lib/image-upload';
 import { useDraftImages } from '../lib/useDraftImages';
@@ -270,7 +270,7 @@ export function CategoriesPage() {
                   : nameCell(item)}
                 </div>
                 {moveActions(items, position)}
-                {index > 0 && <Button size="small" variant="text" className={item.image ? 'category-manager-has-image' : ''} icon={<ImageIcon />} title={index === 2 ? '上传类别图片（必填）' : '上传分类封面（可选）'} aria-label={`上传 ${item.name} 的类别图片`} disabled={locked} onClick={() => chooseImage(item)} />}
+                {index > 0 && <Button size="small" variant="text" className={item.image ? 'category-manager-has-image' : ''} icon={<ImageIcon />} title={index === 2 ? '上传类别图片（1:1）（必填）' : '上传分类封面（可选）'} aria-label={`上传 ${item.name} 的类别图片`} disabled={locked} onClick={() => chooseImage(item)} />}
                 {editActions(item)}
                 {index > 0 && item.image && <div className="category-manager-image-preview-row"><div className="category-manager-image-preview-wrap">
                   <button type="button" className="category-manager-image-preview-button" title="点击更换图片" aria-label={`更换 ${item.name} 的图片`} disabled={locked} onClick={() => chooseImage(item)}><CategoryImagePreview image={item.image} name={item.name} /></button>

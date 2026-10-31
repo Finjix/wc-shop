@@ -27,7 +27,7 @@ vm.runInNewContext(compiled, {
   require(name) {
     if (name === 'react') return react;
     if (name === 'react/jsx-runtime') return { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) };
-    if (name === 'tdesign-react') return { Dialog: 'Dialog' };
+    if (name === './NativeUi') return { Dialog: 'Dialog' };
     throw new Error(name);
   },
 });

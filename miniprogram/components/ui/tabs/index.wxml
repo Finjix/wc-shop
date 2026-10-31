@@ -1,0 +1,1 @@
+<view class="tabs t-class"><view wx:for="{{tabItems}}" wx:key="value" class="tab {{item.value === value ? 'active t-class-active' : ''}}" data-index="{{index}}" bindtap="selectTab">{{item.label}}</view><view hidden><slot /></view></view>
