@@ -9,6 +9,7 @@ import { shopShareHandlers, enablePageSharing } from '../../common/share';
 Page({
   ...shopShareHandlers,
   data: {
+    promoImages: ['', ''],
     swiperSlides: [],
     swiperProductIds: [],
     recommendations: [],
@@ -107,6 +108,7 @@ Page({
       const bannerSlides = orderedBanners.length === 2 ? [...orderedBanners, ...orderedBanners] : orderedBanners;
       const recommendationSlides = recommendations.length === 2 ? [...recommendations, ...recommendations] : recommendations;
       this.setData({
+        promoImages: [0, 1].map((index) => config.promoImages?.[index] || ''),
         swiperSlides: bannerSlides.map((item) => item.image),
         swiperProductIds: bannerSlides.map((item) => item.productId),
         current: 0,

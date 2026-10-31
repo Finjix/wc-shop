@@ -24,10 +24,13 @@ function validateHomeConfig(value) {
   const input = object(value, 'payload');
   const banners = array(input.banners, 'banners');
   const recommendations = array(input.recommendations === undefined ? [] : input.recommendations, 'recommendations');
+  const promoImages = array(input.promoImages === undefined ? ['', ''] : input.promoImages, 'promoImages');
+  assert(promoImages.length === 2, { field: 'promoImages', length: 2 });
   assert(banners.length <= 4, { field: 'banners', max: 4 });
   assert(recommendations.length <= 4, { field: 'recommendations', max: 4 });
   return {
     searchText: optionalText(input.searchText, 'searchText', 16),
+    promoImages: promoImages.map((image, index) => optionalText(image, `promoImages.${index}`, 1024)),
     banners: banners.map((item, index) => imageLink(item, `banners.${index}`)),
     recommendations: recommendations.map((item, index) => imageLink(item, `recommendations.${index}`)),
   };

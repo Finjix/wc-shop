@@ -17,9 +17,15 @@ const markup=fs.readFileSync(path.join(mini,'pages/home/home.wxml'),'utf8');
 assert.match(markup,/<button[^>]+bind:tap="showInviteComingSoon"[^>]+aria-label="邀请返现"/);
 assert.match(markup,/<button[^>]+open-type="contact"[^>]+aria-label="加客服拿好礼"/);
 const cards=markup.slice(markup.indexOf('<view class="home-promo-cards"'),markup.indexOf('<view wx:if="{{recommendations.length}}"'));
-assert.doesNotMatch(cards,/<text|wx:if|promos|data-product-id/,'fixed cards contain all visible text and never depend on the home API');
+assert.doesNotMatch(cards, /<static-image|invite-cashback|customer-gift/, 'retired animations are not rendered');
+for (const index of [0, 1]) {
+  assert.ok(cards.includes(`src="{{promoImages[${index}]}}"`), 'each fixed slot uses its configured image');
+}
+assert.equal((cards.match(/mode="aspectFill"/g) || []).length, 2);
+const styles = fs.readFileSync(path.join(mini, 'pages/home/home.wxss'), 'utf8');
+assert.match(styles, /width: calc\(\(100% - 8rpx\) \/ 2\); height: calc\(\(100vw - 8rpx\) \/ 2\)/);
 for(const name of ['invite-cashback','customer-gift']) {
   assert.ok(fs.existsSync(path.join(mini,'assets/home',`${name}-frames-v261025.jpg`)));
   assert.ok(fs.existsSync(path.join(mini,'assets/home',`${name}-poster-v261025.jpg`)));
 }
-console.log(`PASS two JPG animations, static posters, native actions, no GIFs and resource package ${bytes} bytes`);
+console.log(`PASS two configurable square images, native actions, no GIFs and resource package ${bytes} bytes`);

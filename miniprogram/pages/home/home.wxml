@@ -36,12 +36,12 @@
 
     <view class="home-promo-cards">
       <view class="home-promo-card">
-        <static-image class="home-promo-card__image" asset="invite-cashback" size="calc((100vw - 8rpx) / 2)" />
-        <button class="home-promo-card__action" bind:tap="showInviteComingSoon" aria-label="邀请返现"></button>
+        <image wx:if="{{promoImages[0]}}" class="home-promo-card__image" src="{{promoImages[0]}}" mode="aspectFill" />
+        <button wx:if="{{promoImages[0]}}" class="home-promo-card__action" bind:tap="showInviteComingSoon" aria-label="邀请返现"></button>
       </view>
       <view class="home-promo-card">
-        <static-image class="home-promo-card__image" asset="customer-gift" size="calc((100vw - 8rpx) / 2)" />
-        <button class="home-promo-card__action" open-type="contact" aria-label="加客服拿好礼"></button>
+        <image wx:if="{{promoImages[1]}}" class="home-promo-card__image" src="{{promoImages[1]}}" mode="aspectFill" />
+        <button wx:if="{{promoImages[1]}}" class="home-promo-card__action" open-type="contact" aria-label="加客服拿好礼"></button>
       </view>
     </view>
 

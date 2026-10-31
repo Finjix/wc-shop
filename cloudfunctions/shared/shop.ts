@@ -198,7 +198,7 @@ async function readSkus(runtime, data) {
 async function readHome(runtime, data) {
   const record = await getDoc(collection(runtime, COLLECTIONS.homeContents), HOME_CONFIG_SLOT, false);
   const payload = record?.status === STATUS.active && record.type === 'pageConfig' ? record.payload : null;
-  const config = payload ? { searchText: payload.searchText, banners: payload.banners, recommendations: payload.recommendations || [] } : null;
+  const config = payload ? { searchText: payload.searchText, banners: payload.banners, promoImages: payload.promoImages || ['', ''], recommendations: payload.recommendations || [] } : null;
   const ids = productIds(config);
   const products = await Promise.all(ids.map((id) => getActiveProduct(runtime, id, false)));
   const productsById = Object.fromEntries(ids.flatMap((id, index) => products[index] ? [[id, publicProduct(products[index])]] : []));

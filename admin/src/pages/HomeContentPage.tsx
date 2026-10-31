@@ -15,6 +15,7 @@ type ImageLink = { image: string; productId: string };
 type HomeConfig = {
   searchText: string;
   banners: ImageLink[];
+  promoImages: string[];
   recommendations: ImageLink[];
 };
 type HomeRecord = { _id?: string; slot?: string; type?: string; image?: string; content?: string; link?: string; payload?: unknown; sort?: number; status?: string };
@@ -23,6 +24,7 @@ const blankLink = (): ImageLink => ({ image: '', productId: '' });
 const defaultConfig = (): HomeConfig => ({
   searchText: '',
   banners: [blankLink()],
+  promoImages: ['', ''],
   recommendations: [blankLink()],
 });
 
@@ -36,6 +38,7 @@ function readConfig(rows: HomeRecord[]): HomeConfig {
     while (recommendations.length > 1 && !recommendations[recommendations.length - 1].image && !recommendations[recommendations.length - 1].productId) recommendations.pop();
     return {
       searchText: Array.from(stored.searchText ?? draft.searchText).slice(0, 16).join(''),
+      promoImages: [0, 1].map((index) => typeof stored.promoImages?.[index] === 'string' ? stored.promoImages[index] : ''),
       banners: banners.length ? banners : [blankLink()],
       recommendations: recommendations.length ? recommendations : [blankLink()],
     };
@@ -229,6 +232,7 @@ export function HomeContentPage() {
         id: SLOT, slot: SLOT, type: 'pageConfig', status: 'active', sort: -100,
         payload: {
           searchText: saved.searchText.trim(),
+          promoImages: saved.promoImages.map((image) => image.trim()),
           banners: saved.banners.map((item) => ({ image: item.image.trim(), productId: item.productId.trim() })),
           recommendations: saved.recommendations.map((item) => ({ image: item.image.trim(), productId: item.productId.trim() })),
         },
@@ -264,6 +268,16 @@ export function HomeContentPage() {
       </div>}
     </Panel>
 
+
+    <Panel><div className="panel-heading"><h3>轮播图下方图片（1:1）</h3></div>
+      <div className="home-config-promo-grid">
+      {config.promoImages.map((image, index) => <div className="home-config-entry" key={index}>
+        <div className="home-config-entry-head"><strong>{index === 0 ? '左侧 · 邀请返现' : '右侧 · 客服入口'}</strong></div>
+        <ImagePicker select={draftImages.select} disabled={saving} onChange={(value) => setConfig((old) => ({ ...old, promoImages: old.promoImages.map((image, i) => i === index ? value : image) }))} />
+        <ImagePreview image={image} aspect="square" />
+      </div>)}
+      </div>
+    </Panel>
 
     <Panel><div className="panel-heading"><h3>动态卡片展区（9:16）</h3><div className="home-config-panel-actions"><Button disabled={config.recommendations.length >= 4} onClick={() => setConfig((old) => ({ ...old, recommendations: [...old.recommendations, blankLink()] }))}>新增卡片</Button></div></div>
       {config.recommendations.map((entry, index) => <div className="home-config-entry" key={index}>

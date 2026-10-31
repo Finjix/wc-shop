@@ -53,6 +53,7 @@ export async function resolveHomeContentImages(result = {}) {
   const config = result.config && typeof result.config === 'object'
     ? {
       searchText: result.config.searchText,
+      promoImages: await Promise.all((result.config.promoImages || ['', '']).map(resolveImage)),
       recommendations: await Promise.all((result.config.recommendations || []).map(async (item) => ({ ...item, image: await resolveImage(item.image) }))),
       banners: await Promise.all((result.config.banners || []).map(async (item) => ({ ...item, image: await resolveImage(item.image) }))),
     }

@@ -964,12 +964,17 @@ async function testDashboardProductCountUsesCountQuery() {
 
 async function testHomeConfigLimitsAndLegacyResponse() {
   const blank = { image: '', productId: '' };
-  const config = { searchText: DEFAULT_SEARCH_TEXT,
+  const config = { searchText: DEFAULT_SEARCH_TEXT, promoImages: ['', ''],
     banners: [{ image: 'cloud://home/slide.jpg', productId: 'product-1' }],
     recommendations: [{ image: 'cloud://home/recommend.jpg', productId: 'product-1' }, blank, blank, blank] };
   for (const searchText of ['', '好'.repeat(16), 'a'.repeat(16), '❤️']) {
     assert.strictEqual(validateHomeConfig({ ...config, searchText }).searchText, searchText);
   }
+  assert.deepStrictEqual(validateHomeConfig({ ...config, promoImages: [' left.jpg ', 'cloud://home/right.jpg'] }).promoImages, ['left.jpg', 'cloud://home/right.jpg']);
+  for (const promoImages of [[], ['one.jpg'], ['a', 'b', 'c'], [null, ''], ['x'.repeat(1025), ''], 'invalid']) {
+    assert.throws(() => validateHomeConfig({ ...config, promoImages }), appError('INVALID_ARGUMENT'));
+  }
+  assert.deepStrictEqual(validateHomeConfig({ ...config, promoImages: undefined }).promoImages, ['', '']);
   assert.throws(() => validateHomeConfig({ ...config, searchText: '好'.repeat(17) }), appError('INVALID_ARGUMENT'));
   assert.deepStrictEqual(validateHomeConfig({ ...config, sections: 'retired', promos: 'retired', bannerText: {} }), config);
   for (const count of [0, 1, 2, 3, 4]) {
