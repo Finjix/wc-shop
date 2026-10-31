@@ -1,0 +1,11 @@
+{
+  "navigationBarTitleText": "关于",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "/components/ui/navbar/index"
+  },
+  "componentPlaceholder": {
+    "t-navbar": "view"
+  }
+}

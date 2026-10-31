@@ -1,0 +1,13 @@
+{
+  "navigationBarTitleText": "订单提交结果",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "/components/ui/navbar/index",
+    "price": "/components/price/index"
+  },
+  "componentPlaceholder": {
+    "t-navbar": "view",
+    "price": "view"
+  }
+}

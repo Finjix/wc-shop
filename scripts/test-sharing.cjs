@@ -12,8 +12,8 @@ vm.runInNewContext(compile('miniprogram/common/share.ts'), { exports: share, wx:
 share.enablePageSharing();
 assert.deepEqual(calls, [{ menus: ['shareAppMessage', 'shareTimeline'] }]);
 for (const [route, kind] of [
-  ['pages/home/home', 'shop'], ['pages/category/index', 'shop'], ['goods/search/index', 'shop'],
-  ['goods/list/index', 'catalog'], ['goods/result/index', 'catalog'], ['goods/details/index', 'product'],
+  ['tabs/home/home', 'shop'], ['tabs/category/index', 'shop'], ['pages/goods/search/index', 'shop'],
+  ['pages/goods/list/index', 'catalog'], ['pages/goods/result/index', 'catalog'], ['pages/goods/details/index', 'product'],
 ]) {
   let definition;
   vm.runInNewContext(compile(`miniprogram/${route}.ts`), { exports: {},
@@ -27,9 +27,9 @@ for (const [route, kind] of [
   const timeline = plain(definition.onShareTimeline.call(context));
   assert(!('path' in timeline), 'timeline uses current route and query, not a custom path');
   if (kind === 'shop') {
-    assert.equal(friend.path, '/pages/home/home'); assert.equal(timeline.query, '');
+    assert.equal(friend.path, '/tabs/home/home'); assert.equal(timeline.query, '');
   } else if (kind === 'catalog') {
-    assert(friend.path.startsWith('/goods/result/index?'));
+    assert(friend.path.startsWith('/pages/goods/result/index?'));
     const params = new URLSearchParams(friend.path.split('?')[1]);
     assert.equal(params.get('searchValue'), '咖啡 & 礼物');
     assert.equal(params.get('categoryId'), '分类/一');
@@ -46,7 +46,7 @@ for (const [route, kind] of [
       assert.equal(definition.onShareAppMessage.call(context).imageUrl, undefined, 'omit unsupported or inaccessible thumbnails');
     }
     context.data = { spuId: '', details: {} };
-    assert.equal(definition.onShareAppMessage.call(context).path, '/pages/home/home');
+    assert.equal(definition.onShareAppMessage.call(context).path, '/tabs/home/home');
     assert.equal(definition.onShareAppMessage.call(context).title, '番薯小店');
   }
 }

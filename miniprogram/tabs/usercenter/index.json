@@ -1,0 +1,16 @@
+{
+  "navigationBarTitleText": "个人中心",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "t-icon": "/components/ui/icon/index",
+    "t-order-group": "../../components/usercenter/order-group/index",
+    "default-avatar": "/components/user/default-avatar/index"
+  },
+  "componentPlaceholder": {
+    "default-avatar": "view",
+    "t-icon": "view",
+    "t-order-group": "view"
+  }
+}

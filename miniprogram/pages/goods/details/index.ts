@@ -1,0 +1,476 @@
+// @ts-nocheck
+import { isPageNavigationEnabled } from '../../../config/navigation';
+
+import Toast from '../../../common/ui/toast';
+import { fetchGood } from '../../_shared/services/good/fetchGood';
+import { addGoodsToCart } from '../../../common/services/cart/cart';
+import { setPendingGoodsRequestList } from '../../../common/services/order/orderConfirm';
+import { getGoodsDetailsCommentsCount } from '../services/fetchGoodsDetailsComments';
+import { getApiErrorMessage } from '../../../common/services/utils/api';
+import { previewSingleImage } from '../../_shared/frontend/goods/utils/preview-image';
+
+import { productShareHandlers, enablePageSharing } from '../../../common/share';
+
+
+Page({
+  ...productShareHandlers,
+  data: {
+    commentsStatistics: {
+      badCount: 0,
+      commentCount: 0,
+      goodCount: 0,
+      goodRate: 0,
+      hasImageCount: 0,
+      middleCount: 0,
+    },
+    details: { desc: [], specList: [], skuList: [] },
+    detailLoading: false,
+    detailLoaded: false,
+    goodsTabArray: [
+      {
+        name: '商品',
+        value: '', // 空字符串代表置顶
+      },
+      {
+        name: '详情',
+        value: 'goods-page',
+      },
+    ],
+    storeName: '云mall标准版旗舰店',
+    jumpArray: [
+      {
+        title: '客服',
+        iconName: 'service',
+        isContact: true,
+      },
+      {
+        title: '购物车',
+        url: '/tabs/cart/index',
+        iconName: 'cart',
+      },
+    ],
+    isStock: true,
+    soldout: false,
+    buttonType: 1,
+    buyNum: 1,
+    selectedAttrStr: '',
+    skuArray: [],
+    primaryImage: '',
+    coverImages: [],
+    specImg: '',
+    statusBarHeight: 0,
+    navBarHeight: 44,
+    customNavHeight: 44,
+    isSpuSelectPopupShow: false,
+    isAllSelectedSku: false,
+    buyType: 0,
+    outOperateStatus: false, // 是否外层加入购物车
+    operateType: 0,
+    selectSkuSellsPrice: 0,
+    minSalePrice: 0,
+    spuId: '',
+  },
+
+  handlePopupHide() {
+    this.setData({
+      isSpuSelectPopupShow: false,
+    });
+  },
+
+  previewProductImage(event) {
+    const current = event.detail?.src || event.currentTarget?.dataset?.src;
+    previewSingleImage(current, () => {
+      Toast({ context: this, selector: '#t-toast', message: '图片预览失败，请重试', icon: '' });
+    });
+  },
+
+  showSkuSelectPopup(type) {
+    this.setData({
+      buyType: type || 0,
+      outOperateStatus: type >= 1,
+      isSpuSelectPopupShow: true,
+    });
+  },
+
+  buyItNow() {
+    if (!isPageNavigationEnabled('/pages/order/order-confirm/index')) return;
+    this.showSkuSelectPopup(1);
+  },
+
+  toAddCart() {
+    this.showSkuSelectPopup(2);
+  },
+
+  toNav(e) {
+    const { url } = e.detail;
+    if (!isPageNavigationEnabled(url)) return;
+    wx.switchTab({
+      url: url,
+    });
+  },
+
+  onPageScroll({ scrollTop }) {
+    const goodsTab = this.selectComponent('#goodsTab');
+    goodsTab && goodsTab.onScroll(scrollTop);
+  },
+
+  chooseSpecItem(e) {
+    const { specList } = this.data.details;
+    const { selectedSku, isAllSelectedSku } = e.detail;
+    if (!isAllSelectedSku) {
+      this.setData({
+        selectSkuSellsPrice: 0,
+      });
+    }
+    this.setData({
+      isAllSelectedSku,
+    });
+    this.getSkuItem(specList, selectedSku);
+  },
+
+  getSkuItem(specList, selectedSku) {
+    const { skuArray, primaryImage } = this.data;
+    const selectedSkuValues = this.getSelectedSkuValues(specList, selectedSku);
+    const selectedAttrStr = ` 件 ${selectedSkuValues.map((item) => item.specValue).filter(Boolean).join(' / ')}`;
+    // eslint-disable-next-line array-callback-return
+    const skuItem = skuArray.find((item) => {
+      const specInfo = item.specInfo || [];
+      return (
+        specInfo.length === selectedSkuValues.length &&
+        specInfo.every((subItem) => selectedSku[subItem.specId] && selectedSku[subItem.specId] === subItem.specValueId)
+      );
+    });
+    this.selectSpecsName(selectedSkuValues.length > 0 ? selectedAttrStr : '');
+    if (skuItem) {
+      this.setData({
+        selectItem: skuItem,
+        selectSkuSellsPrice: skuItem.price || 0,
+      });
+    } else {
+      this.setData({
+        selectItem: null,
+        selectSkuSellsPrice: 0,
+      });
+    }
+    this.setData({
+      specImg: skuItem && skuItem.skuImage ? skuItem.skuImage : primaryImage,
+    });
+  },
+
+  // 获取已选择的sku名称
+  getSelectedSkuValues(skuTree, selectedSku) {
+    const normalizedTree = this.normalizeSkuTree(skuTree);
+    return Object.keys(selectedSku).reduce((selectedValues, skuKeyStr) => {
+      const skuValues = normalizedTree[skuKeyStr];
+      const skuValueId = selectedSku[skuKeyStr];
+      if (skuValueId !== '') {
+        const skuValue = skuValues.filter((value) => {
+          return value.specValueId === skuValueId;
+        })[0];
+        skuValue && selectedValues.push(skuValue);
+      }
+      return selectedValues;
+    }, []);
+  },
+
+  normalizeSkuTree(skuTree) {
+    const normalizedTree = {};
+    skuTree.forEach((treeItem) => {
+      normalizedTree[treeItem.specId] = treeItem.specValueList;
+    });
+    return normalizedTree;
+  },
+
+  getSkuStockQuantity(sku) {
+    const stock = sku?.stockQuantity;
+    const quantity = Number(stock);
+    return Number.isFinite(quantity) ? Math.max(0, quantity) : 0;
+  },
+
+  selectSpecsName(selectSpecsName) {
+    if (selectSpecsName) {
+      this.setData({
+        selectedAttrStr: selectSpecsName,
+      });
+    } else {
+      this.setData({
+        selectedAttrStr: '',
+      });
+    }
+  },
+
+  addCart() {
+    const { isAllSelectedSku } = this.data;
+    if (!isAllSelectedSku) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '请选择规格',
+        icon: '',
+        duration: 1000,
+      });
+      return;
+    }
+
+    const goods = this.buildCartGoods();
+    if (!goods) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '请选择规格',
+        icon: '',
+        duration: 1000,
+      });
+      return;
+    }
+    if (goods.quantity > goods.stockQuantity || !goods.stockStatus) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '当前商品库存不足',
+        icon: '',
+        duration: 1000,
+      });
+      return;
+    }
+
+    addGoodsToCart(goods)
+      .then(() => {
+        const currentPages = getCurrentPages();
+        const cartPage = currentPages.find((page) => page.route === 'tabs/cart/index');
+        if (cartPage && typeof cartPage.refreshData === 'function') {
+          // 服务层已持久化购物车，这里仅刷新页面，避免同一商品被追加两次。
+          cartPage.refreshData(true);
+        }
+        this.setData(
+          {
+            isSpuSelectPopupShow: false,
+          },
+          () => {
+            Toast({
+              context: this,
+              selector: '#t-toast',
+              message: '已加入购物车',
+              icon: '',
+              duration: 1000,
+            });
+          },
+        );
+      })
+      .catch((error) => {
+        Toast({
+          context: this,
+          selector: '#t-toast',
+          message: getApiErrorMessage(error, '加入购物车失败，请重试'),
+          icon: '',
+          duration: 1000,
+        });
+      });
+  },
+
+  buildCartGoods() {
+    const { details, selectItem, buyNum, primaryImage } = this.data;
+    const sku = Array.isArray(selectItem) ? selectItem[0] : selectItem;
+    if (!sku || !sku.skuId) return null;
+
+    const salePrice = sku.price;
+    const stockQuantity = Math.max(0, Number(sku.quantity) || 0);
+    const specInfo = (sku.specInfo || []).map((item) => {
+      const spec = (details.specList || []).find((specItem) => specItem.specId === item.specId);
+      const value = (spec?.specValueList || []).find((valueItem) => valueItem.specValueId === item.specValueId);
+      return {
+        specTitle: item.specTitle || spec?.title || '',
+        specValue: item.specValue || value?.specValue || '',
+      };
+    });
+
+    return {
+      uid: `${details.spuId}-${sku.skuId}`,
+      saasId: details.saasId || '88888888',
+      storeId: details.storeId || '1000',
+      spuId: details.spuId || this.data.spuId,
+      skuId: sku.skuId,
+      isSelected: 1,
+      thumb: sku.skuImage || details.primaryImage || primaryImage,
+      title: details.title,
+      primaryImage: details.primaryImage || primaryImage,
+      quantity: Number(buyNum) || 1,
+      stockStatus: stockQuantity > 0,
+      stockQuantity,
+      price: String(salePrice || details.minSalePrice || 0),
+      roomId: null,
+      specInfo,
+      available: details.available,
+      putOnSale: details.isPutOnSale,
+      etitle: details.etitle || null,
+    };
+  },
+
+  async gotoBuy(type) {
+    if (!isPageNavigationEnabled('/pages/order/order-confirm/index')) return;
+    const { isAllSelectedSku } = this.data;
+    if (!isAllSelectedSku) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '请选择规格',
+        icon: '',
+        duration: 1000,
+      });
+      return;
+    }
+    const goods = this.buildCartGoods();
+    if (!goods) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '请选择规格',
+        icon: '',
+        duration: 1000,
+      });
+      return;
+    }
+    if (goods.quantity > goods.stockQuantity || !goods.stockStatus) {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '当前商品库存不足',
+        icon: '',
+        duration: 1000,
+      });
+      return;
+    }
+    this.handlePopupHide();
+    // 通过页面间共享数据传递商品，避免将完整商品信息拼进 URL 导致跳转失败。
+    try { await setPendingGoodsRequestList([goods]); } catch (error) {
+      Toast({ context: this, selector: '#t-toast', message: getApiErrorMessage(error, '结算准备失败，请重试') });
+      return;
+    }
+    wx.navigateTo({
+      url: '/pages/order/order-confirm/index?type=direct',
+    });
+  },
+
+  specsConfirm() {
+    const { buyType } = this.data;
+    if (buyType === 1) {
+      this.gotoBuy();
+    } else {
+      this.addCart();
+    }
+  },
+
+  changeNum(e) {
+    this.setData({
+      buyNum: e.detail.buyNum,
+    });
+  },
+
+  getDetail(spuId) {
+    this.setData({ detailLoading: true, detailLoaded: false });
+    fetchGood(spuId).then((details) => {
+      const skuArray = [];
+      const {
+        skuList = [],
+        primaryImage,
+        isPutOnSale,
+        minSalePrice,
+      } = details;
+      skuList.forEach((item) => {
+        skuArray.push({
+          skuId: item.skuId,
+          quantity: this.getSkuStockQuantity(item),
+          price: item.salePrice,
+          skuImage: item.skuImage,
+          specInfo: item.specInfo,
+        });
+      });
+      const totalStockQuantity = skuArray.reduce((total, item) => total + item.quantity, 0);
+      this.setData({
+        details,
+        isStock: totalStockQuantity > 0,
+        minSalePrice: minSalePrice ? parseInt(minSalePrice) : 0,
+        skuArray: skuArray,
+        primaryImage,
+        coverImages: Array.from(new Set([primaryImage, details.secondaryImage].filter(Boolean))),
+        soldout: isPutOnSale === 0,
+        detailLoading: false,
+        detailLoaded: true,
+      });
+        if (this.pendingSkuAction === 'addCart') {
+          this.pendingSkuAction = '';
+          this.toAddCart();
+        }
+    }).catch((error) => {
+      this.setData({ detailLoading: false, detailLoaded: true });
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: getApiErrorMessage(error, '商品详情加载失败，请稍后重试'),
+        icon: '',
+      });
+    });
+  },
+
+  /** 获取评价统计 */
+  async getCommentsStatistics() {
+    try {
+      const code = 'Success';
+      const data = await getGoodsDetailsCommentsCount(this.data.spuId);
+      if (code.toUpperCase() === 'SUCCESS') {
+        const { badCount, commentCount, goodCount, goodRate, hasImageCount, middleCount } = data;
+        const nextState = {
+          commentsStatistics: {
+            badCount: parseInt(`${badCount}`),
+            commentCount: parseInt(`${commentCount}`),
+            goodCount: parseInt(`${goodCount}`),
+            /** 后端返回百分比后数据但没有限制位数 */
+            goodRate: Math.floor(goodRate * 10) / 10,
+            hasImageCount: parseInt(`${hasImageCount}`),
+            middleCount: parseInt(`${middleCount}`),
+          },
+        };
+        this.setData(nextState);
+      }
+    } catch {
+      // 本地演示数据没有评价时，保留默认的零统计。
+    }
+  },
+
+  /** 跳转到评价列表 */
+  navToCommentsListPage() {
+    wx.navigateTo({
+      url: `/pages/goods/comments/index?spuId=${encodeURIComponent(this.data.spuId || '')}`,
+    });
+  },
+
+  onLoad(query) {
+    enablePageSharing();
+    const { spuId } = query;
+    this.pendingSkuAction = query.skuAction === 'addCart' ? 'addCart' : '';
+    const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const menuButtonInfo = wx.getMenuButtonBoundingClientRect();
+    const statusBarHeight = windowInfo.statusBarHeight || 0;
+    const navBarHeight = menuButtonInfo.height
+      ? menuButtonInfo.height + (menuButtonInfo.top - statusBarHeight) * 2
+      : 44;
+    if (spuId === undefined || spuId === null || spuId === '') {
+      Toast({
+        context: this,
+        selector: '#t-toast',
+        message: '商品信息不存在',
+        icon: '',
+      });
+      return;
+    }
+    this.setData({
+      spuId: spuId,
+      statusBarHeight,
+      navBarHeight,
+      customNavHeight: statusBarHeight + navBarHeight,
+    });
+    this.getDetail(spuId);
+    this.getCommentsStatistics(spuId);
+  },
+});
+// @ts-nocheck

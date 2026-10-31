@@ -22,7 +22,7 @@ const skuList = [
 ].map(([skuId, color, size, quantity, salePrice]) => ({ skuId, quantity, stockQuantity: quantity, salePrice,
   specInfo: [{ specId: 'color', specValueId: color }, { specId: 'size', specValueId: size }],
 }));
-const component = loadComponent('miniprogram/goods/details/components/goods-specs-popup/index.ts');
+const component = loadComponent('miniprogram/components/goods/details/goods-specs-popup/index.ts');
 const events = [];
 const popup = { ...component.methods, properties: { specList, skuList, isStock: true }, data: { ...component.data },
   setData(value) { Object.assign(this.data, value); }, triggerEvent(name, value) { events.push({ name, value }); },
@@ -57,8 +57,8 @@ click('size', '39');
 assert.equal(popup.data.buyNum, 2, 'quantity is capped to the selected combination');
 assert(events.some((event) => event.name === 'changeNum' && event.value.buyNum === 2));
 
-const cartComponent = loadComponent('miniprogram/pages/cart/components/specs-popup/index.ts');
-const cartComponentConfig = JSON.parse(fs.readFileSync('miniprogram/pages/cart/components/specs-popup/index.json', 'utf8'));
+const cartComponent = loadComponent('miniprogram/components/cart/specs-popup/index.ts');
+const cartComponentConfig = JSON.parse(fs.readFileSync('miniprogram/components/cart/specs-popup/index.json', 'utf8'));
 assert.equal(cartComponentConfig.usingComponents.price, '/components/price/index');
 assert.equal(cartComponentConfig.usingComponents['t-toast'], undefined);
 const cart = { ...cartComponent.methods, properties: { specList, skuList, selectedSkuId: 'black38' }, data: {},
@@ -102,7 +102,7 @@ assert.equal(events.at(-1).value.sku.specInfo.length, 1);
 console.log('PASS omitted optional size stays absent and single-level SKUs remain purchasable alongside two-level SKUs');
 
 const specsWxs = { module: { exports: {} } };
-vm.runInNewContext(fs.readFileSync('miniprogram/common/utils/specs.wxs', 'utf8'), specsWxs);
+vm.runInNewContext(fs.readFileSync('miniprogram/pages/_shared/utils/specs.wxs', 'utf8'), specsWxs);
 const formatSpecs = specsWxs.module.exports.format;
 assert.equal(formatSpecs(['黑色', '38']), '黑色 / 38');
 assert.equal(formatSpecs(['200g', '']), '200g');
@@ -110,7 +110,7 @@ assert.equal(formatSpecs(['', null, '38', undefined]), '38');
 assert.equal(formatSpecs([]), '');
 assert.equal(formatSpecs('黑色 / 38'), '黑色 / 38');
 assert.equal(formatSpecs(undefined), '');
-for (const file of ['miniprogram/order/components/goods-card/index.wxml', 'miniprogram/pages/cart/components/goods-card/index.wxml', 'miniprogram/order/order-confirm/index.wxml']) {
+for (const file of ['miniprogram/components/order/goods-card/index.wxml', 'miniprogram/components/cart/goods-card/index.wxml', 'miniprogram/pages/order/order-confirm/index.wxml']) {
   assert.match(fs.readFileSync(file, 'utf8'), /specFormat\.format\(goods\.specs\)/);
 }
 console.log('PASS primary/secondary specifications use slash separators in cart, checkout, order and after-sales cards without changing SKU data');

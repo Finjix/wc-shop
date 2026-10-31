@@ -53,9 +53,9 @@ async function main() {
   const detail = await fetchGood('coffee');
   assert.deepEqual(plain(detail.coverImages), ['https://images.test/main.webp', 'https://images.test/secondary.webp']);
   assert.deepEqual(plain(detail.desc), ['https://images.test/description.webp'], 'covers are separate from detail description images');
-  const categorySource = fs.readFileSync(path.join(root, 'miniprogram/pages/category/index.ts'), 'utf8');
+  const categorySource = fs.readFileSync(path.join(root, 'miniprogram/tabs/category/index.ts'), 'utf8');
   assert.doesNotMatch(categorySource, /fetchGoodsList|preferSecondary|loadGoods/, 'category page displays category images, never product covers');
-  load('miniprogram/goods/details/index.ts');
+  load('miniprogram/pages/goods/details/index.ts');
   const detailPage = instance(definition);
   detailPage.getDetail('coffee');
   for (let i = 0; i < 10 && !detailPage.data.detailLoaded; i++) await new Promise(setImmediate);
@@ -70,7 +70,7 @@ async function main() {
   }
   const duplicate = await resolveProductDetailImages({ primaryImage: 'local://main.webp', secondaryImage: 'local://main.webp' });
   assert.equal(duplicate.coverImages.length, 1, 'identical covers should not produce a duplicate slide');
-  const markup = fs.readFileSync(path.join(root, 'miniprogram/goods/details/index.wxml'), 'utf8');
+  const markup = fs.readFileSync(path.join(root, 'miniprogram/pages/goods/details/index.wxml'), 'utf8');
   assert.match(markup, /<swiper[^>]*coverImages\.length > 1[^>]*autoplay[^>]*interval="\{\{2500\}\}"[^>]*duration="\{\{500\}\}"/);
   assert.match(markup, /data-src="\{\{item\}\}" bindtap="previewProductImage"/);
   const admin = fs.readFileSync(path.join(root, 'admin/src/pages/Pages.tsx'), 'utf8');

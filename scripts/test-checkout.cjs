@@ -197,7 +197,7 @@ async function run() {
   mocks[path.join(root, 'miniprogram/services/address/fetchAddress.ts')] = {
     fetchDeliveryAddress: async () => null,
   };
-  load('miniprogram/order/order-confirm/index.ts');
+  load('miniprogram/pages/order/order-confirm/index.ts');
   const page = {
     ...pageDefinition,
     data: structuredClone(pageDefinition.data),
@@ -328,7 +328,7 @@ async function run() {
   assert.ok(navigation.at(-1).includes('checkoutId=batch-order-1'));
   assert.equal(service.getPendingGoodsRequestList(), null);
 
-  load('miniprogram/order/pay-result/index.ts');
+  load('miniprogram/pages/order/pay-result/index.ts');
   const resultPage = { ...pageDefinition, data: structuredClone(pageDefinition.data), setData(patch) { Object.assign(this.data, patch); } };
   resultPage.onLoad({ orderNo: 'batch-order-1', checkoutId: 'batch-order-1', totalPaid: '999999' });
   await flush();
@@ -337,7 +337,7 @@ async function run() {
   assert.equal(resultPage.data.paymentConfirmed, true);
   assert.ok(resultPage.data.statusText.includes('2 笔订单'));
   resultPage.onTapReturn({ currentTarget: { dataset: { type: 'orderList' } } });
-  assert.equal(navigation.at(-1), '/order/order-list/index');
+  assert.equal(navigation.at(-1), '/pages/order/order-list/index');
   mocks[path.join(root, 'miniprogram/services/utils/api.ts')].request = originalRequest;
   console.log('PASS split checkout normalizes every paid order, retries one key, and shows the combined server-confirmed result');
 

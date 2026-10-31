@@ -1,0 +1,39 @@
+{
+  "navigationBarTitleText": "售后详情",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "/components/ui/navbar/index",
+    "wr-loading-content": "/components/order/loading-content/index",
+    "wr-price": "/components/price/index",
+    "wr-service-goods-card": "../../../components/order/order-goods-card/index",
+    "t-cell": "/components/ui/cell/index",
+    "t-icon": "/components/ui/icon/index",
+    "t-cell-group": "/components/ui/cell-group/index",
+    "t-pull-down-refresh": "/components/ui/pull-down-refresh/index",
+    "t-grid": "/components/ui/grid/index",
+    "t-grid-item": "/components/ui/grid-item/index",
+    "t-dialog": "/components/ui/dialog/index",
+    "t-input": "/components/ui/input/index",
+    "t-swiper": "/components/ui/swiper/index",
+    "wr-after-service-button-bar": "../../../components/order/after-service-button-bar/index",
+    "t-image": "/components/webp-image/index"
+  },
+  "componentPlaceholder": {
+    "t-navbar": "view",
+    "wr-loading-content": "view",
+    "wr-price": "view",
+    "wr-service-goods-card": "view",
+    "t-cell": "view",
+    "t-icon": "view",
+    "t-cell-group": "view",
+    "t-pull-down-refresh": "view",
+    "t-grid": "view",
+    "t-grid-item": "view",
+    "t-dialog": "view",
+    "t-input": "view",
+    "t-swiper": "view",
+    "wr-after-service-button-bar": "view",
+    "t-image": "view"
+  }
+}

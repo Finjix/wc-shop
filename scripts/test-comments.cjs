@@ -96,7 +96,7 @@ async function run() {
   uploadError = new Error('上传失败');
   await assert.rejects(() => create({ commentResources: ['http://usr/failed.webp'] }), /上传失败/);
   assert.equal(requests.length, beforeFailure, 'failed uploads must not save a temporary path');
-  load('miniprogram/goods/comments/index.ts');
+  load('miniprogram/pages/goods/comments/index.ts');
   const instance = { ...page, data: { ...page.data, commentType: 'latest' }, setData(patch) { Object.assign(this.data, patch); } };
   instance.setCommentResult({ totalCount: 2, pageList: [
     api.normalizeComment({ _id: 'older', createdAt: '2025-12-31', images: [] }),
@@ -115,7 +115,7 @@ async function run() {
   items[0].reply = '';
   await instance.getOwnComment('order-1');
   assert.equal(instance.data.ownComment.sellerReply, '');
-  const pageMarkup = readMiniProgramSource(path.join(root, 'miniprogram/goods/comments/index.wxml'), 'utf8');
+  const pageMarkup = readMiniProgramSource(path.join(root, 'miniprogram/pages/goods/comments/index.wxml'), 'utf8');
   assert.doesNotMatch(pageMarkup, /自己\(|data-commentType="5"/);
   for (const label of ['全部(', '带图(', '最新']) assert.ok(pageMarkup.includes(label));
   const ownMarkup = pageMarkup.split('<block wx:if="{{mineOnly}}">')[1].split('</block>')[0];
@@ -124,20 +124,20 @@ async function run() {
   assert.doesNotMatch(ownReviewComponent, /commentTime|sellerReply|goodsDetailInfo|isAnonymity/);
   assert.match(ownMarkup, /class="own-seller-reply" wx:if="\{\{ownComment\.sellerReply\}\}"/);
   assert.match(ownMarkup, /class="own-seller-reply-content">\{\{ownComment\.sellerReply\}\}/);
-  const ownStyles = readMiniProgramSource(path.join(root, 'miniprogram/goods/comments/index.wxss'), 'utf8');
+  const ownStyles = readMiniProgramSource(path.join(root, 'miniprogram/pages/goods/comments/index.wxss'), 'utf8');
   assert.match(ownStyles, /\.comments-page-own \.comments-scroll-content\s*\{\s*background-color:\s*#fff;/);
   assert.match(ownStyles, /\.own-seller-reply-content\s*\{[^}]*white-space:\s*pre-wrap;[^}]*word-break:\s*break-all;[^}]*overflow-wrap:\s*anywhere;/);
-  const cardStyles = readMiniProgramSource(path.join(root, 'miniprogram/goods/comments/components/comments-card/index.wxss'), 'utf8');
+  const cardStyles = readMiniProgramSource(path.join(root, 'miniprogram/components/goods/comments/comments-card/index.wxss'), 'utf8');
   const ownCardStyles = cardStyles.match(/\.comments-card-own\s*\{([^}]*)\}/)[1];
   assert.doesNotMatch(ownCardStyles, /border:|border-radius:|box-shadow:/);
   assert.match(cardStyles, /\.comments-card-reply \.content\s*\{[^}]*display:\s*block;[^}]*white-space:\s*pre-wrap;[^}]*word-break:\s*break-all;[^}]*overflow-wrap:\s*anywhere;/);
-  const cardMarkup = readMiniProgramSource(path.join(root, 'miniprogram/goods/comments/components/comments-card/index.wxml'), 'utf8');
+  const cardMarkup = readMiniProgramSource(path.join(root, 'miniprogram/components/goods/comments/comments-card/index.wxml'), 'utf8');
   assert.match(cardMarkup, /wx:if="\{\{ownView\}\}"[\s\S]*?'好评' : '差评'/);
   assert.match(cardMarkup, /wx:else class="comments-title"/);
   assert.match(cardMarkup, /sellerReply && !ownView/);
-  load('miniprogram/goods/comments/components/comments-card/index.ts');
+  load('miniprogram/components/goods/comments/comments-card/index.ts');
   assert.equal(component.properties.ownView.value, false, 'public cards retain their metadata by default');
-  load('miniprogram/goods/comments/components/comments-card/components/images-videos/index.ts');
+  load('miniprogram/components/goods/comments/comments-card/components/images-videos/index.ts');
   const gallery = { ...component.methods, data: { imageResources: [
     { image: 'https://example.test/one.webp' }, { image: 'https://example.test/two.webp' },
     { image: '', expired: true }, { image: 'https://example.test/broken.webp', failed: true },

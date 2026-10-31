@@ -38,7 +38,7 @@ async function testMiniProgram() {
     '../../common/services/utils/api': { getApiErrorMessage: (error) => error.message },
     '../../common/share': { shopShareHandlers: {}, enablePageSharing() {} },
   };
-  vm.runInNewContext(transpile('miniprogram/pages/category/index.ts'), {
+  vm.runInNewContext(transpile('miniprogram/tabs/category/index.ts'), {
     exports: {}, Page(value) { definition = value; }, require: (name) => { assert(dependencies[name], `Unexpected dependency ${name}`); return dependencies[name]; },
     wx: { navigateTo: ({ url }) => navigations.push(url) },
   });
@@ -68,7 +68,7 @@ async function testMiniProgram() {
   page.retryCategories();
   await tick();
   assert.equal(page.data.categoryError, '');
-  const markup = fs.readFileSync('miniprogram/pages/category/index.wxml', 'utf8');
+  const markup = fs.readFileSync('miniprogram/tabs/category/index.wxml', 'utf8');
   assert.match(markup, /wx:for="\{\{categorySections\}\}"/);
   assert.match(markup, /wx:for="\{\{section.children\}\}"/);
   assert.match(markup, /src="\{\{category.image\}\}"/);

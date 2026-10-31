@@ -30,7 +30,7 @@ async function testHome() {
     { image: 'one.jpg', productId: 'one' }, { image: 'two.jpg', productId: 'two' },
     { image: '', productId: 'one' }, { image: 'gone.jpg', productId: 'gone' },
   ] }, productsById: { one: { _id: 'one' }, two: { _id: 'two' } } };
-  const home = page('miniprogram/pages/home/home.ts', (ref) => {
+  const home = page('miniprogram/tabs/home/home.ts', (ref) => {
     if (ref.endsWith('fetchHomeContent')) return { fetchHomeContent: async () => result, fetchHomeFeed(params) {
       const pending = deferred(); requests.push({ ...pending, params }); return pending.promise;
     } };
@@ -76,7 +76,7 @@ async function testHome() {
   home.onShow(); assert.equal(requests.length, 3, 'returning does not reset feed or request data'); assert.equal(home.feedItems.length, 12);
   assert.equal(timers.size, 1);
   home.addFeedProductToCart({ currentTarget: { dataset: { productId: 'one & two' } } });
-  assert.equal(navigation[0], '/goods/details/index?spuId=one%20%26%20two&skuAction=addCart');
+  assert.equal(navigation[0], '/pages/goods/details/index?spuId=one%20%26%20two&skuAction=addCart');
   home.loadMoreFeed(); await home.loadHomePage();
   requests[3].resolve({ items: [{ feedKey: 'stale' }], nextCursor: 'stale' }); await tick();
   assert.equal(home.feedItems.length, 0, 'refresh discards obsolete in-flight response');
@@ -156,7 +156,7 @@ async function testHome() {
 
 async function testDetails() {
   let details = deferred();
-  const detail = page('miniprogram/goods/details/index.ts', (ref) => {
+  const detail = page('miniprogram/pages/goods/details/index.ts', (ref) => {
     if (ref.endsWith('fetchGood')) return { fetchGood: () => details.promise };
     if (ref.endsWith('/common/ui/toast')) return { default() {} };
     if (ref.endsWith('/api')) return { getApiErrorMessage: (error) => error.message };
@@ -176,7 +176,7 @@ async function testDetails() {
 }
 
 async function testAssets() {
-  for (const directory of ['components/section-symbol', 'user/components/default-avatar']) {
+  for (const directory of ['components/section-symbol', 'components/user/default-avatar']) {
     const source = fs.readFileSync(`miniprogram/${directory}/index.wxml`, 'utf8') + fs.readFileSync(`miniprogram/${directory}/index.wxss`, 'utf8');
     assert.doesNotMatch(source, /<image|url\(/, 'decorative icons draw without image resources');
   }
@@ -184,10 +184,10 @@ async function testAssets() {
   assert.equal((search.match(/\{\{marqueeText\}\}/g) || []).length, 1);
   assert.match(search, /!focus && !value && marqueeText/);
   assert.doesNotMatch(fs.readFileSync('miniprogram/components/top-search/index.wxss', 'utf8'), /animation|@keyframes/);
-  const markup = fs.readFileSync('miniprogram/pages/home/home.wxml', 'utf8');
+  const markup = fs.readFileSync('miniprogram/tabs/home/home.wxml', 'utf8');
   assert.match(markup, /<view wx:if="\{\{feedActivated\}\}" class="home-gifts">/);
   assert.ok(markup.indexOf('class="home-back-top"') > markup.indexOf('</scroll-view>'), 'back-to-top stays outside the endlessly growing scroll content');
-  const homeStyles = fs.readFileSync('miniprogram/pages/home/home.wxss', 'utf8');
+  const homeStyles = fs.readFileSync('miniprogram/tabs/home/home.wxss', 'utf8');
   assert.match(homeStyles, /\.home-back-top \{[^}]*position: fixed;[^}]*top: auto;[^}]*bottom: calc\(124rpx \+ env\(safe-area-inset-bottom\)\)/);
   console.log('PASS code-drawn symbols without image resources, lazy feed subtree and static search label');
 }

@@ -1,0 +1,14 @@
+{
+  "component": true,
+  "usingComponents": {
+    "t-navbar": "/components/ui/navbar/index",
+    "t-tabs": "/components/ui/tabs/index",
+    "t-tab-panel": "/components/ui/tab-panel/index",
+    "t-pull-down-refresh": "/components/ui/pull-down-refresh/index",
+    "load-more": "/components/load-more/index",
+    "order-button-bar": "/components/order/order-button-bar/index",
+    "price": "/components/price/index",
+    "order-card": "/components/order/order-card/index",
+    "specs-goods-card": "/components/order/specs-goods-card/index"
+  }
+}

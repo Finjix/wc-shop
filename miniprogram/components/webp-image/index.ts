@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { resolveImage } from '../../common/services/utils/images';
+import { resolveImage } from '../_shared/services/utils/images';
 
 const systemInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
 Component({

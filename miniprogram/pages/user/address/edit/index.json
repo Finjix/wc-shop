@@ -1,0 +1,19 @@
+{
+  "navigationBarTitleText": "设置地址",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "/components/ui/navbar/index",
+    "t-button": "/components/ui/button/index",
+    "t-cell-group": "/components/ui/cell-group/index",
+    "t-cell": "/components/ui/cell/index",
+    "t-switch": "/components/ui/switch/index"
+  },
+  "componentPlaceholder": {
+    "t-navbar": "view",
+    "t-button": "view",
+    "t-cell-group": "view",
+    "t-cell": "view",
+    "t-switch": "view"
+  }
+}

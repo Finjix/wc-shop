@@ -7,10 +7,10 @@ assert.doesNotMatch(admin, /draft\.name|name: product\.name|label="商品名称"
 const types = fs.readFileSync('admin/src/types.ts', 'utf8');
 assert.doesNotMatch(types.match(/export interface ProductDraft\s*\{([^}]+)\}/)[1], /\bname:/);
 assert.doesNotMatch(types.match(/export interface Product\s*\{([^}]+)\}/)[1], /\bname:/);
-const markup = fs.readFileSync('miniprogram/pages/category/index.wxml', 'utf8');
+const markup = fs.readFileSync('miniprogram/tabs/category/index.wxml', 'utf8');
 assert.match(markup, /class="category-product-name">\{\{category.name\}\}<\/view>/);
 assert.doesNotMatch(markup, /goods\.name|goods\.title|openGoods/);
-const styles = fs.readFileSync('miniprogram/pages/category/index.wxss', 'utf8');
+const styles = fs.readFileSync('miniprogram/tabs/category/index.wxss', 'utf8');
 const rule = (selector) => styles.match(new RegExp(`\\.${selector}\\s*\\{([^}]+)\\}`))[1];
 for (const selector of ['category-parent', 'category-section-title', 'category-product-name']) {
   assert.match(rule(selector), /white-space:\s*nowrap/);

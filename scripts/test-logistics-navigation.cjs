@@ -29,7 +29,7 @@ function load(relative) {
   }, { filename });
   return exports;
 }
-const logisticsApi = load('miniprogram/order/utils/logistics.ts');
+const logisticsApi = load('miniprogram/pages/_shared/frontend/order/utils/logistics.ts');
 const { openLogistics } = logisticsApi;
 
 const shipment = {
@@ -79,7 +79,7 @@ assert.equal(modals.at(-1).title, '物流查询失败');
 assert(modals.every((modal) => modal.content === '可以手动粘贴到其他小程序查询'));
 wx.navigateToMiniProgram = navigate;
 
-load('miniprogram/order/order-detail/index.ts');
+load('miniprogram/pages/order/order-detail/index.ts');
 page.onDeliveryClick.call({ data: { order: { logisticsVO: shipment } } });
 assert.equal(new URLSearchParams(jumps.at(-1).path.split('?')[1]).get('nu'), shipment.logisticsNo.trim());
 assert.equal(clipboard.length, 0, 'navigation never overwrites the clipboard');
@@ -87,19 +87,19 @@ page.onLogisticsNoCopy.call({ data: { order: { logisticsVO: shipment } } });
 assert.equal(clipboard[0].data, shipment.logisticsNo.trim());
 page.onLogisticsNoCopy.call({ data: { order: {} } });
 assert.equal(clipboard.length, 1, 'missing tracking number must not overwrite the clipboard');
-load('miniprogram/order/after-service-detail/index.ts');
+load('miniprogram/pages/order/after-service-detail/index.ts');
 page.onLogisticsTap.call({ data: { service: { logistics: { logisticsNo: 'RETURN-1' } } } });
 assert.match(jumps.at(-1).path, /nu=RETURN-1&/);
-load('miniprogram/order/components/after-service-button-bar/index.ts');
+load('miniprogram/components/order/after-service-button-bar/index.ts');
 component.methods.viewDelivery({ logisticsVO: { logisticsNo: 'RETURN-2' } });
 assert.match(jumps.at(-1).path, /nu=RETURN-2&/);
 
-const template = fs.readFileSync(path.join(root, 'miniprogram/order/order-detail/index.wxml'), 'utf8');
+const template = fs.readFileSync(path.join(root, 'miniprogram/pages/order/order-detail/index.wxml'), 'utf8');
 assert.match(template, /class="pay-item pay-item--logistics" wx:if="\{\{order.logisticsVO.logisticsNo\}\}"/);
 assert.match(template, /bindtap="onLogisticsNoCopy"/);
 assert(template.indexOf('物流单号') > template.indexOf('下单时间'));
 const app = JSON.parse(fs.readFileSync(path.join(root, 'miniprogram/app.json'), 'utf8'));
-assert(!app.subpackages.find((pack) => pack.root === 'order').pages.some((name) => /delivery-detail|logistics-webview/.test(name)));
+assert(!app.subpackages.find((pack) => pack.root === 'pages').pages.some((name) => /delivery-detail|logistics-webview/.test(name)));
 assert.equal(routes.length, 0, 'all order and return entry points use the external mini program');
 console.log('PASS logistics direct navigation, error modal, cancel, privacy, order/return entry points and tracking copy row');
 (async () => {

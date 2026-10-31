@@ -1,0 +1,25 @@
+{
+  "navigationBarTitleText": "商品列表",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "/components/ui/navbar/index",
+    "t-search": "/components/ui/search/index",
+    "t-icon": "/components/ui/icon/index",
+    "t-input": "/components/ui/input/index",
+    "goods-list": "/components/goods-list/index",
+    "filter": "/components/goods/filter/index",
+    "filter-popup": "/components/goods/filter-popup/index",
+    "load-more": "/components/load-more/index"
+  },
+  "componentPlaceholder": {
+    "t-navbar": "view",
+    "t-search": "view",
+    "t-icon": "view",
+    "t-input": "view",
+    "goods-list": "view",
+    "filter": "view",
+    "filter-popup": "view",
+    "load-more": "view"
+  }
+}

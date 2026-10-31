@@ -1,0 +1,68 @@
+<wxs module="order" src="./order.wxs" />
+<wxs module="specFormat" src="../../_shared/utils/specs.wxs" />
+<scroll-view class="app-page-scroll" scroll-y="{{scrollEnabled}}" enhanced show-scrollbar="{{true}}" bounces="{{false}}" refresher-enabled="{{false}}">
+<t-navbar
+  t-class-title="app-page-navbar-title"
+  title="订单确认"
+  leftArrow
+  fixed="{{true}}"
+  background="#fff"
+/>
+<view class="order-sure" wx:if="{{!loading}}">
+  <address-card addressData="{{userAddress}}" bind:addclick="onGotoAddress" bind:addressclick="onGotoAddress" />
+  <view
+    class="order-wrapper"
+    wx:for="{{settleDetailData.storeGoodsList}}"
+    wx:for-item="stores"
+    wx:for-index="storeIndex"
+    wx:key="storeIndex"
+  >
+    <view
+      wx:if="{{orderCardList[storeIndex] && orderCardList[storeIndex].goodsList.length > 0}}"
+      wx:for="{{orderCardList[storeIndex].goodsList}}"
+      wx:for-item="goods"
+      wx:for-index="gIndex"
+      wx:key="id"
+      class="goods-wrapper"
+    >
+      <t-image src="{{goods.thumb}}" t-class="goods-image" mode="aspectFill" />
+      <view class="goods-content">
+        <view class="goods-title">{{goods.title}}</view>
+        <view>{{specFormat.format(goods.specs)}}</view>
+      </view>
+      <view class="goods-right">
+        <price wr-class="goods-price" price="{{goods.price}}" fill="{{true}}" decimalSmaller />
+        <view class="goods-num">x{{goods.num}}</view>
+      </view>
+    </view>
+  </view>
+  <view class="order-remark">
+    <view class="order-remark__title">备注</view>
+    <view class="order-remark__field">
+    <textarea
+      class="order-remark__input"
+      value="{{remark}}"
+      placeholder="（选填）"
+      placeholder-class="order-remark__placeholder"
+      maxlength="50"
+      auto-height
+      disabled="{{remarkLocked}}"
+      bindinput="onRemarkInput"
+    />
+    <view class="order-remark__count">{{remark.length}}/50</view>
+    </view>
+  </view>
+  <view class="wx-pay-cover">
+    <view class="wx-pay">
+      <price decimalSmaller fill class="price" price="{{settleDetailData.totalPayAmount || '0'}}" />
+      <view class="submit-btn" bindtap="submitOrder">
+        提交订单
+      </view>
+    </view>
+  </view>
+  <t-popup visible="{{popupShow}}" placement="bottom" bind:visible-change="onPopupChange">
+    <no-goods slot="content" bind:change="onNoGoodsChange" settleDetailData="{{settleDetailData}}" />
+  </t-popup>
+</view>
+</scroll-view>
+<t-dialog id="t-dialog" />

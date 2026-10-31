@@ -1,2 +1,2 @@
-import { control } from '../../../common/ui/control';
+import { control } from '../control';
 Component(control('loading'));

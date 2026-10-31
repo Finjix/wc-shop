@@ -42,23 +42,26 @@ npm --prefix admin run dev -- --host 127.0.0.1 --port 5173
 
 | 目录 | 用途 |
 | --- | --- |
-| `miniprogram/pages/`、`miniprogram/custom-tab-bar/` | 主包：首页、分类、购物车、我的和底部导航 |
-| `miniprogram/goods/` | 商品分包：列表、详情、搜索、评价 |
-| `miniprogram/order/` | 订单分包：结算、订单、售后、物流 |
-| `miniprogram/user/` | 用户分包：资料、地址、帮助和关于 |
+| `miniprogram/tabs/`、`miniprogram/custom-tab-bar/` | 主包：首页、分类、购物车、我的和底部导航 |
+| `miniprogram/components/` | 组件分包：公共控件、商品/订单/购物车组件及组件专用逻辑和样式 |
+| `miniprogram/pages/` | 页面分包：其余商品、订单、售后、资料、地址、帮助和关于页面 |
 | `miniprogram/services/` | 接口服务分包：请求、数据转换和共享业务状态 |
 | `miniprogram/utils/` | 工具分包：图片处理和 WebP 编码 |
-| `miniprogram/assets/` | 主包静态资源：首页标题图标和共享图片组件 |
 | `design/home-promos/` | 活动图原始插画、背景、花字和生成提示词，不参与小程序上传 |
-| `miniprogram/components/` | 主包公共组件 |
-| `miniprogram/common/`、`miniprogram/config/` | 公共逻辑、异步服务入口、类型声明和运行配置 |
+| `miniprogram/common/`、`miniprogram/config/`、`miniprogram/style/` | 主包基础代码：异步服务入口、跨包同步使用的轻量逻辑/模板/样式、类型声明和运行配置 |
 | `admin/` | React 管理后台 |
 | `cloudfunctions/` | 云函数业务和服务端测试 |
 | `scripts/` | 启动、构建、部署和回归测试 |
 
-`project.config.json` 的小程序根目录为 `miniprogram/`。四个 Tab 直接运行在主包；商品、订单和用户页面按业务分包。`services` 保存接口实现和共享业务状态，通过主包异步入口统一加载并支持失败重试；`utils` 的图片编码组件由上传页面按需加载。售后转换逻辑分别放在订单、服务分包，主包不保留副本。
+`project.config.json` 的小程序根目录为 `miniprogram/`。四个 Tab 直接运行在主包的 `tabs/`，其余页面统一位于 `pages` 分包；不再声明 `goods`、`order`、`user` 分包。公共前端组件集中到 `components` 分包，跨包引用通过 `componentPlaceholder` 异步加载。组件专用控制器和样式也随组件分包，主包仅保留四页和必要基础代码；分包专用的同步辅助逻辑和模板保存在各自的 `_shared/`，不放入主包；跨包共用的少量无状态代码保留包内副本，接口实现和可变业务状态仍唯一保存在 services。主包依赖检查同时验证每个主包脚本确实被四个 Tab、应用入口或底部导航使用。大量移动文件后，应在开发者工具中清除文件缓存并重新编译，避免旧路径编译文件继续计入包体。
+
+`services`、`utils` 的目录、内容与加载方式保持不变：接口实现和共享业务状态通过主包异步服务入口统一加载，支持失败重试；图片编码组件由上传页面按需加载。迁移后的页面链接以 `/tabs/` 或 `/pages/` 开头，编译入口和分享链接已同步调整。
 
 全局主题位于 `miniprogram/app.wxss`。自有控件共用 `miniprogram/components/ui/`，业务服务和编码工具仍按分包异步加载。
+
+订单列表的滚动容器、卡片及其插槽统一由 `components/order/order-list-view/` 同步组合，页面只传数据并接收筛选、刷新、重试和卡片点击事件，避免跨分包异步替换插槽时触发渲染框架内部错误。业务状态、分页和收货后卡片更新仍由页面管理；页面上的弹窗入口保持独立。分包依赖回归同时检查这一组合边界和 `_shared/` 中跨包同步副本的一致性。
+
+页面分包内共用的地址服务入口位于 `pages/_shared/services/address/`，图片预览函数共用 `pages/_shared/frontend/goods/utils/preview-image.ts`。购物车和订单的商品卡片保留各自的规格选择、布局和状态差异，价格、图片、图标、规格格式化等基础能力继续复用。
 
 ## 检查与发布
 
@@ -85,7 +88,7 @@ npm run test:sharing                   # 好友/朋友圈分享回调、商品�
 
 商品搜索忽略空白、大小写及全角/半角差异，查询中的任意一个文字、字母或数字命中商品名称、有效分类名称或已配置规格即可返回；标点不作为正则表达式，纯空白按未输入关键词处理。匹配完成后再排序和分页。搜索结果及评价列表加载成功且为空时显示“暂无”，请求失败仍显示错误状态。
 
-搜索结果（含分类商品结果）改为每行两张卡片，与首页「更多献礼」共用 `miniprogram/components/gift-card/index.wxml` 模板和 `miniprogram/style/gift-card.wxss` 样式，封面、两行标题、价格、圆角及购物车按钮一致。点击卡片进入详情，点击购物车进入详情并打开加购规格选择；排序、筛选和分页逻辑保留。米色背景仅限首页，搜索结果为白底，其他页面及选中态的浅色底统一使用中性灰；共享卡片的封面占位色仅在首页局部覆盖为米色，棕色文字、边框和操作按钮保留。运行 `npm run test:backgrounds` 检查背景范围。运行 `npm run test:search-cards` 检查共享模板/样式、跳转、分类参数、排序、分页及空/错误状态。
+搜索结果（含分类商品结果）改为每行两张卡片，与首页「更多献礼」使用各分包 `_shared/templates/gift-card.wxml` 中内容一致的模板和 `miniprogram/style/gift-card.wxss` 样式，封面、两行标题、价格、圆角及购物车按钮一致。点击卡片进入详情，点击购物车进入详情并打开加购规格选择；排序、筛选和分页逻辑保留。米色背景仅限首页，搜索结果为白底，其他页面及选中态的浅色底统一使用中性灰；共享卡片的封面占位色仅在首页局部覆盖为米色，棕色文字、边框和操作按钮保留。运行 `npm run test:backgrounds` 检查背景范围。运行 `npm run test:search-cards` 检查共享模板/样式、跳转、分类参数、排序、分页及空/错误状态。
 
 首页「邀请返现 / 加客服拿好礼」使用后台配置的两张方形图片，未配置时不加载图片。旧版活动图集、首帧、播放代码和生成图集命令已移除；设计原画与无损动画源保留在包外的 `design/home-promos/`，不参与小程序上传。
 
@@ -147,6 +150,6 @@ npm run test:sharing                   # 好友/朋友圈分享回调、商品�
 
 删除商品及失效图片仍立即尝试清理，失败由 30 分钟的兜底任务重试；未保存上传的 24 小时租约不变。空商品清理队列不读取游标，已压缩的元数据不重复写入相同游标。个人中心 `user.me` 不再附带图片维护请求，确有图片清理任务时才异步触发。`npm run test:cloud` 的维护预算回归覆盖历史游标仍存在时的空闲查询上限和零写入，并保留超过一页的失败任务公平轮转测试。
 
-默认用户头像由 `miniprogram/user/components/default-avatar/` 使用原生 view 和 WXSS 绘制绿色微信双气泡标志，不依赖图片资源；组件仍保留在 user 分包。
+默认用户头像由 `miniprogram/components/user/default-avatar/` 使用原生 view 和 WXSS 绘制绿色微信双气泡标志，不依赖图片资源；组件位于 components 分包。
 
 界面不依赖 TDesign：小程序原生控件位于 `miniprogram/components/ui/`，共用轻量事件适配与样式；后台使用 `admin/src/components/NativeUi.tsx` 的原生 HTML 表单和 dialog。模板中的 `t-` 别名、样式钩子仅保留为调用约定，不包含第三方组件实现。

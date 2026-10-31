@@ -1,0 +1,31 @@
+{
+  "navigationBarTitleText": "商品详情",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "/components/ui/navbar/index",
+    "t-image": "/components/webp-image/index",
+    "t-tag": "/components/ui/tag/index",
+    "t-swiper": "/components/ui/swiper/index",
+    "t-button": "/components/ui/button/index",
+    "t-icon": "/components/ui/icon/index",
+    "price": "/components/price/index",
+    "buy-bar": "../../../components/goods/details/buy-bar/index",
+    "goods-specs-popup": "../../../components/goods/details/goods-specs-popup/index",
+    "single-image-preview": "/components/single-image-preview/index"
+  },
+  "componentPlaceholder": {
+    "t-navbar": "view",
+    "t-image": "view",
+    "t-tag": "view",
+    "t-swiper": "view",
+    "t-button": "view",
+    "t-icon": "view",
+    "price": "view",
+    "buy-bar": "view",
+    "goods-specs-popup": "view",
+    "single-image-preview": "view"
+  }
+}

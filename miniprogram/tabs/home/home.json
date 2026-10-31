@@ -1,0 +1,23 @@
+{
+  "navigationBarTitleText": "番薯小店",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "backgroundTextStyle": "light",
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "t-loading": "/components/ui/loading/index",
+    "t-swiper": "/components/ui/swiper/index",
+    "top-search": "/components/top-search/index",
+    "home-feed-batch": "/components/home-feed-batch/index",
+    "section-symbol": "/components/section-symbol/index"
+  },
+  "componentPlaceholder": {
+    "t-loading": "view",
+    "t-swiper": "view",
+    "top-search": "view",
+    "home-feed-batch": "view",
+    "section-symbol": "view"
+  }
+}

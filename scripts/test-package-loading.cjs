@@ -56,8 +56,8 @@ async function testNativeTabs() {
     if (route.includes('usercenter')) { page.jumpAllOrder(); page.onClickCell({ currentTarget: { dataset: { type: 'address' } } }); }
   }
   for (const action of ['home.get', 'categories.list', 'cart.get', 'orders.count', 'afterSales.list']) assert.ok(requests.includes(action), action);
-  assert.deepEqual(downloads, ['../../services/index'], 'all tabs share one services download, without loading goods/order/user/utils');
-  assert.deepEqual(navigation, ['/order/order-list/index', '/user/address/list/index']);
+  assert.deepEqual(downloads, ['../../services/index'], 'tab scripts share one services download without importing pages or utils');
+  assert.deepEqual(navigation, ['/pages/order/order-list/index', '/pages/user/address/list/index']);
   console.log('PASS all four native Tab pages load data, initialize navigation and share only the services package');
 }
 async function testProductListBridge() {
@@ -68,7 +68,7 @@ async function testProductListBridge() {
     request({ data, success }) { requests.push(data); success({ statusCode: 200, data: response }); },
     cloud: { async callFunction({ data }) { requests.push(data); return { result: response }; } },
   });
-  const list = await load('goods/services/fetchGoodsList.ts').fetchGoodsList({ categoryId: 'test-category' });
+  const list = await load('pages/goods/services/fetchGoodsList.ts').fetchGoodsList({ categoryId: 'test-category' });
   assert.equal(list.spuList.length, 0);
   assert.equal(requests[0].action, 'products.list');
   console.log('PASS goods-only list bridge loads services and fetches products outside main');
@@ -94,13 +94,39 @@ async function testServiceRetryAndCheckout() {
   let definition, completeDownload;
   const navigation = [];
   const cartLoad = runtime({ navigateTo({ url }) { navigation.push(url); } }, (ref, from, loadModule) => new Promise(resolve => { completeDownload = () => resolve(loadModule(path.resolve(path.dirname(from), ref))); }), { Page(value) { definition = value; } });
-  cartLoad('pages/cart/index.ts');
+  cartLoad('tabs/cart/index.ts');
   const page = { ...definition, data: { cartGroupData: { storeGoods: [{ promotionGoodsList: [{ goodsPromotionList: [{ skuId: 'ordered', quantity: 3, isSelected: true }] }] }] } } };
   const pending = page.onToSettle(); await tick();
   assert.equal(navigation.length, 0, 'wait for service state before entering order package');
   completeDownload(); await pending;
-  assert.deepEqual(navigation, ['/order/order-confirm/index?type=cart']);
+  assert.deepEqual(navigation, ['/pages/order/order-confirm/index?type=cart']);
   assert.equal((await cartLoad('common/services/order/orderConfirm.ts').getPendingGoodsRequestList())[0].quantity, 3);
   console.log('PASS services download retry, immutable shared checkout state and cart navigation after state is saved');
 }
-(async () => { await testNativeTabs(); await testProductListBridge(); await testServiceRetryAndCheckout(); })().catch(error => { console.error(error); process.exitCode = 1; });
+async function testOrderViewEvents() {
+  let pageDefinition, viewDefinition;
+  const navigation = [], filters = [];
+  const load = runtime({ navigateTo({ url }) { navigation.push(url); } }, null, {
+    Page(value) { pageDefinition = value; }, Component(value) { viewDefinition = value; },
+  });
+  load('pages/order/order-list/index.ts');
+  load('components/order/order-list-view/index.ts');
+  const page = { ...pageDefinition, data: structuredClone(pageDefinition.data),
+    setData(patch, done) { Object.assign(this.data, patch); done?.(); },
+    refreshList(value) { filters.push(value); },
+  };
+  const handlers = { tabchange: 'onTabChange', cardtap: 'onOrderCardTap', refresh: 'onRefresh' };
+  const view = { ...viewDefinition.methods, triggerEvent(name, detail) { page[handlers[name]]({ detail }); } };
+  view.onTabChange({ detail: { value: 40 } });
+  assert.equal(page.data.status, 40);
+  assert.deepEqual(filters, [40]);
+  view.onOrderCardTap({ currentTarget: { dataset: { order: { orderNo: 'view-test' } } } });
+  assert.deepEqual(navigation, ['/pages/order/order-detail/index?orderNo=view-test']);
+  page.data.orderList = [{ orderNo: 'view-test', goodsList: [], buttons: [] }];
+  view.onRefresh({ detail: { action: 'confirmReceived', orderNo: 'view-test', order: { items: [] } } });
+  assert.equal(page.data.orderList[0].status, 50);
+  assert.equal(page.data.backRefresh, true);
+  assert.deepEqual(filters, [40], 'receipt updates the card without discarding the current filter');
+  console.log('PASS composed order view preserves filtering, detail navigation and receipt updates across the component boundary');
+}
+(async () => { await testNativeTabs(); await testProductListBridge(); await testServiceRetryAndCheckout(); await testOrderViewEvents(); })().catch(error => { console.error(error); process.exitCode = 1; });

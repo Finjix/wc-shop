@@ -1,8 +1,8 @@
 // Set an entry to true to restore navigation to that page.
 export const pageNavigationEnabled: Record<string, boolean> = {
-  'pages/cart/index': true,
-  'pages/usercenter/index': true,
-  'order/order-confirm/index': true,
+  'tabs/cart/index': true,
+  'tabs/usercenter/index': true,
+  'pages/order/order-confirm/index': true,
 };
 
 export function isPageNavigationEnabled(url: string) {

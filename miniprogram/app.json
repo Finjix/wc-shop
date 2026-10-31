@@ -1,46 +1,39 @@
 {
   "pages": [
-    "pages/home/home",
-    "pages/category/index",
-    "pages/cart/index",
-    "pages/usercenter/index"
+    "tabs/home/home",
+    "tabs/category/index",
+    "tabs/cart/index",
+    "tabs/usercenter/index"
   ],
   "subpackages": [
     {
-      "root": "goods",
-      "name": "goods",
-      "pages": [
-        "list/index",
-        "details/index",
-        "search/index",
-        "result/index",
-        "comments/index",
-        "comments/create/index"
-      ]
+      "root": "components",
+      "name": "components",
+      "pages": []
     },
     {
-      "root": "order",
-      "name": "order",
+      "root": "pages",
+      "name": "pages",
       "pages": [
-        "order-confirm/index",
-        "pay-result/index",
-        "order-list/index",
-        "order-detail/index",
-        "apply-service/index",
-        "after-service-list/index",
-        "after-service-detail/index",
-        "fill-tracking-no/index"
-      ]
-    },
-    {
-      "root": "user",
-      "name": "user",
-      "pages": [
-        "person-info/index",
-        "address/list/index",
-        "address/edit/index",
-        "help/index",
-        "about/index"
+        "goods/list/index",
+        "goods/details/index",
+        "goods/search/index",
+        "goods/result/index",
+        "goods/comments/index",
+        "goods/comments/create/index",
+        "order/order-confirm/index",
+        "order/pay-result/index",
+        "order/order-list/index",
+        "order/order-detail/index",
+        "order/apply-service/index",
+        "order/after-service-list/index",
+        "order/after-service-detail/index",
+        "order/fill-tracking-no/index",
+        "user/person-info/index",
+        "user/address/list/index",
+        "user/address/edit/index",
+        "user/help/index",
+        "user/about/index"
       ]
     },
     {
@@ -62,19 +55,19 @@
     "borderStyle": "black",
     "list": [
       {
-        "pagePath": "pages/home/home",
+        "pagePath": "tabs/home/home",
         "text": "首页"
       },
       {
-        "pagePath": "pages/category/index",
+        "pagePath": "tabs/category/index",
         "text": "分类"
       },
       {
-        "pagePath": "pages/cart/index",
+        "pagePath": "tabs/cart/index",
         "text": "购物车"
       },
       {
-        "pagePath": "pages/usercenter/index",
+        "pagePath": "tabs/usercenter/index",
         "text": "我的"
       }
     ]

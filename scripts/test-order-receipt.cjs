@@ -16,7 +16,7 @@ const confirmedOrder = {
 };
 const mocks = new Map([
   ['miniprogram/config/navigation.ts', { isPageNavigationEnabled: () => true }],
-  ['miniprogram/order/utils/dialog.ts', { default: { confirm: async () => { if (dialogCancelled) throw new Error('cancel'); } } }],
+  ['miniprogram/pages/_shared/frontend/order/utils/dialog.ts', { default: { confirm: async () => { if (dialogCancelled) throw new Error('cancel'); } } }],
   ['miniprogram/services/order/services/orderDetail.ts', { confirmOrderReceived: async () => {
     confirmCalls++;
     if (confirmError) throw confirmError;
@@ -27,7 +27,7 @@ const mocks = new Map([
   ['miniprogram/services/order/after-service-detail/api.ts', {}],
   ['miniprogram/services/cart/cart.ts', {}],
   ['miniprogram/services/utils/api.ts', { getApiErrorMessage: (error) => error.message }],
-].map(([file, value]) => [path.resolve(root, file), value]));
+].flatMap(([file, value]) => [file, file.replace('pages/_shared/', 'components/_shared/')].map(name => [path.resolve(root, name), value])));
 function load(file) {
   const filename = require("./miniprogram-test-source.cjs").resolveSource(path.resolve(root, file));
   if (mocks.has(filename)) return mocks.get(filename);
@@ -49,9 +49,9 @@ function load(file) {
   return exports;
 }
 async function run() {
-  const { OrderStatus, OrderButtonTypes } = load('miniprogram/order/config.ts');
-  load('miniprogram/order/order-list/index.ts');
-  load('miniprogram/order/components/order-button-bar/index.ts');
+  const { OrderStatus, OrderButtonTypes } = load('miniprogram/pages/_shared/frontend/order/config.ts');
+  load('miniprogram/pages/order/order-list/index.ts');
+  load('miniprogram/components/order/order-button-bar/index.ts');
   const original = {
     id: 'order-1', orderNo: 'order-1', status: OrderStatus.PENDING_RECEIPT, statusDesc: '待收货', amount: 200,
     goodsList: [{ spuId: 'product-1', skuId: 'sku-1', num: 2, fulfillableQuantity: 1, title: '商品' }],

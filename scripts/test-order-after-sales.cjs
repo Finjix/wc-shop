@@ -13,9 +13,9 @@ const mocks = new Map();
 const mock = (file, value) => mocks.set(path.resolve(root, file), value);
 mock('miniprogram/services/utils/api.ts', { request: async (action, payload) => { calls.push({ action, payload }); return response; }, cleanupCloudFiles: async () => {}, getApiErrorMessage: (error) => error.message });
 mock('miniprogram/services/utils/images.ts', { resolveImage: async (url) => url, resolveRightsImages: async (record) => record });
-mock('miniprogram/order/utils/dialog.ts', {});
+mock('miniprogram/pages/_shared/frontend/order/utils/dialog.ts', {});
 mock('miniprogram/common/utils/goods-detail-navigation.ts', { navigateToGoodsDetail: () => {} });
-mock('miniprogram/order/components/reason-sheet/reasonSheet.ts', () => Promise.resolve([0]));
+mock('miniprogram/components/order/reason-sheet/reasonSheet.ts', () => Promise.resolve([0]));
 mock('miniprogram/services/order/utils/format.ts', { formatTime: (time) => time, priceFormat: (amount) => (amount / 100).toFixed(2) });
 const cache = new Map();
 function load(file) {
@@ -71,7 +71,7 @@ async function run() {
   assert.equal(returnShipped.rights.userRightsStatusName, '等待商家收货并同意退款');
   assert.match(returnShipped.rights.userRightsStatusDesc, /退货物流已提交/);
   assert.equal(returnShipped.buttonVOs.some((button) => button.type === 2), false, 'tracking submission disables withdrawal');
-  load('miniprogram/order/after-service-list/index.ts');
+  load('miniprogram/pages/order/after-service-list/index.ts');
   const listPage = { ...pageDefinition, page: { ...pageDefinition.page }, data: JSON.parse(JSON.stringify(pageDefinition.data)), setData(patch, done) { Object.assign(this.data, patch); done?.(); } };
   response = { items: [{ _id: 'waiting-return', status: 'approved', type: 10, items: [], amount: 100 }], total: 1, page: 1, pageSize: 10 };
   await listPage.getAfterServiceList();
@@ -93,7 +93,7 @@ async function run() {
   await getRightsList({ parameter: { afterServiceStatus: 60, pageNum: 1, pageSize: 10 } });
   assert.equal(calls.at(-1).payload.status, 'closed');
 
-  load('miniprogram/order/after-service-detail/index.ts');
+  load('miniprogram/pages/order/after-service-detail/index.ts');
   const detailDefinition = pageDefinition;
   for (const status of ['approved', 'pending_review', 'rejected', 'refunding', 'refunded']) {
     response = { _id: 'return-detail', status, type: 10, items: [], amount: 100, trackingNo: ['refunding', 'refunded'].includes(status) ? 'SF001' : '', returnAddressSnapshot: { receiver: '商家', phone: '13800000000', detail: '退货地址' } };
@@ -105,7 +105,7 @@ async function run() {
     assert.equal(detailPage.data.service.receiverAddress, undefined, 'legacy system return addresses are ignored');
     if (['refunding', 'refunded'].includes(status)) assert.equal(detailPage.data.service.logisticsNo, 'SF001');
   }
-  const detailTemplate = readMiniProgramSource(path.join(root, 'miniprogram/order/after-service-detail/index.wxml'), 'utf8');
+  const detailTemplate = readMiniProgramSource(path.join(root, 'miniprogram/pages/order/after-service-detail/index.wxml'), 'utf8');
   assert.doesNotMatch(detailTemplate, /name="location"/);
   assert.match(detailTemplate, /class="order-logistics" bindtap="onLogisticsTap"/);
   assert.match(detailTemplate, /<view>查看物流<\/view>/);
@@ -113,8 +113,8 @@ async function run() {
   assert.match(detailTemplate, /wx:if="\{\{service.showReturnInstructions\}\}"/);
   assert.match(detailTemplate, /请按原包裹的寄件地址退货，并填写退货物流单号。/);
   assert.doesNotMatch(detailTemplate, /service.receiverAddress|service.receiverName|service.receiverPhone|onAddressCopy/);
-  const applySource = readMiniProgramSource(path.join(root, 'miniprogram/order/apply-service/index.ts'), 'utf8');
-  const applyTemplate = readMiniProgramSource(path.join(root, 'miniprogram/order/apply-service/index.wxml'), 'utf8');
+  const applySource = readMiniProgramSource(path.join(root, 'miniprogram/pages/order/apply-service/index.ts'), 'utf8');
+  const applyTemplate = readMiniProgramSource(path.join(root, 'miniprogram/pages/order/apply-service/index.wxml'), 'utf8');
   assert.doesNotMatch(applySource + applyTemplate, /returnAddressConfigured|returnAddressMissing|hasReturnAddress|商家尚未配置退货地址/);
   assert.match(applyTemplate, /请按原包裹的寄件地址退货/);
   assert.doesNotMatch(commerceSource, /售后地址设置|export function SettingsPage/);
@@ -125,7 +125,7 @@ async function run() {
   assert.equal(calls.at(-1).payload.trackingNo, 'SF001');
   assert.equal(Object.hasOwn(calls.at(-1).payload, 'remark'), false, 'tracking form no longer submits a remark');
   assert.equal(Object.hasOwn(calls.at(-1).payload, 'logisticsCompanyName'), false);
-  load('miniprogram/order/fill-tracking-no/index.ts');
+  load('miniprogram/pages/order/fill-tracking-no/index.ts');
   const trackingPage = { ...pageDefinition, data: { ...pageDefinition.data }, setData(patch) { Object.assign(this.data, patch); } };
   trackingPage.onLoad({ rightsNo: 'return-detail', logisticsNo: 'SF001' });
   assert.equal(trackingPage.data.submitActived, true);
@@ -133,11 +133,11 @@ async function run() {
   assert.equal(trackingPage.checkParams(), false);
   trackingPage.data.trackingNo = 'SF002';
   assert.equal(trackingPage.checkParams(), true, 'tracking number alone enables saving');
-  const trackingTemplate = readMiniProgramSource(path.join(root, 'miniprogram/order/fill-tracking-no/index.wxml'), 'utf8');
+  const trackingTemplate = readMiniProgramSource(path.join(root, 'miniprogram/pages/order/fill-tracking-no/index.wxml'), 'utf8');
   assert.doesNotMatch(trackingTemplate, /notice-bar|物流公司/);
   assert.doesNotMatch(trackingTemplate, /备注|t-textarea/);
 
-  load('miniprogram/order/apply-service/index.ts');
+  load('miniprogram/pages/order/apply-service/index.ts');
   const definition = pageDefinition;
   for (const [status, receipt, showRefundType] of [[10, 2, false], [40, 1, true], [50, 1, true]]) {
     const page = {

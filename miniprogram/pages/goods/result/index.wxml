@@ -1,0 +1,102 @@
+<import src="../../_shared/templates/gift-card.wxml" />
+
+<view class="goods-list-page">
+  <view class="goods-list-header">
+      <t-navbar
+        t-class-title="goods-list-navbar__title"
+        title=""
+        leftArrow
+        fixed="{{false}}"
+        background="#fff"
+      />
+      <view
+        class="goods-list-navbar-search"
+        style="top: {{searchTop}}px; left: {{searchLeft}}px; width: {{searchWidth}}px;"
+      >
+        <t-search
+          t-class="goods-list-navbar-search__control"
+          t-class-input-container="goods-list-navbar-search__input-container"
+          t-class-left="goods-list-navbar-search__left-icon"
+          t-class-input="goods-list-navbar-search__input"
+          value="{{searchInput}}"
+          leftIcon=""
+          clearable="{{false}}"
+          placeholder=""
+          bind:submit="handleSubmit"
+        >
+          <t-icon slot="left-icon" prefix="wr" name="search" size="40rpx" color="#bbb" />
+        </t-search>
+      </view>
+      <view class="goods-list-toolbar">
+    <filter
+      wr-class="filter-container"
+      bind:change="handleFilterChange"
+      layout="{{layout}}"
+      sorts="{{sorts}}"
+      overall="{{overall}}"
+      sortType="{{sortType}}"
+      showMoreSorts="{{true}}"
+      color="#695941"
+      bind:showFilterPopup="showFilterPopup"
+    >
+      <filter-popup
+        show="{{show}}"
+        slot="filterPopup"
+        bind:showFilterPopupClose="showFilterPopupClose"
+        bind:reset="reset"
+        bind:confirm="confirm"
+      >
+        <view class="price-container" slot="filterSlot">
+          <view class="price-between">价格区间</view>
+          <view class="price-ipts-wrap">
+            <t-input
+              align="center"
+              type="number"
+              t-class="price-ipt"
+              placeholder="最低价"
+              value="{{minVal}}"
+              bindchange="onMinValAction"
+            />
+            <view class="price-divided">-</view>
+            <t-input
+              align="center"
+              type="number"
+              t-class="price-ipt"
+              placeholder="最高价"
+              value="{{maxVal}}"
+              bindchange="onMaxValAction"
+            />
+          </view>
+        </view>
+      </filter-popup>
+    </filter>
+      </view>
+  </view>
+  <scroll-view
+    class="goods-list-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="{{true}}"
+    bounces="{{false}}"
+    refresher-enabled="{{false}}"
+    enable-back-to-top="{{true}}"
+    bindscrolltolower="onReachBottom"
+  >
+    <view class="goods-list-container">
+    <view class="category-goods-list" wx:if="{{goodsList.length}}">
+      <view class="home-gift-grid">
+        <block wx:for="{{goodsList}}" wx:key="spuId">
+          <template is="gift-card" data="{{product: item}}" />
+        </block>
+      </view>
+    </view>
+    <view class="goods-list-empty" wx:if="{{hasLoaded && !loading && goodsList.length === 0 && loadMoreStatus !== 3}}">暂无</view>
+    <load-more
+      wx:if="{{loadMoreStatus === 1 || loadMoreStatus === 3}}"
+      status="{{loadMoreStatus}}"
+      no-more-text="没有更多了"
+      bind:retry="onRetryLoad"
+    />
+    </view>
+  </scroll-view>
+</view>

@@ -1,4 +1,4 @@
-<import src="../gift-card/index.wxml" />
+<import src="../_shared/templates/gift-card.wxml" />
 <view class="feed-batch" style="height:{{height}}px;">
   <view wx:if="{{mounted}}" class="home-gift-grid">
     <block wx:for="{{items}}" wx:key="feedKey"><template is="gift-card" data="{{product: item}}" /></block>

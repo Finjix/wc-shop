@@ -1,6 +1,6 @@
 // @ts-nocheck
 const SHOP_TITLE = '番薯小店';
-const HOME_PATH = '/pages/home/home';
+const HOME_PATH = '/tabs/home/home';
 
 export function enablePageSharing() {
   wx.showShareMenu?.({ menus: ['shareAppMessage', 'shareTimeline'] });
@@ -38,7 +38,7 @@ export const shopShareHandlers = {
 export const catalogShareHandlers = {
   onShareAppMessage() {
     const { title, query } = catalogShare(this);
-    return { title, path: `/goods/result/index${query ? `?${query}` : ''}` };
+    return { title, path: `/pages/goods/result/index${query ? `?${query}` : ''}` };
   },
   onShareTimeline() { return catalogShare(this); },
 };
@@ -46,7 +46,7 @@ export const catalogShareHandlers = {
 export const productShareHandlers = {
   onShareAppMessage() {
     const { query, ...content } = productShare(this);
-    return { ...content, path: query ? `/goods/details/index?${query}` : HOME_PATH };
+    return { ...content, path: query ? `/pages/goods/details/index?${query}` : HOME_PATH };
   },
   onShareTimeline() { return productShare(this); },
 };

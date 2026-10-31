@@ -101,7 +101,7 @@ async function testPageAndUpload() {
       require(ref) {
 
         if (ref.includes('toast')) return { default() {} };
-        if (ref === '../config') return {
+        if (ref.endsWith('/frontend/order/config')) return {
           OrderStatus: {}, ServiceType: { RETURN_GOODS: 10, ONLY_REFUND: 20 },
           ServiceReceiptStatus: { NOT_RECEIPTED: 0, RECEIPTED: 1 },
         };
@@ -115,8 +115,8 @@ async function testPageAndUpload() {
     };
   }
   for (const [file, quality, callback] of [
-    ['miniprogram/goods/comments/create/index.ts', 50, 'onSubmitBtnClick'],
-    ['miniprogram/order/apply-service/index.ts', 100, 'onSubmit'],
+    ['miniprogram/pages/goods/comments/create/index.ts', 50, 'onSubmitBtnClick'],
+    ['miniprogram/pages/order/apply-service/index.ts', 100, 'onSubmit'],
   ]) {
     const instance = loadPage(file);
     instance.data.isAllowedSubmit = true;

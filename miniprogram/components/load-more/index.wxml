@@ -30,4 +30,4 @@
 </view>
 
 <!-- 支持通过slot传入页面/列表的空态，load-more来控制空态的显示状态 -->
-<slot wx:if="{{listIsEmpty && (status === 0 || status === 2)}}" name="empty" />
+<block wx:if="{{listIsEmpty && (status === 0 || status === 2)}}"><slot name="empty" /></block>

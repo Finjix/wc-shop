@@ -1,0 +1,4 @@
+<order-list-view tabs="{{tabs}}" status="{{status}}" order-list="{{orderList}}" list-loading="{{listLoading}}" pull-down-refreshing="{{pullDownRefreshing}}"
+  bind:tabchange="onTabChange" bind:reachbottom="onReachBottom" bind:refresh="onRefresh"
+  bind:retry="onReTryLoad" bind:pulldownrefresh="onPullDownRefresh_" bind:cardtap="onOrderCardTap" />
+<t-dialog id="t-dialog" />

@@ -1,0 +1,23 @@
+{
+  "navigationBarTitleText": "订单确认",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "t-navbar": "/components/ui/navbar/index",
+    "t-popup": "/components/ui/popup/index",
+    "t-dialog": "/components/ui/dialog/index",
+    "price": "/components/price/index",
+    "no-goods": "../../../components/order/noGoods/noGoods",
+    "t-image": "/components/webp-image/index",
+    "address-card": "../../../components/order/order-confirm/address-card/index"
+  },
+  "componentPlaceholder": {
+    "t-navbar": "view",
+    "t-popup": "view",
+    "t-dialog": "view",
+    "price": "view",
+    "no-goods": "view",
+    "t-image": "view",
+    "address-card": "view"
+  }
+}

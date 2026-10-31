@@ -1,27 +1,31 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 const read = (file) => fs.readFileSync(file, 'utf8');
 const tick = () => new Promise(setImmediate);
 
 async function main() {
-  const template = read('miniprogram/components/gift-card/index.wxml');
+  const template = read('miniprogram/pages/_shared/templates/gift-card.wxml');
   const styles = read('miniprogram/style/gift-card.wxss');
-  for (const page of ['pages/home/home', 'goods/result/index']) {
-    const markup = page === 'pages/home/home'
-      ? read('miniprogram/components/home-feed-batch/index.wxml').replace('../gift-card/index.wxml', '../../components/gift-card/index.wxml')
+  for (const page of ['tabs/home/home', 'pages/goods/result/index']) {
+    const markup = page === 'tabs/home/home'
+      ? read('miniprogram/components/home-feed-batch/index.wxml')
       : read(`miniprogram/${page}.wxml`);
     const css = read(`miniprogram/${page}.wxss`);
-    assert.match(markup, /<import src="\.\.\/\.\.\/components\/gift-card\/index.wxml"/);
+    const markupFile = page === 'tabs/home/home' ? 'miniprogram/components/home-feed-batch/index.wxml' : `miniprogram/${page}.wxml`;
+    const importedTemplate = markup.match(/<import src="([^"]+)"/)[1];
+    assert.equal(read(path.resolve(path.dirname(markupFile), importedTemplate)), template, 'package-local card templates stay identical');
     assert.match(markup, /<template is="gift-card" data="\{\{product: item\}\}"/);
-    assert.match(css, /@import '\.\.\/\.\.\/style\/gift-card.wxss'/);
+    const importedStyle = css.match(/@import '([^']+)'/)[1];
+    assert.equal(path.resolve('miniprogram', path.dirname(page), importedStyle), path.resolve('miniprogram/style/gift-card.wxss'));
     assert.doesNotMatch(css, /\.home-gift-card\s*\{/, 'card appearance has one shared source');
-    const components = JSON.parse(read(page === 'pages/home/home' ? 'miniprogram/components/home-feed-batch/index.json' : `miniprogram/${page}.json`)).usingComponents;
+    const components = JSON.parse(read(page === 'tabs/home/home' ? 'miniprogram/components/home-feed-batch/index.json' : `miniprogram/${page}.json`)).usingComponents;
     assert.equal(components.price, '/components/price/index');
     assert(components['t-icon']);
   }
-  const markup = read('miniprogram/goods/result/index.wxml');
+  const markup = read('miniprogram/pages/goods/result/index.wxml');
   assert.doesNotMatch(markup, /<goods-list|layout="horizontal"/);
   assert.match(markup, /wx:for="\{\{goodsList\}\}" wx:key="spuId"/);
   assert.match(markup, /bindscrolltolower="onReachBottom"/);
@@ -38,19 +42,19 @@ async function main() {
   const products = Array.from({ length: 31 }, (_, index) => ({ spuId: `product-${index}`, thumb: `${index}.jpg`, title: `商品${index}`, price: 100 + index }));
   let mode = 'success';
   const imports = {
-    '../../config/navigation': { isPageNavigationEnabled: () => true },
+    '../../../config/navigation': { isPageNavigationEnabled: () => true },
     '../services/fetchSearchResult': { async getSearchResult(params) {
       requests.push(params);
       if (mode === 'error') throw new Error('断网');
       if (mode === 'empty') return { spuList: [], totalCount: 0 };
       return { spuList: params.pageNum === 1 ? products.slice(0, 30) : products.slice(30), totalCount: 31 };
     } },
-    '../../common/services/utils/api': { getApiErrorMessage: (error) => error.message },
-    '../../common/ui/toast': { default() {} },
-    '../../common/utils/goods-detail-navigation': { navigateToGoodsDetail: (url) => navigation.push(url) },
-    '../../common/share': { catalogShareHandlers: {}, enablePageSharing() {} },
+    '../../../common/services/utils/api': { getApiErrorMessage: (error) => error.message },
+    '../../../common/ui/toast': { default() {} },
+    '../../../common/utils/goods-detail-navigation': { navigateToGoodsDetail: (url) => navigation.push(url) },
+    '../../../common/share': { catalogShareHandlers: {}, enablePageSharing() {} },
   };
-  const source = ts.transpileModule(read('miniprogram/goods/result/index.ts'), {
+  const source = ts.transpileModule(read('miniprogram/pages/goods/result/index.ts'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   vm.runInNewContext(source, {
@@ -73,7 +77,7 @@ async function main() {
   page.onReachBottom(); assert.equal(requests.length, count, 'all cards loaded: no further requests');
   page.navToConfiguredProduct({ currentTarget: { dataset: { productId: 'one & two' } } });
   page.addFeedProductToCart({ currentTarget: { dataset: { productId: 'one & two' } } });
-  assert.deepEqual(navigation, ['/goods/details/index?spuId=one%20%26%20two', '/goods/details/index?spuId=one%20%26%20two&skuAction=addCart']);
+  assert.deepEqual(navigation, ['/pages/goods/details/index?spuId=one%20%26%20two', '/pages/goods/details/index?spuId=one%20%26%20two&skuAction=addCart']);
   page.navToConfiguredProduct({ currentTarget: { dataset: {} } });
   page.addFeedProductToCart({ currentTarget: { dataset: {} } });
   assert.equal(navigation.length, 2);
