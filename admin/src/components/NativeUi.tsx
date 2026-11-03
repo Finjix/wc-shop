@@ -4,14 +4,68 @@ import './native-ui.css';
 
 type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size'> & { size?: string; theme?: string; variant?: string; loading?: boolean; icon?: ReactNode };
 export function Button({ size, theme, variant, loading, icon, children, className = '', disabled, ...props }: ButtonProps) {
-  return <button {...props} type={props.type || 'button'} disabled={disabled || loading} aria-busy={loading || undefined} className={`t-button native-button ${theme || ''} ${variant || ''} ${size || ''} ${className}`}>{loading ? <span aria-hidden="true">◌ </span> : icon}{children}</button>;
+  return <button {...props} type={props.type || 'button'} disabled={disabled || loading} aria-busy={loading || undefined} className={`t-button native-button ${theme || ''} ${variant || ''} ${size || ''} ${className}`}>{icon}{children}</button>;
 }
 type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'size' | 'value' | 'onEnter'> & { value?: string | number; size?: string; autofocus?: boolean; maxlength?: number; showLimitNumber?: boolean; onChange?: (value: string) => void; onEnter?: (value: string, context: { e: React.KeyboardEvent<HTMLInputElement> }) => void };
-export function Input({ value = '', onChange, onEnter, maxlength, showLimitNumber, autofocus, size, className = '', ...props }: InputProps) {
-  return <input {...props} autoFocus={autofocus ?? props.autoFocus} className={`t-input native-input ${className}`} value={value} maxLength={maxlength ?? props.maxLength} onChange={e => onChange?.(e.target.value)} onKeyDown={e => { props.onKeyDown?.(e); if (e.key === 'Enter') onEnter?.(e.currentTarget.value, { e }); }} />;
+// Keep IME pre-edit text local. Parent normalization and native maxlength must
+// not modify the candidate string while the input method owns the selection.
+function useTextEntry(value: string | number | readonly string[] | undefined, limit: number | undefined, onChange?: (value: string) => void, codePoints = true) {
+  const composing = useRef(false);
+  const [draft, setDraft] = useState<string | null>(null);
+  const current = String(value ?? '');
+  const commit = (element: HTMLInputElement | HTMLTextAreaElement) => {
+    const raw = element.value;
+    let next = raw;
+    const length = (text: string) => codePoints ? Array.from(text).length : text.length;
+    if (limit !== undefined && length(raw) > limit) {
+      // Retain the existing suffix when inserting/pasting in the middle.
+      const before = Array.from(current), after = Array.from(raw);
+      let left = 0, right = 0;
+      while (left < before.length && left < after.length && before[left] === after[left]) left++;
+      while (right < before.length - left && right < after.length - left && before[before.length - right - 1] === after[after.length - right - 1]) right++;
+      const prefix = after.slice(0, left).join(''), suffix = after.slice(after.length - right).join('');
+      let room = Math.max(0, limit - length(prefix) - length(suffix)), insert = '';
+      for (const character of after.slice(left, after.length - right)) {
+        if (length(character) > room) break;
+        insert += character; room -= length(character);
+      }
+      next = prefix + insert + suffix;
+    }
+    if (element.value !== next) {
+      const cursor = Math.min(element.selectionStart ?? next.length, next.length);
+      element.value = next;
+      if (element.type !== 'number') element.setSelectionRange(cursor, cursor);
+    }
+    onChange?.(next);
+  };
+  return {
+    value: draft ?? value ?? '',
+    composing,
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (composing.current || (e.nativeEvent as InputEvent).isComposing) setDraft(e.currentTarget.value);
+      else commit(e.currentTarget);
+    },
+    onCompositionStart: (e: React.CompositionEvent<HTMLInputElement | HTMLTextAreaElement>) => { composing.current = true; setDraft(e.currentTarget.value); },
+    onCompositionEnd: (e: React.CompositionEvent<HTMLInputElement | HTMLTextAreaElement>) => { composing.current = false; setDraft(null); commit(e.currentTarget); },
+  };
 }
+export function Input({ value = '', onChange, onEnter, maxlength, maxLength, showLimitNumber, autofocus, size, className = '', onCompositionStart, onCompositionEnd, ...props }: InputProps) {
+  const countId = useId();
+  const limit = maxlength ?? maxLength;
+  const counted = showLimitNumber && limit !== undefined;
+  const entry = useTextEntry(value, limit, onChange);
+  const input = <input {...props} autoFocus={autofocus ?? props.autoFocus} className={`t-input native-input ${counted ? '' : className}`} value={entry.value} aria-describedby={[props['aria-describedby'], counted ? countId : ''].filter(Boolean).join(' ') || undefined}
+    onChange={entry.onChange} onCompositionStart={e => { entry.onCompositionStart(e); onCompositionStart?.(e); }} onCompositionEnd={e => { entry.onCompositionEnd(e); onCompositionEnd?.(e); }}
+    onKeyDown={e => { props.onKeyDown?.(e); if (e.key === 'Enter' && !entry.composing.current && !e.nativeEvent.isComposing && e.keyCode !== 229) onEnter?.(e.currentTarget.value, { e }); }} />;
+  return counted ? <span className={`native-input-with-count ${className}`}>{input}<span id={countId} className="native-input-count">{Array.from(String(value)).length}/{limit}</span></span> : input;
+}
+
 type TextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange'> & { onChange?: (value: string) => void; autosize?: { minRows: number; maxRows: number } };
-export function Textarea({ onChange, autosize, ...props }: TextareaProps) { return <textarea {...props} rows={autosize?.minRows || props.rows} onChange={e => onChange?.(e.target.value)} />; }
+export function Textarea({ onChange, autosize, value, maxLength, onCompositionStart, onCompositionEnd, ...props }: TextareaProps) {
+  const entry = useTextEntry(value, maxLength, onChange, false);
+  return <textarea {...props} value={entry.value} rows={autosize?.minRows || props.rows} onChange={entry.onChange}
+    onCompositionStart={e => { entry.onCompositionStart(e); onCompositionStart?.(e); }} onCompositionEnd={e => { entry.onCompositionEnd(e); onCompositionEnd?.(e); }} />;
+}
 export function Tag({ children, theme, variant, style, className = '' }: { children?: ReactNode; theme?: string; variant?: string; className?: string; style?: React.CSSProperties }) { return <span style={style} className={`t-tag native-tag ${theme || ''} ${className}`}>{children}</span>; }
 export function Select({ value, options, placeholder, onChange, disabled, filterable }: { value?: string | number; options: { value: string | number; label: ReactNode }[]; placeholder?: string; disabled?: boolean; filterable?: boolean; onChange: (value: string) => void }) {
   const [query, setQuery] = useState('');

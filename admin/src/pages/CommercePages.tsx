@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Button, Dialog, Input, Select, Tag } from '../components/NativeUi';
+import { Button, Dialog, Input, Select, Tag, Textarea } from '../components/NativeUi';
 import { adminApi } from '../lib/api';
 import { parseRefundAmount } from '../lib/refund-amount';
 import { afterSalePolicy, afterSaleRequestLabel, afterSaleReceiptLabel } from '../lib/after-sale-policy';
@@ -452,7 +452,7 @@ export function CommentsPage() {
     {!loading && !error && <Pagination page={search.page} pageSize={PAGE_SIZE} total={total} showTotal={false} onChange={(page) => setSearch((old) => ({ ...old, page }))} />}
     {replyOpen && <Dialog className="shipping-dialog" placement="center" width="min(600px, 92vw)" header={false} visible closeBtn={false} closeOnOverlayClick={false} onClose={() => { if (!busy) setReplyOpen(null); }} onConfirm={() => void saveReply()} confirmBtn={{ content: '确定', loading: busy, disabled: busy || replyText.trim().length > 100 || replyText.trim() === (replyOpen.reply || '') }} cancelBtn={{ content: '取消', disabled: busy }}>
       <div className="comments-reply-original">{replyOpen.content || '（仅图片评价）'}</div>
-      <Field label="回复"><div className="comments-reply-editor"><textarea className="comments-reply-input" rows={5} value={replyText} disabled={busy} onChange={(event) => setReplyText(event.target.value)} maxLength={100} aria-describedby="comments-reply-count" /><span id="comments-reply-count" className="comments-reply-count">{replyText.length}/100</span></div></Field>
+      <Field label="回复"><div className="comments-reply-editor"><Textarea className="comments-reply-input" rows={5} value={replyText} disabled={busy} onChange={setReplyText} maxLength={100} aria-describedby="comments-reply-count" /><span id="comments-reply-count" className="comments-reply-count">{replyText.length}/100</span></div></Field>
     </Dialog>}
   </div>;
 }
@@ -632,7 +632,7 @@ export function AfterSalesPage() {
       <label className="field"><span>退款金额（元）</span><input type="number" min="0.01" max={returnMaximumAmount / 100} step="0.01" value={returnAmount} onChange={(event) => setReturnAmount(event.target.value)} />{returnRefundAmount === null && <small>请输入大于 0 且不超过上限的金额</small>}</label>
       <div className="home-config-dialog-actions approval-dialog-actions"><Button theme="primary" disabled={busy || returnRefundAmount === null} loading={busy} onClick={() => void confirmReturn()}>确认</Button><Button variant="outline" disabled={busy} onClick={() => setReturnApproval(null)}>取消</Button></div>
     </section></div>}
-    {rejection && <div className="home-config-dialog-backdrop" role="presentation"><section className="home-config-dialog" role="dialog" aria-modal="true" aria-label="拒绝售后申请"><label className="field"><span className="rejection-field-heading"><span>拒绝原因</span><small className="rejection-character-count">{rejectReason.length} / 200</small></span><textarea rows={4} style={{ resize: 'none' }} value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} maxLength={200} /></label><div className="home-config-dialog-actions rejection-dialog-actions"><Button theme="primary" disabled={busy || !rejectReason.trim()} loading={busy} onClick={() => void review(rejection, 'rejected', rejectReason.trim())}>确认</Button><Button variant="outline" disabled={busy} onClick={() => setRejection(null)}>取消</Button></div></section></div>}
+    {rejection && <div className="home-config-dialog-backdrop" role="presentation"><section className="home-config-dialog" role="dialog" aria-modal="true" aria-label="拒绝售后申请"><label className="field"><span className="rejection-field-heading"><span>拒绝原因</span><small className="rejection-character-count">{rejectReason.length} / 200</small></span><Textarea rows={4} style={{ resize: 'none' }} value={rejectReason} onChange={setRejectReason} maxLength={200} /></label><div className="home-config-dialog-actions rejection-dialog-actions"><Button theme="primary" disabled={busy || !rejectReason.trim()} loading={busy} onClick={() => void review(rejection, 'rejected', rejectReason.trim())}>确认</Button><Button variant="outline" disabled={busy} onClick={() => setRejection(null)}>取消</Button></div></section></div>}
   </div>;
 }
 

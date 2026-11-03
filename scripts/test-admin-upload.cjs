@@ -12,7 +12,7 @@ function load(file, globals) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const exports = {};
-  vm.runInNewContext(compiled, { exports, File, console, Date, URL, setTimeout, clearTimeout, Uint8Array, DataView,
+  vm.runInNewContext(compiled, { exports, File, console, Date, URL, AbortController, setTimeout, clearTimeout, Uint8Array, DataView,
     crypto: require('node:crypto').webcrypto, ...globals });
   return exports;
 }
@@ -29,7 +29,10 @@ async function main() {
     }
     terminate() {}
   }
-  const images = load('../admin/src/lib/image-upload.ts', { Worker });
+  const images = load('../admin/src/lib/image-upload.ts', { require(name) {
+    assert.equal(name, './image-upload.worker?worker&inline');
+    return { default: Worker };
+  } });
   const fetch = async (url, options) => {
     assert.equal(options.credentials, 'omit');
     if (url === 'https://api.test/admin') {

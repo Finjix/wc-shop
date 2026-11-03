@@ -1,7 +1,6 @@
 import type { ApiEnvelope } from '../types';
 import { prepareImageUpload, type UploadPhase } from './image-upload';
 import { TempFileUrls } from '../../../miniprogram/services/utils/temp-file-urls';
-import { cloudReadRetry } from '../../../miniprogram/services/utils/cloud-read-retry';
 
 const localApiUrl = import.meta.env.VITE_LOCAL_API_URL?.trim() ?? '';
 const adminApiUrl = localApiUrl ? `${localApiUrl.replace(/\/$/, '')}/api` : import.meta.env.VITE_ADMIN_API_URL?.trim() ?? '';
@@ -51,25 +50,63 @@ function unwrap<T>(result: ApiEnvelope<T> | undefined, requestId?: string): T {
   return result.data;
 }
 
+const isReadAction = (action: string) => /\.(get|list|preview|reasons|summary|tempUrls)$/.test(action);
+
+// Bound the whole request, including reading the response body. A stalled read
+// must settle so its shared promise can be removed and the page can retry.
+async function withRequestTimeout<T>(invoke: (signal: AbortSignal) => Promise<T>, timeoutMs: number, message: string, requestId?: string): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new ApiError(message, requestId, 'REQUEST_TIMEOUT'));
+      controller.abort();
+    }, timeoutMs);
+  });
+  try { return await Promise.race([invoke(controller.signal), timeout]); }
+  finally { clearTimeout(timer); }
+}
+
 async function callAdminRaw<T>(action: string, payload: Record<string, unknown> = {}) {
   if (!adminApiUrl) throw new ApiError('未配置后台 HTTP 接口地址（VITE_ADMIN_API_URL）。');
-  try {
-    return await cloudReadRetry(action, async () => {
-      const response = await fetch(adminApiUrl, {
-        method: 'POST', credentials: 'omit',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ scope: 'admin', action, data: payload }),
-      });
-      let result: ApiEnvelope<T>;
-      try { result = await response.json() as ApiEnvelope<T>; }
-      catch { throw new ApiError(`后台响应无效（HTTP ${response.status}）`); }
-      return unwrap(result, String(response.status));
-    });
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    console.error('Admin HTTP request failed:', error);
-    throw new ApiError(getErrorMessage(error));
+  const read = isReadAction(action);
+  // NetLog showed requests blackholed after reusing idle HTTP/1.1 sockets.
+  // Abort a stalled read before retrying, so the dead socket is discarded.
+  // Never replay writes: the server may already have committed them.
+  const attemptTimeouts = read ? [6_000, 6_000, 8_000] : [45_000];
+  for (let attempt = 0; attempt < attemptTimeouts.length; attempt++) {
+    const traceId = `admin-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    const startedAt = Date.now();
+    console.info('ADMIN_HTTP', JSON.stringify({ traceId, action, phase: 'start', attempt: attempt + 1 }));
+    try {
+      return await withRequestTimeout(async (signal) => {
+        const response = await fetch(adminApiUrl, {
+          method: 'POST', credentials: 'omit',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ scope: 'admin', action, data: payload, traceId }),
+          signal,
+        });
+        console.info('ADMIN_HTTP', JSON.stringify({ traceId, action, phase: 'headers', status: response.status, elapsedMs: Date.now() - startedAt }));
+        let result: ApiEnvelope<T>;
+        try { result = await response.json() as ApiEnvelope<T>; }
+        catch { throw new ApiError(`后台响应无效（HTTP ${response.status}）`); }
+        console.info('ADMIN_HTTP', JSON.stringify({ traceId, action, phase: 'complete', elapsedMs: Date.now() - startedAt, requestId: result.requestId }));
+        return unwrap(result, String(response.status));
+      }, attemptTimeouts[attempt], read
+        ? '加载超时，请检查网络后重试。'
+        : '操作响应超时，请刷新页面核实是否已保存，再决定是否重试。', traceId);
+    } catch (error) {
+      const code = error instanceof ApiError ? error.code : 'NETWORK_ERROR';
+      console.warn('ADMIN_HTTP', JSON.stringify({ traceId, action, phase: 'failed', elapsedMs: Date.now() - startedAt, code }));
+      const transient = code === 'REQUEST_TIMEOUT' || code === 'NETWORK_ERROR'
+        || /\bFUNCTIONS_TIME_LIMIT_EXCEEDED\b/.test(getErrorMessage(error));
+      if (read && transient && attempt + 1 < attemptTimeouts.length) continue;
+      if (error instanceof ApiError) throw error;
+      console.error('Admin HTTP request failed:', error);
+      throw new ApiError(getErrorMessage(error));
+    }
   }
+  throw new ApiError('请求失败，请稍后重试。');
 }
 
 const pendingReads = new Map<string, Promise<unknown>>();
@@ -105,7 +142,7 @@ function cleanupInBackground(candidates: string[]) {
 
 export async function callAdmin<T>(action: string, payload: Record<string, unknown> = {}) {
   // Share only in-flight reads; never cache inventory or replay a mutation.
-  const key = /\.(get|list|preview|reasons|summary|tempUrls)$/.test(action) ? `${action}:${JSON.stringify(payload)}` : '';
+  const key = isReadAction(action) ? `${action}:${JSON.stringify(payload)}` : '';
   let request = key ? pendingReads.get(key) as Promise<T> | undefined : undefined;
   if (!request) {
     request = callAdminRaw<T>(action, payload).finally(() => { if (key) pendingReads.delete(key); });
@@ -131,17 +168,19 @@ export async function uploadPreparedCloudFile(file: File, folder = 'admin/produc
       body.append('folder', folder);
       body.append('cloudPath', lease.cloudPath);
       body.append('file', file);
-      const response = await fetch(`${localApiUrl.replace(/\/$/, '')}/upload`, {
-        method: 'POST', credentials: 'omit', headers: { 'x-upload-folder': folder }, body,
-      });
-      return unwrap(await response.json() as ApiEnvelope<{ fileID: string }>, String(response.status)).fileID;
+      return await withRequestTimeout(async (signal) => {
+        const response = await fetch(`${localApiUrl.replace(/\/$/, '')}/upload`, {
+          method: 'POST', credentials: 'omit', headers: { 'x-upload-folder': folder }, body, signal,
+        });
+        return unwrap(await response.json() as ApiEnvelope<{ fileID: string }>, String(response.status)).fileID;
+      }, 90_000, '图片上传超时，请检查网络后重试。');
     }
     if (!lease.upload) throw new ApiError('服务器未返回图片上传地址。');
-    const response = await fetch(lease.upload.url, { method: lease.upload.method, credentials: 'omit', headers: lease.upload.headers, body: file });
+    const response = await withRequestTimeout((signal) => fetch(lease.upload!.url, { method: lease.upload!.method, credentials: 'omit', headers: lease.upload!.headers, body: file, signal }), 90_000, '图片上传超时，请检查网络后重试。');
     if (!response.ok) throw new ApiError(`图片上传失败（HTTP ${response.status}）`);
     return lease.fileID;
   } catch (error) {
-    await callAdminRaw('storage.cleanup', { fileList: [lease.fileID] }).catch(() => undefined);
+    cleanupInBackground([lease.fileID]);
     throw error;
   }
 }

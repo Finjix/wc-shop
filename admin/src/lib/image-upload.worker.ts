@@ -1,6 +1,6 @@
 import encode, { init as initEncode } from '@jsquash/webp/encode';
-import encodeWasm from '@jsquash/webp/codec/enc/webp_enc.wasm?url';
-import encodeSimdWasm from '@jsquash/webp/codec/enc/webp_enc_simd.wasm?url';
+import encodeWasm from '@jsquash/webp/codec/enc/webp_enc.wasm?url&inline';
+import encodeSimdWasm from '@jsquash/webp/codec/enc/webp_enc_simd.wasm?url&inline';
 
 const workerScope = self as unknown as {
   onmessage: (event: MessageEvent<{ bytes: ArrayBuffer; format: 'png' | 'jpeg'; preserveDimensions?: boolean }>) => void;

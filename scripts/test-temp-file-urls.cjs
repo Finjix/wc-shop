@@ -10,7 +10,7 @@ function load(file, globals = {}) {
   const source = readMiniProgramSource(path.join(root, file), 'utf8').replaceAll('import.meta.env', "({VITE_ADMIN_API_URL:'https://api.test/admin'})");
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText, { exports, console, ...globals });
+  }).outputText, { exports, console, AbortController, setTimeout, clearTimeout, ...globals });
   return exports;
 }
 const urls = load('miniprogram/services/utils/temp-file-urls.ts');

@@ -11,7 +11,7 @@ function load(file, globals) {
     .replaceAll('import.meta.env', "({ VITE_ADMIN_API_URL: 'https://api.test/admin' })");
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
-  } }).outputText, { exports, console, File, FormData, ...globals });
+  } }).outputText, { exports, console, File, FormData, AbortController, setTimeout, clearTimeout, ...globals });
   return exports;
 }
 async function run() {
@@ -49,6 +49,7 @@ async function run() {
   await api.callAdmin('products.list');
   await api.callAdmin('settings.upsert', { key: 'global', value: {} });
   await api.callAdmin('dashboard.summary');
+  assert(calls.every(({ traceId }) => /^admin-[a-z0-9]+-[a-z0-9]+$/.test(traceId)), 'each attempt carries a non-sensitive correlation ID');
   assert(!calls.some(({ action }) => action === 'storage.cleanupQueue'), 'read results are never blocked by a maintenance request');
   const start = calls.length;
   await Promise.all([api.callAdmin('products.list', { page: 2 }), api.callAdmin('products.list', { page: 2 })]);
@@ -62,6 +63,70 @@ async function run() {
   await assert.rejects(api.uploadPreparedCloudFile(file), /HTTP 500/);
   assert.equal(calls.at(-1).action, 'storage.cleanup', 'failed upload retains the previous cleanup contract');
   assert.deepEqual(calls.at(-1).data.fileList, ['cloud://test/admin/products/leased.webp']);
+  await testRequestTimeouts();
   console.log('PASS admin transport, nonblocking reads, request coalescing, fresh rereads and failed upload cleanup');
+}
+
+async function testRequestTimeouts() {
+  const timers = new Map();
+  const requests = [];
+  let mode = 'hang';
+  const api = load('admin/src/lib/api.ts', {
+    setTimeout(callback, delay) { const token = {}; timers.set(token, { callback, delay }); return token; },
+    clearTimeout(token) { timers.delete(token); },
+    fetch: async (_url, options) => {
+      requests.push(options);
+      if (mode === 'hang') return new Promise(() => {});
+      return { status: 200, json: () => mode === 'body' ? new Promise(() => {}) : Promise.resolve({ ok: true, data: { done: true } }) };
+    },
+    require(ref) {
+      if (ref.endsWith('cloud-read-retry')) return load('miniprogram/services/utils/cloud-read-retry.ts');
+      if (ref.endsWith('temp-file-urls')) return load('miniprogram/services/utils/temp-file-urls.ts');
+      if (ref === './image-upload') return {};
+      throw new Error(`Unexpected dependency: ${ref}`);
+    },
+  });
+  const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+  for (const stalled of ['hang', 'body']) {
+    mode = stalled;
+    const before = requests.length;
+    const first = api.callAdmin('categories.list');
+    const second = api.callAdmin('categories.list');
+    const rejected = Promise.all([first, second].map(request => assert.rejects(request, error => error.code === 'REQUEST_TIMEOUT' && error.requestId === JSON.parse(requests.at(-1).body).traceId && /加载超时/.test(error.message))));
+    await flush();
+    for (const [attempt, delay] of [6_000, 6_000, 8_000].entries()) {
+      assert.equal(requests.length - before, attempt + 1, 'shared reads use one bounded recovery sequence');
+      const timer = [...timers.values()][0];
+      assert.equal(timer.delay, delay);
+      timer.callback();
+      await flush();
+      assert(requests[before + attempt].signal.aborted, 'a stalled attempt is cancelled before the next attempt');
+    }
+    await rejected;
+    assert.equal(timers.size, 0);
+    mode = 'success';
+    assert.equal((await api.callAdmin('categories.list')).done, true, 'retry creates a fresh request after all attempts time out');
+  }
+  mode = 'hang';
+  const recoveryStart = requests.length;
+  const recovered = api.callAdmin('dashboard.summary');
+  const stalledTimer = [...timers.values()][0];
+  mode = 'success';
+  stalledTimer.callback();
+  assert.equal((await recovered).done, true, 'a blackholed read recovers on a fresh attempt');
+  assert.equal(requests.length - recoveryStart, 2);
+  assert(requests[recoveryStart].signal.aborted);
+  assert.equal(timers.size, 0);
+  mode = 'hang';
+  const before = requests.length;
+  const saving = api.callAdmin('homeContent.save', { payload: {} });
+  const rejected = assert.rejects(saving, error => error.code === 'REQUEST_TIMEOUT' && /核实是否已保存/.test(error.message));
+  const timer = [...timers.values()][0];
+  assert.equal(timer.delay, 45_000);
+  timer.callback();
+  await rejected;
+  assert.equal(requests.length - before, 1, 'timed-out mutations are never replayed');
+  assert.equal(timers.size, 0);
+  console.log('PASS bounded stalled fetch/body recovery, shared-read release, automatic read recovery and no mutation replay');
 }
 run().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -41,6 +41,25 @@ async function run() {
   assert.strictEqual(options.headers['access-control-allow-headers'], 'content-type');
   assert.strictEqual(options.headers['access-control-max-age'], '600');
   assert.strictEqual((await handleAdminHttp({ httpMethod: 'GET' }, invoke)).statusCode, 405);
-  console.log('PASS public HTTP admin read/write, base64, preflight, malformed requests and shop-scope isolation');
+  const traceLogs = [];
+  const originalInfo = console.info;
+  console.info = (...args) => traceLogs.push(args);
+  try {
+    const traced = await post({ scope: 'admin', action: 'products.list', data: { query: 'private-filter-value' }, traceId: 'admin-test-123' });
+    assert.strictEqual(JSON.parse(traced.body).ok, true);
+    const entries = traceLogs.map((args) => JSON.parse(args[1]));
+    assert.deepStrictEqual(entries.map((row) => row.phase), ['received', 'complete']);
+    assert(entries.every((row) => row.traceId === 'admin-test-123' && row.action === 'products.list'));
+    assert(!JSON.stringify(traceLogs).includes('private-filter-value'), 'request payload is never logged');
+    assert(entries[1].elapsedMs >= 0);
+    traceLogs.length = 0;
+    const failed = await handleAdminHttp({ httpMethod: 'POST', body: JSON.stringify({ scope: 'admin', action: 'products.list', traceId: 'admin-error-123' }) }, async () => { throw new Error('controlled failure'); });
+    assert.strictEqual(JSON.parse(failed.body).ok, false);
+    assert.deepStrictEqual(traceLogs.map((args) => JSON.parse(args[1]).phase), ['received', 'complete'], 'completion is logged for failed invocations too');
+    traceLogs.length = 0;
+    await post({ scope: 'admin', action: 'products.list', data: {}, traceId: 'invalid\ntrace' });
+    assert.strictEqual(traceLogs.length, 0, 'invalid trace IDs are not logged');
+  } finally { console.info = originalInfo; }
+  console.log('PASS public HTTP admin read/write, base64, preflight, malformed requests, scope isolation and correlated diagnostics');
 }
 module.exports = { run };

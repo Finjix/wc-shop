@@ -87,7 +87,15 @@ export async function handleAdminHttp(event: FunctionEvent, invokeAdmin: (input:
     if (!input || typeof input !== 'object' || Array.isArray(input) || (input as FunctionEvent).scope !== 'admin') {
       throw errorFrom('INVALID_ARGUMENT', { field: 'scope' });
     }
-    return invokeAdmin(input);
+    const source = input as { traceId?: unknown; action?: unknown };
+    const traceId = typeof source.traceId === 'string' && /^[a-zA-Z0-9._-]{1,80}$/.test(source.traceId) ? source.traceId : '';
+    const action = typeof source.action === 'string' && /^[a-zA-Z0-9._-]{1,80}$/.test(source.action) ? source.action : 'invalid';
+    const startedAt = Date.now();
+    if (traceId) console.info('ADMIN_HTTP', JSON.stringify({ traceId, action, phase: 'received' }));
+    try { return await invokeAdmin(input); }
+    finally {
+      if (traceId) console.info('ADMIN_HTTP', JSON.stringify({ traceId, action, phase: 'complete', elapsedMs: Date.now() - startedAt }));
+    }
   }, event, {});
   // invoke already returns an envelope; parse failures use this outer envelope.
   const envelope = result as { ok: boolean; data?: unknown };

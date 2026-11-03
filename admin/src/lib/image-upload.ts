@@ -1,3 +1,7 @@
+// Keep the worker in the page bundle: starting image processing must not
+// depend on a late HTTP request over an idle gateway connection.
+import ImageUploadWorker from './image-upload.worker?worker&inline';
+
 export const IMAGE_ACCEPT = '.png,.jpg,.jpeg';
 export const MAX_SOURCE_IMAGE_BYTES = 10 * 1024 * 1024;
 export type UploadPhase = '处理图片中…' | '上传中…';
@@ -41,7 +45,7 @@ export function prepareImageUpload(file: File, options: { preserveDimensions?: b
     const bytes = await file.arrayBuffer();
     const format = inspectStaticImage(new Uint8Array(bytes), file.name);
     return new Promise<File>((resolve, reject) => {
-      const worker = new Worker(new URL('./image-upload.worker.ts', import.meta.url), { type: 'module' });
+      const worker = new ImageUploadWorker();
       const finish = () => { clearTimeout(timer); worker.terminate(); };
       const timer = setTimeout(() => { finish(); reject(new Error('图片处理超时，请选择尺寸更小的图片后重试')); }, 120_000);
       worker.onerror = () => { finish(); reject(new Error('图片处理失败，请重试或更换图片')); };
