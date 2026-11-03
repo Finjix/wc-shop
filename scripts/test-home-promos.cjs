@@ -13,7 +13,7 @@ const assets=files(mini).filter(file => /\.(?:png|jpe?g|webp|gif|svg)$/i.test(fi
 assert.deepEqual(assets, [], 'mini-program contains no static image icon files');
 const bytes=0;
 const markup=fs.readFileSync(path.join(mini,'tabs/home/home.wxml'),'utf8');
-assert.match(markup,/<button[^>]+bind:tap="showInviteComingSoon"[^>]+aria-label="邀请返现"/);
+assert.doesNotMatch(markup, /showInviteComingSoon/, '首页邀请返现卡片不绑定任何点击事件');
 assert.match(markup,/<button[^>]+open-type="contact"[^>]+aria-label="加客服拿好礼"/);
 const cards=markup.slice(markup.indexOf('<view class="home-promo-cards"'),markup.indexOf('<view wx:if="{{recommendations.length}}"'));
 assert.doesNotMatch(cards, /<static-image|invite-cashback|customer-gift/, 'retired animations are not rendered');

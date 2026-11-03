@@ -12,7 +12,6 @@ const imagePreviews = [];
 const deferred = new Map();
 const tabNavigations = [];
 const pageNavigations = [];
-const toastCalls = [];
 const api = {
   getApiErrorMessage: (error) => error.message,
   getTempFileUrl: async (id) => {
@@ -43,7 +42,7 @@ function load(file) {
     },
     Page: (value) => { page = value; }, Component: (value) => { component = value; },
     getCurrentPages: () => [{ selectComponent: () => ({ open(src, fail) { imagePreviews.push({ current: src, urls: [src], fail }); } }) }],
-    wx: { getWindowInfo: () => ({ screenWidth: 375, pixelRatio: 2 }), stopPullDownRefresh() {}, showToast(options) { toastCalls.push(options); }, navigateTo(options) { pageNavigations.push(options.url); }, switchTab(options) { tabNavigations.push(options.url); }, previewImage(options) { imagePreviews.push(options); } },
+    wx: { getWindowInfo: () => ({ screenWidth: 375, pixelRatio: 2 }), stopPullDownRefresh() {}, showToast() {}, navigateTo(options) { pageNavigations.push(options.url); }, switchTab(options) { tabNavigations.push(options.url); }, previewImage(options) { imagePreviews.push(options); } },
   }, { filename });
   return exports;
 }
@@ -299,8 +298,7 @@ async function run() {
   await assert.rejects(load('miniprogram/services/good/fetchHomeContent.ts').fetchHomeContent(), /网络不可用/);
   load('miniprogram/tabs/home/home.ts'); const homepage = instance(page);
   homepage.data.swiperSlides = ['existing'];
-  homepage.showInviteComingSoon();
-  assert.deepEqual(JSON.parse(JSON.stringify(toastCalls.at(-1))), { title: '敬请期待！', icon: 'none' });
+  assert.equal(homepage.showInviteComingSoon, undefined, '首页邀请返现不再有任何点击响应');
   await homepage.loadHomePage();
   assert.equal(homepage.data.pageLoading, false); assert.equal(homepage.data.loadError, '网络不可用');
   assert.equal(homepage.data.swiperSlides[0], 'existing');

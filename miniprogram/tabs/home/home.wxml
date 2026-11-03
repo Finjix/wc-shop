@@ -37,7 +37,6 @@
     <view class="home-promo-cards">
       <view class="home-promo-card">
         <image wx:if="{{promoImages[0]}}" class="home-promo-card__image" src="{{promoImages[0]}}" mode="aspectFill" lazy-load />
-        <button wx:if="{{promoImages[0]}}" class="home-promo-card__action" bind:tap="showInviteComingSoon" aria-label="邀请返现"></button>
       </view>
       <view class="home-promo-card">
         <image wx:if="{{promoImages[1]}}" class="home-promo-card__image" src="{{promoImages[1]}}" mode="aspectFill" lazy-load />

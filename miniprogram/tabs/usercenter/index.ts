@@ -22,11 +22,6 @@ async function fetchAfterSalesCount() {
 
 const toolData = [
   {
-    title: '邀请返利',
-    icon: 'star',
-    type: 'invite-rebate',
-  },
-  {
     title: '收货地址',
     icon: 'location',
     type: 'address',
@@ -126,10 +121,6 @@ Page({
     const { type } = currentTarget.dataset;
 
     switch (type) {
-      case 'invite-rebate': {
-        wx.showToast({ title: '敬请期待！', icon: 'none' });
-        break;
-      }
       case 'address': {
         wx.navigateTo({ url: '/pages/user/address/list/index' });
         break;

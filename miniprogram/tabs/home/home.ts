@@ -246,8 +246,6 @@ Page({
     if (productId) navigateToGoodsDetail(`/pages/goods/details/index?spuId=${encodeURIComponent(productId)}&skuAction=addCart`);
   },
 
-  showInviteComingSoon() { wx.showToast({ title: '敬请期待！', icon: 'none' }); },
-
   focusSearch() { if (!this.data.searchFocus) this.setData({ searchFocus: true }); },
   handleSearchFocus() { this.setData({ searchFocus: true }); },
   handleSearchBlur() { this.setData({ searchFocus: false }); },
