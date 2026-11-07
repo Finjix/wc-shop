@@ -10,7 +10,7 @@ import { useDraftImages } from '../lib/useDraftImages';
 import { useBrowserLeaveWarning } from '../lib/useBrowserLeaveWarning';
 import { useConfirm } from '../components/ConfirmProvider';
 import { variantName, variantValues, visibleSkus } from '../lib/sku';
-import { addSecondaryValues, emptyVariant, groupVariantDrafts, inheritedSecondaryValues, type VariantDraft } from '../lib/variant-drafts';
+import { addSecondaryValues, emptyVariant, fillPresetSecondaryValues, groupVariantDrafts, inheritedSecondaryValues, type VariantDraft } from '../lib/variant-drafts';
 import type { Category, ListResult, Order, Product, ProductDraft, Sku } from '../types';
 import { EmptyState, EmptyTable, ErrorState, Field, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
 
@@ -704,7 +704,13 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
                  setSecondaryInputs((old) => { const next = { ...old }; delete next[id]; return next; });
                }}>删除</Button></div>
              </div>
-             {secondaryOpen && <div className="secondary-variant-add"><label><span>二级规格名称</span><Input value={specTitles[1] === '二级规格' ? '' : specTitles[1]} onChange={(value) => setSpecTitles((old) => [old[0], value])} placeholder="例如：鞋码" aria-label="二级规格名称" /></label></div>}
+             {secondaryOpen && <div className="secondary-variant-add"><label><span>二级规格名称</span><Input value={specTitles[1] === '二级规格' ? '' : specTitles[1]} onChange={(value) => {
+               setSpecTitles((old) => [old[0], value]);
+               try {
+                 const preset = fillPresetSecondaryValues(variants, id, value);
+                 if (preset) setVariants(preset);
+               } catch (error) { void MessagePlugin.warning(error instanceof Error ? error.message : '填入尺码失败'); }
+             }} placeholder="例如：鞋码" aria-label="二级规格名称" /></label></div>}
              {hasSecondary && <div className="secondary-variant-list">{items.map((variant) => <div className="secondary-variant-row" key={variant.localId}>
                <div className="secondary-variant-main">
                  <label><span>{specTitles[1] || '二级规格'}</span><Input aria-label="二级规格具体值" value={variant.secondName} onChange={(value) => setVariants((old) => old.map((item) => item.localId === variant.localId ? { ...item, secondName: value } : item))} /></label>

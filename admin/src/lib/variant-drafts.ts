@@ -37,6 +37,37 @@ export function inheritedSecondaryValues(variants: VariantDraft[], groupId: stri
 }
 
 /**
+ * 二级规格名称预设：鞋码/码数自动填入 35.5 到 44.5，每 0.5 一个。
+ */
+const SHOE_SIZE_TITLES = ['鞋码', '码数'];
+
+/** 按二级规格名称返回预设的具体值，未命中预设时返回空数组。 */
+export function presetSecondaryValues(title: string): string[] {
+  if (!SHOE_SIZE_TITLES.includes(title.trim())) return [];
+  const values: string[] = [];
+  for (let half = 71; half <= 89; half += 1) {
+    const size = half / 2;
+    values.push(Number.isInteger(size) ? String(size) : size.toFixed(1));
+  }
+  return values;
+}
+
+/**
+ * 二级规格名称命中预设时填入预设的具体值，价格和图片沿用该一级规格已有的配置。
+ *
+ * 已有具体值或名称未命中预设时返回 null，由调用方保留用户当前的输入。
+ */
+export function fillPresetSecondaryValues(variants: VariantDraft[], groupId: string, title: string): VariantDraft[] | null {
+  const preset = presetSecondaryValues(title);
+  if (!preset.length) return null;
+  const items = variants.filter((variant) => variant.groupId === groupId);
+  if (!items.length) return null;
+  if (items.some((variant) => variant.secondName.trim())) return null;
+  const rest = variants.filter((variant) => variant.groupId !== groupId || variant === items[0]);
+  return addSecondaryValues(rest, groupId, preset);
+}
+
+/**
  * 批量填入二级规格具体值，价格和图片沿用该一级规格已有的配置。
  *
  * 第一个值填入原有的规格组合，其余复制为新的组合，不复制 SKU 库存标识。
