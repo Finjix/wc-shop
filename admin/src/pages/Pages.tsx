@@ -10,7 +10,7 @@ import { useDraftImages } from '../lib/useDraftImages';
 import { useBrowserLeaveWarning } from '../lib/useBrowserLeaveWarning';
 import { useConfirm } from '../components/ConfirmProvider';
 import { variantName, variantValues, visibleSkus } from '../lib/sku';
-import { emptyVariant, groupVariantDrafts, type VariantDraft } from '../lib/variant-drafts';
+import { addSecondaryValues, emptyVariant, groupVariantDrafts, inheritedSecondaryValues, type VariantDraft } from '../lib/variant-drafts';
 import type { Category, ListResult, Order, Product, ProductDraft, Sku } from '../types';
 import { EmptyState, EmptyTable, ErrorState, Field, LoadingState, Panel, Table, formatDate, formatMoney, readList, readTotal } from '../components/Ui';
 
@@ -691,7 +691,13 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
                <label><span>一级规格</span><Input aria-label="一级规格" value={first.name} onChange={(value) => setVariants((old) => old.map((item) => item.groupId === id ? { ...item, name: value } : item))} placeholder="例如：黑色" /></label>
                {!hasSecondary && <label><span>售价（元）</span><Input value={first.price} onChange={(value) => setVariants((old) => old.map((item) => item.localId === first.localId ? { ...item, price: value } : item))} placeholder="例如：29.90" /></label>}
                <div className="variant-primary-actions"><Button variant="outline" disabled={variants.length >= 100 || secondaryOpen} onClick={() => {
-                 setSecondaryInputs((old) => ({ ...old, [id]: '' }));
+                 const inherited = inheritedSecondaryValues(variants, id);
+                 if (inherited.length) {
+                   try { setVariants(addSecondaryValues(variants, id, inherited)); }
+                   catch (error) { void MessagePlugin.warning(error instanceof Error ? error.message : '新增二级规格失败'); return; }
+                 } else {
+                   setSecondaryInputs((old) => ({ ...old, [id]: '' }));
+                 }
                  if (specTitles[1] === '二级规格') setSpecTitles((old) => [old[0], '']);
                }}>新增二级规格</Button><Button variant="text" disabled={variantGroups.length === 1} onClick={() => {
                  setVariants((old) => old.filter((item) => item.groupId !== id));

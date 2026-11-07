@@ -11,7 +11,7 @@ function load(file) {
   }).outputText, { exports, crypto });
   return exports;
 }
-const { emptyVariant, groupVariantDrafts, addSecondaryVariants } = load('admin/src/lib/variant-drafts.ts');
+const { emptyVariant, groupVariantDrafts, addSecondaryVariants, addSecondaryValues, inheritedSecondaryValues } = load('admin/src/lib/variant-drafts.ts');
 const { groupSkusByPrimary } = load('admin/src/lib/sku.ts');
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const black = { ...emptyVariant(), name: '黑色', skuId: 'old-black', price: '29.90', skuImage: 'cloud://black' };
@@ -40,6 +40,30 @@ assert.throws(() => addSecondaryVariants(original, 'removed', '38'), /已移除/
 const edited = more.map((item) => item.groupId === black.groupId ? { ...item, name: '深黑色' } : item);
 assert(groupVariantDrafts(edited)[0].items.every((item) => item.name === '深黑色'));
 
+// 新增二级规格：其他一级规格已配置时默认填入同样的二级规格值
+const shoeBlack = { ...emptyVariant(), name: '黑色', price: '109.00' };
+const shoeWhite = { ...emptyVariant(), name: '白色', price: '109.00' };
+const shoeDraft = addSecondaryValues([shoeBlack, shoeWhite], shoeBlack.groupId, ['31', '32']);
+assert.deepEqual(plain(shoeDraft.map((item) => item.secondName)), ['31', '32', ''], '第一个值填入原组合，其余复制为新的组合');
+assert.equal(shoeDraft[0].localId, shoeBlack.localId);
+assert(shoeDraft.slice(0, 2).every((item) => item.isSecondary && item.price === '109.00'));
+assert.deepEqual(plain(inheritedSecondaryValues(shoeDraft, shoeWhite.groupId)), ['31', '32']);
+assert.deepEqual(plain(inheritedSecondaryValues(shoeDraft, shoeBlack.groupId)), [], '不复制本组已有的值');
+const filled = addSecondaryValues(shoeDraft, shoeWhite.groupId, inheritedSecondaryValues(shoeDraft, shoeWhite.groupId));
+assert.equal(filled.length, 4);
+assert.deepEqual(plain(groupVariantDrafts(filled).map((group) => group.items.length)), [2, 2]);
+const whiteGroup = groupVariantDrafts(filled)[1];
+assert.deepEqual(plain(whiteGroup.items.map((item) => item.secondName)), ['31', '32']);
+assert(whiteGroup.items.every((item) => item.isSecondary && item.name === '白色' && item.price === '109.00'));
+assert.equal(whiteGroup.items[0].localId, shoeWhite.localId, '默认值沿用该一级规格原有的组合');
+assert.equal(new Set(filled.map((item) => item.localId)).size, 4);
+assert.deepEqual(plain(groupVariantDrafts(filled)[0].items), plain(shoeDraft.slice(0, 2)), '其他一级规格不受影响');
+assert.throws(() => addSecondaryValues(filled, shoeWhite.groupId, ['31']), /不能重复/);
+assert.throws(() => addSecondaryValues(shoeDraft, 'removed', ['31']), /已移除/);
+assert.throws(() => addSecondaryValues(shoeDraft, shoeWhite.groupId, []), /请填写/);
+const fullDraft = Array.from({ length: 100 }, (_, index) => ({ ...emptyVariant(), name: `款${index}`, price: '1.00' }));
+assert.throws(() => addSecondaryValues(fullDraft, fullDraft[0].groupId, ['31', '32']), /100/);
+
 const product = { specList: [
   { specId: 'color', specValueList: [{ specValueId: 'black', specValue: '黑色' }, { specValueId: 'white', specValue: '白色' }] },
   { specId: 'size', optional: true, specValueList: [{ specValueId: '38', specValue: '38' }, { specValueId: '39', specValue: '39' }] },
@@ -56,4 +80,4 @@ assert.equal(groups[0].items[1].sku, skus[2], 'inventory grouping preserves the 
 assert.equal(groupSkusByPrimary(product, []).length, 0);
 const legacy = { specList: [{ specValueList: [{ specValueId: 'old-id', specValue: '标准款' }] }] };
 assert.equal(groupSkusByPrimary(legacy, [{ skuId: 'old-id' }])[0].name, '标准款');
-console.log('PASS grouped admin variants: batch add, validation, SKU preservation, inherited defaults and inventory grouping');
+console.log('PASS grouped admin variants: batch add, validation, SKU preservation, inherited secondary defaults and inventory grouping');
