@@ -37,7 +37,7 @@ export function inheritedSecondaryValues(variants: VariantDraft[], groupId: stri
 }
 
 /**
- * 二级规格名称预设：鞋码/码数自动填入 35.5 到 44.5，每 0.5 一个。
+ * 二级规格名称预设：鞋码/码数自动填入 35.5 到 45，每 0.5 一个。
  */
 const SHOE_SIZE_TITLES = ['鞋码', '码数'];
 
@@ -45,7 +45,7 @@ const SHOE_SIZE_TITLES = ['鞋码', '码数'];
 export function presetSecondaryValues(title: string): string[] {
   if (!SHOE_SIZE_TITLES.includes(title.trim())) return [];
   const values: string[] = [];
-  for (let half = 71; half <= 89; half += 1) {
+  for (let half = 71; half <= 90; half += 1) {
     const size = half / 2;
     values.push(Number.isInteger(size) ? String(size) : size.toFixed(1));
   }

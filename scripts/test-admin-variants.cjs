@@ -64,32 +64,34 @@ assert.throws(() => addSecondaryValues(shoeDraft, shoeWhite.groupId, []), /请�
 const fullDraft = Array.from({ length: 100 }, (_, index) => ({ ...emptyVariant(), name: `款${index}`, price: '1.00' }));
 assert.throws(() => addSecondaryValues(fullDraft, fullDraft[0].groupId, ['31', '32']), /100/);
 
-// 二级规格名称命中鞋码/码数时自动填入 35.5-44.5 的尺码，每 0.5 一个
+// 二级规格名称命中鞋码/码数时自动填入 35.5-45 的尺码，每 0.5 一个
 const sizes = presetSecondaryValues('鞋码');
-assert.equal(sizes.length, 19, '35.5 到 44.5 每 0.5 一个共 19 个');
+assert.equal(sizes.length, 20, '35.5 到 45 每 0.5 一个共 20 个');
 assert.deepEqual(plain(sizes.slice(0, 4)), ['35.5', '36', '36.5', '37']);
-assert.deepEqual(plain(sizes.slice(-2)), ['44', '44.5']);
+assert.deepEqual(plain(sizes.slice(-2)), ['44.5', '45']);
 assert.deepEqual(plain(presetSecondaryValues(' 码数 ')), plain(sizes));
 assert.deepEqual(plain(presetSecondaryValues('颜色')), []);
 assert.deepEqual(plain(presetSecondaryValues('')), []);
 const presetBase = { ...emptyVariant(), name: '黑色', skuId: 'old-black', price: '109.00' };
 const presetDraft = fillPresetSecondaryValues([presetBase], presetBase.groupId, '鞋码');
-assert.equal(presetDraft.length, 19);
+assert.equal(presetDraft.length, 20);
 assert.deepEqual(plain(presetDraft.map((item) => item.secondName)), plain(sizes));
 assert(presetDraft.every((item) => item.isSecondary && item.groupId === presetBase.groupId && item.price === '109.00'));
 assert.equal(presetDraft[0].localId, presetBase.localId, '保留原有组合，其余为新增组合');
 assert.equal(presetDraft[0].skuId, 'old-black');
 assert(presetDraft.slice(1).every((item) => !item.skuId));
+const withManual46 = addSecondaryValues(presetDraft, presetBase.groupId, ['46']);
+assert.deepEqual(plain(withManual46.slice(-2).map((item) => item.secondName)), ['45', '46']);
 const presetWhite = { ...emptyVariant(), name: '白色', price: '109.00' };
 const withWhite = fillPresetSecondaryValues([presetBase, presetWhite], presetBase.groupId, '码数');
-assert.equal(withWhite.length, 20);
-assert.deepEqual(plain(groupVariantDrafts(withWhite).map((group) => group.items.length)), [19, 1]);
-assert.equal(withWhite[19], presetWhite, '其他一级规格不受影响');
+assert.equal(withWhite.length, 21);
+assert.deepEqual(plain(groupVariantDrafts(withWhite).map((group) => group.items.length)), [20, 1]);
+assert.equal(withWhite[20], presetWhite, '其他一级规格不受影响');
 const filledThenTyped = fillPresetSecondaryValues(presetDraft, presetBase.groupId, '鞋码');
 assert.equal(filledThenTyped, null, '已有具体值时不再重复填充');
 const blankRows = [presetBase, { ...presetBase, localId: 'blank-1', secondName: '', isSecondary: true }];
 const replacedBlanks = fillPresetSecondaryValues(blankRows, presetBase.groupId, '鞋码');
-assert.equal(replacedBlanks.length, 19, '空白的二级规格行被预设值替换');
+assert.equal(replacedBlanks.length, 20, '空白的二级规格行被预设值替换');
 assert.equal(replacedBlanks[0].localId, presetBase.localId);
 assert(fillPresetSecondaryValues(presetDraft, 'removed', '鞋码') === null);
 assert.equal(fillPresetSecondaryValues([presetBase], presetBase.groupId, '颜色'), null);

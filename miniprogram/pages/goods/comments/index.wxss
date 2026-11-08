@@ -57,7 +57,7 @@ page {
   padding: 0 24rpx !important;
   height: 56rpx !important;
   min-height: 56rpx;
-  line-height: 32rpx;
+  line-height: 56rpx !important;
   font-size: 24rpx !important;
   justify-content: center;
   background-color: #F5F5F5 !important;

@@ -1,5 +1,5 @@
 // @ts-nocheck
-const SHOP_TITLE = '番薯小店';
+const SHOP_TITLE = '下单享好礼，你我共返利！';
 const HOME_PATH = '/tabs/home/home';
 
 export function enablePageSharing() {

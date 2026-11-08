@@ -47,7 +47,7 @@ for (const [route, kind] of [
     }
     context.data = { spuId: '', details: {} };
     assert.equal(definition.onShareAppMessage.call(context).path, '/tabs/home/home');
-    assert.equal(definition.onShareAppMessage.call(context).title, '番薯小店');
+    assert.equal(definition.onShareAppMessage.call(context).title, '下单享好礼，你我共返利！');
   }
 }
 console.log('PASS sharing: six public pages register friend/timeline callbacks, menus, encoded product/catalog links, safe image fallback and clean parameters');
