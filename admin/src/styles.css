@@ -275,7 +275,7 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--line-stro
 .form-panel .form-grid { margin-bottom: 18px; }
 .editor-panel { border-color: var(--line-strong); background: var(--surface); }
 .product-editor-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 18px; }
-.product-editor-actions.floating-save-actions { flex-direction: column; margin-bottom: 0; }
+.product-editor-actions.floating-save-actions { flex-direction: column; align-items: stretch; margin-bottom: 0; }
 .form-actions { display: flex; gap: 8px; margin-top: 18px; }
 .file-list { display: flex; flex-direction: column; gap: 4px; margin-top: 7px; }
 .file-list code { word-break: break-all; font-size: 10px; color: #555; background: var(--surface-muted); border: 1px solid #ededed; border-radius: 0; padding: 5px; }
