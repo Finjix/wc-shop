@@ -5,6 +5,7 @@ import { AfterSalesPage, CommentsPage, OrderDetailPage, OrdersPage } from './pag
 import { CategoriesPage } from './pages/CategoriesPage';
 import { SkuInventoryPage } from './pages/SkuInventoryPage';
 import { MaintenancePage } from './pages/MaintenancePage';
+import { ActivityPage } from './pages/ActivityPage';
 
 const router = createHashRouter([
   {
@@ -20,6 +21,7 @@ const router = createHashRouter([
         { path: 'skus', element: <SkuInventoryPage /> },
         { path: 'inventory', element: <Navigate to="/skus" replace /> },
         { path: 'home-content', element: <HomeContentPage /> },
+        { path: 'activity', element: <ActivityPage /> },
         { path: 'orders', element: <OrdersPage /> },
         { path: 'orders/:orderNo', element: <OrderDetailPage /> },
         { path: 'comments', element: <CommentsPage /> },

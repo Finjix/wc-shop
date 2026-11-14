@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 const crypto = require('crypto');
+const { readActivity, activityPrice, activityProduct } = require('./activity');
 const {
   COLLECTIONS, STATUS,
 } = require('./constants');
@@ -30,7 +31,7 @@ function collection(runtime, name) { return runtime.db.collection(name); }
 
 async function findDoc(runtime, name, id) { return getDoc(collection(runtime, name), id, false); }
 
-function skuPrice(sku) { return valueNumber(sku.salePrice, 0); }
+function skuPrice(sku, activity) { return activityPrice(valueNumber(sku.salePrice, 0), activity); }
 
 function skuStock(sku) { return valueNumber(sku.stockQuantity, -1); }
 
@@ -66,24 +67,26 @@ async function getActiveProduct(runtime, id, required) {
   return product;
 }
 
-function publicProduct(product) {
+function publicProduct(product, activity) {
   if (!product) return product;
-  return pick(product, [
+  return pick(activityProduct(product, activity), [
     '_id', 'spuId', 'title', 'subtitle', 'description', 'primaryImage', 'secondaryImage', 'images', 'detailImages',
     'categoryIds', 'tags', 'brand', 'storeId', 'storeName', 'sort', 'minSalePrice', 'maxSalePrice',
     'minLinePrice', 'maxLinePrice', 'soldQuantity', 'status', 'createdAt',
-    'updatedAt', 'specList', 'video',
+    'updatedAt', 'specList', 'video', 'originalPrice',
   ]);
 }
 
-function publicSku(sku) {
+function publicSku(sku, activity) {
   if (!sku) return sku;
   const result = pick(sku, [
     '_id', 'skuId', 'productId', 'spuId', 'specInfo', 'skuImage', 'salePrice', 'linePrice',
     'stockQuantity', 'weight', 'volume', 'soldQuantity', 'safeStockQuantity',
     'createdAt', 'updatedAt',
   ]);
-  result.price = skuPrice(sku);
+  result.price = skuPrice(sku, activity);
+  result.salePrice = result.price;
+  result.originalPrice = result.price < Number(sku.salePrice) ? Number(sku.salePrice) : 0;
   result.stockQuantity = skuStock(sku);
   return result;
 }
@@ -119,19 +122,19 @@ async function readProducts(runtime, data) {
   const minPrice = data.minPrice === undefined || data.minPrice === '' ? undefined : Number(data.minPrice);
   const maxPrice = data.maxPrice === undefined || data.maxPrice === '' ? undefined : Number(data.maxPrice);
   const command = runtime.db.command;
-  if (Number.isFinite(minPrice) && Number.isFinite(maxPrice) && command && command.and && command.gte && command.lte) {
+  if (!runtime.activity?.enabled && Number.isFinite(minPrice) && Number.isFinite(maxPrice) && command && command.and && command.gte && command.lte) {
     where.minSalePrice = command.and(command.gte(minPrice), command.lte(maxPrice));
-  } else if (Number.isFinite(minPrice) && command && command.gte) where.minSalePrice = command.gte(minPrice);
-  else if (Number.isFinite(maxPrice) && command && command.lte) where.minSalePrice = command.lte(maxPrice);
+  } else if (!runtime.activity?.enabled && Number.isFinite(minPrice) && command && command.gte) where.minSalePrice = command.gte(minPrice);
+  else if (!runtime.activity?.enabled && Number.isFinite(maxPrice) && command && command.lte) where.minSalePrice = command.lte(maxPrice);
   const keyword = typeof data.keyword === 'string' && !data.keyword.trim()
     ? '' : data.keyword ? string(data.keyword, 'keyword', { max: 80 }) : '';
   const sort = Number(data.sort);
-  if (keyword || sort === 3 || categoryFilter) {
+  if (keyword || sort === 3 || categoryFilter || runtime.activity?.enabled) {
     // Cross-field search and SKU ordering must run before pagination.
     let products = await all(collection(runtime, COLLECTIONS.products), where);
     products = products.filter((item) => (!categoryFilter || (item.categoryIds || []).some((id) => categoryFilter.has(String(id))))
-      && (!Number.isFinite(minPrice) || Number(item.minSalePrice) >= minPrice)
-      && (!Number.isFinite(maxPrice) || Number(item.minSalePrice) <= maxPrice));
+      && (!Number.isFinite(minPrice) || activityPrice(item.minSalePrice, runtime.activity) >= minPrice)
+      && (!Number.isFinite(maxPrice) || activityPrice(item.minSalePrice, runtime.activity) <= maxPrice));
     const byRef = new Map();
     products.forEach((product) => {
       byRef.set(String(product._id), product);
@@ -157,12 +160,12 @@ async function readProducts(runtime, data) {
       || String(a._id).localeCompare(String(b._id));
     products.sort((a, b) => {
       if (sort === 3) return (newestSku.get(b._id) || 0) - (newestSku.get(a._id) || 0) || nameOrder(a, b);
-      if (sort === 1 || data.orderBy === 'price') return (Number(a.minSalePrice || 0) - Number(b.minSalePrice || 0)) * direction || nameOrder(a, b);
+      if (sort === 1 || data.orderBy === 'price') return (activityPrice(a.minSalePrice, runtime.activity) - activityPrice(b.minSalePrice, runtime.activity)) * direction || nameOrder(a, b);
       if (sort === 2) return (Number(a.soldQuantity || 0) - Number(b.soldQuantity || 0)) * direction || nameOrder(a, b);
       return nameOrder(a, b);
     });
     return {
-      items: products.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map(publicProduct),
+      items: products.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map((item) => publicProduct(item, runtime.activity)),
       page: paging.page, pageSize: paging.pageSize, total: products.length,
     };
   }
@@ -173,7 +176,7 @@ async function readProducts(runtime, data) {
     skip: (paging.page - 1) * paging.pageSize,
     limit: paging.pageSize,
   });
-  return { items: result.items.map(publicProduct), page: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? result.items.length : result.total };
+  return { items: result.items.map((item) => publicProduct(item, runtime.activity)), page: paging.page, pageSize: paging.pageSize, total: result.total === undefined ? result.items.length : result.total };
 }
 
 async function readProductDetail(runtime, data) {
@@ -181,7 +184,7 @@ async function readProductDetail(runtime, data) {
   const product = await getActiveProduct(runtime, id, true);
   const rows = await all(collection(runtime, COLLECTIONS.skus), { productId: product._id });
   const skus = rows.filter((sku) => skuBelongsToProduct(product, sku));
-  return { product: publicProduct(product), skus: skus.map(publicSku) };
+  return { product: publicProduct(product, runtime.activity), skus: skus.map((sku) => publicSku(sku, runtime.activity)) };
 }
 
 async function readSkus(runtime, data) {
@@ -192,7 +195,7 @@ async function readSkus(runtime, data) {
     if (!product) return { items: [], total: 0 };
     const byProduct = await all(collection(runtime, COLLECTIONS.skus), { productId: id });
     const items = byProduct.filter((sku) => skuBelongsToProduct(product, sku));
-    return { items: items.map(publicSku), total: items.length };
+    return { items: items.map((sku) => publicSku(sku, runtime.activity)), total: items.length };
   }
   const result = await list(collection(runtime, COLLECTIONS.skus), {});
   const activeProducts = new Map();
@@ -204,7 +207,7 @@ async function readSkus(runtime, data) {
     return product && skuBelongsToProduct(product, sku) ? sku : null;
   }));
   const visible = resolved.filter(Boolean);
-  return { items: visible.map(publicSku), total: visible.length };
+  return { items: visible.map((sku) => publicSku(sku, runtime.activity)), total: visible.length };
 }
 
 async function readHome(runtime, data) {
@@ -213,7 +216,7 @@ async function readHome(runtime, data) {
   const config = payload ? { searchText: payload.searchText, banners: payload.banners, promoImages: payload.promoImages || ['', ''], recommendations: payload.recommendations || [] } : null;
   const ids = productIds(config);
   const products = await Promise.all(ids.map((id) => getActiveProduct(runtime, id, false)));
-  const productsById = Object.fromEntries(ids.flatMap((id, index) => products[index] ? [[id, publicProduct(products[index])]] : []));
+  const productsById = Object.fromEntries(ids.flatMap((id, index) => products[index] ? [[id, publicProduct(products[index], runtime.activity)]] : []));
   return { config, productsById };
 }
 
@@ -283,7 +286,7 @@ async function getCart(runtime, identity) {
   const sourceItems = cart && Array.isArray(cart.items) ? cart.items : [];
   const items = await Promise.all(sourceItems.map(async (item) => {
     const sku = await findDoc(runtime, COLLECTIONS.skus, item.skuId, 'skuId');
-    const price = sku ? skuPrice(sku) : valueNumber(item.unitPrice ?? item.price, 0);
+    const price = sku ? skuPrice(sku, runtime.activity) : valueNumber(item.unitPrice ?? item.price, 0);
     const stockQuantity = sku ? skuStock(sku) : valueNumber(item.stockQuantity, 0);
     const specInfo = sku?.specInfo || item.specInfo || item.skuSnapshot?.specInfo || [];
     const image = sku?.skuImage || item.image || item.primaryImage || item.skuSnapshot?.skuImage || '';
@@ -313,7 +316,8 @@ async function cartAction(runtime, event, context, data, action) {
       const sku = await findDoc(runtime, COLLECTIONS.skus, item.skuId, 'skuId');
       return {
         ...item,
-        price: sku ? skuPrice(sku) : valueNumber(item.unitPrice ?? item.price, 0),
+        price: sku ? skuPrice(sku, runtime.activity) : valueNumber(item.unitPrice ?? item.price, 0),
+        unitPrice: sku ? skuPrice(sku, runtime.activity) : valueNumber(item.unitPrice ?? item.price, 0),
         stockQuantity: sku ? skuStock(sku) : valueNumber(item.stockQuantity, 0),
         specInfo: clone(sku?.specInfo || item.specInfo || item.skuSnapshot?.specInfo || []),
         image: sku?.skuImage || item.image || item.primaryImage || item.skuSnapshot?.skuImage || '',
@@ -377,8 +381,8 @@ async function cartAction(runtime, event, context, data, action) {
       title: product.title,
       primaryImage: product.primaryImage || (Array.isArray(product.images) ? product.images[0] : undefined),
       skuSnapshot: clone({ specInfo: sku.specInfo, skuImage: sku.skuImage }),
-      unitPrice: skuPrice(sku),
-      price: skuPrice(sku),
+      unitPrice: skuPrice(sku, runtime.activity),
+      price: skuPrice(sku, runtime.activity),
       stockQuantity: skuStock(sku),
       specInfo: clone(sku.specInfo || []),
       image: sku.skuImage || product.primaryImage || '',
@@ -417,8 +421,8 @@ async function cartAction(runtime, event, context, data, action) {
       title: product.title,
       primaryImage: product.primaryImage || (Array.isArray(product.images) ? product.images[0] : undefined),
       skuSnapshot: clone({ specInfo: sku.specInfo, skuImage: sku.skuImage }),
-      unitPrice: skuPrice(sku),
-      price: skuPrice(sku),
+      unitPrice: skuPrice(sku, runtime.activity),
+      price: skuPrice(sku, runtime.activity),
       stockQuantity: skuStock(sku),
       specInfo: clone(sku.specInfo || []),
       image: sku.skuImage || product.primaryImage || '',
@@ -446,8 +450,8 @@ function normalizeOrderItems(value) {
 
 function orderInput(data = {}) { return data; }
 
-function pricedOrderItem(product, sku, skuId, quantity) {
-  const unitPrice = skuPrice(sku);
+function pricedOrderItem(product, sku, skuId, quantity, activity) {
+  const unitPrice = skuPrice(sku, activity);
   const amount = unitPrice * quantity;
   if (!Number.isSafeInteger(unitPrice) || unitPrice <= 0 || !Number.isSafeInteger(amount)) {
     throw errorFrom('INVALID_ARGUMENT', { field: 'sku.price' });
@@ -481,7 +485,7 @@ async function orderDraft(runtime, identity, data, source, requireAddress = true
     if (!skuBelongsToProduct(product, sku)) throw errorFrom('SKU_UNAVAILABLE');
     const stock = skuStock(sku);
     if (stock < input.quantity) throw errorFrom('OUT_OF_STOCK', { skuId: input.skuId });
-    resolved.push(pricedOrderItem(product, sku, input.skuId, input.quantity));
+    resolved.push(pricedOrderItem(product, sku, input.skuId, input.quantity, runtime.activity));
   }
   const subtotal = resolved.reduce((sum, item) => sum + item.amount, 0);
   if (!Number.isSafeInteger(subtotal)) throw errorFrom('INVALID_ARGUMENT', { field: 'totalAmount' });
@@ -605,6 +609,7 @@ async function createOrder(runtime, event, context, data) {
         && (explicitNormalized || !matchesCartRetry(race))) throw errorFrom('IDEMPOTENCY_CONFLICT');
       return race;
     }
+    const activity = await readActivity({ db: tx });
     const confirmedItems = [];
     const confirmedAddress = draft.addressSnapshot;
     for (const item of draft.items) {
@@ -615,7 +620,7 @@ async function createOrder(runtime, event, context, data) {
       if (!sku || !skuBelongsToProduct(product, sku)) throw errorFrom('SKU_UNAVAILABLE');
       const stock = skuStock(sku);
       if (stock < item.quantity) throw errorFrom('OUT_OF_STOCK', { skuId: item.skuId });
-      confirmedItems.push(pricedOrderItem(product, sku, item.skuId, item.quantity));
+      confirmedItems.push(pricedOrderItem(product, sku, item.skuId, item.quantity, activity));
       const payload = {
         stockQuantity: stock - item.quantity,
         soldQuantity: valueNumber(sku.soldQuantity, 0) + item.quantity,
@@ -1386,6 +1391,7 @@ async function confirmAfterSaleReturn(runtime, data) {
 
 async function shopEndpoint(event, context, runtime, action, data) {
   runtime = require('./image-lifecycle').imageLifecycleRuntime(runtime);
+  runtime = { ...runtime, activity: await readActivity(runtime) };
   const result = await executeShop(event, context, runtime, action, data);
   return result && typeof result === 'object' && !Array.isArray(result) && runtime.removedImages.size
     ? { ...result, imageCleanup: [...runtime.removedImages] } : result;

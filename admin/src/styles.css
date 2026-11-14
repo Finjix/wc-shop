@@ -273,6 +273,16 @@ select:focus, textarea:focus, .json-editor:focus { border-color: var(--line-stro
 .product-basic-fields { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .form-grid .product-basic-fields > .field { grid-column: auto; }
 .form-panel .form-grid { margin-bottom: 18px; }
+.activity-panel { display: grid; gap: 28px; padding: 32px; }
+.activity-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; align-items: end; }
+.activity-fields > .field { min-width: 0; gap: 12px; }
+.activity-fields input, .activity-fields select { width: 100%; min-height: 42px; box-sizing: border-box; }
+.activity-panel > .panel-heading { margin-bottom: 0; }
+.activity-panel > .panel-heading h3 { margin: 0; }
+.activity-panel > button { justify-self: start; }
+@media (max-width: 760px) {
+  .activity-fields { grid-template-columns: 1fr; gap: 24px; }
+}
 .editor-panel { border-color: var(--line-strong); background: var(--surface); }
 .product-editor-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 18px; }
 .product-editor-actions.floating-save-actions { flex-direction: column; align-items: stretch; margin-bottom: 0; }

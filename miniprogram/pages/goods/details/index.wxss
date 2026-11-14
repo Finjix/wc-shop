@@ -69,8 +69,11 @@ page {
 
 .goods-detail-page .goods-info .goods-price {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
 }
+
+.goods-original-price { margin-left: 24rpx; font-size: 28rpx; color: #999; }
 
 .goods-detail-page .goods-info .goods-price-up {
   color: var(--app-theme-text-color, #695941);

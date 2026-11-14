@@ -1,5 +1,6 @@
 // @ts-nocheck
 const crypto = require('crypto');
+const { activityProduct } = require('./activity');
 const { all } = require('./db');
 const { integer, assert } = require('./validation');
 
@@ -29,8 +30,10 @@ async function readHomeFeed(runtime, data) {
     })).sort((a, b) => a.rank.localeCompare(b.rank));
     const remaining = ranked.filter((entry) => entry.rank > cursor.after);
     for (const { product, rank } of remaining) {
+      const priced = activityProduct(product, runtime.activity);
       items.push({ _id: product._id, title: product.title || '', primaryImage: product.primaryImage || '',
-        minSalePrice: product.minSalePrice || 0, feedKey: `${cursor.seed}:${cursor.round}:${product._id}` });
+        minSalePrice: priced.minSalePrice, originalPrice: priced.originalPrice,
+        feedKey: `${cursor.seed}:${cursor.round}:${product._id}` });
       cursor.after = rank;
       if (items.length === limit) break;
     }

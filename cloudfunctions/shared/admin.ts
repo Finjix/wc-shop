@@ -1061,6 +1061,8 @@ async function adminEndpoint(event, context, runtime, action, data) {
 }
 
 async function executeAdmin(event, context, runtime, action, data) {
+  if (action === 'activity.get') return require('./activity').readActivity(runtime);
+  if (action === 'activity.save') return require('./activity').saveActivity(runtime, data);
   if (action === 'payments.checkConfiguration') return require('./payments').checkConfiguration(runtime);
   if (action === 'shipping.companies') return require('./wechat-shipping').companies(runtime);
   if (action === 'payments.reconcile') { await require('./payments').reconcile(runtime); return { reconciled: true }; }

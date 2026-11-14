@@ -5,6 +5,7 @@ import { ImageLightbox } from './ImageLightbox';
 const navItems = [
   { to: '/overview', label: '概览' },
   { to: '/home-content', label: '首页' },
+  { to: '/activity', label: '活动' },
   { to: '/products', label: '商品' },
   { to: '/skus', label: '库存' },
   { to: '/categories', label: '分类' },

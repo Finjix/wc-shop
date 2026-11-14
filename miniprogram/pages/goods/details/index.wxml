@@ -42,6 +42,7 @@
             type="lighter"
           />
           <view class="goods-price-up">起</view>
+          <price wx:if="{{details.originalPrice > minSalePrice}}" wr-class="goods-original-price" price="{{details.originalPrice}}" symbol="" type="delthrough" />
         </view>
       </view>
       <view class="goods-title">
