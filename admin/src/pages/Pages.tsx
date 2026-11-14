@@ -355,6 +355,8 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState('');
   useEffect(() => {
+    if (!editorMode) { setCategoriesLoading(false); return; }
+    setCategoriesLoading(true);
     let active = true;
     const loadCategories = async () => {
       const items: Category[] = [];
@@ -368,7 +370,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     void loadCategories().catch((err: unknown) => { if (active) setCategoriesError(err instanceof Error ? err.message : '分类读取失败'); })
       .finally(() => { if (active) setCategoriesLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [editorMode]);
   const { busy, run } = useAction();
   useBrowserLeaveWarning(editorOpen && (editorDirty || busy || Boolean(uploading) || draftImages.processing));
   const rows = useMemo(() => readList<Product>(data), [data]);
@@ -657,8 +659,8 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
       <Button theme="primary" onClick={() => navigate('/products/new')}>新建商品</Button>
     </div>
     {(loading || routeEditLoading) && <LoadingState />}{!routeEditLoading && error && <ErrorState message={error} onRetry={() => setRefreshKey((key) => key + 1)} />}
-    {!loading && !routeEditLoading && !error && <Panel className="product-list-panel"><Table><thead><tr><th>商品</th><th>操作</th></tr></thead><tbody>
-      {rows.length === 0 && <tr><td colSpan={2}><EmptyState description="暂无" /></td></tr>}
+    {!loading && !routeEditLoading && !error && <Panel className="product-list-panel"><Table><thead><tr><th>商品</th><th className="product-list-price">价格</th><th>操作</th></tr></thead><tbody>
+      {rows.length === 0 && <tr><td colSpan={3}><EmptyState description="暂无" /></td></tr>}
       {rows.map((product) => {
         const fileID = String(product.primaryImage || '');
         const resolvedImage = imageUrls[fileID];
@@ -666,7 +668,12 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
         const status = productStatusOf(product);
         const productId = String(product._id || product.spuId);
         const productActionInProgress = Boolean(statusChangingId || deletingProductId);
-        return <tr key={productId} className={status === 'active' ? '' : 'product-list-inactive'}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong></div></div></td><td><div className="product-list-actions"><Button variant="text" className="product-list-edit" disabled={productActionInProgress || busy} onClick={() => navigate(`/products/${encodeURIComponent(productId)}/edit`)}>编辑</Button><Link className="product-list-sku-link" to={`/skus?query=${encodeURIComponent(product.title)}`}>库存</Link><Button variant="text" className={`product-list-edit${status !== 'active' ? ' product-list-activate' : ''}`} loading={statusChangingId === productId} disabled={productActionInProgress || busy} onClick={() => void toggleProductStatus(product)}>{status === 'active' ? '下架' : '上架'}</Button><Button variant="text" className="product-list-delete" loading={deletingProductId === productId} disabled={productActionInProgress || busy} onClick={() => void deleteProduct(product)}>删除</Button></div></td></tr>;
+        const minPrice = product.minSalePrice;
+        const maxPrice = product.maxSalePrice;
+        const priceLabel = minPrice === undefined || minPrice === null || minPrice === '' ? '—'
+          : maxPrice !== undefined && maxPrice !== null && maxPrice !== '' && Number(maxPrice) > Number(minPrice)
+            ? `${formatMoney(minPrice)}–${formatMoney(maxPrice)}` : formatMoney(minPrice);
+        return <tr key={productId} className={status === 'active' ? '' : 'product-list-inactive'}><td><div className="product-cell">{imageSource && <img src={imageSource} alt="" />}<div><strong>{product.title || '未命名商品'}</strong></div></div></td><td className="product-list-price">{priceLabel}</td><td><div className="product-list-actions"><Button variant="text" className="product-list-edit" disabled={productActionInProgress || busy} onClick={() => navigate(`/products/${encodeURIComponent(productId)}/edit`)}>编辑</Button><Link className="product-list-sku-link" to={`/skus?query=${encodeURIComponent(product.title)}`}>库存</Link><Button variant="text" className={`product-list-edit${status !== 'active' ? ' product-list-activate' : ''}`} loading={statusChangingId === productId} disabled={productActionInProgress || busy} onClick={() => void toggleProductStatus(product)}>{status === 'active' ? '下架' : '上架'}</Button><Button variant="text" className="product-list-delete" loading={deletingProductId === productId} disabled={productActionInProgress || busy} onClick={() => void deleteProduct(product)}>删除</Button></div></td></tr>;
       })}
     </tbody></Table>
       <div className="product-list-pagination">

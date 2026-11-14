@@ -941,7 +941,25 @@ async function testDashboardProductCountUsesCountQuery() {
   runtime.records.skus['sku-new'].stockQuantity = 3;
   runtime.records.skus['sku-zero'] = { ...runtime.records.skus['sku-new'], _id: 'sku-zero', skuId: 'sku-zero', stockQuantity: 0 };
   runtime.records.skus['sku-normal'] = { ...runtime.records.skus['sku-new'], _id: 'sku-normal', skuId: 'sku-normal', stockQuantity: 4 };
+  for (let index = 0; index < 1000; index++) runtime.records.skus[`healthy-${index}`] = {
+    ...runtime.records.skus['sku-new'], _id: `healthy-${index}`, skuId: `healthy-${index}`, stockQuantity: 100,
+  };
+  const originalCollection = runtime.db.collection;
+  let warningRowsRead = 0;
+  runtime.db.collection = name => {
+    const ref = originalCollection(name);
+    if (name === 'products') return { ...ref, async get() { throw new Error('dashboard must not scan product documents'); },
+      where(query) { assert.ok(query.deletedByAdmin, 'product total must use a filtered count'); return ref.where(query); } };
+    if (name !== 'skus') return ref;
+    return { ...ref, async get() { throw new Error('dashboard must not scan healthy inventory'); }, where(query) {
+      assert.ok(query.stockQuantity, 'inventory warning query must filter stock on the server');
+      const builder = ref.where(query), get = builder.get;
+      builder.get = async () => { const result = await get(); warningRowsRead += result.data.length; return result; };
+      return builder;
+    } };
+  };
   const result = await adminEndpoint({}, { auth: { uid: 'admin-1' } }, runtime, 'dashboard.summary', {});
+  assert.strictEqual(warningRowsRead, 2, '1000 healthy SKUs must not be read to compute two warnings');
   assert.strictEqual(result.metrics.productCount, 26);
   assert.deepStrictEqual(result.inventoryWarnings.map((item) => item.stockQuantity), [0, 3]);
   assert.strictEqual(result.inventoryWarnings[0].productId, 'product-1');

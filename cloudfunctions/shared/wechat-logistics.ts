@@ -104,7 +104,12 @@ async function query(runtime, order) {
   const group = packages(intent, orders).find(item => item.orderIds.includes(order._id));
   if (!group) throw errorFrom('LOGISTICS_UNAVAILABLE');
   try { return { waybillToken: await register(runtime, intent, group, false) }; }
-  catch { throw errorFrom('LOGISTICS_UNAVAILABLE'); }
+  catch (error) { throw errorFrom('LOGISTICS_UNAVAILABLE', { providerCode: String(error.details?.providerCode || error.code || 'UNKNOWN') }); }
 }
 
-module.exports = { sync, query };
+async function diagnose(runtime, order) {
+  try { await query(runtime, order); return { queryReady: true }; }
+  catch (error) { return { queryReady: false, code: error.code, providerCode: error.details?.providerCode || '' }; }
+}
+
+module.exports = { sync, query, diagnose };

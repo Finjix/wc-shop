@@ -135,6 +135,7 @@ tbody tr.product-list-inactive, tbody tr.product-list-inactive:hover { backgroun
 .product-list-inactive .product-cell img { filter: grayscale(1); opacity: .65; }
 .product-list-inactive .product-list-edit.t-button { color: var(--muted); }
 .product-list-panel th:last-child { width: 240px; }
+.product-list-panel .product-list-price { width: 180px; white-space: nowrap; }
 .product-list-inactive .product-list-activate.t-button { color: #d93025; }
 .sku-inventory-panel .panel-heading h3 { min-width: 0; overflow-wrap: anywhere; }
 .sku-inventory-panel table { table-layout: fixed; }

@@ -7,7 +7,7 @@ const root = path.join(repoRoot, 'miniprogram');
 const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
 function check() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
-  assert.deepEqual(app.subpackages.map(p => p.root), ['pages', 'services', 'utils']);
+  assert.deepEqual(app.subpackages.map(p => p.root), ['pages', 'services', 'utils', 'logistics']);
   assert.equal(JSON.parse(fs.readFileSync(path.join(repoRoot, 'project.config.json'), 'utf8')).miniprogramRoot, 'miniprogram/');
   assert.deepEqual(app.pages, ['tabs/home/home', 'tabs/category/index', 'tabs/cart/index', 'tabs/usercenter/index']);
   assert.deepEqual(app.tabBar.list.map(p => p.pagePath), app.pages);

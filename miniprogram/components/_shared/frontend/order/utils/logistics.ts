@@ -26,13 +26,21 @@ export async function openLogistics(logistics: Record<string, any> = {}, orderId
   if (opening.has(orderId)) return;
   opening.add(orderId);
   try {
-    const plugin = requirePlugin('logisticsPlugin');
     const result = await request('orders.logistics', { orderId });
     if (!result?.waybillToken) throw new Error('微信物流查询暂不可用');
+    const platform = typeof wx.getDeviceInfo === 'function' ? wx.getDeviceInfo().platform : wx.getSystemInfoSync().platform;
+    if (platform === 'devtools') {
+      await Dialog.alert({ context, title: '请使用手机微信查看', content: '物流查询凭证已获取，微信物流插件需在手机微信中打开。' });
+      return;
+    }
+    // WeChat supports loading a plugin from another package without opening a page.
+    const plugin = await (requirePlugin as any).async('logisticsPlugin');
+    if (typeof plugin?.openWaybillTracking !== 'function') throw new Error('PLUGIN_API_MISSING');
     await plugin.openWaybillTracking({ waybillToken: result.waybillToken });
   } catch (error) {
     if (!/cancel/i.test(String(error?.errMsg || error?.message || ''))) {
-      await showError('微信物流查询暂不可用，请稍后重试或联系商家');
+      const code = String(error?.details?.providerCode || '');
+      await showError(code ? `微信物流服务暂不可用（${code}），请联系商家核查物流服务权限和运单信息` : '微信物流查询暂不可用，请稍后重试或联系商家');
     }
   } finally {
     opening.delete(orderId);

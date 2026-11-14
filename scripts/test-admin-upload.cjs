@@ -21,6 +21,7 @@ async function main() {
   const calls = [];
   let workerOutput;
   let workerCount = 0;
+  let workerModuleLoads = 0;
   let workerError = false;
   class Worker {
     constructor() { workerCount++; }
@@ -31,8 +32,10 @@ async function main() {
   }
   const images = load('../admin/src/lib/image-upload.ts', { require(name) {
     assert.equal(name, './image-upload.worker?worker&inline');
+    workerModuleLoads++;
     return { default: Worker };
   } });
+  assert.equal(workerModuleLoads, 0, 'rendering the admin must not load the image codec');
   const fetch = async (url, options) => {
     assert.equal(options.credentials, 'omit');
     if (url === 'https://api.test/admin') {

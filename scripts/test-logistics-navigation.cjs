@@ -8,7 +8,14 @@ const root = path.resolve(__dirname, '..');
 let page, component, failRequest = false, responseToken = 'official-token', blocked;
 const opens = [], requests = [], modals = [], clipboard = [];
 const pageContext = {};
+let platform = 'ios';
+let pluginLoads = 0, pluginError;
+const requirePlugin = () => { throw new Error("must load the subpackage plugin asynchronously"); };
+requirePlugin.async = async name => { pluginLoads++; assert.equal(name, "logisticsPlugin"); if (pluginError) throw pluginError; return { openWaybillTracking: options => opens.push(options) }; };
 const wx = {
+  getDeviceInfo: () => ({ platform }),
+  navigateTo: () => { throw new Error("logistics must not open an intermediate page"); },
+  openBusinessView: () => { throw new Error('logistics must not open receipt confirmation'); },
   navigateToMiniProgram: () => { throw new Error('third-party logistics is forbidden'); },
   setClipboardData: (options) => clipboard.push(options),
 };
@@ -21,10 +28,7 @@ function load(relative) {
   }).outputText;
   vm.runInNewContext(source, {
     exports, wx, console, getCurrentPages: () => [pageContext],
-    requirePlugin: name => {
-      assert.equal(name, 'logisticsPlugin');
-      return { openWaybillTracking: options => opens.push(options) };
-    },
+    requirePlugin,
     Page: value => { page = value; }, Component: value => { component = value; },
     require: name => name === './dialog' ? dialogApi : name.endsWith('/utils/api') ? { request: async (action, data) => {
       requests.push({ action, data });
@@ -64,6 +68,11 @@ async function run() {
   responseToken = 'retry-token';
   await openLogistics(shipment, 'order-1');
   assert.equal(opens.at(-1).waybillToken, 'retry-token', 'failure releases the busy guard');
+  platform = 'devtools'; const beforeDevice = opens.length;
+  await openLogistics(shipment, 'order-1');
+  assert.equal(opens.length, beforeDevice);
+  assert.equal(modals.at(-1).title, '请使用手机微信查看');
+  platform = 'ios';
   const requestCount = requests.length;
   await openLogistics({ logisticsNo: '' }, 'order-1');
   assert.equal(requests.length, requestCount);
@@ -71,6 +80,12 @@ async function run() {
   await openLogistics({ logisticsNo: 'RETURN-1' });
   assert.equal(requests.length, requestCount, 'return tracking is not submitted with the outbound recipient or payment');
 
+  pluginError = new Error('load failed');
+  await openLogistics(shipment, 'order-1');
+  assert.equal(modals.at(-1).title, '物流查询失败');
+  pluginError = undefined;
+  await openLogistics(shipment, 'order-1');
+  assert.equal(opens.at(-1).waybillToken, 'retry-token');
   load('miniprogram/pages/order/order-detail/index.ts');
   await page.onDeliveryClick.call({ data: { order: { orderId: 'order-from-page', logisticsVO: shipment } } });
   assert.equal(requests.at(-1).data.orderId, 'order-from-page');
@@ -86,7 +101,11 @@ assert.match(template, /bindtap="onLogisticsNoCopy"/);
 assert(template.indexOf('物流单号') > template.indexOf('下单时间'));
 const app = JSON.parse(fs.readFileSync(path.join(root, 'miniprogram/app.json'), 'utf8'));
 assert(!app.subpackages.find((pack) => pack.root === 'pages').pages.some((name) => /delivery-detail|logistics-webview/.test(name)));
-assert.equal(app.plugins.logisticsPlugin.provider, 'wx9ad912bf20548d92');
-console.log('PASS official logistics plugin, owner-order request, repeated taps, failure/retry, missing token, return fallback and copy');
+assert.equal(app.plugins, undefined);
+assert.equal(app.subpackages.find(p => p.root === 'logistics').pages.length, 0, 'plugin package has no intermediate page');
+assert(pluginLoads > 0);
+assert.equal(app.subpackages.find(p => p.root === 'logistics').plugins.logisticsPlugin.provider, 'wx9ad912bf20548d92');
+assert.equal(app.subpackages.find(p => p.root === 'logistics').plugins.logisticsPlugin.version, '2.3.0');
+console.log('PASS logistics query never opens receipt confirmation; direct async plugin opening without any intermediate page');
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

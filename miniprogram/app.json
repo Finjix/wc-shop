@@ -40,6 +40,17 @@
       "root": "utils",
       "name": "utils",
       "pages": []
+    },
+    {
+      "root": "logistics",
+      "name": "logistics",
+      "pages": [],
+      "plugins": {
+        "logisticsPlugin": {
+          "version": "2.3.0",
+          "provider": "wx9ad912bf20548d92"
+        }
+      }
     }
   ],
   "tabBar": {
@@ -68,9 +79,6 @@
     ]
   },
   "lazyCodeLoading": "requiredComponents",
-  "plugins": {
-    "logisticsPlugin": { "version": "2.1.5", "provider": "wx9ad912bf20548d92" }
-  },
   "window": {
     "backgroundColor": "#ffffff",
     "backgroundTextStyle": "light",

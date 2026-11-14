@@ -200,13 +200,21 @@ function orderCanShip(order: Order) {
     && listOf<Record<string, unknown>>(order.items).some((item) => shippingQuantityOf(order, item) > 0);
 }
 
+const COMMON_CARRIER_NAMES = ['顺丰', '中通', '圆通', '申通', '韵达', '极兔', '京东', '邮政', 'EMS', '德邦', '菜鸟', '百世', '安能', '跨越'];
+
+function carrierPriority(carrier: { label: string }) {
+  const index = COMMON_CARRIER_NAMES.findIndex((name) => carrier.label.toUpperCase().includes(name));
+  return index < 0 ? COMMON_CARRIER_NAMES.length : index;
+}
+
 function CarrierPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
   const [error, setError] = useState('');
   const load = () => {
     setError('');
     void adminApi.call<{ items: { value: string; label: string }[] }>('shipping.companies')
-      .then((result) => setOptions(result.items)).catch(() => setError('快递公司加载失败，请重试'));
+      .then((result) => setOptions([...result.items].sort((a, b) => carrierPriority(a) - carrierPriority(b))))
+      .catch(() => setError('快递公司加载失败，请重试'));
   };
   useEffect(() => { load(); }, []);
   return <Field label="快递公司"><Select value={value} options={options} filterable placeholder="请选择快递公司"

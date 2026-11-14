@@ -1,6 +1,5 @@
-// Keep the worker in the page bundle: starting image processing must not
-// depend on a late HTTP request over an idle gateway connection.
-import ImageUploadWorker from './image-upload.worker?worker&inline';
+// Keep the codec out of initial page loads; retain a self-contained worker for uploads.
+const loadImageUploadWorker = () => import('./image-upload.worker?worker&inline').then(module => module.default);
 
 export const IMAGE_ACCEPT = '.png,.jpg,.jpeg';
 export const MAX_SOURCE_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -44,6 +43,7 @@ export function prepareImageUpload(file: File, options: { preserveDimensions?: b
     if (!options.existingImage && file.size > MAX_SOURCE_IMAGE_BYTES) throw new Error('原图片不能超过 10MB');
     const bytes = await file.arrayBuffer();
     const format = inspectStaticImage(new Uint8Array(bytes), file.name);
+    const ImageUploadWorker = await loadImageUploadWorker();
     return new Promise<File>((resolve, reject) => {
       const worker = new ImageUploadWorker();
       const finish = () => { clearTimeout(timer); worker.terminate(); };

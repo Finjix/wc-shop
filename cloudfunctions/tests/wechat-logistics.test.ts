@@ -60,6 +60,7 @@ async function run() {
     waybill_id: 'FORGED', receiver_phone: 'forged', openid: 'forged' });
   assert.deepEqual(Object.keys(result), ['waybillToken']);
   assert.ok(result.waybillToken.startsWith('query-token-'));
+  assert.deepEqual(await logistics.diagnose(r, order), { queryReady: true });
   const before = calls.length;
   await assert.rejects(() => shopEndpoint({}, { auth: { uid: 'another-buyer' } }, r, 'orders.logistics', { orderId: order._id }), e => e.code === 'FORBIDDEN');
   await assert.rejects(() => shopEndpoint({}, {}, r, 'orders.logistics', { orderId: order._id }), e => e.code === 'UNAUTHENTICATED');
@@ -72,6 +73,7 @@ async function run() {
   await assert.rejects(() => shipping.sync(r, current()));
   assert.equal(calls.at(-1).name, 'follow_waybill');
   assert.equal(calls.at(-1).body.waybill_id, 'SF456');
+  assert.deepEqual(await logistics.diagnose(r, order), { queryReady: false, code: 'LOGISTICS_UNAVAILABLE', providerCode: '9300513' });
   const followCount = count('follow_waybill');
   failTrace = false;
   await shipping.sync(r, current());

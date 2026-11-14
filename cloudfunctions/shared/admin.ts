@@ -829,14 +829,19 @@ async function adminOrderAction(runtime, data, action) {
 }
 
 async function dashboardSummary(runtime) {
-  const [products, skus] = await Promise.all([
-    allMatching(col(runtime, COLLECTIONS.products), {}),
-    allMatching(col(runtime, COLLECTIONS.skus), {}),
+  const command = runtime.db.command;
+  const [skus, productCount] = await Promise.all([
+    allMatching(col(runtime, COLLECTIONS.skus), command?.lte ? { stockQuantity: command.lte(3) } : {}),
+    command?.neq ? count(col(runtime, COLLECTIONS.products), { deletedByAdmin: command.neq(true) })
+      : allMatching(col(runtime, COLLECTIONS.products), {}).then(items => items.filter(item => !item.deletedByAdmin).length),
   ]);
-  const productById = new Map();
-  products.filter((product) => !product.deletedByAdmin).forEach((product) => {
-    productById.set(String(product._id), product);
-  });
+  // Only fetch products referenced by low-stock SKUs, rather than the entire catalog.
+  const productIds = [...new Set(skus.filter(sku => skuStock(sku) >= 0 && skuStock(sku) <= 3).map(sku => String(sku.productId || '')).filter(Boolean))];
+  const products = [];
+  for (let offset = 0; offset < productIds.length; offset += 20) {
+    products.push(...(await Promise.all(productIds.slice(offset, offset + 20).map(id => getDoc(col(runtime, COLLECTIONS.products), id, false)))).filter(Boolean));
+  }
+  const productById = new Map(products.filter(product => !product.deletedByAdmin).map(product => [String(product._id), product]));
   const inventoryWarnings = skus.flatMap((sku) => {
     const product = productById.get(String(sku.productId));
     const stock = skuStock(sku);
@@ -868,7 +873,7 @@ async function dashboardSummary(runtime) {
   return {
     inventoryWarnings,
     metrics: {
-      productCount: products.filter((product) => !product.deletedByAdmin).length,
+      productCount,
       orderCount, commentCount, afterSaleCount,
       pendingShipmentCount, pendingAfterSaleCount, pendingReviewCommentCount,
       pendingAfterSalesCount: pendingAfterSaleCount,
@@ -1065,6 +1070,7 @@ async function executeAdmin(event, context, runtime, action, data) {
   if (action === 'activity.save') return require('./activity').saveActivity(runtime, data);
   if (action === 'payments.checkConfiguration') return require('./payments').checkConfiguration(runtime);
   if (action === 'shipping.companies') return require('./wechat-shipping').companies(runtime);
+  if (action === 'shipping.diagnose') return require('./wechat-logistics').diagnose(runtime, await adminOrderAction(runtime, data, 'orders.get'));
   if (action === 'payments.reconcile') { await require('./payments').reconcile(runtime); return { reconciled: true }; }
   const isVariantSave = action === 'products.save';
   const normalized = normalizeAdminAction(action, data);
