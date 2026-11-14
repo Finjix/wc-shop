@@ -16,6 +16,7 @@ Promise.resolve()
   .then(() => require('./catalog-lifecycle.test').run())
   .then(() => require('./maintenance-budget.test').run())
   .then(() => require('./wechat-pay.test').run())
+  .then(() => require('./wechat-logistics.test').run())
   .then(() => {
     console.log('cloudfunctions contract and regression tests passed');
 }).catch((error) => {

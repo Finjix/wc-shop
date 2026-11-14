@@ -6,11 +6,14 @@ const tokenCache = new Map();
 const paths = {
   'express.delivery.openMsg.getDeliveryList': '/cgi-bin/express/delivery/open_msg/get_delivery_list',
   'order.uploadShippingInfo': '/wxa/sec/order/upload_shipping_info',
+  'traceWaybill': '/cgi-bin/express/delivery/open_msg/trace_waybill',
+  'followWaybill': '/cgi-bin/express/delivery/open_msg/follow_waybill',
 };
 
 async function directApi(runtime, name, data) {
   const appid = runtime.wechatAppConfig?.appid || process.env.WECHAT_PAY_APPID;
   const secret = runtime.wechatAppConfig?.secret || process.env.WECHAT_APP_SECRET;
+  if (!appid || !secret) throw errorFrom('SHIPPING_SYNC_FAILED', { providerCode: 'APP_SECRET_REQUIRED' });
   const key = crypto.createHash('sha256').update(`${appid}:${secret}`).digest('hex');
   const request = async (path, body) => {
     try {
@@ -112,7 +115,10 @@ async function sync(runtime, intent) {
       logistics_type: 1, delivery_mode: 2, is_all_delivered: complete,
       shipping_list: list, upload_time: new Date().toISOString(), payer: { openid: intent.openid },
     });
+    // Keep the successful upload when logistics registration fails afterwards.
+    await runtime.db.collection('payments').doc(intent._id).update({ shippingFingerprint: fingerprint });
   }
+  await require('./wechat-logistics').sync(runtime, intent, shipped);
   await withTransaction(runtime.db, async (tx) => {
     const current = await getDoc(tx.collection('payments'), intent._id, true);
     if ((current.shippingRevision || '') !== revision) return;
@@ -134,4 +140,4 @@ async function syncResult(runtime, result) {
   }
   return roots.length ? { ...result, shippingSyncPending: pending.length > 0 } : result;
 }
-module.exports = { companies, dirty, carrier, sync, syncResult };
+module.exports = { companies, dirty, carrier, sync, syncResult, directApi };

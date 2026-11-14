@@ -5,16 +5,14 @@ const vm = require('node:vm');
 const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
-let page, component;
-const jumps = [], routes = [], modals = [], clipboard = [];
+let page, component, failRequest = false, responseToken = 'official-token', blocked;
+const opens = [], requests = [], modals = [], clipboard = [];
 const pageContext = {};
-const dialogApi = { default: { alert: (options) => { modals.push(options); return Promise.resolve(); } } };
 const wx = {
-  navigateToMiniProgram: (options) => jumps.push(options),
-  navigateTo: (options) => routes.push(options),
-  showModal: () => { throw new Error('logistics errors must use the app dialog'); },
+  navigateToMiniProgram: () => { throw new Error('third-party logistics is forbidden'); },
   setClipboardData: (options) => clipboard.push(options),
 };
+const dialogApi = { default: { alert: (options) => { modals.push(options); return Promise.resolve({ index: 0 }); } } };
 function load(relative) {
   const filename = path.resolve(root, relative);
   const exports = {};
@@ -23,97 +21,72 @@ function load(relative) {
   }).outputText;
   vm.runInNewContext(source, {
     exports, wx, console, getCurrentPages: () => [pageContext],
-    Page: (value) => { page = value; },
-    Component: (value) => { component = value; },
-    require: (name) => name === './dialog' ? dialogApi : name.endsWith('/utils/logistics') ? logisticsApi : {},
+    requirePlugin: name => {
+      assert.equal(name, 'logisticsPlugin');
+      return { openWaybillTracking: options => opens.push(options) };
+    },
+    Page: value => { page = value; }, Component: value => { component = value; },
+    require: name => name === './dialog' ? dialogApi : name.endsWith('/utils/api') ? { request: async (action, data) => {
+      requests.push({ action, data });
+      if (blocked) await blocked;
+      if (failRequest) throw new Error('unavailable');
+      return { waybillToken: responseToken };
+    } } : name.endsWith('/utils/logistics') ? logisticsApi : {},
   }, { filename });
   return exports;
 }
 const logisticsApi = load('miniprogram/components/_shared/frontend/order/utils/logistics.ts');
 const { openLogistics } = logisticsApi;
 
-const shipment = {
-  logisticsNo: ' SF123&?#中文 ', logisticsCompanyName: '顺丰', logisticsCompanyCode: 'SF',
-  receiverPhone: '13800000000', receiverName: '收件人', receiverAddress: '收货地址',
-};
-openLogistics(shipment);
-assert.equal(jumps[0].appId, 'wx6885acbedba59c14');
-assert.equal(jumps[0].envVersion, 'release');
-const query = new URLSearchParams(jumps[0].path.split('?').slice(1).join('?'));
-assert.equal(query.get('nu'), shipment.logisticsNo.trim());
-assert.equal(query.get('querysource'), 'third_xcx');
-assert.deepEqual([...query.keys()], ['nu', 'querysource'], 'send only the tracking number and source');
-assert.equal(routes.length, 0, 'the click opens the destination directly');
-assert.equal(modals.length, 0, 'no extra confirmation before the platform jump');
-jumps[0].fail({ errMsg: 'navigateToMiniProgram:fail cancel' });
-assert.equal(routes.length, 0, 'cancel stays on the current page');
-assert.equal(modals.length, 0, 'user cancellation is not an error');
-jumps[0].fail({ errMsg: 'navigateToMiniProgram:fail unavailable' });
-assert.equal(routes.length, 0, 'failure must not open another local page');
-assert.equal(modals.length, 1);
-assert.equal(modals[0].title, '物流查询失败');
-assert.equal(modals[0].content, '可以手动粘贴到其他小程序查询');
-assert.equal(modals[0].confirmBtn, null, 'actions replace the default confirm button');
-assert.equal(modals[0].actions[0].content, '复制物流号');
-assert.equal(modals[0].actions[1].content, '确认');
-assert.equal(modals[0].actions[0].disabled, false);
-assert.equal(modals[0].context, pageContext, 'errors use the current page dialog, including component entry points');
+async function run() {
+  const shipment = { logisticsNo: 'SF123', receiverPhone: '13800000000', receiverName: '收件人', receiverAddress: '地址' };
+  await openLogistics(shipment, 'order-1');
+  assert.equal(requests[0].action, 'orders.logistics');
+  assert.equal(JSON.stringify(requests[0].data), JSON.stringify({ orderId: 'order-1' }), 'only the order ID is accepted from the client');
+  assert.equal(opens[0].waybillToken, 'official-token');
+  assert.equal(modals.length, 0);
+  let release;
+  blocked = new Promise(resolve => { release = resolve; });
+  const first = openLogistics(shipment, 'order-1');
+  await openLogistics(shipment, 'order-1');
+  assert.equal(requests.length, 2, 'repeated taps share the busy guard');
+  release(); await first; blocked = null;
 
-for (const key of ['trackingNo', 'trackingNumber']) {
-  openLogistics({ [key]: 'TRACK-ALIAS' });
-  assert.match(jumps.at(-1).path, /nu=TRACK-ALIAS&/);
-}
-const beforeMissing = jumps.length;
-openLogistics({ logisticsNo: '  ' });
-assert.equal(jumps.length, beforeMissing);
-assert.equal(modals.at(-1).title, '物流查询失败');
-assert.equal(modals.at(-1).actions[0].disabled, true, 'missing tracking cannot overwrite the clipboard');
-openLogistics({ nodes: [{ title: '已发货' }] });
-assert.equal(routes.length, 0, 'cached nodes must not reopen the removed local page');
-const navigate = wx.navigateToMiniProgram;
-delete wx.navigateToMiniProgram;
-const beforeUnsupported = modals.length;
-openLogistics({ trackingNo: 'UNSUPPORTED' });
-assert.equal(modals.length, beforeUnsupported + 1);
-assert.equal(modals.at(-1).title, '物流查询失败');
-assert(modals.every((modal) => modal.content === '可以手动粘贴到其他小程序查询'));
-wx.navigateToMiniProgram = navigate;
+  failRequest = true;
+  await openLogistics(shipment, 'order-1');
+  assert.equal(modals.at(-1).title, '物流查询失败');
+  assert.equal(modals.at(-1).context, pageContext);
+  assert.equal(clipboard.at(-1).data, 'SF123');
+  const beforeCancel = modals.length;
+  failRequest = false; responseToken = '';
+  await openLogistics(shipment, 'order-1');
+  assert.equal(modals.length, beforeCancel + 1, 'a missing server token is not passed to the plugin');
+  responseToken = 'retry-token';
+  await openLogistics(shipment, 'order-1');
+  assert.equal(opens.at(-1).waybillToken, 'retry-token', 'failure releases the busy guard');
+  const requestCount = requests.length;
+  await openLogistics({ logisticsNo: '' }, 'order-1');
+  assert.equal(requests.length, requestCount);
+  assert.equal(modals.at(-1).actions[0].disabled, true);
+  await openLogistics({ logisticsNo: 'RETURN-1' });
+  assert.equal(requests.length, requestCount, 'return tracking is not submitted with the outbound recipient or payment');
 
-load('miniprogram/pages/order/order-detail/index.ts');
-page.onDeliveryClick.call({ data: { order: { logisticsVO: shipment } } });
-assert.equal(new URLSearchParams(jumps.at(-1).path.split('?')[1]).get('nu'), shipment.logisticsNo.trim());
-assert.equal(clipboard.length, 0, 'navigation never overwrites the clipboard');
-page.onLogisticsNoCopy.call({ data: { order: { logisticsVO: shipment } } });
-assert.equal(clipboard[0].data, shipment.logisticsNo.trim());
-page.onLogisticsNoCopy.call({ data: { order: {} } });
-assert.equal(clipboard.length, 1, 'missing tracking number must not overwrite the clipboard');
-load('miniprogram/pages/order/after-service-detail/index.ts');
-page.onLogisticsTap.call({ data: { service: { logistics: { logisticsNo: 'RETURN-1' } } } });
-assert.match(jumps.at(-1).path, /nu=RETURN-1&/);
-load('miniprogram/components/order/after-service-button-bar/index.ts');
-component.methods.viewDelivery({ logisticsVO: { logisticsNo: 'RETURN-2' } });
-assert.match(jumps.at(-1).path, /nu=RETURN-2&/);
-
+  load('miniprogram/pages/order/order-detail/index.ts');
+  await page.onDeliveryClick.call({ data: { order: { orderId: 'order-from-page', logisticsVO: shipment } } });
+  assert.equal(requests.at(-1).data.orderId, 'order-from-page');
+  page.onLogisticsNoCopy.call({ data: { order: { logisticsVO: shipment } } });
+  assert.equal(clipboard.at(-1).data, 'SF123');
+  load('miniprogram/pages/order/after-service-detail/index.ts');
+  page.onLogisticsTap.call({ data: { service: { logistics: { logisticsNo: 'RETURN-1' } } } });
+  load('miniprogram/components/order/after-service-button-bar/index.ts');
+  component.methods.viewDelivery({ logisticsVO: { logisticsNo: 'RETURN-2' } });
 const template = fs.readFileSync(path.join(root, 'miniprogram/pages/order/order-detail/index.wxml'), 'utf8');
 assert.match(template, /class="pay-item pay-item--logistics" wx:if="\{\{order.logisticsVO.logisticsNo\}\}"/);
 assert.match(template, /bindtap="onLogisticsNoCopy"/);
 assert(template.indexOf('物流单号') > template.indexOf('下单时间'));
 const app = JSON.parse(fs.readFileSync(path.join(root, 'miniprogram/app.json'), 'utf8'));
 assert(!app.subpackages.find((pack) => pack.root === 'pages').pages.some((name) => /delivery-detail|logistics-webview/.test(name)));
-assert.equal(routes.length, 0, 'all order and return entry points use the external mini program');
-console.log('PASS logistics direct navigation, error modal, cancel, privacy, order/return entry points and tracking copy row');
-(async () => {
-  const beforeCopy = clipboard.length;
-  dialogApi.default.alert = () => Promise.resolve({ index: 0 });
-  openLogistics({ trackingNo: ' COPY-TRACKING ' });
-  jumps.at(-1).fail({ errMsg: 'unavailable' });
-  await Promise.resolve();
-  assert.equal(clipboard.length, beforeCopy + 1);
-  assert.equal(clipboard.at(-1).data, 'COPY-TRACKING');
-  dialogApi.default.alert = () => Promise.resolve({ index: 1 });
-  openLogistics({ trackingNo: 'DO-NOT-COPY' });
-  jumps.at(-1).fail({ errMsg: 'unavailable' });
-  await Promise.resolve();
-  assert.equal(clipboard.length, beforeCopy + 1, 'confirm only dismisses the dialog');
-  console.log('PASS copy action copies the current tracking number; confirm leaves the clipboard unchanged');
-})().catch((error) => { console.error(error); process.exitCode = 1; });
+assert.equal(app.plugins.logisticsPlugin.provider, 'wx9ad912bf20548d92');
+console.log('PASS official logistics plugin, owner-order request, repeated taps, failure/retry, missing token, return fallback and copy');
+}
+run().catch(error => { console.error(error); process.exitCode = 1; });

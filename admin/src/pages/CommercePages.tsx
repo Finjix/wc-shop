@@ -53,7 +53,7 @@ function useAction() {
     try {
       const result = await adminApi.call<T>(action, payload);
       message((result as { shippingSyncPending?: boolean })?.shippingSyncPending
-        ? `${success}，微信发货信息待同步，将自动重试` : success);
+        ? `${success}，微信发货信息或物流服务待同步，将自动重试` : success);
       return result === undefined ? true as T : result;
     } catch (error) {
       message(error instanceof Error ? error.message : '操作失败', 'error');

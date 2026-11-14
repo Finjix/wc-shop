@@ -1443,6 +1443,7 @@ async function executeShop(event, context, runtime, action, data) {
   if (action === 'orders.count') return orderCount(runtime, event, context);
   if (action === 'orders.businessTime') return { telephone: '' };
   if (action === 'orders.detail') return orderDetail(runtime, event, context, data);
+  if (action === 'orders.logistics') return require('./wechat-logistics').query(runtime, await orderDetail(runtime, event, context, data));
   if (action === 'orders.confirmReceived' || action === 'orders.deleteCancelled' || action === 'orders.delete' || action === 'orders.updateAddress') return updateOrderState(runtime, event, context, data, action);
   if (action.startsWith('comments.')) return commentsAction(runtime, event, context, data, action);
   if (action.startsWith('afterSales.')) return afterSalesAction(runtime, event, context, data, action);

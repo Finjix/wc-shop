@@ -226,7 +226,7 @@ Page({
   },
 
   onDeliveryClick() {
-    openLogistics(this.data.order.logisticsVO || {});
+    return openLogistics(this.data.order.logisticsVO || {}, this.data.order.orderId || this.data.order._id || this.data.order.orderNo);
   },
 
   onLogisticsNoCopy() {

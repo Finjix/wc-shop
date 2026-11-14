@@ -35,6 +35,22 @@ async function run() {
     r.app = { auth: () => ({ getUserInfo: () => ({ uid: 'user-1', openId: 'openid-1', appId: config.appid }) }) };
     return r;
   }
+  function enableOfficialLogistics(r) {
+    r.wechatAppConfig = { appid: config.appid, secret: crypto.randomBytes(16).toString('hex') };
+    for (const order of Object.values(r.records.orders)) {
+      for (const item of order.items) item.productSnapshot.primaryImage = 'https://example.test/goods.jpg';
+    }
+    r.wechatFetch = async (url, options) => {
+      let result;
+      if (url.endsWith('/cgi-bin/stable_token')) result = { access_token: 'logistics-test-token', expires_in: 7200 };
+      else if (/\/(trace_waybill|follow_waybill)\?/.test(url)) result = { errcode: 0, waybill_token: 'test-waybill-token' };
+      else result = (await r.app.callWxOpenApi({
+        apiName: url.includes('get_delivery_list') ? 'express.delivery.openMsg.getDeliveryList' : 'order.uploadShippingInfo',
+        requestData: JSON.parse(options.body),
+      })).result;
+      return { ok: true, json: async () => result };
+    };
+  }
   const ctx = { auth: { uid: 'user-1' } };
   const create = (r, key = 'payment-test') => shopEndpoint({}, ctx, r, 'orders.create', {
     requestKey: key, address: localAddress, items: [{ skuId: 'sku-new', quantity: 2 }],
@@ -276,6 +292,7 @@ async function run() {
       uploads.push(requestData);
       return { result: { errcode: 0 } };
     };
+    enableOfficialLogistics(split);
     const companies = await adminEndpoint({}, {}, split, 'shipping.companies', {});
     assert.deepStrictEqual(companies.items, [{ value: 'SF', label: '顺丰速运' }]);
     await assert.rejects(() => adminEndpoint({}, {}, split, 'orders.ship', { orderId: big._id, trackingNo: 'SF123' }), (e) => e.code === 'INVALID_ARGUMENT');
@@ -324,6 +341,7 @@ async function run() {
       transaction_id: 'wx-batch', amount: { total: 400, currency: 'CNY' } });
     const batchUploads = [];
     batch.app.callWxOpenApi = async ({ requestData }) => { batchUploads.push(requestData); return { result: { errcode: 0 } }; };
+    enableOfficialLogistics(batch);
     const batchInput = { orderIds: batchOrders.orderIds, groupKey: require('../shared/order-shipping').shippingGroupKey(batchOrders.orders[0]),
       trackingNo: 'SF-BATCH-1', expressCompany: 'SF' };
     assert.strictEqual((await adminEndpoint({}, {}, batch, 'orders.shipBatch', batchInput)).shippingSyncPending, false);

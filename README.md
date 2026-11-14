@@ -38,9 +38,18 @@ npm --prefix admin run dev -- --host 127.0.0.1 --port 5173
 
 ## 物流查询
 
-订单和退货售后的「查看物流」通过用户点击直接跳转快递100小程序查询结果页，携带运单号，由快递100识别物流公司；无需物流 API 密钥。遵循[快递100官方跳转协议](https://m.kuaidi100.com/open/miniprogram.jsp)，目标 AppID 为 `wx6885acbedba59c14`。微信会弹窗确认跳转，用户取消时保持原页。
+订单详情「查看物流」使用[微信官方物流查询插件](https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/industry/express/business/express_search.html)，`app.json` 已声明 `logisticsPlugin`（provider `wx9ad912bf20548d92`，版本 `2.1.5`）。前端仅向 `orders.logistics` 提交订单 ID，服务端校验订单购买者、真实微信付款记录和已发货状态，再返回 `waybillToken`，通过 `openWaybillTracking` 打开官方页面。运单号、手机号、付款人和交易号均从服务端订单快照读取，不接受客户端覆盖。查询凭证保存在仅服务端访问的 `payments.logisticsRecords`，不放入订单列表。
 
-跳转失败时在当前页面弹窗提示，不再进入本地物流页或网页。订单详情的下单时间下方显示物流单号并支持手动复制；不会自动覆盖剪贴板，也不传收货人、收货电话或地址。部分承运商查询可能还需用户在快递100内补充手机号验证。
+真实微信支付订单发货或修改物流后，在原有发货信息上报之外，分别调用[查询组件传运单](https://developers.weixin.qq.com/miniprogram/dev/server/API/weixin-express/express-search/api_trace_waybill)与[物流消息传运单](https://developers.weixin.qq.com/miniprogram/dev/server/API/weixin-express/express-msg/api_follow_waybill)。服务端向微信提交实际购买者 OpenID、微信支付 transaction_id、承运商编码、运单号、收件手机号及商品名称/图片和订单回访路径。同一次付款内同一承运商/运单的商品合并登记；云存储图片转换为 HTTPS 地址。两项登记分别保存成功状态，失败保留 `shippingPending`，现有 `payment-reconcile` 定时器重试，已成功的发货上报不因物流登记失败而重复上传。
+
+部署和开通步骤：
+
+1. 在微信公众平台「功能 → 物流服务」分别确认「查询组件」和「物流消息」已开通；只开通「快递配送」不足以启用这两个能力。按微信当前要求完成资质申请及插件授权。查询组件要求开通微信支付且过去 30 天有交易；物流消息要求小程序已上线、开通微信支付且近 90 天线上交易笔数大于 0，最终以后台审核结果为准。截图中的「查看接口文档」本身不能证明接口权限正常。
+2. 在云函数环境变量中确认 `WECHAT_PAY_APPID` 对应当前小程序，`WECHAT_APP_SECRET` 为该小程序的 AppSecret。这两个新运单接口官方明确**不支持云调用**，必须从服务端以 access_token 调用；不应将它们添加为 `config.json` 的云调用权限，也不要把 AppSecret 填入小程序或管理后台前端。
+3. 执行 `npm run package:deploy` 后，部署完整的 `dist/cloudfunctions/wc-shop-function`（云端安装依赖），更新管理后台静态包。核对函数超时 60 秒及 `payment-reconcile` 每 5 分钟触发器。上传、审核并发布包含插件声明和新查询入口的小程序版本；仅更新云函数无法替换客户端旧入口。
+4. 用本小程序真实支付的订单验收：选择微信物流公司列表中的公司并填写真实运单发货，核对待同步状态清除，真机预览点击「查看物流」打开官方组件，商品卡片回到相应订单。该插件无法在开发者工具模拟器内完整测试。物流消息由微信在揽件、派件、签收节点发送，需要真实流转验证；查询插件通知还取决于购买者是否订阅微信快递服务。
+
+历史已发货订单可在查看物流时按需登记查询；物流消息登记可由后台保存一次正确的物流信息触发，不会批量回填历史运单。模拟付款、无真实付款记录或资料缺失的订单不会伪造微信交易数据。退货运单暂保留复制查询入口，不把退货单错误地当作商家发货单提交。查询失败在当前页面提示，并由用户主动复制单号，不再跳转第三方小程序。测试命令：`npm run test:logistics`、`npm run test:cloud`、`npm run check`、`npm run test:subpackage-dependencies`。
 
 微信基础库从 2020 年 4 月起不再要求配置 `navigateToMiniProgramAppIdList`。开发者工具不会真实打开其他小程序，需使用体验版在手机微信验收跳转、取消、返回和查询结果。公开第三方网页不能仅凭 URL 在小程序内打开，仍需满足 `web-view` 的业务域名配置要求，因此当前入口使用小程序直跳。
 
