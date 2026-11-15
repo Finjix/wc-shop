@@ -38,7 +38,7 @@
           color="#695941"
         />
       </t-cell>
-      <t-cell wx:if="{{canApplyReturn}}" title="退货退款" description="请按原包裹的寄件地址退货" arrow bindtap="onApplyReturnGoods">
+      <t-cell wx:if="{{canApplyReturn}}" title="退货退款" description="商家同意后，请按指定退货地址寄回" arrow bindtap="onApplyReturnGoods">
         <t-icon
           slot="left-icon"
           prefix="wr"

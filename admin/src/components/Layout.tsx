@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { ImageLightbox } from './ImageLightbox';
+import { LoadingState } from './Ui';
 
 const navItems = [
   { to: '/overview', label: '概览' },
@@ -55,7 +56,7 @@ export function AdminLayout() {
         {notice && <div key={notice.id} className={`admin-toast ${notice.kind}`} role="status" aria-live="polite">{notice.text}</div>}
         <div className="page-content">
           <button className="menu-button" onClick={() => setOpen(true)} aria-label="打开导航">☰</button>
-          <Outlet />
+        <Suspense fallback={<LoadingState />}><Outlet /></Suspense>
         </div>
       </main>
     </div>

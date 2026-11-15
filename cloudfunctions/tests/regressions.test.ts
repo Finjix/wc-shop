@@ -682,6 +682,46 @@ async function testInactiveProductsArePinnedBeforePagination() {
   assert.strictEqual(result.total, 2);
 }
 
+async function testAdminProductPagesDoNotScanCatalog() {
+  const runtime = makeRuntime();
+  runtime.records.products = {};
+  // makeRuntime collections resolve their bucket on each call.
+  for (let index = 0; index < 240; index++) {
+    const id = `product-${String(index).padStart(3, '0')}`;
+    runtime.records.products[id] = { _id: id, title: id, status: index < 5 ? 'inactive' : 'active', updatedAt: id };
+  }
+  runtime.records.products.deleted = { _id: 'deleted', status: 'inactive', deletedByAdmin: true };
+  const originalCollection = runtime.db.collection;
+  let returned = 0;
+  runtime.db.collection = (name) => {
+    const wrap = (ref) => new Proxy(ref, { get(target, key) {
+      if (key === 'get') return async () => {
+        const result = await target.get();
+        if (name === 'products') returned += result.data.length;
+        return result;
+      };
+      if (['where', 'orderBy', 'limit', 'skip'].includes(key)) return (...args) => wrap(target[key](...args));
+      return typeof target[key] === 'function' ? target[key].bind(target) : target[key];
+    } });
+    return wrap(originalCollection(name));
+  };
+  const read = (extra) => adminEndpoint({}, {}, runtime, 'products.list', {
+    inactiveFirst: true, pageSize: 4, orderBy: '_id', direction: 'asc', ...extra,
+  });
+  const first = await read({ page: 1 });
+  const crossing = await read({ page: 2 });
+  const last = await read({ page: 60 });
+  const active = await read({ page: 1, status: 'active' });
+  const searched = await read({ page: 1, query: 'product-23' });
+  assert.strictEqual(first.total, 240);
+  assert.deepStrictEqual(crossing.items.map(row => row._id), ['product-004', 'product-005', 'product-006', 'product-007']);
+  assert.strictEqual(last.items[3]._id, 'product-239');
+  assert.strictEqual(active.total, 235);
+  assert(active.items.every(row => row.status === 'active'));
+  assert.strictEqual(searched.total, 10);
+  assert.strictEqual(returned, 20, 'five pages fetch only twenty product documents, including a partition boundary');
+}
+
 async function testSkuInventoryCanBeSetSeparatelyWithoutProductSaveResettingIt() {
   const runtime = makeRuntime();
   const context = { auth: { uid: 'admin-1' } };
@@ -1756,23 +1796,23 @@ async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
   const returnPreview = await shopEndpoint({}, user, runtime, 'afterSales.preview', { orderId: created._id });
   assert(returnPreview.allowedTypes.includes(10));
   assert.strictEqual(returnPreview.returnAddressConfigured, undefined);
-  const approvedWithoutAddress = await adminEndpoint({}, admin, runtime, 'afterSales.review', {
+  await assert.rejects(() => adminEndpoint({}, admin, runtime, 'afterSales.review', {
     id: requestWithoutAddress._id, status: 'approved', type: 10,
-  });
-  assert.strictEqual(approvedWithoutAddress.status, 'approved', 'return approval does not require a configured return address');
-  assert.strictEqual(approvedWithoutAddress.returnAddressSnapshot, undefined);
+  }), appError('RETURN_ADDRESS_REQUIRED'));
+  assert.strictEqual(runtime.records.afterSales[requestWithoutAddress._id].status, 'pending_review');
   await shopEndpoint({}, user, runtime, 'afterSales.withdraw', { afterSaleId: requestWithoutAddress._id });
   runtime.records.settings = { global: { _id: 'global', value: { returnAddress: { receiver: '旧地址', phone: '13800000000', detail: '不应再使用的系统地址' } } } };
+  const returnAddress = await adminEndpoint({}, admin, runtime, 'returnAddresses.save', { receiver: '商家', phone: '13800000000', detail: '广东省深圳市指定退货仓' });
 
   const returned = await shopEndpoint({}, user, runtime, 'afterSales.create', {
     orderId: created._id, type: 20, reason: '质量问题', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }],
   });
-  const approved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: returned._id, status: 'approved', type: 10 });
+  const approved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: returned._id, status: 'approved', type: 10, returnAddressId: returnAddress._id });
   assert.strictEqual(approved.requestedType, 20);
   assert.strictEqual(approved.decidedType, 10);
   assert.strictEqual(runtime.records.afterSales[returned._id].type, 10);
   assert.strictEqual(approved.status, 'approved');
-  assert.strictEqual(approved.returnAddressSnapshot, undefined, 'legacy configured addresses are not supplied to new return approvals');
+  assert.deepStrictEqual(approved.returnAddressSnapshot, returnAddress, 'use the merchant-selected address, never the legacy global address');
   const tracking = await shopEndpoint({}, user, runtime, 'afterSales.submitTracking', {
     afterSaleId: returned._id, logisticsCompanyName: '中通', trackingNo: 'ZT003',
   });
@@ -1819,7 +1859,7 @@ async function testReturnRefundStateMachineAndPartialShipmentAccounting() {
   const confirmReturn = () => adminEndpoint({}, admin, runtime, 'afterSales.confirmReturn', { afterSaleId: lastItem._id, amount: 100 });
   await assert.rejects(submitReturn, appError('ORDER_STATE_INVALID'));
   await assert.rejects(confirmReturn, appError('ORDER_STATE_INVALID'));
-  const returnApproved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: lastItem._id, status: 'approved', type: 10 });
+  const returnApproved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: lastItem._id, status: 'approved', type: 10, returnAddressId: returnAddress._id });
   assert.strictEqual(returnApproved.status, 'approved');
   assert.strictEqual(returnApproved.decidedType, 10);
   assert.strictEqual(runtime.records.orders[created._id].refundAmount, 100, 'application approval must not refund');
@@ -1921,7 +1961,8 @@ async function testMerchantRefundAmountsAndReservationRelease() {
   const shipped = await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: order._id, trackingNo: 'SF001' });
   assert.strictEqual(shipped.shippedQuantities['sku-new'], 1);
   const last = await shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: order._id, type: 10, receiptStatus: 1, reason: '退货', rightsItem: [{ skuId: 'sku-new', rightsQuantity: 1 }] });
-  const approved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: last._id, status: 'approved', type: 10, amount: 30 });
+  const returnAddress = await adminEndpoint({}, admin, runtime, 'returnAddresses.save', { receiver: '商家', phone: '13800000000', detail: '广东省深圳市指定退货仓' });
+  const approved = await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: last._id, status: 'approved', type: 10, amount: 30, returnAddressId: returnAddress._id });
   assert.strictEqual(approved.amount, 100, 'return application approval must not set the final refund amount');
   assert.strictEqual(runtime.records.orders[order._id].refundAmount, 100);
   assert.strictEqual(runtime.records.orders[order._id].pendingRefundAmount, 100, 'keep original reservation until refund completes');
@@ -2138,6 +2179,7 @@ const cases = [
   { name: 'deleting a product clears home links while preserving slots', run: testDeletingProductClearsHomeLinksWithoutRemovingSlots },
   { name: 'home cleanup rejects old product aliases and preserves current document IDs', run: testHomeCleanupPreservesActiveLegacyProductLinks },
   { name: 'inactive products are pinned before pagination', run: testInactiveProductsArePinnedBeforePagination },
+  { name: 'admin product pagination bounds database reads across status partitions, filters and search', run: testAdminProductPagesDoNotScanCatalog },
   { name: 'three-level categories require leaf images, aggregate searches and cascade deletions', run: testThreeLevelCategoriesAndCascadeDeletion },
 ];
 

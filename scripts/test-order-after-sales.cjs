@@ -75,7 +75,7 @@ async function run() {
   });
   assert.equal(rejected.rights.userRightsStatusDesc, '驳回原因：超过售后期');
   const returnApproved = normalizeRecord({ _id: 'as-2', status: 'approved', type: 10, items: [] });
-  assert.equal(returnApproved.rights.userRightsStatusName, '请按寄件地址退货并填写物流单号');
+  assert.equal(returnApproved.rights.userRightsStatusName, '请查看退货地址并填写物流单号');
   assert.equal(returnApproved.rights.userRightsStatusDesc, returnApproved.rights.userRightsStatusName, 'approved returns have no extra status description');
   assert.equal(returnApproved.buttonVOs.find((button) => button.type === 3).name, '填写退货物流');
   assert.equal(returnApproved.buttonVOs.find((button) => button.type === 2).name, '撤销申请');
@@ -88,7 +88,7 @@ async function run() {
   response = { items: [{ _id: 'waiting-return', status: 'approved', type: 10, items: [], amount: 100 }], total: 1, page: 1, pageSize: 10 };
   await listPage.getAfterServiceList();
   assert.equal(listPage.data.dataList[0].statusName, '待用户退货');
-  assert.equal(returnApproved.rights.userRightsStatusName, '请按寄件地址退货并填写物流单号', 'the detail status keeps the full instructions');
+  assert.equal(returnApproved.rights.userRightsStatusName, '请查看退货地址并填写物流单号', 'the detail status keeps the full instructions');
   const { afterSalePolicy } = load('admin/src/lib/after-sale-policy.ts');
   const returnPolicy = afterSalePolicy({ scenario: 'after_sale', requestedType: 10, amount: 100 });
   assert.equal(returnPolicy.fixedType, null);
@@ -112,9 +112,9 @@ async function run() {
     const detailPage = { ...detailDefinition, rightsNo: 'return-detail', data: { ...detailDefinition.data }, setData(patch) { Object.assign(this.data, patch); } };
     await detailPage.getService();
     assert.equal(detailPage.data.service.bottomActions, ['approved', 'pending_review', 'rejected', 'refunding'].includes(status), 'return tracking edits, withdrawal and reapplication share the bottom action bar');
-    if (status === 'approved') assert.equal(detailPage.data.service.statusName, '待用户退货');
+    if (status === 'approved') assert.equal(detailPage.data.service.statusName, '请按以下地址退货');
     assert.equal(detailPage.data.service.showReturnInstructions, status === 'approved', 'only an approved return awaiting tracking needs sender-address instructions');
-    assert.equal(detailPage.data.service.receiverAddress, undefined, 'legacy system return addresses are ignored');
+    assert.equal(detailPage.data.service.returnAddress.detail, '退货地址', 'show the immutable merchant-selected address');
     if (['refunding', 'refunded'].includes(status)) assert.equal(detailPage.data.service.logisticsNo, 'SF001');
   }
   const detailTemplate = readMiniProgramSource(path.join(root, 'miniprogram/pages/order/after-service-detail/index.wxml'), 'utf8');
@@ -123,12 +123,22 @@ async function run() {
   assert.match(detailTemplate, /<view>查看物流<\/view>/);
   assert.doesNotMatch(detailTemplate, /description="\{\{service.logisticsDescription\}\}"|service-detail__button-bar/);
   assert.match(detailTemplate, /wx:if="\{\{service.showReturnInstructions\}\}"/);
-  assert.match(detailTemplate, /请按原包裹的寄件地址退货，并填写退货物流单号。/);
-  assert.doesNotMatch(detailTemplate, /service.receiverAddress|service.receiverName|service.receiverPhone|onAddressCopy/);
+  assert.match(detailTemplate, /请按以上地址退货，并填写退货物流单号。/);
+  assert.match(detailTemplate, /service.returnAddress.receiver/);
+  assert.match(detailTemplate, /service.returnAddress.phone/);
+  assert.match(detailTemplate, /service.returnAddress.detail/);
+  assert.match(detailTemplate, /onReturnAddressCopy/);
+  response = { _id: 'legacy-return', status: 'approved', type: 10, items: [], amount: 100 };
+  const legacyPage = { ...detailDefinition, rightsNo: 'legacy-return', data: {}, setData(patch) { Object.assign(this.data, patch); } };
+  await legacyPage.getService();
+  assert.equal(legacyPage.data.service.returnAddress, null);
+  assert.equal(legacyPage.data.service.showReturnInstructions, true);
+  assert.match(detailTemplate, /请联系商家确认退货地址/);
   const applySource = readMiniProgramSource(path.join(root, 'miniprogram/pages/order/apply-service/index.ts'), 'utf8');
   const applyTemplate = readMiniProgramSource(path.join(root, 'miniprogram/pages/order/apply-service/index.wxml'), 'utf8');
   assert.doesNotMatch(applySource + applyTemplate, /returnAddressConfigured|returnAddressMissing|hasReturnAddress|商家尚未配置退货地址/);
-  assert.match(applyTemplate, /请按原包裹的寄件地址退货/);
+  assert.match(applyTemplate, /商家同意后，请按指定退货地址寄回/);
+  assert.doesNotMatch(detailTemplate + applyTemplate, /原包裹的寄件地址/);
   assert.doesNotMatch(commerceSource, /售后地址设置|export function SettingsPage/);
 
   const trackingApi = load('miniprogram/services/order/fill-tracking-no/api.ts');

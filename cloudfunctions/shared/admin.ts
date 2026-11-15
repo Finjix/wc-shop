@@ -326,9 +326,26 @@ async function catalogAction(runtime, data, action) {
       const field = entity === 'skus' ? 'skuId' : entity === 'products' ? 'title' : 'name';
       where[field] = runtime.db.RegExp({ regexp: escapeRegExp(keyword), options: 'i' });
     }
-    const fallbackProductList = entity === 'products' && (data.inactiveFirst === true || !runtime.db.command?.neq);
+    const inactiveFirst = entity === 'products' && data.inactiveFirst === true && !data.status;
+    const fallbackProductList = entity === 'products' && (!runtime.db.command?.neq || (keyword && typeof runtime.db.RegExp !== 'function'));
     let result;
-    if (fallbackProductList) {
+    if (inactiveFirst && !fallbackProductList) {
+      // Page each status partition in the database, rather than reading the
+      // entire product catalog to put inactive products first.
+      const options = listOptions(data, where);
+      const inactiveWhere = { ...where, status: runtime.db.command.neq(STATUS.active) };
+      const activeWhere = { ...where, status: STATUS.active };
+      const [inactiveCount, activeCount] = await Promise.all([
+        count(collection, inactiveWhere), count(collection, activeWhere),
+      ]);
+      const inactiveLimit = Math.min(options.limit, Math.max(0, inactiveCount - options.skip));
+      const activeLimit = options.limit - inactiveLimit;
+      const [inactive, active] = await Promise.all([
+        inactiveLimit ? list(collection, { ...options, where: inactiveWhere, limit: inactiveLimit, includeTotal: false }) : { items: [] },
+        activeLimit ? list(collection, { ...options, where: activeWhere, skip: Math.max(0, options.skip - inactiveCount), limit: activeLimit, includeTotal: false }) : { items: [] },
+      ]);
+      result = { items: [...inactive.items, ...active.items], ...options.paging, total: inactiveCount + activeCount };
+    } else if (fallbackProductList) {
       const paging = page(data);
       let items = (await allMatching(collection, where)).filter((item) => !item.deletedByAdmin);
       if (keyword && typeof runtime.db.RegExp !== 'function') {
@@ -1053,7 +1070,10 @@ function normalizeAdminAction(action, data) {
 
 async function adminEndpoint(event, context, runtime, action, data) {
   runtime = imageLifecycleRuntime(runtime);
+  const catalogMutation = /^(products|skus|categories)\./.test(action) && !/\.(get|list)$/.test(action);
+  if (catalogMutation) require('./catalog-cache').invalidateCatalog(runtime);
   let result = await executeAdmin(event, context, runtime, action, data);
+  if (catalogMutation) require('./catalog-cache').invalidateCatalog(runtime);
   if (action === 'products.delete' || action === 'skus.delete') {
     try { result = { ...result, catalogCleanup: await require('./catalog-lifecycle').purgeDeletedCatalog(runtime) }; }
     catch (error) { console.warn('商品关联清理稍后由定时任务重试', error.code || error.message); result = { ...result, catalogCleanupPending: true }; }
@@ -1066,6 +1086,7 @@ async function adminEndpoint(event, context, runtime, action, data) {
 }
 
 async function executeAdmin(event, context, runtime, action, data) {
+  if (action.startsWith('returnAddresses.')) return require('./return-addresses').returnAddressesAction(runtime, data, action);
   if (action === 'activity.get') return require('./activity').readActivity(runtime);
   if (action === 'activity.save') return require('./activity').saveActivity(runtime, data);
   if (action === 'payments.checkConfiguration') return require('./payments').checkConfiguration(runtime);

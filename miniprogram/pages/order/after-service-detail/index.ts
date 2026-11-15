@@ -108,7 +108,7 @@ Page({
         decidedTypeDesc: rights.decidedType ? ServiceTypeDesc[rights.decidedType] : rights.reviewedAt && ['approved', 'refunding', 'refunded'].includes(rights.status) ? ServiceTypeDesc[serviceType] : '待商家审核决定',
         typeDesc: serviceRaw.presentation?.typeLabel || ServiceTypeDesc[serviceType] || rights.typeDesc || '',
         status: serviceStatus,
-        statusName: Number(serviceType) === 10 && serviceStatus === ServiceStatus.VERIFIED ? '待用户退货' : rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rawStatus, serviceType),
+        statusName: Number(serviceType) === 10 && serviceStatus === ServiceStatus.VERIFIED ? '请按以下地址退货' : rights.userRightsStatusName || rights.statusName || serviceStatusLabel(rawStatus, serviceType),
         statusDesc: rights.userRightsStatusDesc || rights.statusDesc || rights.description || serviceStatusLabel(rawStatus, serviceType),
         amount: rights.refundRequestAmount ?? rights.refundAmount,
         goodsList: rightsItem.map((item, i) => ({
@@ -136,6 +136,7 @@ Page({
         logisticsCompanyCode: logisticsVO.logisticsCompanyCode, // 退货物流公司
         remark: logisticsVO.remark, // 退货备注
         logisticsDescription: logisticsVO.description || logisticsVO.logisticsDescription || '',
+        returnAddress: serviceRaw.returnAddressSnapshot || rights.returnAddressSnapshot || null,
         showReturnInstructions: Number(serviceType) === 10 && !logisticsVO.logisticsNo && buttons.some((button) => button.type === ServiceButtonTypes.FILL_TRACKING_NO),
         buttons,
         bottomActions: buttons.some((button) => [ServiceButtonTypes.REVOKE, ServiceButtonTypes.REAPPLY, ServiceButtonTypes.FILL_TRACKING_NO, ServiceButtonTypes.CHANGE_TRACKING_NO].includes(button.type)),
@@ -204,6 +205,11 @@ Page({
     const orderNo = this.data.service.orderNo;
     if (!orderNo) return;
     wx.setClipboardData({ data: String(orderNo) });
+  },
+
+  onReturnAddressCopy() {
+    const address = this.data.service.returnAddress;
+    if (address) wx.setClipboardData({ data: `${address.receiver} ${address.phone}\n${address.detail}` });
   },
 
   /** 获取状态ICON */

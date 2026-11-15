@@ -23,6 +23,16 @@ async function run() {
     { enabled: true, type: 'percentage', value: '10' },
   ]) await assert.rejects(admin('activity.save', data), (error) => error.code === 'INVALID_ARGUMENT');
   await admin('activity.save', { enabled: true, type: 'percentage', value: 10 });
+  const originalCollection = runtime.db.collection;
+  let skuReads = 0;
+  runtime.db.collection = (name) => {
+    if (name === 'skus') skuReads++;
+    return originalCollection(name);
+  };
+  const listing = await shop('products.list', { sort: 1, minPrice: 89, maxPrice: 91 });
+  assert.strictEqual(listing.items[0].minSalePrice, 90);
+  assert.strictEqual(skuReads, 0, 'activity price filtering does not scan the SKU collection');
+  runtime.db.collection = originalCollection;
   const details = await shop('products.detail', { productId: 'product-1' });
   assert.strictEqual(details.product.minSalePrice, 90);
   assert.strictEqual(details.product.originalPrice, 100);

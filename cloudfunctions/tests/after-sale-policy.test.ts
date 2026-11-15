@@ -128,7 +128,8 @@ async function run() {
   await adminEndpoint({}, admin, runtime, 'orders.ship', { orderId: withdrawOrder._id, trackingNo: 'SF003' });
   const applyReturn = () => shopEndpoint({}, user, runtime, 'afterSales.create', { orderId: withdrawOrder._id, type: 10, reason: '退货退款' });
   const approvedReturn = await applyReturn();
-  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: approvedReturn._id, status: 'approved', type: 10 });
+  const returnAddress = await adminEndpoint({}, admin, runtime, 'returnAddresses.save', { receiver: '测试商家', phone: '13800000000', detail: '广东省深圳市测试退货仓' });
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: approvedReturn._id, status: 'approved', type: 10, returnAddressId: returnAddress._id });
   const beforeTracking = await shopEndpoint({}, user, runtime, 'afterSales.detail', { afterSaleId: approvedReturn._id });
   assert.strictEqual(beforeTracking.actions.withdraw, true);
   const stockBeforeWithdrawal = runtime.records.skus['sku-new'].stockQuantity;
@@ -141,11 +142,11 @@ async function run() {
   assert.strictEqual(runtime.records.orders[withdrawOrder._id].refundAmount, 0);
   assert.strictEqual(runtime.records.skus['sku-new'].stockQuantity, stockBeforeWithdrawal);
   const resubmittedReturn = await applyReturn();
-  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: resubmittedReturn._id, status: 'approved', type: 10 });
+  await adminEndpoint({}, admin, runtime, 'afterSales.review', { id: resubmittedReturn._id, status: 'approved', type: 10, returnAddressId: returnAddress._id });
   await shopEndpoint({}, user, runtime, 'afterSales.submitTracking', { afterSaleId: resubmittedReturn._id, trackingNo: 'RETURN001' });
   const afterTracking = await shopEndpoint({}, user, runtime, 'afterSales.detail', { afterSaleId: resubmittedReturn._id });
   assert.strictEqual(afterTracking.actions.withdraw, false);
-  assert.strictEqual(afterTracking.returnAddressSnapshot, undefined);
+  assert.deepStrictEqual(afterTracking.returnAddressSnapshot, returnAddress);
   assert.strictEqual(afterTracking.trackingNo, 'RETURN001');
   await assert.rejects(() => shopEndpoint({}, user, runtime, 'afterSales.withdraw', { afterSaleId: resubmittedReturn._id }), errorCode('ORDER_STATE_INVALID'));
   assert.strictEqual(runtime.records.orders[withdrawOrder._id].pendingRefundAmount, 100);

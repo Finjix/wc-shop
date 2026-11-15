@@ -36,8 +36,13 @@
         </view>
         <view class="logistics-divider" />
       </view>
-      <view class="service-section return-instructions" wx:if="{{service.showReturnInstructions}}">
-        请按原包裹的寄件地址退货，并填写退货物流单号。
+      <view class="service-section return-instructions" wx:if="{{service.type === 10 && service.returnAddress}}">
+        <view class="return-address-contact"><view class="return-address-contact-text">{{service.returnAddress.receiver}}　{{service.returnAddress.phone}}</view><text class="return-address-copy" bindtap="onReturnAddressCopy">复制</text></view>
+        <view>{{service.returnAddress.detail}}</view>
+        <view wx:if="{{service.showReturnInstructions}}">请按以上地址退货，并填写退货物流单号。</view>
+      </view>
+      <view class="service-section return-instructions" wx:elif="{{service.showReturnInstructions}}">
+        请联系商家确认退货地址，再寄回并填写退货物流单号。
       </view>
       <!-- 商品卡片 -->
       <view

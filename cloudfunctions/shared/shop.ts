@@ -9,6 +9,7 @@ const { errorFrom } = require('./errors');
 const { getDoc, setDoc, list, all, count, listData, affected, withTransaction } = require('./db');
 const { HOME_CONFIG_SLOT, productIds } = require('./home-config');
 const { readHomeFeed } = require('./home-feed');
+const { catalogRows } = require('./catalog-cache');
 const { searchTerms, matchesProductSearch } = require('./product-search');
 const { skuBelongsToProduct } = require('./product-specs');
 const { categoryId, categoryLevel, descendantIds } = require('./category-tree');
@@ -109,12 +110,14 @@ async function readProducts(runtime, data) {
   const paging = page(data);
   const where = { status: STATUS.active };
   let categoryFilter;
+  let categoryAllowed;
   if (data.categoryId) {
     const id = string(data.categoryId, 'categoryId', { max: 128 });
-    const categories = await all(collection(runtime, COLLECTIONS.categories), { status: STATUS.active });
+    const categories = await catalogRows(runtime, COLLECTIONS.categories, { status: STATUS.active });
     const byId = new Map(categories.map((item) => [categoryId(item), item]));
     if (!categoryLevel(byId.get(id), byId)) return { items: [], page: paging.page, pageSize: paging.pageSize, total: 0 };
     const ids = descendantIds(categories, id);
+    categoryAllowed = new Set(ids);
     if (ids.length === 1) where.categoryIds = id;
     else if (runtime.db.command?.in && ids.length <= 100) where.categoryIds = runtime.db.command.in(ids);
     else categoryFilter = new Set(ids);
@@ -131,7 +134,10 @@ async function readProducts(runtime, data) {
   const sort = Number(data.sort);
   if (keyword || sort === 3 || categoryFilter || runtime.activity?.enabled) {
     // Cross-field search and SKU ordering must run before pagination.
-    let products = await all(collection(runtime, COLLECTIONS.products), where);
+    // Cache a fixed catalog snapshot, not a separate full scan per keyword,
+    // price range or page. Apply all request-specific filters below.
+    let products = (await catalogRows(runtime, COLLECTIONS.products, { status: STATUS.active }))
+      .filter(item => !item.deletedByAdmin && (!categoryAllowed || (item.categoryIds || []).some(id => categoryAllowed.has(String(id)))));
     products = products.filter((item) => (!categoryFilter || (item.categoryIds || []).some((id) => categoryFilter.has(String(id))))
       && (!Number.isFinite(minPrice) || activityPrice(item.minSalePrice, runtime.activity) >= minPrice)
       && (!Number.isFinite(maxPrice) || activityPrice(item.minSalePrice, runtime.activity) <= maxPrice));
@@ -141,7 +147,9 @@ async function readProducts(runtime, data) {
     });
     const newestSku = new Map();
     const productSkus = new Map();
-    for (const sku of await all(collection(runtime, COLLECTIONS.skus))) {
+    // Activity pricing and category fallback only need product fields. Read
+    // variants only for spec search or newest-SKU sorting.
+    for (const sku of keyword || sort === 3 ? await catalogRows(runtime, COLLECTIONS.skus) : []) {
       const product = byRef.get(String(productIdForSku(sku)));
       if (!product || !skuBelongsToProduct(product, sku)) continue;
       if (!productSkus.has(product._id)) productSkus.set(product._id, []);
@@ -151,7 +159,7 @@ async function readProducts(runtime, data) {
       if (Number.isSafeInteger(timestamp)) newestSku.set(product._id, Math.max(newestSku.get(product._id) || 0, timestamp));
     }
     if (keyword) {
-      const categories = new Map((await all(collection(runtime, COLLECTIONS.categories))).map((category) => [String(category._id), category]));
+      const categories = new Map((await catalogRows(runtime, COLLECTIONS.categories)).map((category) => [String(category._id), category]));
       const terms = searchTerms(keyword);
       products = products.filter((product) => matchesProductSearch(product, productSkus.get(product._id) || [], categories, terms));
     }
@@ -1358,7 +1366,9 @@ async function moderateAfterSale(runtime, data) {
       }
       return finishRefund(tx, { ...current, ...decisionPatch, status: STATUS.approved }, order, timestamp);
     }
-    const patch = { ...decisionPatch, status: STATUS.approved, updatedAt: timestamp };
+    if (!data.returnAddressId) throw errorFrom('RETURN_ADDRESS_REQUIRED');
+    const returnAddressSnapshot = await require('./return-addresses').selectedReturnAddress(tx, data.returnAddressId);
+    const patch = { ...decisionPatch, returnAddressId: returnAddressSnapshot._id, returnAddressSnapshot, status: STATUS.approved, updatedAt: timestamp };
     const result = await tx.collection(COLLECTIONS.afterSales).doc(existing._id).update(patch);
     if (affected(result) !== 1) throw errorFrom('CONFLICT');
     return { ...current, ...patch, _id: existing._id };

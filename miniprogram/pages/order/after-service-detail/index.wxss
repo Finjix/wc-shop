@@ -568,6 +568,29 @@
   padding: 0 32rpx;
 }
 
+.return-address-contact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24rpx;
+  margin-bottom: 8rpx;
+}
+
+.return-address-contact-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.return-address-copy {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-weight: normal;
+}
+
+.return-instructions {
+  overflow-wrap: anywhere;
+}
+
 .t-button {
   --ui-button-color: #000;
   color: #695941;

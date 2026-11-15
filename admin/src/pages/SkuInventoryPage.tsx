@@ -66,20 +66,15 @@ export function SkuInventoryPage() {
     setLoading(true);
     setError('');
     const load = async () => {
-      const result = { items: [] as Product[], total: 0 };
-        for (let productPage = 1; ; productPage += 1) {
-          const batch = await adminApi.call<ListResult<Product>>('products.list', { page: productPage, pageSize: 100, query: query || undefined });
-          if (!active) return;
-          result.items.push(...batch.items);
-          if (!batch.items.length || (batch.total !== undefined ? result.items.length >= batch.total : batch.items.length < 100)) break;
-        }
-      result.total = result.items.length;
+      const result = await adminApi.call<ListResult<Product>>('products.list', {
+        page, pageSize: PAGE_SIZE, query: query || undefined,
+        orderBy: '_id', direction: 'asc',
+      });
+      if (!active) return;
       const skuEntries = await Promise.all(result.items.map(async (product) => {
         const productId = String(product._id || product.spuId);
-        const refs = Array.from(new Set([product._id, product.spuId].filter(Boolean).map(String)));
-        const skuResults = await Promise.all(refs.map((ref) => adminApi.call<ListResult<Sku>>('skus.list', { productId: ref })));
-        const skus = Array.from(new Map(skuResults.flatMap((entry) => entry.items).map((sku) => [String(sku._id || sku.skuId), sku])).values());
-        return [productId, visibleSkus(product, skus)] as const;
+        const result = await adminApi.call<ListResult<Sku>>('skus.list', { productId });
+        return [productId, visibleSkus(product, result.items)] as const;
       }));
       if (!active) return;
       const loadedSkus = Object.fromEntries(skuEntries);
@@ -87,7 +82,7 @@ export function SkuInventoryPage() {
         const stocks = (loadedSkus[String(product._id || product.spuId)] || []).map(variantStock).filter((stock) => stock >= 0);
         return stocks.length ? Math.min(...stocks) : Infinity;
       };
-      // Freeze the loaded order: saving stock must not move the product being edited.
+      // Sort only the current page; saving stock must not move the product being edited.
       setProducts([...result.items].sort((left, right) => {
         const leftStock = minimumStock(left);
         const rightStock = minimumStock(right);
@@ -101,9 +96,9 @@ export function SkuInventoryPage() {
       if (active) setError(failure instanceof Error ? failure.message : 'SKU 读取失败');
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [query, refreshKey]);
+  }, [query, page, refreshKey]);
 
-  const pageProducts = products.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageProducts = products;
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);

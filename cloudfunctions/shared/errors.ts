@@ -17,6 +17,7 @@ const ERRORS = Object.freeze({
   CONFLICT: ['CONFLICT', '数据已发生变化，请刷新后重试'],
   OUT_OF_STOCK: ['OUT_OF_STOCK', '商品库存不足'],
   ADDRESS_REQUIRED: ['ADDRESS_REQUIRED', '请先添加收货地址'],
+  RETURN_ADDRESS_REQUIRED: ['RETURN_ADDRESS_REQUIRED', '请先添加并选择有效的商家退货地址'],
   SKU_UNAVAILABLE: ['SKU_UNAVAILABLE', '商品规格已下架或不存在'],
   ORDER_STATE_INVALID: ['ORDER_STATE_INVALID', '订单当前状态不允许此操作'],
   PAYMENT_NOT_CONFIGURED: ['PAYMENT_NOT_CONFIGURED', '支付服务尚未配置完成，请联系商家'],

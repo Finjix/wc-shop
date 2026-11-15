@@ -110,6 +110,23 @@ async function callAdminRaw<T>(action: string, payload: Record<string, unknown> 
 }
 
 const pendingReads = new Map<string, Promise<unknown>>();
+const MAX_CONCURRENT_READS = 4;
+let activeReads = 0;
+const readQueue: (() => void)[] = [];
+
+function scheduleRead<T>(invoke: () => Promise<T>): Promise<T> {
+  const run = async () => {
+    activeReads += 1;
+    try { return await invoke(); }
+    finally {
+      activeReads -= 1;
+      readQueue.shift()?.();
+    }
+  };
+  return activeReads < MAX_CONCURRENT_READS ? run()
+    : new Promise<T>((resolve, reject) => { readQueue.push(() => { void run().then(resolve, reject); }); });
+}
+
 let cleanupRunning: Promise<void> | null = null;
 
 function cleanupInBackground(candidates: string[]) {
@@ -145,7 +162,8 @@ export async function callAdmin<T>(action: string, payload: Record<string, unkno
   const key = isReadAction(action) ? `${action}:${JSON.stringify(payload)}` : '';
   let request = key ? pendingReads.get(key) as Promise<T> | undefined : undefined;
   if (!request) {
-    request = callAdminRaw<T>(action, payload).finally(() => { if (key) pendingReads.delete(key); });
+    request = (key ? scheduleRead(() => callAdminRaw<T>(action, payload)) : callAdminRaw<T>(action, payload))
+      .finally(() => { if (key) pendingReads.delete(key); });
     if (key) pendingReads.set(key, request);
   }
   const result = await request;

@@ -445,8 +445,7 @@ export function ProductsPage({ editorMode = false }: { editorMode?: boolean }) {
     } : emptyProduct);
     if (product) {
       try {
-        const refs = Array.from(new Set([product._id, product.spuId].filter(Boolean).map(String)));
-        const results = await Promise.all(refs.map((ref) => adminApi.call<unknown>('skus.list', { productId: ref })));
+        const results = [await adminApi.call<unknown>('skus.list', { productId: String(product._id || product.spuId) })];
         if (request !== editorRequest.current) return;
         const allSkus = Array.from(new Map(results.flatMap((result) => readList<Sku>(result)).map((sku) => [String(sku._id || sku.skuId), sku])).values());
         const existing = visibleSkus(product, allSkus);

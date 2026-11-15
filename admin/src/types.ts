@@ -135,7 +135,15 @@ export interface Comment {
   [key: string]: unknown;
 }
 
+export interface ReturnAddress {
+  _id: string;
+  receiver: string;
+  phone: string;
+  detail: string;
+}
+
 export interface AfterSale {
+  returnAddressSnapshot?: ReturnAddress;
   order?: Order | null;
   canDeleteAdmin?: boolean;
   scenario?: 'cancel_order' | 'after_sale';

@@ -1,7 +1,7 @@
 // @ts-nocheck
 const crypto = require('crypto');
 const { activityProduct } = require('./activity');
-const { all } = require('./db');
+const { catalogRows } = require('./catalog-cache');
 const { integer, assert } = require('./validation');
 
 // A hash seek cursor keeps a round stable across 6/12 item requests without
@@ -20,7 +20,7 @@ function readCursor(value) {
 async function readHomeFeed(runtime, data) {
   const limit = data.limit === undefined ? 6 : integer(data.limit, 'limit', { min: 1, max: 12 });
   const cursor = readCursor(data.cursor);
-  const products = (await all(runtime.db.collection('products'), { status: 'active' }))
+  const products = (await catalogRows(runtime, 'products', { status: 'active' }))
     .filter((product) => !product.deletedByAdmin);
   if (!products.length) return { items: [], nextCursor: '', total: 0 };
   const items = [];

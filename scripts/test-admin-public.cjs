@@ -64,7 +64,39 @@ async function run() {
   assert.equal(calls.at(-1).action, 'storage.cleanup', 'failed upload retains the previous cleanup contract');
   assert.deepEqual(calls.at(-1).data.fileList, ['cloud://test/admin/products/leased.webp']);
   await testRequestTimeouts();
+  await testReadQueue();
   console.log('PASS admin transport, nonblocking reads, request coalescing, fresh rereads and failed upload cleanup');
+}
+
+async function testReadQueue() {
+  const pending = [];
+  const requests = [];
+  const api = load('admin/src/lib/api.ts', {
+    console: { info() {}, warn() {}, error() {} },
+    fetch: (_url, options) => {
+      const input = JSON.parse(options.body);
+      requests.push(input.action);
+      return new Promise(resolve => pending.push(() => resolve({ status: 200, json: async () => ({ ok: true, data: input.data }) })));
+    },
+    require(ref) {
+      if (ref.endsWith('temp-file-urls')) return load('miniprogram/services/utils/temp-file-urls.ts');
+      if (ref === './image-upload') return {};
+      throw new Error(`Unexpected dependency: ${ref}`);
+    },
+  });
+  const reads = Array.from({ length: 9 }, (_, page) => api.callAdmin('products.list', { page }));
+  const shared = api.callAdmin('products.list', { page: 8 });
+  assert.equal(requests.length, 4, 'at most four distinct reads start at once');
+  const write = api.callAdmin('inventory.adjust', { skuId: 's1' });
+  assert.equal(requests.at(-1), 'inventory.adjust', 'writes bypass a busy read queue');
+  const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
+  pending.shift()();
+  await flush();
+  assert.equal(requests.length, 6, 'finishing a read releases one waiting read');
+  while (pending.length) { pending.shift()(); await flush(); }
+  await Promise.all([...reads, shared, write]);
+  assert.equal(requests.length, 10, 'queued identical reads share a request');
+  console.log('PASS bounded read concurrency, queued-read coalescing and unblocked mutations');
 }
 
 async function testRequestTimeouts() {
